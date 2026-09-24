@@ -1,0 +1,13 @@
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { homePathForRole } from "@realty-smartz/shared";
+import type { Role } from "@realty-smartz/shared";
+
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    redirect("/login?portal=employee");
+  }
+  redirect(homePathForRole(session.user.role as Role));
+}

@@ -1,0 +1,427 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Employee {
+  id               String         @id @default(cuid())
+  employeeCode     String         @unique // e.g. "RS-0001"
+  firstName        String
+  lastName         String
+  email            String         @unique
+  passwordHash     String
+  phone            String?
+  role             Role           @default(EMPLOYEE)
+  designationId    String?
+  designation      Designation?   @relation(fields: [designationId], references: [id])
+  departmentId     String?
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  managerId        String?
+  manager          Employee?      @relation("ManagerReports", fields: [managerId], references: [id])
+  directReports    Employee[]     @relation("ManagerReports")
+  dateOfJoining    DateTime?
+  dateOfBirth      DateTime?
+  address          String?
+  profilePhotoUrl  String?
+  status           EmployeeStatus @default(ACTIVE)
+  // Forward-looking, used starting Phase 2 (Attendance):
+  workLocationLat  Float?
+  workLocationLng  Float?
+  workLocationName String? // e.g. "Realty Smartz HQ, Gurugram"
+  attendanceLogs   AttendanceLog[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  approvedLeaves   LeaveRequest[] @relation("LeaveApprover")
+  postedJobs         JobPosting[]
+  referredCandidates Candidate[]      @relation("CandidateReferral")
+  interviewRounds    InterviewRound[]
+  candidateNotes     CandidateNote[]
+  jobHistory         EmployeeJobHistory[] @relation("JobHistoryEmployee")
+  jobChangesMade     EmployeeJobHistory[] @relation("JobHistoryChangedBy")
+  documents          EmployeeDocument[]   @relation("DocumentOwner")
+  uploadedDocuments  EmployeeDocument[]   @relation("DocumentUploader")
+  locationPings      LocationPing[]
+  goals              Goal[]               @relation("EmployeeGoals")
+  reviewsReceived    Review[]             @relation("EmployeeReviews")
+  reviewsGiven       Review[]             @relation("ReviewsGiven")
+  createdCycles      PerformanceCycle[]   @relation("CreatedCycles")
+  gender               String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+enum Role {
+  ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  RESIGNED
+  TERMINATED
+}
+
+model Department {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  employees   Employee[]
+  jobPostings JobPosting[]
+  createdAt   DateTime     @default(now())
+}
+
+model Designation {
+  id        String     @id @default(cuid())
+  title     String     @unique
+  employees Employee[]
+  createdAt DateTime   @default(now())
+}
+
+model AttendanceLog {
+  id              String           @id @default(cuid())
+  employeeId      String
+  employee        Employee         @relation(fields: [employeeId], references: [id])
+  date            DateTime         @db.Date
+  checkInTime     DateTime?
+  checkInLat      Float?
+  checkInLng      Float?
+  checkInAddress  String?
+  checkOutTime    DateTime?
+  checkOutLat     Float?
+  checkOutLng     Float?
+  checkOutAddress String?
+  status          AttendanceStatus @default(PRESENT)
+  withinGeofence  Boolean          @default(true)
+  totalHours      Float?
+  notes           String?
+  createdAt       DateTime         @default(now())
+
+  @@unique([employeeId, date])
+  @@index([date])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+  ON_LEAVE
+  HOLIDAY
+}
+
+model LeaveType {
+  id                  String         @id @default(cuid())
+  name                String         @unique
+  annualQuota         Int
+  carryForwardAllowed Boolean        @default(false)
+  requiresApproval    Boolean        @default(true)
+  leaveRequests       LeaveRequest[]
+  balances            LeaveBalance[]
+}
+
+model LeaveBalance {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year        Int
+  allotted    Float
+  used        Float     @default(0)
+  remaining   Float
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id])
+  leaveTypeId  String
+  leaveType    LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  numberOfDays Float
+  reason       String
+  status       LeaveStatus @default(PENDING)
+  approvedById String?
+  approvedBy   Employee?   @relation("LeaveApprover", fields: [approvedById], references: [id])
+  approverNote String?
+  appliedAt    DateTime    @default(now())
+  respondedAt  DateTime?
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model CompanySettings {
+  id              String @id @default("singleton")
+  officeName      String @default("Realty Smartz HQ")
+  officeLat       Float
+  officeLng       Float
+  geofenceRadiusM Int    @default(200)
+  /// JS getDay(): 0=Sun … 6=Sat. Realty Smartz weekly off = Tuesday (2).
+  weeklyOffDay    Int    @default(2)
+}
+
+model LocationPing {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id])
+  lat            Float
+  lng            Float
+  address        String?
+  accuracyM      Float?
+  withinGeofence Boolean  @default(true)
+  capturedAt     DateTime @default(now())
+
+  @@index([employeeId, capturedAt])
+}
+
+model JobPosting {
+  id             String         @id @default(cuid())
+  title          String
+  departmentId   String?
+  department     Department?    @relation(fields: [departmentId], references: [id])
+  description    String
+  requirements   String
+  location       String         @default("Gurugram")
+  employmentType EmploymentType @default(FULL_TIME)
+  status         JobStatus      @default(OPEN)
+  postedById     String
+  postedBy       Employee       @relation(fields: [postedById], references: [id])
+  candidates     Candidate[]
+  createdAt      DateTime       @default(now())
+  closedAt       DateTime?
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+}
+
+enum JobStatus {
+  OPEN
+  ON_HOLD
+  CLOSED
+}
+
+model Candidate {
+  id           String          @id @default(cuid())
+  jobPostingId String
+  jobPosting   JobPosting      @relation(fields: [jobPostingId], references: [id])
+  fullName     String
+  email        String
+  phone        String
+  resumeUrl    String?
+  source       CandidateSource @default(DIRECT)
+  referredById String?
+  referredBy   Employee?       @relation("CandidateReferral", fields: [referredById], references: [id])
+  currentStage PipelineStage   @default(APPLIED)
+  interviews   InterviewRound[]
+  notes        CandidateNote[]
+  appliedAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+enum CandidateSource {
+  DIRECT
+  REFERRAL
+  JOB_BOARD
+  LINKEDIN
+  OTHER
+}
+
+enum PipelineStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+}
+
+model InterviewRound {
+  id            String          @id @default(cuid())
+  candidateId   String
+  candidate     Candidate       @relation(fields: [candidateId], references: [id])
+  roundName     String
+  interviewerId String
+  interviewer   Employee        @relation(fields: [interviewerId], references: [id])
+  scheduledAt   DateTime
+  status        InterviewStatus @default(SCHEDULED)
+  feedback      String?
+  rating        Int?
+  createdAt     DateTime        @default(now())
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model CandidateNote {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  authorId    String
+  author      Employee  @relation(fields: [authorId], references: [id])
+  content     String
+  createdAt   DateTime  @default(now())
+}
+
+model EmployeeJobHistory {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation("JobHistoryEmployee", fields: [employeeId], references: [id])
+  fieldChanged  String
+  oldValue      String?
+  newValue      String?
+  effectiveDate DateTime @default(now())
+  changedById   String?
+  changedBy     Employee? @relation("JobHistoryChangedBy", fields: [changedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([employeeId])
+}
+
+enum DocumentType {
+  PAN_CARD
+  AADHAR_CARD
+  OFFER_LETTER
+  EDUCATIONAL_CERTIFICATE
+  OTHER
+}
+
+model EmployeeDocument {
+  id           String       @id @default(cuid())
+  employeeId   String
+  employee     Employee     @relation("DocumentOwner", fields: [employeeId], references: [id])
+  documentType DocumentType @default(OTHER)
+  title        String?
+  fileUrl      String
+  uploadedById String
+  uploadedBy   Employee     @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  uploadedAt   DateTime     @default(now())
+
+  @@index([employeeId])
+}
+
+model PerformanceCycle {
+  id          String           @id @default(cuid())
+  name        String           // e.g. "H1 2026 Review", "Q1 2026 OKRs"
+  cycleType   CycleType        @default(APPRAISAL)
+  startDate   DateTime         @db.Date
+  endDate     DateTime         @db.Date
+  status      CycleStatus      @default(DRAFT)
+  goals       Goal[]
+  reviews     Review[]
+  createdById String
+  createdBy   Employee         @relation("CreatedCycles", fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+}
+
+enum CycleType {
+  APPRAISAL   // traditional periodic performance review
+  OKR         // objectives & key results cycle
+}
+
+enum CycleStatus {
+  DRAFT       // being set up by HR/Admin, not visible to employees yet
+  ACTIVE      // goals can be set, self/manager reviews open
+  CLOSED      // cycle complete, reviews finalized
+}
+
+model Goal {
+  id              String           @id @default(cuid())
+  cycleId         String
+  cycle           PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee         @relation("EmployeeGoals", fields: [employeeId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  category        GoalCategory     @default(INDIVIDUAL)
+  targetValue     String?          // e.g. "10 units sold", free text since KPIs vary
+  progressPercent Int              @default(0)
+  status          GoalStatus       @default(NOT_STARTED)
+  keyResults      KeyResult[]      // for OKR-type cycles
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([cycleId, employeeId])
+}
+
+enum GoalCategory {
+  INDIVIDUAL
+  TEAM
+  COMPANY
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+}
+
+model KeyResult {
+  id              String   @id @default(cuid())
+  goalId          String
+  goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  description     String
+  progressPercent Int      @default(0)
+  completed       Boolean  @default(false)
+
+  @@index([goalId])
+}
+
+model Review {
+  id           String           @id @default(cuid())
+  cycleId      String
+  cycle        PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     Employee         @relation("EmployeeReviews", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  reviewer     Employee         @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewType   ReviewType
+  rating       Int?             // 1-5 overall rating
+  strengths    String?
+  improvements String?
+  comments     String?
+  status       ReviewStatus     @default(PENDING)
+  submittedAt  DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@unique([cycleId, employeeId, reviewerId, reviewType])
+  @@index([cycleId, employeeId])
+}
+
+enum ReviewType {
+  SELF
+  MANAGER
+}
+
+enum ReviewStatus {
+  PENDING
+  SUBMITTED
+}
+
