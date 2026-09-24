@@ -57,12 +57,12 @@ export const leaveRouter = router({
       void (async () => {
         try {
           const { notifyPolicyUpdate } = await import("../lib/email");
-          const emails = employees.map((e) => e.email);
+          const emails: string[] = employees.map((e) => e.email);
           if (process.env.HR_NOTIFY_EMAIL) emails.push(process.env.HR_NOTIFY_EMAIL);
           await notifyPolicyUpdate({
             title: `New leave type: ${leaveType.name}`,
             summary: `Annual quota: ${leaveType.annualQuota} days. Approval required: ${leaveType.requiresApproval ? "Yes" : "No"}. Carry forward: ${leaveType.carryForwardAllowed ? "Allowed" : "Not allowed"}.`,
-            recipientEmails: [...new Set(emails)],
+            recipientEmails: Array.from(new Set(emails)),
           });
         } catch (err) {
           console.error("[leave] policy email failed:", err);

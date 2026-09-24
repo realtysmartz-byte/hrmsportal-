@@ -26,12 +26,15 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "@realty-smartz/shared#build": {
-      "outputs": []
-    },
-    "@realty-smartz/api#build": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "@realty-smartz/db#build": {
+      "cache": false,
+      "outputs": []
+    },
+    "@realty-smartz/api#build": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "dev": {
