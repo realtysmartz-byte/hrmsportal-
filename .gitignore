@@ -38,6 +38,3 @@ apps/web/public/workbox-*.js.map
 apps/web/public/fallback-*.js
 apps/web/public/fallback-*.js.map
 
-# vercel nested symlink
-apps/web/apps/
-

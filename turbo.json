@@ -23,7 +23,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "apps/web/.next/**", "!apps/web/.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "@realty-smartz/shared#build": {
       "dependsOn": ["^build"],
