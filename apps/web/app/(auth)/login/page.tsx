@@ -32,7 +32,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked:
     "This Google account could not be linked. Use your company email.",
   AccessDenied: "Google sign-in was denied.",
-  Callback: "Sign-in callback failed. Try email & password, or use localhost:3000.",
+  Callback: "Sign-in callback failed. Please try again with email and password.",
 };
 
 function LoginForm() {
@@ -43,7 +43,7 @@ function LoginForm() {
   const [portal, setPortal] = useState<Portal>(
     searchParams.get("portal") === "admin" ? "admin" : "employee"
   );
-  const [email, setEmail] = useState("admin@realtysmartz.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,11 +70,7 @@ function LoginForm() {
     setPortal(next);
     setError("");
     setPassword("");
-    if (next === "admin") {
-      setEmail("admin@realtysmartz.com");
-    } else if (email === "admin@realtysmartz.com") {
-      setEmail("");
-    }
+    setEmail("");
     router.replace(`${pathname}?portal=${next}`);
   }
 
@@ -113,9 +109,7 @@ function LoginForm() {
 
     if (result?.error) {
       setLoading(false);
-      setError(
-        "Invalid email or password. Use localhost:3000 (not 192.168.x.x). Admin: Admin@123"
-      );
+      setError("Invalid email or password. Please try again.");
       return;
     }
 
@@ -124,9 +118,7 @@ function LoginForm() {
 
     if (!session?.user?.id) {
       setLoading(false);
-      setError(
-        "Signed in but session did not load. Refresh and try again on http://localhost:3000"
-      );
+      setError("Signed in, but session failed to load. Please refresh the page.");
       return;
     }
 
@@ -226,15 +218,6 @@ function LoginForm() {
           </div>
         )}
 
-        {portal === "admin" && (
-          <p className="rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2 text-caption text-neutral-600">
-            Admin: <strong>admin@realtysmartz.com</strong> /{" "}
-            <strong>Admin@123</strong>
-            <br />
-            Open only <strong>http://localhost:3000</strong>
-          </p>
-        )}
-
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -256,7 +239,7 @@ function LoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={portal === "admin" ? "Admin@123" : "••••••••"}
+              placeholder="••••••••"
               required
             />
           </div>

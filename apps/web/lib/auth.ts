@@ -13,7 +13,18 @@ const googleConfigured = Boolean(
     process.env.GOOGLE_CLIENT_SECRET.length > 5
 );
 
+const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+if (
+  vercelHost &&
+  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
+) {
+  process.env.NEXTAUTH_URL = `https://${vercelHost}`;
+}
+
 export const authOptions: NextAuthOptions = {
+  useSecureCookies:
+    process.env.NODE_ENV === "production" &&
+    !process.env.NEXTAUTH_URL?.startsWith("http://localhost"),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -82,6 +93,24 @@ export const authOptions: NextAuthOptions = {
       : []),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+      const effectiveBaseUrl =
+        host && (baseUrl.includes("localhost") || !baseUrl.startsWith("http"))
+          ? `https://${host}`
+          : baseUrl;
+
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${effectiveBaseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.origin === effectiveBaseUrl || parsedUrl.origin === baseUrl) {
+          return url;
+        }
+      } catch {}
+      return effectiveBaseUrl;
+    },
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         const email = user.email?.toLowerCase().trim();
