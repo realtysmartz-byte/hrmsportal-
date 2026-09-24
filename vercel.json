@@ -1,7 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "turbo run build --filter=@realty-smartz/web...",
-  "outputDirectory": "apps/web/.next",
-  "installCommand": "pnpm install"
-}
