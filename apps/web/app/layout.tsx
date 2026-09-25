@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import "./globals.css";
 
 const display = Plus_Jakarta_Sans({
@@ -57,44 +58,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof window !== 'undefined') {
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(function(regs) {
-                    var unregistered = false;
-                    for (var r of regs) {
-                      r.unregister();
-                      unregistered = true;
-                    }
-                    if (unregistered && !sessionStorage.getItem('realty_sw_purged_v2')) {
-                      sessionStorage.setItem('realty_sw_purged_v2', '1');
-                      if ('caches' in window) {
-                        caches.keys().then(function(names) {
-                          Promise.all(names.map(function(n) { return caches.delete(n); })).then(function() {
-                            window.location.reload();
-                          });
-                        });
-                      } else {
-                        window.location.reload();
-                      }
-                    }
-                  });
-                }
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    for (var n of names) caches.delete(n);
-                  });
-                }
-              }
-            `,
-          }}
-        />
-      </head>
       <body suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers>
+          <PwaInstallBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );

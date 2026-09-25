@@ -143,21 +143,21 @@ function LoginForm() {
       return;
     }
 
-    const session = await waitForSession();
-    const role = (session?.user?.role ?? "EMPLOYEE") as Role;
-
-    if (!session?.user?.id) {
-      setLoading(false);
-      setError("Signed in, but session failed to load. Please refresh the page.");
-      return;
-    }
-
-    if (portal === "admin" && !canAccessAdminPortal(role)) {
-      setLoading(false);
-      setError(
-        "Admin Portal is for Admin/HR only. Managers use Employee Portal → My Team."
-      );
-      return;
+    let role: Role = "EMPLOYEE";
+    try {
+      const session = await waitForSession(4);
+      if (session?.user?.role) {
+        role = session.user.role as Role;
+        if (portal === "admin" && !canAccessAdminPortal(role)) {
+          setLoading(false);
+          setError(
+            "Admin Portal is for Admin/HR only. Managers use Employee Portal → My Team."
+          );
+          return;
+        }
+      }
+    } catch {
+      // Proceed to destination if session resolution is delayed
     }
 
     const destination =
@@ -166,8 +166,9 @@ function LoginForm() {
         : homePathForRole(role);
 
     setLoading(false);
-    router.push(destination);
-    router.refresh();
+    // Top-level document navigation ensures Safari/iOS WebKit flushes session cookies
+    // to the HTTP request headers for Next.js middleware and RSC layouts
+    window.location.href = destination;
   }
 
   async function onGoogleSignIn() {

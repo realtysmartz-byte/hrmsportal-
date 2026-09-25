@@ -21,6 +21,10 @@ if (
   process.env.NEXTAUTH_URL = `https://${vercelHost}`;
 }
 
+if (process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL.replace(/\/+$/, "");
+}
+
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "./rate-limit";
 
 // Validate NEXTAUTH_SECRET strength on server initialization
@@ -31,10 +35,40 @@ if (!secret || secret === "generate-a-long-random-secret-here" || secret.length 
   );
 }
 
+const useSecure =
+  process.env.NODE_ENV === "production" &&
+  !process.env.NEXTAUTH_URL?.startsWith("http://localhost");
+
 export const authOptions: NextAuthOptions = {
-  useSecureCookies:
-    process.env.NODE_ENV === "production" &&
-    !process.env.NEXTAUTH_URL?.startsWith("http://localhost"),
+  useSecureCookies: useSecure,
+  cookies: {
+    sessionToken: {
+      name: useSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecure,
+      },
+    },
+    callbackUrl: {
+      name: useSecure ? "__Secure-next-auth.callback-url" : "next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: useSecure,
+      },
+    },
+    csrfToken: {
+      name: useSecure ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecure,
+      },
+    },
+  },
   session: {
     strategy: "jwt",
     maxAge: 7 * 24 * 60 * 60, // 7 days expiration

@@ -51,12 +51,15 @@ export function PwaInstallBanner() {
       // Storage access blocked or restricted
     }
 
-    // 3. Detect iOS Safari
+    // 3. Detect iOS (iPhone, iPad, iPod, iPadOS on Mac user-agent)
     const userAgent = window.navigator.userAgent;
-    const isIos = /iPad|iPhone|iPod/.test(userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
-    const isSafari = /Safari/.test(userAgent) && !/CriOS|FxiOS|OPiOS|mercury/i.test(userAgent);
+    const isIos =
+      (/iPad|iPhone|iPod/.test(userAgent) ||
+        (Boolean(window.navigator.maxTouchPoints && window.navigator.maxTouchPoints > 2) &&
+          /Macintosh/.test(userAgent))) &&
+      !(window as unknown as { MSStream?: unknown }).MSStream;
 
-    if (isIos && isSafari) {
+    if (isIos) {
       setIsIosDevice(true);
       setIsVisible(true);
       return;
@@ -126,35 +129,39 @@ export function PwaInstallBanner() {
   return (
     <div
       role="region"
-      aria-label="Install Realty Smartz App"
-      className="relative z-40 border-b border-teal-600/30 bg-gradient-to-r from-teal-900 via-teal-800 to-teal-900 text-white shadow-md transition-all duration-200"
+      aria-label="Install Realty Smartz Private Limited App"
+      className="relative z-40 border-b border-white/10 bg-gradient-to-r from-[#181926] via-[#232638] to-[#181926] text-white shadow-lg transition-all duration-200"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 p-1.5 sm:flex">
-            <Logo showText={false} className="scale-75" />
+          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 p-1.5 sm:flex border border-white/10">
+            <img
+              src="/logo.png"
+              alt="Realty Smartz Private Limited"
+              className="h-6 w-6 object-contain"
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-display text-sm font-semibold tracking-wide text-white">
-                Realty Smartz App
+              <span className="font-display text-xs sm:text-sm font-bold tracking-tight text-white">
+                Realty Smartz Private Limited
               </span>
-              <span className="rounded-full bg-teal-500/20 px-2 py-0.5 text-[10px] font-medium text-teal-200">
+              <span className="rounded-full bg-gradient-to-r from-[#FF7A70]/30 to-[#FFA07A]/30 border border-[#FF7A70]/40 px-2 py-0.5 text-[10px] font-semibold text-[#FFA07A]">
                 PWA
               </span>
             </div>
-            <p className="truncate text-xs text-teal-100/90 sm:text-xs">
+            <p className="truncate text-xs text-neutral-300">
               {isIosDevice
-                ? "Install on home screen: Tap Share and select 'Add to Home Screen'"
-                : "Install app for instant check-in, fast loading, and offline access"}
+                ? "Install on iPhone: Tap Share (↑) & select 'Add to Home Screen'"
+                : "Install app for instant check-in, push alerts, and fast offline access"}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {isIosDevice ? (
-            <div className="flex items-center gap-1.5 rounded-lg bg-teal-700/60 px-3 py-1.5 text-xs font-medium text-white shadow-sm ring-1 ring-white/20">
-              <Share className="h-3.5 w-3.5 text-teal-200" />
+            <div className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white shadow-sm border border-white/15 backdrop-blur-xs">
+              <Share className="h-3.5 w-3.5 text-[#FFA07A]" />
               <span className="hidden sm:inline">Tap Share &rarr; Add to Home Screen</span>
               <span className="sm:hidden">Share &rarr; Add</span>
             </div>
@@ -162,7 +169,7 @@ export function PwaInstallBanner() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-maroon px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-maroon-700 focus:outline-none focus:ring-2 focus:ring-maroon-400"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:scale-95 focus:outline-none"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Install App</span>
@@ -173,7 +180,7 @@ export function PwaInstallBanner() {
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss install banner"
-            className="rounded-lg p-1.5 text-teal-200/80 transition hover:bg-teal-700/60 hover:text-white"
+            className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>

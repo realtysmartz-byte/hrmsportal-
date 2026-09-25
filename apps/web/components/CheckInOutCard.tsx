@@ -65,18 +65,20 @@ export function CheckInOutCard() {
   }, []);
 
   const checkIn = trpc.attendance.checkIn.useMutation({
-    onSuccess: () => {
-      utils.attendance.today.invalidate();
-      utils.attendance.myMonth.invalidate();
+    onSuccess: async () => {
+      await utils.attendance.today.invalidate();
+      await utils.attendance.today.refetch();
+      await utils.attendance.myMonth.invalidate();
       setError("");
       setIsPermissionDenied(false);
     },
   });
 
   const checkOut = trpc.attendance.checkOut.useMutation({
-    onSuccess: () => {
-      utils.attendance.today.invalidate();
-      utils.attendance.myMonth.invalidate();
+    onSuccess: async () => {
+      await utils.attendance.today.invalidate();
+      await utils.attendance.today.refetch();
+      await utils.attendance.myMonth.invalidate();
       setError("");
       setIsPermissionDenied(false);
     },
@@ -236,10 +238,17 @@ export function CheckInOutCard() {
 
               {/* Checkout details if already checked out */}
               {checkedOut && today?.checkOutTime && (
-                <p className="text-xs text-neutral-500">
-                  Checked out at {new Date(today.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  {today.totalHours != null && ` · Total: ${today.totalHours} hrs`}
-                </p>
+                <div className="mt-2 rounded-xl bg-emerald-50/90 border border-emerald-200/90 px-4 py-2 text-xs text-emerald-900 shadow-2xs">
+                  <p className="font-semibold text-emerald-800">
+                    ✓ Checked out at {new Date(today.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {today.totalHours != null && ` · Total: ${today.totalHours} hrs`}
+                  </p>
+                  {today.checkInTime && (
+                    <p className="text-[11px] text-emerald-700/80 mt-0.5">
+                      Checked in at {new Date(today.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -280,12 +289,25 @@ export function CheckInOutCard() {
             </p>
           )}
 
-          {/* Primary Action Button */}
-          {!isPermissionDenied && !checkedOut && (
+          {/* Primary Action Button & Explicit Third State (Completed Shift) */}
+          {!isPermissionDenied && (
             <div className="mt-3 w-full max-w-xs">
-              {!checkedIn ? (
+              {checkedOut ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Button
+                    disabled
+                    className="h-12 w-full gap-2 text-base font-semibold bg-emerald-50 text-emerald-800 border-2 border-emerald-500/30 opacity-100 cursor-default shadow-xs"
+                  >
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <span>Attendance Completed</span>
+                  </Button>
+                  <p className="text-xs text-neutral-500">
+                    Your attendance is completed for today. Resets automatically at midnight.
+                  </p>
+                </div>
+              ) : !checkedIn ? (
                 <Button
-                  className="h-12 w-full gap-2 text-base font-semibold shadow-md bg-primary hover:bg-[#1E294A]"
+                  className="h-12 w-full gap-2 text-base font-semibold shadow-md bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] hover:opacity-95 text-white active:scale-98 transition-all"
                   disabled={busy}
                   onClick={() => captureAndSubmit("in")}
                 >
@@ -294,7 +316,7 @@ export function CheckInOutCard() {
                 </Button>
               ) : (
                 <Button
-                  className="h-12 w-full gap-2 text-base font-semibold shadow-md bg-teal hover:bg-teal-700"
+                  className="h-12 w-full gap-2 text-base font-semibold shadow-md bg-neutral-900 hover:bg-black text-white active:scale-98 transition-all"
                   disabled={busy}
                   onClick={() => captureAndSubmit("out")}
                 >

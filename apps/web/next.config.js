@@ -10,7 +10,9 @@ const nextConfig = {
     "@realty-smartz/db",
     "@realty-smartz/shared",
   ],
+  poweredByHeader: false,
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
@@ -32,10 +34,6 @@ const nextConfig = {
           {
             key: "Expires",
             value: "0",
-          },
-          {
-            key: "Clear-Site-Data",
-            value: '"cache", "storage"',
           },
         ],
       },
