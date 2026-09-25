@@ -148,7 +148,12 @@ export const authOptions: NextAuthOptions = {
             throw error;
           }
           console.error("[auth] authorize failed:", error);
-          return null;
+          // Surface the real error so it's visible on the login page instead of
+          // a generic "Invalid credentials" message. Common causes: DB connection
+          // timeout, Prisma client not generated, DNS resolution failure.
+          const msg =
+            error instanceof Error ? error.message : "Internal authentication error";
+          throw new Error(msg);
         }
       },
     }),

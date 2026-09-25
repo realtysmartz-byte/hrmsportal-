@@ -139,7 +139,14 @@ function LoginForm() {
 
     if (result?.error) {
       setLoading(false);
-      setError("Invalid email or password. Please verify and try again.");
+      // NextAuth returns the actual error message from authorize() in result.error
+      // For CredentialsSignin, the error is the generic type; real message is in result.error
+      if (result.error === "CredentialsSignin") {
+        setError("Invalid email or password. Please verify and try again.");
+      } else {
+        // Surface the real error (e.g. DB connection failure, rate limit, etc.)
+        setError(result.error);
+      }
       return;
     }
 
