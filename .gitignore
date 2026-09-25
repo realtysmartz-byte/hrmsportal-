@@ -38,3 +38,7 @@ apps/web/public/workbox-*.js.map
 apps/web/public/fallback-*.js
 apps/web/public/fallback-*.js.map
 
+# local scratch scripts
+proxy-3002.js
+check-db-url.js
+

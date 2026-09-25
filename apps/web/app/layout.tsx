@@ -18,9 +18,9 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Realty Smartz HRMS",
-  description: "Internal HR management system — Committed to Deliver Excellence",
-  applicationName: "Realty Smartz HRMS",
+  title: "Realty Smartz Private Limited HRMS",
+  description: "Internal HR management system — Realty Smartz Private Limited",
+  applicationName: "Realty Smartz Private Limited HRMS",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -47,7 +47,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0F5C74",
+  themeColor: "#11121A",
 };
 
 export default function RootLayout({
@@ -56,8 +56,44 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
-      <body>
+    <html lang="en" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    var unregistered = false;
+                    for (var r of regs) {
+                      r.unregister();
+                      unregistered = true;
+                    }
+                    if (unregistered && !sessionStorage.getItem('realty_sw_purged_v2')) {
+                      sessionStorage.setItem('realty_sw_purged_v2', '1');
+                      if ('caches' in window) {
+                        caches.keys().then(function(names) {
+                          Promise.all(names.map(function(n) { return caches.delete(n); })).then(function() {
+                            window.location.reload();
+                          });
+                        });
+                      } else {
+                        window.location.reload();
+                      }
+                    }
+                  });
+                }
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (var n of names) caches.delete(n);
+                  });
+                }
+              }
+            `,
+          }}
+        />
+      </head>
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

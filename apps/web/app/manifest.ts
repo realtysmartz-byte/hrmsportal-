@@ -2,14 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Realty Smartz HRMS",
+    name: "Realty Smartz Private Limited HRMS",
     short_name: "RS HRMS",
-    description: "Employee HR portal for Realty Smartz",
+    description: "Employee HR portal for Realty Smartz Private Limited",
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#F8F9FB",
-    theme_color: "#0F5C74",
+    background_color: "#F7F8FA",
+    theme_color: "#2B3A67",
     orientation: "portrait",
     categories: ["business", "productivity"],
     icons: [

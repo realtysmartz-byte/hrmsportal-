@@ -5,10 +5,10 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  <div className="relative w-full overflow-x-auto scrollbar-thin">
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-body", className)}
+      className={cn("w-full caption-bottom text-xs sm:text-sm", className)}
       {...props}
     />
   </div>
@@ -22,7 +22,7 @@ const TableHeader = React.forwardRef<
   <thead
     ref={ref}
     className={cn(
-      "sticky top-0 z-10 bg-white [&_tr]:border-b [&_tr]:border-neutral-200",
+      "bg-neutral-50/90 border-b border-neutral-200/80 [&_tr]:border-b-0",
       className
     )}
     {...props}
@@ -36,7 +36,7 @@ const TableBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tbody
     ref={ref}
-    className={cn("[&_tr:last-child]:border-0", className)}
+    className={cn("[&_tr:last-child]:border-0 divide-y divide-neutral-100/90 bg-white", className)}
     {...props}
   />
 ));
@@ -49,7 +49,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b border-neutral-200 transition-colors duration-150 ease-out hover:bg-neutral-50",
+      "border-b border-neutral-100 transition-colors duration-150 ease-out hover:bg-neutral-50/80 group",
       className
     )}
     {...props}
@@ -64,7 +64,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 text-left align-middle text-caption font-semibold text-neutral-500",
+      "h-11 px-5 text-left align-middle text-[11px] font-bold uppercase tracking-wider text-neutral-500 whitespace-nowrap",
       className
     )}
     {...props}
@@ -78,7 +78,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("h-14 px-4 align-middle text-neutral-800", className)}
+    className={cn("px-5 py-4 align-middle text-xs sm:text-sm text-neutral-800", className)}
     {...props}
   />
 ));

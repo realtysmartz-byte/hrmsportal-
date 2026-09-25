@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
@@ -87,55 +87,79 @@ export default function CompanySettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 overflow-hidden">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Company Settings</h1>
-        <p className="text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <span>Realty Smartz Private Limited</span>
+          <span>·</span>
+          <span className="text-[#FF7A70] font-bold">System Configuration</span>
+        </div>
+        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+          Company Settings
+        </h1>
+        <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
           Office location and geofence radius for attendance check-ins
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Office geofence</CardTitle>
+      <Card className="rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md shadow-2xs overflow-hidden">
+        <CardHeader className="p-5 sm:p-6 pb-2">
+          <CardTitle className="font-display text-lg font-bold text-neutral-900">
+            Office Geofence & Boundary
+          </CardTitle>
+          <CardDescription className="text-xs text-neutral-500">
+            Staff within this radius are authorized to log attendance check-ins
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 sm:p-6 pt-3 space-y-5">
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Office name</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-neutral-700">Office Name</Label>
               <Input
                 value={officeName}
                 onChange={(e) => setOfficeName(e.target.value)}
+                placeholder="e.g. Realty Smartz Private Limited HQ"
                 required
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Latitude</Label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-neutral-700">Latitude</Label>
                 <Input
                   type="number"
                   step="any"
                   value={officeLat}
                   onChange={(e) => setOfficeLat(e.target.value)}
+                  placeholder="28.4595"
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Longitude</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-neutral-700">Longitude</Label>
                 <Input
                   type="number"
                   step="any"
                   value={officeLng}
                   onChange={(e) => setOfficeLng(e.target.value)}
+                  placeholder="77.0266"
                   required
                 />
               </div>
             </div>
-            <Button type="button" variant="outline" onClick={useMyLocation}>
-              Use my current location
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={useMyLocation}
+              className="rounded-xl border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+            >
+              Use My Current GPS Location
             </Button>
-            <div className="space-y-2">
-              <Label>Geofence radius (meters)</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-neutral-700">Geofence Radius (meters)</Label>
               <Input
                 type="number"
                 min={50}
@@ -145,21 +169,39 @@ export default function CompanySettingsPage() {
                 required
               />
             </div>
-            <div className="rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2 text-caption text-teal-900">
-              <p className="font-semibold">Weekly off: Tuesday</p>
-              <p className="mt-0.5 text-teal-800/80">
-                Saturday and Sunday are working days. Leave and attendance
-                calendars skip Tuesday only.
+
+            <div className="rounded-xl border border-amber-200/60 bg-amber-50/60 p-3.5 text-xs text-amber-900">
+              <p className="font-bold flex items-center gap-1.5">
+                <span>Weekly Off: Tuesday</span>
+              </p>
+              <p className="mt-1 text-amber-800/80 leading-relaxed">
+                Saturday and Sunday are standard working days for Realty Smartz Private Limited. Leave and attendance
+                tracking calendars skip Tuesday only.
               </p>
             </div>
-            {error && <p className="text-sm text-brand-maroon">{error}</p>}
-            {success && <p className="text-sm text-brand-success">{success}</p>}
-            <Button type="submit" disabled={update.isLoading}>
-              {update.isLoading ? "Saving..." : "Save settings"}
-            </Button>
+
+            {error && (
+              <p className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-medium text-rose-600">
+                {error}
+              </p>
+            )}
+            {success && (
+              <p className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-medium text-emerald-600">
+                {success}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={update.isLoading}
+              className="w-full flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] py-2.5 px-4 text-sm font-bold text-white shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-98 transition-all disabled:opacity-50"
+            >
+              {update.isLoading ? "Saving Settings..." : "Save Company Settings"}
+            </button>
           </form>
+
           {officeLat && officeLng && !Number.isNaN(parseFloat(officeLat)) && (
-            <div className="mt-4">
+            <div className="mt-4 rounded-xl overflow-hidden border border-neutral-200 shadow-2xs">
               <LocationMap
                 lat={parseFloat(officeLat)}
                 lng={parseFloat(officeLng)}

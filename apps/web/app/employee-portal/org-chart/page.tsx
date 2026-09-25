@@ -19,7 +19,7 @@ function OrgChartInner() {
       <div>
         <h1 className="page-title">Org Chart</h1>
         <p className="page-subtitle">
-          See how teams connect across Realty Smartz
+          See how teams connect across Realty Smartz Private Limited
         </p>
       </div>
 

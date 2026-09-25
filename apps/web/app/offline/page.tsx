@@ -42,7 +42,7 @@ export default function OfflinePage() {
         </div>
 
         <p className="mt-6 text-xs text-neutral-400">
-          Realty Smartz HRMS · Progressive Web App
+          Realty Smartz Private Limited HRMS · Progressive Web App
         </p>
       </div>
     </div>

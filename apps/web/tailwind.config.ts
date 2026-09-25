@@ -21,6 +21,19 @@ const config: Config = {
         caption: ["0.8125rem", { lineHeight: "1.25rem", fontWeight: "500" }],
       },
       colors: {
+        indigo: {
+          50: "var(--indigo-50)",
+          100: "var(--indigo-100)",
+          200: "var(--indigo-200)",
+          300: "var(--indigo-300)",
+          400: "var(--indigo-400)",
+          500: "var(--indigo-500)",
+          600: "var(--indigo-600)",
+          700: "var(--indigo-700)",
+          800: "var(--indigo-800)",
+          900: "var(--indigo-900)",
+          DEFAULT: "var(--indigo-700)",
+        },
         teal: {
           50: "var(--teal-50)",
           100: "var(--teal-100)",
@@ -75,7 +88,8 @@ const config: Config = {
           DEFAULT: "var(--info)",
           soft: "var(--info-soft)",
         },
-        // backwards-compatible aliases
+        // brand & semantic aliases
+        "brand-indigo": "var(--indigo-700)",
         "brand-teal": "var(--teal-600)",
         "brand-maroon": "var(--maroon-600)",
         "brand-bg": "var(--neutral-50)",
@@ -85,11 +99,11 @@ const config: Config = {
         "brand-danger": "var(--danger)",
         border: "var(--neutral-200)",
         input: "var(--neutral-200)",
-        ring: "var(--teal-600)",
+        ring: "#FF7A70",
         background: "var(--neutral-50)",
         foreground: "var(--neutral-900)",
         primary: {
-          DEFAULT: "var(--teal-600)",
+          DEFAULT: "var(--primary)",
           foreground: "#ffffff",
         },
         secondary: {
@@ -105,8 +119,8 @@ const config: Config = {
           foreground: "var(--neutral-500)",
         },
         accent: {
-          DEFAULT: "var(--teal-50)",
-          foreground: "var(--teal-800)",
+          DEFAULT: "var(--indigo-50)",
+          foreground: "var(--indigo-700)",
         },
         card: {
           DEFAULT: "#ffffff",

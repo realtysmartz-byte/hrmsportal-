@@ -55,23 +55,25 @@ export default function CandidateDetailPage() {
   const lastName = rest.join(" ") || firstName;
 
   return (
-    <div className="space-y-6">
-      <div className="page-header">
+    <div className="space-y-6 max-w-[1400px] mx-auto overflow-hidden">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link
             href={`/admin-portal/recruitment/${params.jobId}`}
-            className="text-caption font-semibold text-teal-700 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7A70] hover:underline mb-1"
           >
-            ← Back to pipeline
+            ← Back to Job Pipeline
           </Link>
-          <h1 className="page-title mt-2">{c.fullName}</h1>
-          <p className="page-subtitle">
-            {c.email} · {c.phone} · {c.jobPosting.title}
+          <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            {c.fullName}
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            {c.email} · {c.phone} · <span className="font-semibold text-neutral-700">{c.jobPosting.title}</span>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select
-            className="w-40"
+            className="w-44"
             value={c.currentStage}
             onChange={(e) =>
               updateStage.mutate({

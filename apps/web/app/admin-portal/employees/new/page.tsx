@@ -40,18 +40,21 @@ function NewEmployeeInner() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            {hireFrom ? "Hire candidate → Employee" : "Add Employee"}
-          </h1>
-          <p className="page-subtitle">
-            {hireFrom
-              ? "Pre-filled from ATS candidate. Confirm and create their employee account."
-              : "Employee code is generated automatically."}
-          </p>
+    <div className="mx-auto max-w-4xl space-y-6 overflow-hidden">
+      <div>
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <span>Realty Smartz Private Limited</span>
+          <span>·</span>
+          <span className="text-[#FF7A70] font-bold">Onboarding & Staff</span>
         </div>
+        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+          {hireFrom ? "Hire Candidate → Employee" : "Add New Employee"}
+        </h1>
+        <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+          {hireFrom
+            ? "Pre-filled from ATS candidate. Confirm details and generate company account."
+            : "Register a team member. Employee code is generated automatically."}
+        </p>
       </div>
       <EmployeeForm
         mode="create"

@@ -3,10 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Building2, Users, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -65,7 +64,11 @@ export default function DepartmentsPage() {
   });
 
   if (status === "loading" || !allowed) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return (
+      <div className="flex h-48 items-center justify-center text-xs font-semibold text-neutral-400">
+        Loading departments...
+      </div>
+    );
   }
 
   function onCreate(e: FormEvent) {
@@ -75,109 +78,153 @@ export default function DepartmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Departments</h1>
-        <p className="text-muted-foreground">Manage company departments</p>
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER (Dashboards V3 Style) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Org Structure</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Departments
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Manage corporate divisions, functional teams, and organizational units
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 py-1.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+          <Building2 className="h-4 w-4 text-[#FF7A70]" />
+          <span>{data?.length ?? 0} Active Divisions</span>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Add Department</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onCreate} className="flex flex-wrap gap-3">
+      {/* 2. ADD DEPARTMENT CARD (Sleek Glass Bento Card) */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white/90 backdrop-blur-md p-4 sm:p-5 shadow-2xs">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3">
+          Create New Department
+        </h2>
+        <form onSubmit={onCreate} className="flex flex-wrap items-center gap-3">
+          <div className="min-w-[260px] flex-1">
             <Input
-              className="max-w-sm"
-              placeholder="Department name"
+              placeholder="e.g. Sales, Legal & Compliance, Technology"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <Button type="submit" disabled={createMutation.isLoading} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+          <button
+            type="submit"
+            disabled={createMutation.isLoading || !name.trim()}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs font-bold text-white shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            {createMutation.isLoading ? "Adding..." : "Add Department"}
+          </button>
+        </form>
 
-      {error && <p className="text-sm text-brand-maroon">{error}</p>}
+        {error && (
+          <p className="mt-2 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+      </div>
 
-      <div className="rounded-lg border bg-white">
+      {/* 3. DEPARTMENTS TABLE (Contained & Overflow-Hidden) */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Employees</TableHead>
-              <TableHead className="w-40">Actions</TableHead>
+              <TableHead>Department Name</TableHead>
+              <TableHead>Assigned Staff</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={3}>Loading...</TableCell>
+                <TableCell colSpan={3} className="text-center py-8 text-neutral-400">
+                  Loading departments...
+                </TableCell>
               </TableRow>
             )}
+
             {data?.map((dept) => (
-              <TableRow key={dept.id}>
+              <TableRow key={dept.id} className="hover:bg-neutral-50/70 transition-colors">
                 <TableCell>
                   {editingId === dept.id ? (
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="max-w-xs"
-                    />
+                    <div className="flex items-center gap-2 max-w-sm">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-9"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateMutation.mutate({
+                            id: dept.id,
+                            name: editName.trim(),
+                          })
+                        }
+                        className="rounded-lg bg-emerald-600 p-2 text-white hover:bg-emerald-700"
+                        title="Save changes"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ) : (
-                    dept.name
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <span className="font-bold text-neutral-900">{dept.name}</span>
+                    </div>
                   )}
                 </TableCell>
-                <TableCell>{dept._count.employees}</TableCell>
+
                 <TableCell>
-                  <div className="flex gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+                    <Users className="h-3 w-3 text-neutral-400" />
+                    {dept._count.employees} Employees
+                  </span>
+                </TableCell>
+
+                <TableCell className="text-right">
+                  <div className="inline-flex items-center gap-1.5">
                     {editingId === dept.id ? (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            updateMutation.mutate({
-                              id: dept.id,
-                              name: editName.trim(),
-                            })
-                          }
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
+                      >
+                        Cancel
+                      </button>
                     ) : (
                       <>
-                        <Button
-                          size="icon"
-                          variant="outline"
+                        <button
+                          type="button"
                           onClick={() => {
                             setEditingId(dept.id);
                             setEditName(dept.name);
                           }}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors shadow-2xs"
+                          title="Edit department name"
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="destructive"
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             if (confirm(`Delete department "${dept.name}"?`)) {
                               deleteMutation.mutate({ id: dept.id });
                             }
                           }}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200/60 bg-white text-rose-600 hover:bg-rose-50 transition-colors shadow-2xs"
+                          title="Delete department"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        </button>
                       </>
                     )}
                   </div>

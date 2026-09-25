@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MapPin, LogIn, LogOut, Loader2 } from "lucide-react";
+import {
+  MapPin,
+  LogIn,
+  LogOut,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  RotateCw,
+  Navigation,
+  Building,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import {
   geolocationErrorMessage,
@@ -20,26 +29,64 @@ export function CheckInOutCard() {
   const utils = trpc.useUtils();
   const { data: today, isLoading } = trpc.attendance.today.useQuery();
   const { data: settings } = trpc.companySettings.get.useQuery();
-  const [error, setError] = useState("");
+
+  const [currentTime, setCurrentTime] = useState<string>("");
+  const [currentDate, setCurrentDate] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [isPermissionDenied, setIsPermissionDenied] = useState<boolean>(false);
   const [busy, setBusy] = useState(false);
   const [captured, setCaptured] = useState<GeoPlace | null>(null);
+  const [showMap, setShowMap] = useState(false);
+
+  // Live clock
+  useEffect(() => {
+    function updateClock() {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        })
+      );
+      setCurrentDate(
+        now.toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      );
+    }
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const checkIn = trpc.attendance.checkIn.useMutation({
     onSuccess: () => {
       utils.attendance.today.invalidate();
       utils.attendance.myMonth.invalidate();
+      setError("");
+      setIsPermissionDenied(false);
     },
   });
+
   const checkOut = trpc.attendance.checkOut.useMutation({
     onSuccess: () => {
       utils.attendance.today.invalidate();
       utils.attendance.myMonth.invalidate();
+      setError("");
+      setIsPermissionDenied(false);
     },
   });
 
   async function captureAndSubmit(mode: "in" | "out") {
     setError("");
+    setIsPermissionDenied(false);
     setBusy(true);
+
     try {
       const pos = await getCurrentPosition();
       const lat = pos.coords.latitude;
@@ -47,15 +94,20 @@ export function CheckInOutCard() {
       const place = await reverseGeocodePlace(lat, lng);
       setCaptured(place);
 
-      // Store "Place name — full address" so history shows a readable name
-      const addressLabel = `${place.name} — ${place.address}`;
+      const addressLabel = place.address
+        ? `${place.name} — ${place.address}`
+        : place.name;
 
       if (mode === "in") {
         await checkIn.mutateAsync({ lat, lng, address: addressLabel });
       } else {
         await checkOut.mutateAsync({ lat, lng, address: addressLabel });
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const errObj = err as { code?: number; message?: string };
+      if (errObj && (errObj.code === 1 || errObj.message?.toLowerCase().includes("denied"))) {
+        setIsPermissionDenied(true);
+      }
       setError(geolocationErrorMessage(err));
     } finally {
       setBusy(false);
@@ -64,159 +116,225 @@ export function CheckInOutCard() {
 
   if (isLoading) {
     return (
-      <p className="text-caption text-neutral-500">Loading attendance...</p>
+      <Card className="border-neutral-200 bg-white shadow-sm">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <p className="mt-4 text-caption text-neutral-500">Checking attendance status...</p>
+        </CardContent>
+      </Card>
     );
   }
 
   const checkedIn = Boolean(today?.checkInTime);
   const checkedOut = Boolean(today?.checkOutTime);
-  const employeeName = session?.user?.name ?? "Employee";
+  const employeeName = session?.user?.name ?? "Team Member";
 
   return (
-    <Card className="border-teal-200">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-heading-md">
-          <MapPin className="h-4 w-4 text-teal-600" />
-          Today&apos;s Attendance
-        </CardTitle>
-        <p className="text-caption text-neutral-500">
-          Checking in as <span className="font-semibold text-neutral-800">{employeeName}</span>
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {settings && (
-          <p className="text-caption text-neutral-500">
-            Office: {settings.officeName} · Geofence {settings.geofenceRadiusM}m
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          {today ? (
-            <>
-              <Badge variant="secondary">{today.status.replace("_", " ")}</Badge>
-              {today.checkInTime && (
-                <Badge variant={today.withinGeofence ? "success" : "warning"}>
-                  {today.withinGeofence ? "Within geofence" : "Outside geofence"}
-                </Badge>
-              )}
-            </>
-          ) : (
-            <Badge variant="outline">Not checked in</Badge>
-          )}
-        </div>
-
-        {captured && (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3 text-sm">
-              <p className="font-semibold text-teal-900">{captured.name}</p>
-              <p className="mt-0.5 text-caption text-neutral-600">
-                {captured.address}
-              </p>
-              <p className="mt-1 text-caption text-neutral-500">
-                Exact coords: {captured.lat.toFixed(6)}, {captured.lng.toFixed(6)}
-              </p>
-            </div>
-            <LocationMap
-              lat={captured.lat}
-              lng={captured.lng}
-              label={`${captured.name} — ${captured.address}`}
-              height={180}
-            />
+    <Card className="overflow-hidden border border-neutral-200/80 bg-white shadow-sm transition-all">
+      <CardContent className="p-6 sm:p-8">
+        <div className="flex flex-col items-center text-center">
+          {/* Header Info */}
+          <div className="mb-2 flex items-center gap-1.5 text-caption font-semibold uppercase tracking-wider text-primary">
+            <Building className="h-3.5 w-3.5" />
+            <span>Realty Smartz Private Limited</span>
           </div>
-        )}
 
-        {today?.checkInTime && (
-          <div className="space-y-3 text-sm">
-            <div>
-              <p className="text-caption font-semibold text-neutral-500">
-                Check-in
-              </p>
-              <p>{new Date(today.checkInTime).toLocaleTimeString()}</p>
-              {today.checkInAddress && (
-                <p className="text-caption text-neutral-600">
-                  {today.checkInAddress}
-                </p>
-              )}
+          <p className="text-caption text-neutral-500">
+            Welcome, <span className="font-semibold text-neutral-900">{employeeName}</span>
+          </p>
+
+          {/* Current Time Display */}
+          <div className="my-5">
+            <div className="flex items-center justify-center gap-2">
+              <Clock className="h-5 w-5 text-neutral-400" />
+              <span className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-neutral-900">
+                {currentTime || "10:00:00 AM"}
+              </span>
             </div>
-            {today.checkInLat != null && today.checkInLng != null && (
-              <LocationMap
-                lat={today.checkInLat}
-                lng={today.checkInLng}
-                label={today.checkInAddress}
-                height={180}
-              />
-            )}
-            {today.checkOutTime && (
-              <div className="space-y-2">
-                <div>
-                  <p className="text-caption font-semibold text-neutral-500">
-                    Check-out
-                  </p>
-                  <p>
-                    {new Date(today.checkOutTime).toLocaleTimeString()}
-                    {today.totalHours != null ? ` · ${today.totalHours}h` : ""}
-                  </p>
-                  {today.checkOutAddress && (
-                    <p className="text-caption text-neutral-600">
-                      {today.checkOutAddress}
-                    </p>
-                  )}
+            <p className="mt-1 text-sm font-medium text-neutral-500">{currentDate}</p>
+          </div>
+
+          {/* Status Indicator Circle */}
+          <div className="relative my-4 flex h-36 w-36 items-center justify-center">
+            {busy ? (
+              // Location capture loading state with animated pin
+              <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-indigo-50 border-2 border-primary/30 shadow-inner">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/20 opacity-75" />
+                <div className="flex flex-col items-center">
+                  <MapPin className="h-10 w-10 animate-bounce text-primary" />
+                  <span className="mt-1 text-[11px] font-semibold text-primary">Locating</span>
                 </div>
-                {today.checkOutLat != null && today.checkOutLng != null && (
-                  <LocationMap
-                    lat={today.checkOutLat}
-                    lng={today.checkOutLng}
-                    label={today.checkOutAddress}
-                    height={160}
-                  />
-                )}
+              </div>
+            ) : checkedOut ? (
+              // Checked out completed state
+              <div className="flex h-32 w-32 items-center justify-center rounded-full bg-emerald-50 border-2 border-emerald-500/40 shadow-inner">
+                <div className="flex flex-col items-center text-emerald-700">
+                  <CheckCircle2 className="h-11 w-11" />
+                  <span className="mt-1 text-xs font-semibold">Done for Today</span>
+                </div>
+              </div>
+            ) : checkedIn ? (
+              // Checked in active state
+              <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-indigo-50/80 border-2 border-primary/40 shadow-inner">
+                <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-teal/15" />
+                <div className="flex flex-col items-center text-primary">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                  <span className="mt-1 text-xs font-bold uppercase tracking-wider text-primary">
+                    On Duty
+                  </span>
+                  <span className="text-[11px] text-neutral-500">
+                    {today?.checkInTime
+                      ? new Date(today.checkInTime).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              // Idle / ready to check in state
+              <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-indigo-50 border-2 border-primary/30 shadow-inner transition-transform hover:scale-105">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/25 opacity-70" />
+                <div className="flex flex-col items-center text-primary">
+                  <LogIn className="h-10 w-10" />
+                  <span className="mt-1 text-xs font-bold uppercase tracking-wider">Ready</span>
+                </div>
               </div>
             )}
           </div>
-        )}
 
-        {!checkedIn && (
-          <Button
-            className="w-full gap-2 sm:w-auto"
-            disabled={busy}
-            onClick={() => captureAndSubmit("in")}
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogIn className="h-4 w-4" />
-            )}
-            {busy ? "Getting your location..." : "Check In"}
-          </Button>
-        )}
+          {/* Loading status description */}
+          {busy && (
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1.5 text-sm font-medium text-primary">
+              <Navigation className="h-4 w-4 animate-spin text-primary" />
+              <span>Getting your location…</span>
+            </div>
+          )}
 
-        {checkedIn && !checkedOut && (
-          <Button
-            className="w-full gap-2 sm:w-auto"
-            variant="secondary"
-            disabled={busy}
-            onClick={() => captureAndSubmit("out")}
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogOut className="h-4 w-4" />
-            )}
-            {busy ? "Getting your location..." : "Check Out"}
-          </Button>
-        )}
+          {/* Geofence & Location Confirmation State Pill */}
+          {checkedIn && (
+            <div className="my-3 flex flex-col items-center gap-2">
+              <div className="inline-flex max-w-md items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50/80 px-4 py-1.5 text-xs text-neutral-700 shadow-2xs">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+                <span className="truncate">
+                  {today?.checkInAddress || "Near Realty Smartz Private Limited HQ, Gurugram"}
+                </span>
+              </div>
 
-        {checkedOut && (
-          <p className="text-sm text-success">
-            You have completed attendance for today.
-          </p>
-        )}
+              {/* Status colored dot badge */}
+              <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border border-neutral-200 bg-white">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    today?.withinGeofence ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  }`}
+                />
+                <span className={today?.withinGeofence ? "text-emerald-700" : "text-amber-800"}>
+                  {today?.withinGeofence ? "Within office premises" : "Outside usual location"}
+                </span>
+              </div>
 
-        {error && (
-          <p className="text-sm text-maroon-600" role="alert">
-            {error}
-          </p>
-        )}
+              {/* Checkout details if already checked out */}
+              {checkedOut && today?.checkOutTime && (
+                <p className="text-xs text-neutral-500">
+                  Checked out at {new Date(today.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {today.totalHours != null && ` · Total: ${today.totalHours} hrs`}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Permission Denied Inline Warning Card */}
+          {isPermissionDenied && (
+            <div className="my-4 w-full max-w-md rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-left shadow-2xs">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold text-amber-900">
+                    Location access is required to check in
+                  </h4>
+                  <p className="text-xs text-amber-800">
+                    Realty Smartz Private Limited requires geolocation verification to validate office attendance.
+                    Please enable location permissions in your browser settings.
+                  </p>
+                  <div className="pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-300 bg-white text-xs text-amber-900 hover:bg-amber-100"
+                      onClick={() => captureAndSubmit(checkedIn ? "out" : "in")}
+                    >
+                      <RotateCw className="mr-1.5 h-3 w-3" />
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Generic error message if not permission denied */}
+          {error && !isPermissionDenied && (
+            <p className="my-3 text-xs font-medium text-maroon" role="alert">
+              {error}
+            </p>
+          )}
+
+          {/* Primary Action Button */}
+          {!isPermissionDenied && !checkedOut && (
+            <div className="mt-3 w-full max-w-xs">
+              {!checkedIn ? (
+                <Button
+                  className="h-12 w-full gap-2 text-base font-semibold shadow-md bg-primary hover:bg-[#1E294A]"
+                  disabled={busy}
+                  onClick={() => captureAndSubmit("in")}
+                >
+                  <LogIn className="h-5 w-5" />
+                  {busy ? "Getting your location…" : "Check In"}
+                </Button>
+              ) : (
+                <Button
+                  className="h-12 w-full gap-2 text-base font-semibold shadow-md bg-teal hover:bg-teal-700"
+                  disabled={busy}
+                  onClick={() => captureAndSubmit("out")}
+                >
+                  <LogOut className="h-5 w-5" />
+                  {busy ? "Getting your location…" : "Check Out"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Map toggle if coordinates available */}
+          {(today?.checkInLat != null || captured?.lat != null) && (
+            <div className="mt-4 w-full max-w-md pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMap(!showMap)}
+                className="text-xs font-medium text-neutral-500 hover:text-primary transition-colors underline"
+              >
+                {showMap ? "Hide verification map" : "View attendance map"}
+              </button>
+              {showMap && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-neutral-200">
+                  <LocationMap
+                    lat={today?.checkInLat ?? captured?.lat ?? 0}
+                    lng={today?.checkInLng ?? captured?.lng ?? 0}
+                    label={today?.checkInAddress ?? captured?.name ?? "Check-in Location"}
+                    height={180}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Office config footnote */}
+          {settings && (
+            <p className="mt-6 text-[11px] text-neutral-400">
+              Office Geofence: {settings.officeName} ({settings.geofenceRadiusM}m perimeter)
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

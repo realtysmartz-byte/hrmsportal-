@@ -3,10 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Briefcase, Users, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -65,7 +64,11 @@ export default function DesignationsPage() {
   });
 
   if (status === "loading" || !allowed) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return (
+      <div className="flex h-48 items-center justify-center text-xs font-semibold text-neutral-400">
+        Loading designations...
+      </div>
+    );
   }
 
   function onCreate(e: FormEvent) {
@@ -75,109 +78,153 @@ export default function DesignationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Designations</h1>
-        <p className="text-muted-foreground">Manage job titles / designations</p>
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER (Dashboards V3 Style) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Role Architecture</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Designations
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Standard corporate titles, seniority levels, and professional tracks
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 py-1.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+          <Briefcase className="h-4 w-4 text-[#FF7A70]" />
+          <span>{data?.length ?? 0} Defined Titles</span>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Add Designation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onCreate} className="flex flex-wrap gap-3">
+      {/* 2. ADD DESIGNATION CARD (Sleek Glass Bento Card) */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white/90 backdrop-blur-md p-4 sm:p-5 shadow-2xs">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3">
+          Create New Designation
+        </h2>
+        <form onSubmit={onCreate} className="flex flex-wrap items-center gap-3">
+          <div className="min-w-[260px] flex-1">
             <Input
-              className="max-w-sm"
-              placeholder="Designation title"
+              placeholder="e.g. Senior Associate, VP of Sales, Project Lead"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <Button type="submit" disabled={createMutation.isLoading} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+          <button
+            type="submit"
+            disabled={createMutation.isLoading || !title.trim()}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs font-bold text-white shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            {createMutation.isLoading ? "Adding..." : "Add Designation"}
+          </button>
+        </form>
 
-      {error && <p className="text-sm text-brand-maroon">{error}</p>}
+        {error && (
+          <p className="mt-2 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+      </div>
 
-      <div className="rounded-lg border bg-white">
+      {/* 3. DESIGNATIONS TABLE (Contained & Overflow-Hidden) */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Employees</TableHead>
-              <TableHead className="w-40">Actions</TableHead>
+              <TableHead>Designation Title</TableHead>
+              <TableHead>Staff Holding Title</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={3}>Loading...</TableCell>
+                <TableCell colSpan={3} className="text-center py-8 text-neutral-400">
+                  Loading designations...
+                </TableCell>
               </TableRow>
             )}
-            {data?.map((item) => (
-              <TableRow key={item.id}>
+
+            {data?.map((desig) => (
+              <TableRow key={desig.id} className="hover:bg-neutral-50/70 transition-colors">
                 <TableCell>
-                  {editingId === item.id ? (
-                    <Input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="max-w-xs"
-                    />
+                  {editingId === desig.id ? (
+                    <div className="flex items-center gap-2 max-w-sm">
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="h-9"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateMutation.mutate({
+                            id: desig.id,
+                            title: editTitle.trim(),
+                          })
+                        }
+                        className="rounded-lg bg-emerald-600 p-2 text-white hover:bg-emerald-700"
+                        title="Save changes"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ) : (
-                    item.title
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
+                        <Briefcase className="h-4 w-4" />
+                      </div>
+                      <span className="font-bold text-neutral-900">{desig.title}</span>
+                    </div>
                   )}
                 </TableCell>
-                <TableCell>{item._count.employees}</TableCell>
+
                 <TableCell>
-                  <div className="flex gap-2">
-                    {editingId === item.id ? (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            updateMutation.mutate({
-                              id: item.id,
-                              title: editTitle.trim(),
-                            })
-                          }
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+                    <Users className="h-3 w-3 text-neutral-400" />
+                    {desig._count.employees} Active Staff
+                  </span>
+                </TableCell>
+
+                <TableCell className="text-right">
+                  <div className="inline-flex items-center gap-1.5">
+                    {editingId === desig.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
+                      >
+                        Cancel
+                      </button>
                     ) : (
                       <>
-                        <Button
-                          size="icon"
-                          variant="outline"
+                        <button
+                          type="button"
                           onClick={() => {
-                            setEditingId(item.id);
-                            setEditTitle(item.title);
+                            setEditingId(desig.id);
+                            setEditTitle(desig.title);
                           }}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors shadow-2xs"
+                          title="Edit designation title"
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="destructive"
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
-                            if (confirm(`Delete designation "${item.title}"?`)) {
-                              deleteMutation.mutate({ id: item.id });
+                            if (confirm(`Delete designation "${desig.title}"?`)) {
+                              deleteMutation.mutate({ id: desig.id });
                             }
                           }}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200/60 bg-white text-rose-600 hover:bg-rose-50 transition-colors shadow-2xs"
+                          title="Delete designation"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        </button>
                       </>
                     )}
                   </div>

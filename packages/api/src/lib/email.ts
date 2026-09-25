@@ -42,7 +42,7 @@ export async function sendMail(payload: MailPayload): Promise<boolean> {
 
   const from =
     process.env.SMTP_FROM ||
-    `Realty Smartz HRMS <${process.env.SMTP_USER}>`;
+    `Realty Smartz Private Limited HRMS <${process.env.SMTP_USER}>`;
 
   try {
     await transporter.sendMail({
@@ -61,12 +61,12 @@ export async function sendMail(payload: MailPayload): Promise<boolean> {
 
 function layout(title: string, body: string) {
   return `<!DOCTYPE html>
-<html><body style="font-family:system-ui,sans-serif;background:#f5f5f4;padding:24px;color:#1c1917">
-  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e7e5e4;overflow:hidden">
-    <div style="background:#0f5c74;color:#fff;padding:16px 20px;font-weight:700">${title}</div>
+<html><body style="font-family:system-ui,sans-serif;background:#f7f8fa;padding:24px;color:#1a1d23">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e4e7ec;overflow:hidden">
+    <div style="background:#2b3a67;color:#fff;padding:16px 20px;font-weight:700">${title}</div>
     <div style="padding:20px;line-height:1.5;font-size:14px">${body}</div>
-    <div style="padding:12px 20px;font-size:11px;color:#78716c;border-top:1px solid #f5f5f4">
-      Realty Smartz HRMS · Weekly off: Tuesday · Sat/Sun are working days
+    <div style="padding:12px 20px;font-size:11px;color:#667085;border-top:1px solid #f0f2f5">
+      Realty Smartz Private Limited · HRMS Portal · Weekly off: Tuesday · Sat/Sun are working days
     </div>
   </div>
 </body></html>`;

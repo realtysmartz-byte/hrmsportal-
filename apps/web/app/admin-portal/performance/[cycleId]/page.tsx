@@ -96,19 +96,19 @@ export default function AdminCycleDetailPage() {
   const isClosed = cycle.status === "CLOSED";
 
   return (
-    <div className="section-gap">
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
       <div>
         <Link
           href="/admin-portal/performance"
-          className="inline-flex items-center gap-1.5 text-caption font-semibold text-teal-700 hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7A70] hover:underline mb-1"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Cycles
+          Back to Performance Cycles
         </Link>
-        <div className="page-header mt-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-1">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="page-title">{cycle.name}</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">{cycle.name}</h1>
               <Badge
                 variant={
                   isActive ? "success" : isDraft ? "warning" : "secondary"
@@ -118,9 +118,9 @@ export default function AdminCycleDetailPage() {
               </Badge>
               <Badge variant="outline">{cycle.cycleType}</Badge>
             </div>
-            <p className="page-subtitle flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              {formatDate(cycle.startDate)} – {formatDate(cycle.endDate)}
+            <p className="mt-1 text-xs sm:text-sm text-neutral-500 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-neutral-400" />
+              <span>{formatDate(cycle.startDate)} – {formatDate(cycle.endDate)}</span>
             </p>
           </div>
 
@@ -128,7 +128,7 @@ export default function AdminCycleDetailPage() {
             {isDraft && (
               <Button
                 variant="outline"
-                className="border-teal-400 text-teal-700 hover:bg-teal-50"
+                className="rounded-xl border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                 onClick={() => activateMutation.mutate({ id: cycle.id })}
                 disabled={activateMutation.isLoading}
               >
@@ -139,7 +139,7 @@ export default function AdminCycleDetailPage() {
             {isActive && (
               <Button
                 variant="outline"
-                className="border-maroon-300 text-maroon-700 hover:bg-maroon-50"
+                className="rounded-xl border-rose-300 text-rose-700 hover:bg-rose-50"
                 onClick={() => {
                   if (
                     window.confirm(
@@ -265,7 +265,7 @@ export default function AdminCycleDetailPage() {
       </div>
 
       {/* Completion Tracking Table */}
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-card">
+      <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

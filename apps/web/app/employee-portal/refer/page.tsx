@@ -54,7 +54,7 @@ export default function ReferPage() {
       <div>
         <h1 className="page-title">Refer a candidate</h1>
         <p className="page-subtitle">
-          Recommend someone for an open role at Realty Smartz
+          Recommend someone for an open role at Realty Smartz Private Limited
         </p>
       </div>
       <Card>

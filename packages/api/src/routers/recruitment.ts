@@ -29,14 +29,46 @@ async function notifyInterviewer(email: string, subject: string, body: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM ?? "HRMS <noreply@realtysmartz.com>",
+        from: process.env.RESEND_FROM ?? "Realty Smartz Private Limited HRMS <noreply@realtysmartz.com>",
         to: email,
         subject,
-        text: body,
+        text: `${body}\n\nRealty Smartz Private Limited`,
       }),
     });
   } catch (err) {
     console.error("[email:failed]", err);
+  }
+}
+
+function validateResumeUrl(url: string | null | undefined) {
+  if (!url) return;
+  if (url.startsWith("data:")) {
+    const match = url.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Invalid resume file format",
+      });
+    }
+    const mime = match[1].toLowerCase();
+    const allowed = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+    if (!allowed.includes(mime)) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Only PDF, PNG, and JPG files are accepted for resumes",
+      });
+    }
+    if (url.length > 7 * 1024 * 1024) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Resume exceeds 5MB size limit",
+      });
+    }
+  } else if (!url.startsWith("https://")) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Resume URL must be a valid HTTPS URL or data URL",
+    });
   }
 }
 
@@ -66,6 +98,9 @@ export const recruitmentRouter = router({
   jobById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      const isAdmin = canAccessAdminPortal(role);
+
       const job = await ctx.prisma.jobPosting.findUnique({
         where: { id: input.id },
         include: {
@@ -73,19 +108,42 @@ export const recruitmentRouter = router({
           postedBy: {
             select: { id: true, firstName: true, lastName: true },
           },
-          candidates: {
-            include: {
-              referredBy: {
-                select: { id: true, firstName: true, lastName: true },
-              },
-              _count: { select: { interviews: true } },
-            },
-            orderBy: { appliedAt: "desc" },
-          },
+          candidates: isAdmin
+            ? {
+                select: {
+                  id: true,
+                  fullName: true,
+                  email: true,
+                  phone: true,
+                  currentStage: true,
+                  source: true,
+                  appliedAt: true,
+                  referredBy: {
+                    select: { id: true, firstName: true, lastName: true },
+                  },
+                  _count: { select: { interviews: true } },
+                },
+                orderBy: { appliedAt: "desc" },
+              }
+            : false,
         },
       });
       if (!job) throw new TRPCError({ code: "NOT_FOUND" });
-      return job;
+      type CandidateSummary = {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string;
+        currentStage: string;
+        source: string;
+        appliedAt: Date;
+        referredBy: { id: string; firstName: string; lastName: string } | null;
+        _count: { interviews: number };
+      };
+      return {
+        ...job,
+        candidates: ((job as unknown as { candidates?: CandidateSummary[] }).candidates ?? []) as CandidateSummary[],
+      };
     }),
 
   createJob: hrAdminProcedure
@@ -121,6 +179,7 @@ export const recruitmentRouter = router({
   createCandidate: hrAdminProcedure
     .input(createCandidateSchema)
     .mutation(async ({ ctx, input }) => {
+      validateResumeUrl(input.resumeUrl);
       return ctx.prisma.candidate.create({
         data: {
           jobPostingId: input.jobPostingId,
@@ -146,6 +205,7 @@ export const recruitmentRouter = router({
           message: "Job posting is not open",
         });
       }
+      validateResumeUrl(input.resumeUrl);
       return ctx.prisma.candidate.create({
         data: {
           jobPostingId: input.jobPostingId,

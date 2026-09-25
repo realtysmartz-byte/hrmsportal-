@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Users,
+  ChevronRight,
+  Filter,
+  ArrowUpDown,
+  Building2,
+  Mail,
+  Phone,
+  Sparkles,
+} from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -47,71 +58,118 @@ export default function EmployeesPage() {
   const rows = useMemo(() => data?.items ?? [], [data]);
 
   return (
-    <div className="section-gap">
-      <div className="page-header">
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER & QUICK STATS (Dashboards V3 Bento Style) */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="page-title">Employees</h1>
-          <p className="page-subtitle">Directory of all company employees</p>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Personnel Directory</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Employees
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Complete company staff roster, job designations, and live status
+          </p>
         </div>
+
         {canManage && (
           <Link href="/admin-portal/employees/new">
-            <Button className="inline-flex items-center gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)] hover:opacity-95 active:scale-95 transition-all"
+            >
               <Plus className="h-4 w-4" />
               Add Employee
-            </Button>
+            </button>
           </Link>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-          <Input
-            className="pl-9"
-            placeholder="Search name, email, code..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+      {/* 2. FILTER & SEARCH CONTROL BAR */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white/90 backdrop-blur-md p-3 sm:p-4 shadow-2xs overflow-hidden">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search Field */}
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <Input
+              className="pl-10"
+              placeholder="Search by name, email, employee code..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          {/* Department Filter */}
+          <div className="w-full sm:w-48">
+            <Select
+              value={departmentId}
+              onChange={(e) => {
+                setDepartmentId(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All Departments</option>
+              {departments?.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="w-full sm:w-44">
+            <Select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All Statuses</option>
+              {EMPLOYEE_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replace("_", " ")}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Active Filter Clear Tag */}
+          {(search || departmentId || status) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setDepartmentId("");
+                setStatus("");
+                setPage(1);
+              }}
+              className="rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+            >
+              Reset Filters
+            </button>
+          )}
+
+          {/* Total Counter Badge */}
+          <div className="ml-auto hidden xl:flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600 border border-neutral-200/60">
+            <Users className="h-3.5 w-3.5 text-neutral-500" />
+            <span>{data?.total ?? 0} Records</span>
+          </div>
         </div>
-        <Select
-          className="w-48"
-          value={departmentId}
-          onChange={(e) => {
-            setDepartmentId(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">All departments</option>
-          {departments?.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          className="w-40"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">All statuses</option>
-          {EMPLOYEE_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.replace("_", " ")}
-            </option>
-          ))}
-        </Select>
       </div>
 
+      {/* 3. ROSTER DATA TABLE (Contained & Overflow-Hidden) */}
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+        <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -119,16 +177,17 @@ export default function EmployeesPage() {
                 <TableHead>Designation</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="p-0">
+                  <TableCell colSpan={5} className="p-0">
                     <EmptyState
                       title="No employees found"
-                      description="Try adjusting filters, or add a new employee."
-                      className="border-0"
+                      description="Try adjusting your search filters or register a new team member."
+                      className="border-0 py-12"
                       action={
                         canManage ? (
                           <Link href="/admin-portal/employees/new">
@@ -141,13 +200,14 @@ export default function EmployeesPage() {
                 </TableRow>
               )}
               {rows.map((emp) => (
-                <TableRow key={emp.id}>
+                <TableRow key={emp.id} className="hover:bg-neutral-50/70 transition-colors">
+                  {/* Employee Details Column */}
                   <TableCell>
                     <Link
                       href={`/admin-portal/employees/${emp.id}`}
-                      className="flex items-center gap-3 transition-opacity duration-150 hover:opacity-80"
+                      className="flex items-center gap-3.5 group/emp"
                     >
-                      <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-teal-50 text-xs font-semibold text-teal-700">
+                      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs group-hover/emp:scale-105 transition-transform">
                         {emp.profilePhotoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -159,20 +219,44 @@ export default function EmployeesPage() {
                           initials(emp.firstName, emp.lastName)
                         )}
                       </div>
-                      <div>
-                        <p className="font-medium text-teal-800">
+                      <div className="min-w-0">
+                        <p className="font-bold text-neutral-900 group-hover/emp:text-[#FF7A70] transition-colors truncate">
                           {fullName(emp.firstName, emp.lastName)}
                         </p>
-                        <p className="text-xs text-neutral-500">
+                        <p className="text-[11px] font-mono text-neutral-400 font-medium">
                           {emp.employeeCode}
                         </p>
                       </div>
                     </Link>
                   </TableCell>
-                  <TableCell>{emp.designation?.title ?? "—"}</TableCell>
-                  <TableCell>{emp.department?.name ?? "—"}</TableCell>
+
+                  {/* Designation Column */}
+                  <TableCell className="font-medium text-neutral-700">
+                    {emp.designation?.title ?? "—"}
+                  </TableCell>
+
+                  {/* Department Column */}
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100/80 px-2.5 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/60">
+                      <Building2 className="h-3 w-3 text-neutral-400" />
+                      {emp.department?.name ?? "—"}
+                    </span>
+                  </TableCell>
+
+                  {/* Status Column */}
                   <TableCell>
                     <StatusBadge status={emp.status} />
+                  </TableCell>
+
+                  {/* Action Column */}
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/admin-portal/employees/${emp.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#FF7A70] transition-colors"
+                    >
+                      <span>Manage</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}
@@ -181,10 +265,12 @@ export default function EmployeesPage() {
         </div>
       )}
 
+      {/* 4. PAGINATION FOOTER */}
       {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-neutral-500">
-            Page {data.page} of {data.totalPages} ({data.total} total)
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs sm:text-sm font-medium text-neutral-500">
+            Showing Page <span className="font-bold text-neutral-800">{data.page}</span> of{" "}
+            <span className="font-bold text-neutral-800">{data.totalPages}</span> ({data.total} total members)
           </p>
           <div className="flex gap-2">
             <Button

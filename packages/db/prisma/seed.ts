@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Initializing Realty Smartz HRMS in clean Production mode...");
+  console.log("Initializing Realty Smartz Private Limited HRMS in clean Production mode...");
 
   // 1. Purge all existing records
   console.log("Purging all demo records...");
@@ -33,7 +33,7 @@ async function main() {
   await prisma.companySettings.create({
     data: {
       id: "singleton",
-      officeName: "Realty Smartz HQ, Gurugram",
+      officeName: "Realty Smartz Private Limited HQ, Gurugram",
       officeLat: 28.4595,
       officeLng: 77.0266,
       geofenceRadiusM: 200,
@@ -114,7 +114,7 @@ async function main() {
       dateOfBirth: new Date("1990-01-01"),
       address: "Gurugram, Haryana",
       status: EmployeeStatus.ACTIVE,
-      workLocationName: "Realty Smartz HQ, Gurugram",
+      workLocationName: "Realty Smartz Private Limited HQ, Gurugram",
       workLocationLat: 28.4595,
       workLocationLng: 77.0266,
     },

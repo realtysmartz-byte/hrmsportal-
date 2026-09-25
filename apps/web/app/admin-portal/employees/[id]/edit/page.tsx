@@ -33,10 +33,17 @@ export default function EditEmployeePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 overflow-hidden">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Edit Employee</h1>
-        <p className="text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <span>Realty Smartz Private Limited</span>
+          <span>·</span>
+          <span className="text-[#FF7A70] font-bold">Employee Record</span>
+        </div>
+        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+          Edit Employee Profile
+        </h1>
+        <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
           Update details for {emp.firstName} {emp.lastName} ({emp.employeeCode})
         </p>
       </div>

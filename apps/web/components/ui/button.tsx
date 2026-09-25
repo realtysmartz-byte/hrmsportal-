@@ -3,24 +3,25 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 shadow-sm hover:shadow active:scale-[0.99]",
   {
     variants: {
       variant: {
-        default: "bg-teal-600 text-white hover:bg-teal-700",
-        destructive: "bg-maroon-600 text-white hover:bg-maroon-700",
+        default:
+          "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white font-semibold shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-[0.98]",
+        destructive: "bg-rose-600 text-white hover:bg-rose-700 shadow-none",
         outline:
-          "border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50",
+          "border border-neutral-200/90 bg-white text-neutral-800 hover:bg-neutral-50 shadow-2xs hover:border-neutral-300",
         secondary:
-          "bg-neutral-100 text-neutral-800 hover:bg-neutral-200",
-        ghost: "hover:bg-teal-50 hover:text-teal-800",
-        link: "text-teal-600 underline-offset-4 hover:underline",
+          "bg-[#181926] text-white hover:bg-[#252836] shadow-sm",
+        ghost: "hover:bg-neutral-100 hover:text-neutral-900 shadow-none",
+        link: "text-[#FF7A70] underline-offset-4 hover:underline shadow-none",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-lg px-3 text-sm",
-        lg: "h-11 rounded-lg px-8",
-        icon: "h-10 w-10",
+        default: "h-10 rounded-xl px-4 py-2",
+        sm: "h-8.5 rounded-xl px-3 text-xs font-semibold",
+        lg: "h-11 rounded-2xl px-8",
+        icon: "h-10 w-10 rounded-xl",
       },
     },
     defaultVariants: {

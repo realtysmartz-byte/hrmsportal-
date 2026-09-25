@@ -54,7 +54,7 @@ export default function JobDetailPage() {
   const byStage = useMemo(() => {
     const map: Record<string, NonNullable<typeof job>["candidates"]> = {};
     for (const stage of PIPELINE_STAGES) map[stage] = [];
-    for (const c of job?.candidates ?? []) {
+    for (const c of (job?.candidates ?? []) as any[]) {
       map[c.currentStage]?.push(c);
     }
     return map;
@@ -77,28 +77,55 @@ export default function JobDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="page-header">
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="page-title">{job.title}</h1>
-          <p className="page-subtitle">
-            {job.department?.name ?? "No department"} · {job.location} ·{" "}
+          <Link
+            href="/admin-portal/recruitment"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7A70] hover:underline mb-1"
+          >
+            ← Back to Openings
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+              {job.title}
+            </h1>
+            <Badge
+              variant={
+                job.status === "OPEN"
+                  ? "success"
+                  : job.status === "CLOSED"
+                    ? "secondary"
+                    : "warning"
+              }
+            >
+              {job.status}
+            </Badge>
+          </div>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            {job.department?.name ?? "Company-wide"} · {job.location} ·{" "}
             {job.employmentType.replace("_", " ")}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setShowAdd((v) => !v)}>
-            Add candidate
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setShowAdd((v) => !v)}
+            className="rounded-xl shadow-[0_4px_16px_rgba(255,122,112,0.3)]"
+          >
+            {showAdd ? "Cancel" : "+ Add Candidate"}
           </Button>
           {job.status === "OPEN" ? (
             <Button
-              variant="destructive"
+              variant="outline"
+              className="rounded-xl text-rose-600 border-rose-200 hover:bg-rose-50"
               onClick={() => updateJob.mutate({ id: job.id, status: "CLOSED" })}
             >
-              Close job
+              Close Job
             </Button>
           ) : (
             <Button
+              variant="outline"
+              className="rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
               onClick={() => updateJob.mutate({ id: job.id, status: "OPEN" })}
             >
               Reopen
@@ -106,18 +133,6 @@ export default function JobDetailPage() {
           )}
         </div>
       </div>
-
-      <Badge
-        variant={
-          job.status === "OPEN"
-            ? "success"
-            : job.status === "CLOSED"
-              ? "secondary"
-              : "warning"
-        }
-      >
-        {job.status}
-      </Badge>
 
       {showAdd && (
         <Card>

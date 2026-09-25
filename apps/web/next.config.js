@@ -16,6 +16,66 @@ const nextConfig = {
       { protocol: "http", hostname: "**" },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: "/login",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          },
+          {
+            key: "Pragma",
+            value: "no-cache",
+          },
+          {
+            key: "Expires",
+            value: "0",
+          },
+          {
+            key: "Clear-Site-Data",
+            value: '"cache", "storage"',
+          },
+        ],
+      },
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com data:",
+              "img-src 'self' data: blob: https:",
+              "connect-src 'self' https:",
+              "frame-src 'self' https://www.google.com https://maps.google.com",
+              "worker-src 'self' blob:",
+              "manifest-src 'self'",
+            ].join("; "),
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "geolocation=(self), camera=(), microphone=()",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 const withPWA = require("@ducanh2912/next-pwa").default({
@@ -32,12 +92,13 @@ const withPWA = require("@ducanh2912/next-pwa").default({
     runtimeCaching: [
       {
         urlPattern: /^https?:\/\/.*\/_next\/static\/.*/i,
-        handler: "CacheFirst",
+        handler: "NetworkFirst",
         options: {
           cacheName: "next-static-resources",
+          networkTimeoutSeconds: 2,
           expiration: {
             maxEntries: 100,
-            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+            maxAgeSeconds: 24 * 60 * 60,
           },
         },
       },

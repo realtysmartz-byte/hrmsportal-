@@ -33,7 +33,7 @@ model Employee {
   // Forward-looking, used starting Phase 2 (Attendance):
   workLocationLat  Float?
   workLocationLng  Float?
-  workLocationName String? // e.g. "Realty Smartz HQ, Gurugram"
+  workLocationName String? // e.g. "Realty Smartz Private Limited HQ, Gurugram"
   attendanceLogs   AttendanceLog[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
@@ -171,11 +171,11 @@ enum LeaveStatus {
 
 model CompanySettings {
   id              String @id @default("singleton")
-  officeName      String @default("Realty Smartz HQ")
+  officeName      String @default("Realty Smartz Private Limited HQ")
   officeLat       Float
   officeLng       Float
   geofenceRadiusM Int    @default(200)
-  /// JS getDay(): 0=Sun … 6=Sat. Realty Smartz weekly off = Tuesday (2).
+  /// JS getDay(): 0=Sun … 6=Sat. Realty Smartz Private Limited weekly off = Tuesday (2).
   weeklyOffDay    Int    @default(2)
 }
 

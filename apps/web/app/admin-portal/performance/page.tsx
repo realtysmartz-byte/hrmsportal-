@@ -69,25 +69,35 @@ export default function AdminPerformanceCyclesPage() {
   if (isLoading) return <PageSkeleton />;
 
   return (
-    <div className="section-gap">
-      <div className="page-header">
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER (Dashboards V3 Style) */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="page-title">Performance Cycles</h1>
-          <p className="page-subtitle">
-            Manage company appraisal &amp; OKR review cycles
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Appraisals & OKRs</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Performance Cycles
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Manage corporate appraisal, key result benchmarks, and team performance tracking
           </p>
         </div>
-        <Button
+
+        <button
+          type="button"
           onClick={() => setShowCreate((v) => !v)}
-          className="inline-flex items-center gap-2"
+          className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)] hover:opacity-95 active:scale-95 transition-all"
         >
           <Plus className="h-4 w-4" />
           {showCreate ? "Cancel" : "New Cycle"}
-        </Button>
+        </button>
       </div>
 
       {showCreate && (
-        <Card className="border-teal-200 bg-teal-50/20">
+        <Card className="rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md shadow-sm">
           <CardHeader>
             <CardTitle className="text-heading-md">
               Create Performance Cycle

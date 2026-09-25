@@ -1,6 +1,6 @@
-# Realty Smartz HRMS
+# Realty Smartz Private Limited HRMS
 
-Internal HR management system for Realty Smartz — *Committed to Deliver Excellence*.
+Internal HR management system for Realty Smartz Private Limited — *Committed to Deliver Excellence*.
 
 ## Monorepo structure
 

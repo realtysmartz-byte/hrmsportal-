@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Briefcase, Users, MapPin, Building2, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,70 +26,119 @@ export default function RecruitmentJobsPage() {
   });
 
   return (
-    <div className="section-gap">
-      <div className="page-header">
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER (Dashboards V3 Style) */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="page-title">Recruitment</h1>
-          <p className="page-subtitle">Job postings and candidate pipeline</p>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Talent Acquisition</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Recruitment
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Corporate job postings, requisitions, and candidate application pipeline
+          </p>
         </div>
+
         <Link href="/admin-portal/recruitment/new">
-          <Button className="gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)] hover:opacity-95 active:scale-95 transition-all"
+          >
             <Plus className="h-4 w-4" />
-            New job posting
-          </Button>
+            New Job Posting
+          </button>
         </Link>
       </div>
 
-      <Select
-        className="w-48"
-        value={status}
-        onChange={(e) => setStatus(e.target.value)}
-      >
-        <option value="">All statuses</option>
-        <option value="OPEN">Open</option>
-        <option value="ON_HOLD">On hold</option>
-        <option value="CLOSED">Closed</option>
-      </Select>
+      {/* 2. FILTER BAR */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white/90 backdrop-blur-md p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="w-full sm:w-56">
+            <Select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">All Job Statuses</option>
+              <option value="OPEN">Open & Active</option>
+              <option value="ON_HOLD">On Hold</option>
+              <option value="CLOSED">Closed / Filled</option>
+            </Select>
+          </div>
 
+          <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+            <Briefcase className="h-3.5 w-3.5 text-[#FF7A70]" />
+            <span>{data?.length ?? 0} Total Postings</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. JOBS TABLE (Contained & Overflow-Hidden) */}
       {isLoading ? (
-        <TableSkeleton />
+        <TableSkeleton rows={4} />
       ) : !data?.length ? (
-        <EmptyState
-          title="No job postings yet"
-          description="Create a job posting to start sourcing candidates."
-          action={
-            <Link href="/admin-portal/recruitment/new">
-              <Button size="sm">New job posting</Button>
-            </Link>
-          }
-        />
+        <div className="rounded-2xl border border-neutral-200/80 bg-white p-12 text-center shadow-sm">
+          <EmptyState
+            title="No active job postings found"
+            description="Create your first job requisition to start receiving candidate applications."
+            className="border-0"
+            action={
+              <Link href="/admin-portal/recruitment/new">
+                <Button size="sm">New Job Posting</Button>
+              </Link>
+            }
+          />
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+        <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
+                <TableHead>Role / Title</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Candidates</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Posted</TableHead>
+                <TableHead>Posted Date</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((job) => (
-                <TableRow key={job.id}>
+                <TableRow key={job.id} className="hover:bg-neutral-50/70 transition-colors">
                   <TableCell>
                     <Link
                       href={`/admin-portal/recruitment/${job.id}`}
-                      className="font-medium text-teal-800 transition-colors duration-150 hover:underline"
+                      className="font-bold text-neutral-900 hover:text-[#FF7A70] transition-colors"
                     >
                       {job.title}
                     </Link>
                   </TableCell>
-                  <TableCell>{job.department?.name ?? "—"}</TableCell>
-                  <TableCell>{job.location}</TableCell>
-                  <TableCell>{job._count.candidates}</TableCell>
+
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
+                      <Building2 className="h-3 w-3 text-neutral-400" />
+                      {job.department?.name ?? "—"}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 text-xs text-neutral-600">
+                      <MapPin className="h-3.5 w-3.5 text-neutral-400" />
+                      {job.location}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-800">
+                      <Users className="h-3 w-3 text-[#FF7A70]" />
+                      {job._count.candidates} Applied
+                    </span>
+                  </TableCell>
+
                   <TableCell>
                     <Badge
                       variant={
@@ -100,10 +149,23 @@ export default function RecruitmentJobsPage() {
                             : "warning"
                       }
                     >
-                      {job.status.replace("_", " ")}
+                      {job.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(job.createdAt)}</TableCell>
+
+                  <TableCell className="text-xs text-neutral-500 font-medium">
+                    {formatDate(job.createdAt)}
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/admin-portal/recruitment/${job.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#FF7A70] transition-colors"
+                    >
+                      <span>Pipeline</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

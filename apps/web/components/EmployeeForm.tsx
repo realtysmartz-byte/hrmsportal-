@@ -50,7 +50,7 @@ const emptyValues: EmployeeFormValues = {
   address: "",
   profilePhotoUrl: "",
   status: "ACTIVE",
-  workLocationName: "Realty Smartz HQ, Gurugram",
+  workLocationName: "Realty Smartz Private Limited HQ, Gurugram",
 };
 
 function toDateInput(value?: Date | string | null) {
@@ -89,7 +89,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     address: initial?.address ?? "",
     profilePhotoUrl: initial?.profilePhotoUrl ?? "",
     workLocationName:
-      initial?.workLocationName ?? "Realty Smartz HQ, Gurugram",
+      initial?.workLocationName ?? "Realty Smartz Private Limited HQ, Gurugram",
   });
 
   const { data: departments } = trpc.department.list.useQuery();

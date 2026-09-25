@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Check, X, FileText, Calendar, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,65 +50,113 @@ export default function LeaveApprovalsPage() {
   }, [status, allowed, router]);
 
   if (status === "loading" || !allowed) {
-    return <TableSkeleton />;
+    return (
+      <div className="flex h-48 items-center justify-center text-xs font-semibold text-neutral-400">
+        Loading pending requests...
+      </div>
+    );
   }
 
   return (
-    <div className="section-gap">
-      <div className="page-header">
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER (Dashboards V3 Style) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="page-title">Leave Approvals</h1>
-          <p className="page-subtitle">
-            Approve or reject pending leave requests
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Managerial Approvals</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Leave Approvals
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Review, authorize, or reject staff time-off and leave requests
           </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 py-1.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+          <Clock className="h-4 w-4 text-[#FF7A70]" />
+          <span>{data?.length ?? 0} Awaiting Decision</span>
         </div>
       </div>
 
-      {error && <p className="text-sm text-maroon-600">{error}</p>}
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          <span>{error}</span>
+        </div>
+      )}
 
+      {/* 2. REQUESTS TABLE (Contained & Overflow-Hidden) */}
       {isLoading ? (
-        <TableSkeleton />
+        <TableSkeleton rows={4} />
       ) : !data?.length ? (
-        <EmptyState
-          title="No pending requests"
-          description="When employees apply for leave, approvals will show up here."
-        />
+        <div className="rounded-2xl border border-neutral-200/80 bg-white p-12 text-center shadow-sm">
+          <EmptyState
+            title="All clear! Zero pending requests"
+            description="When employees submit new leave applications, they will appear here for your review."
+            className="border-0"
+          />
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+        <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Days</TableHead>
+                <TableHead>Leave Type</TableHead>
+                <TableHead>Date Interval</TableHead>
+                <TableHead>Duration</TableHead>
                 <TableHead>Reason</TableHead>
-                <TableHead>Note / Actions</TableHead>
+                <TableHead className="text-right min-w-[240px]">Decision</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="hover:bg-neutral-50/70 transition-colors">
                   <TableCell>
-                    <p className="font-medium">
-                      {fullName(r.employee.firstName, r.employee.lastName)}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {r.employee.employeeCode}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs">
+                        {r.employee.firstName?.[0]}
+                        {r.employee.lastName?.[0]}
+                      </div>
+                      <div>
+                        <p className="font-bold text-neutral-900">
+                          {fullName(r.employee.firstName, r.employee.lastName)}
+                        </p>
+                        <p className="text-[11px] font-mono text-neutral-400 font-medium">
+                          {r.employee.employeeCode}
+                        </p>
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell>{r.leaveType.name}</TableCell>
+
                   <TableCell>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
+                      {r.leaveType.name}
+                    </span>
+                  </TableCell>
+
+                  <TableCell className="font-medium text-neutral-700 text-xs sm:text-sm">
                     {formatDate(r.startDate)} – {formatDate(r.endDate)}
                   </TableCell>
-                  <TableCell>{r.numberOfDays}</TableCell>
-                  <TableCell className="max-w-xs whitespace-pre-wrap text-sm">
+
+                  <TableCell>
+                    <span className="font-bold text-neutral-900">
+                      {r.numberOfDays} {r.numberOfDays === 1 ? "day" : "days"}
+                    </span>
+                  </TableCell>
+
+                  <TableCell className="max-w-xs text-xs text-neutral-600 line-clamp-2">
                     {r.reason}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-2">
+
+                  <TableCell className="text-right">
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-2">
                       <Input
-                        placeholder="Optional note"
+                        placeholder="Optional note..."
+                        className="h-8 text-xs max-w-[150px]"
                         value={notes[r.id] ?? ""}
                         onChange={(e) =>
                           setNotes((prev) => ({
@@ -116,9 +165,9 @@ export default function LeaveApprovalsPage() {
                           }))
                         }
                       />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
                           disabled={respond.isLoading}
                           onClick={() =>
                             respond.mutate({
@@ -127,12 +176,13 @@ export default function LeaveApprovalsPage() {
                               approverNote: notes[r.id] || null,
                             })
                           }
+                          className="flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors disabled:opacity-50"
                         >
+                          <Check className="h-3.5 w-3.5" />
                           Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
+                        </button>
+                        <button
+                          type="button"
                           disabled={respond.isLoading}
                           onClick={() =>
                             respond.mutate({
@@ -141,9 +191,11 @@ export default function LeaveApprovalsPage() {
                               approverNote: notes[r.id] || null,
                             })
                           }
+                          className="flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition-colors disabled:opacity-50"
                         >
+                          <X className="h-3.5 w-3.5" />
                           Reject
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   </TableCell>

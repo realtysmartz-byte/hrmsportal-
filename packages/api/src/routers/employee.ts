@@ -113,11 +113,25 @@ async function labelForJobField(
   return value;
 }
 
+function redactEmployeeSensitiveData<T extends Record<string, unknown>>(employee: T): T {
+  return {
+    ...employee,
+    dateOfBirth: null,
+    address: null,
+    emergencyContactName: null,
+    emergencyContactPhone: null,
+    workLocationLat: null,
+    workLocationLng: null,
+  };
+}
+
 export const employeeRouter = router({
   list: protectedProcedure
     .input(employeeListFilterSchema)
     .query(async ({ ctx, input }) => {
       const { search, departmentId, status, page, pageSize } = input;
+      const role = ctx.session.user.role as Role;
+      const canManage = canManageEmployees(role);
 
       const where = {
         AND: [
@@ -147,8 +161,12 @@ export const employeeRouter = router({
         ctx.prisma.employee.count({ where }),
       ]);
 
+      const safeItems = items.map(({ passwordHash: _, ...rest }) =>
+        canManage ? rest : redactEmployeeSensitiveData(rest)
+      );
+
       return {
-        items: items.map(({ passwordHash: _, ...rest }) => rest),
+        items: safeItems,
         total,
         page,
         pageSize,
@@ -187,8 +205,12 @@ export const employeeRouter = router({
       );
 
       const { passwordHash: _, ...safe } = employee;
+      const sanitized = canViewSensitive
+        ? safe
+        : redactEmployeeSensitiveData(safe);
+
       return {
-        ...safe,
+        ...sanitized,
         profileCompletion: profileCompletionPercent(employee),
         access: {
           canViewSensitive,
@@ -241,16 +263,18 @@ export const employeeRouter = router({
 
       const [jobHistory, recentAttendance, recentLeave, leaveBalances] =
         await Promise.all([
-          ctx.prisma.employeeJobHistory.findMany({
-            where: { employeeId: employee.id },
-            include: {
-              changedBy: {
-                select: { id: true, firstName: true, lastName: true },
-              },
-            },
-            orderBy: { effectiveDate: "desc" },
-            take: 20,
-          }),
+          canViewSensitive
+            ? ctx.prisma.employeeJobHistory.findMany({
+                where: { employeeId: employee.id },
+                include: {
+                  changedBy: {
+                    select: { id: true, firstName: true, lastName: true },
+                  },
+                },
+                orderBy: { effectiveDate: "desc" },
+                take: 20,
+              })
+            : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.attendanceLog.findMany({
                 where: { employeeId: employee.id },
@@ -312,9 +336,13 @@ export const employeeRouter = router({
       }
 
       const { passwordHash: _, ...safe } = employee;
+      const sanitizedEmployee = canViewSensitive
+        ? safe
+        : redactEmployeeSensitiveData(safe);
+
       return {
         employee: {
-          ...safe,
+          ...sanitizedEmployee,
           profileCompletion: profileCompletionPercent(employee),
         },
         access: {
@@ -330,15 +358,16 @@ export const employeeRouter = router({
           daysSinceJoining,
           recentAttendance,
           recentLeave,
-          jobHistoryPreview: jobHistory.slice(0, 3),
+          jobHistoryPreview: canViewSensitive ? jobHistory.slice(0, 3) : [],
         },
-        jobHistory,
+        jobHistory: canViewSensitive ? jobHistory : [],
       };
     }),
 
   jobHistory: protectedProcedure
     .input(z.object({ employeeId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await assertCanViewSensitive(ctx, input.employeeId);
       return ctx.prisma.employeeJobHistory.findMany({
         where: { employeeId: input.employeeId },
         include: {
@@ -373,6 +402,43 @@ export const employeeRouter = router({
         canManageEmployees(actor.role as Role) || actor.id === input.employeeId;
       if (!canUpload) {
         throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      // Server-side validation of file type & size limits
+      const allowedMimes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "application/pdf",
+      ];
+      if (input.fileUrl.startsWith("data:")) {
+        const match = input.fileUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid file format",
+          });
+        }
+        const mime = match[1].toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Only PDF, PNG, JPG, and WEBP files are allowed",
+          });
+        }
+        // Limit: ~5MB (7MB base64 string length)
+        if (input.fileUrl.length > 7 * 1024 * 1024) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "File exceeds 5MB size limit",
+          });
+        }
+      } else if (!input.fileUrl.startsWith("https://")) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "File URL must be an HTTPS URL or valid data URL",
+        });
       }
 
       return ctx.prisma.employeeDocument.create({

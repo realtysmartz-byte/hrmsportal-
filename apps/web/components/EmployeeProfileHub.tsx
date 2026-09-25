@@ -57,11 +57,11 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  PRESENT: "bg-teal-600 text-white",
+  PRESENT: "bg-emerald-600 text-white",
   LATE: "bg-amber-500 text-white",
-  HALF_DAY: "bg-amber-400 text-white",
-  ABSENT: "bg-maroon-600 text-white",
-  ON_LEAVE: "bg-neutral-400 text-white",
+  HALF_DAY: "bg-amber-600 text-white",
+  ABSENT: "bg-maroon text-white",
+  ON_LEAVE: "bg-indigo-100 text-primary font-medium",
   HOLIDAY: "bg-neutral-200 text-neutral-700",
 };
 
@@ -133,21 +133,21 @@ export function EmployeeProfileHub({
   const { employee: emp, access, overview, jobHistory } = data;
 
   return (
-    <div className="-mx-4 overflow-hidden bg-white md:-mx-6 md:rounded-xl md:border md:border-neutral-200">
-      {/* Keka-style banner + profile strip */}
+    <div className="w-full max-w-full overflow-hidden bg-white rounded-2xl border border-neutral-200/80 shadow-2xs">
+      {/* Bento Obsidian + Radiant Coral banner */}
       <div className="relative">
         <div
-          className="h-28 w-full md:h-36"
+          className="h-28 w-full md:h-36 relative overflow-hidden"
           style={{
             background:
-              "linear-gradient(135deg, #0c4d61 0%, #0f5c74 40%, #1e738c 70%, #3f8fa5 100%)",
+              "linear-gradient(135deg, #11121A 0%, #181926 50%, #2A1722 100%)",
           }}
         >
           <div
-            className="absolute inset-0 opacity-30"
+            className="absolute inset-0 opacity-20 pointer-events-none"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.2) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 35%)",
+                "radial-gradient(circle at 20% 50%, rgba(255,122,112,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(255,160,122,0.3) 0%, transparent 35%)",
             }}
           />
           <div className="absolute left-3 top-3 z-10 flex gap-2">
@@ -168,9 +168,9 @@ export function EmployeeProfileHub({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="gap-1.5 bg-white/95 text-teal-900 hover:bg-white"
+                  className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white shadow-2xs"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3.5 w-3.5 text-[#FF7A70]" />
                   Edit
                 </Button>
               </Link>
@@ -179,10 +179,10 @@ export function EmployeeProfileHub({
               <Button
                 size="sm"
                 variant="secondary"
-                className="gap-1.5 bg-white/95 text-teal-900 hover:bg-white"
+                className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white shadow-2xs"
               >
-                <Network className="h-3.5 w-3.5" />
-                Org chart
+                <Network className="h-3.5 w-3.5 text-[#FF7A70]" />
+                Org Chart
               </Button>
             </Link>
             {access.canManage && (
@@ -209,7 +209,7 @@ export function EmployeeProfileHub({
 
         <div className="relative px-4 pb-0 pt-0 md:px-6">
           <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-teal-50 font-display text-xl font-bold text-teal-800 shadow-md md:h-24 md:w-24 md:text-2xl">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-display text-xl font-bold text-white shadow-md md:h-24 md:w-24 md:text-2xl">
               {emp.profilePhotoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -228,28 +228,28 @@ export function EmployeeProfileHub({
                 </h1>
                 <StatusBadge status={emp.status} />
               </div>
-              <p className="mt-0.5 text-sm text-neutral-600">
+              <p className="mt-0.5 text-sm text-neutral-600 font-medium">
                 {emp.designation?.title ?? "No designation"}
                 {emp.department?.name ? ` · ${emp.department.name}` : ""}
               </p>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-caption text-neutral-500">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500 font-medium">
                 <span className="inline-flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
+                  <Mail className="h-3 w-3 text-neutral-400" />
                   {emp.email}
                 </span>
                 {emp.phone && (
                   <span className="inline-flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
+                    <Phone className="h-3 w-3 text-neutral-400" />
                     {emp.phone}
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
+                  <MapPin className="h-3 w-3 text-neutral-400" />
                   {emp.workLocationName || "Gurugram"}
                 </span>
                 {emp.dateOfJoining && (
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
+                    <Calendar className="h-3 w-3 text-neutral-400" />
                     Joined {formatDate(emp.dateOfJoining)}
                   </span>
                 )}
@@ -260,12 +260,12 @@ export function EmployeeProfileHub({
                 <div className="flex min-w-[140px] max-w-xs flex-1 items-center gap-2">
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
                     <div
-                      className="h-full rounded-full bg-teal-600 transition-all duration-200"
+                      className="h-full rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] transition-all duration-200"
                       style={{ width: `${emp.profileCompletion}%` }}
                     />
                   </div>
-                  <span className="text-[11px] font-medium text-neutral-500">
-                    {emp.profileCompletion}%
+                  <span className="text-[11px] font-semibold text-neutral-600">
+                    {emp.profileCompletion}% Complete
                   </span>
                 </div>
               </div>
@@ -275,7 +275,7 @@ export function EmployeeProfileHub({
       </div>
 
       {/* Tabs */}
-      <div className="sticky top-0 z-20 border-b border-neutral-200 bg-white px-2 md:px-4">
+      <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-2 md:px-4">
         <div className="flex min-w-max gap-0 overflow-x-auto">
           {tabs.map((t) => (
             <button
@@ -283,9 +283,9 @@ export function EmployeeProfileHub({
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                "relative px-4 py-3 text-caption font-semibold uppercase tracking-wide transition-colors duration-150",
+                "relative px-4 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150",
                 tab === t.id
-                  ? "text-teal-800"
+                  ? "text-[#FF7A70] font-bold"
                   : "text-neutral-500 hover:text-neutral-800"
               )}
             >
@@ -293,7 +293,7 @@ export function EmployeeProfileHub({
               {tab === t.id && (
                 <motion.span
                   layoutId="profile-tab"
-                  className="absolute inset-x-2 bottom-0 h-0.5 bg-teal-700"
+                  className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A]"
                 />
               )}
             </button>
@@ -602,10 +602,10 @@ function OverviewTab({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardContent className="pt-5">
-        <p className="text-caption text-neutral-500">{label}</p>
-        <p className="mt-1 font-display text-2xl font-semibold text-neutral-900">
+    <Card className="border border-neutral-200/80 bg-white shadow-2xs">
+      <CardContent className="p-4 sm:p-5">
+        <p className="text-xs font-medium text-neutral-500">{label}</p>
+        <p className="mt-1 font-display text-2xl font-bold text-primary">
           {value}
         </p>
       </CardContent>
@@ -672,7 +672,7 @@ function JobTab({
               label="Employee Status"
               value={emp.status.replace("_", " ")}
             />
-            <DetailField label="Business Unit" value="Realty Smartz Pvt Ltd" />
+            <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
           </CardContent>
         </Card>
 
@@ -681,7 +681,7 @@ function JobTab({
             <CardTitle className="text-base">Organization</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-5">
-            <DetailField label="Business Unit" value="Realty Smartz Pvt Ltd" />
+            <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
             <DetailField label="Department" value={emp.department?.name} />
             <DetailField
               label="Location"

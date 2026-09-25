@@ -84,67 +84,82 @@ export default function LeaveTypesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Leave Types</h1>
-        <p className="text-muted-foreground">
-          Manage leave categories and annual quotas
-        </p>
+    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      {/* 1. TOP HEADER (Dashboards V3 Style) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <span>Realty Smartz Private Limited</span>
+            <span>·</span>
+            <span className="text-[#FF7A70] font-bold">Policy & Entitlements</span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+            Leave Types
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+            Manage corporate leave classifications, annual quotas, and carry-forward entitlements
+          </p>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Add leave type</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Annual quota (days)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={annualQuota}
-                onChange={(e) => setAnnualQuota(e.target.value)}
-                required
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={carryForward}
-                onChange={(e) => setCarryForward(e.target.checked)}
-              />
-              Carry forward allowed
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={requiresApproval}
-                onChange={(e) => setRequiresApproval(e.target.checked)}
-              />
-              Requires approval
-            </label>
-            <div className="sm:col-span-2">
-              <Button type="submit" className="gap-2" disabled={createMutation.isLoading}>
-                <Plus className="h-4 w-4" />
-                Add
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md p-5 shadow-2xs">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-4">
+          Add New Leave Classification
+        </h2>
+        <form onSubmit={onCreate} className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-neutral-700">Category Name</Label>
+            <Input
+              placeholder="e.g. Annual Vacation, Sick Leave, Bereavement"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-neutral-700">Annual Quota (Days)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={annualQuota}
+              onChange={(e) => setAnnualQuota(e.target.value)}
+              required
+            />
+          </div>
+          <label className="flex items-center gap-2 text-xs font-medium text-neutral-700 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={carryForward}
+              onChange={(e) => setCarryForward(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-300 text-[#FF7A70] accent-[#FF7A70]"
+            />
+            Carry forward unused days allowed
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-neutral-700 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={requiresApproval}
+              onChange={(e) => setRequiresApproval(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-300 text-[#FF7A70] accent-[#FF7A70]"
+            />
+            Requires managerial approval
+          </label>
+          <div className="sm:col-span-2 pt-2">
+            <button
+              type="submit"
+              disabled={createMutation.isLoading || !name.trim()}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs font-bold text-white shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              {createMutation.isLoading ? "Saving..." : "Add Leave Type"}
+            </button>
+          </div>
+        </form>
+      </div>
 
-      {error && <p className="text-sm text-brand-maroon">{error}</p>}
+      {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
 
-      <div className="rounded-lg border bg-white">
+      <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
