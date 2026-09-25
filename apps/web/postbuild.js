@@ -54,8 +54,18 @@ try {
     }
   }
 
-  // 5. Monorepo packages directory compatibility (for apps/web/apps/web/packages):
+  // 5. Monorepo packages directory compatibility (for apps/web/packages & apps/web/apps/web/packages):
   const rootPackages = path.resolve('..', '..', 'packages');
+  const localPackages = path.resolve('packages');
+  if (fs.existsSync(rootPackages) && !fs.existsSync(localPackages)) {
+    try {
+      fs.symlinkSync(rootPackages, localPackages, 'junction');
+      console.log('[postbuild] Created local packages link at:', localPackages);
+    } catch (e) {
+      console.warn('[postbuild] Notice on local packages:', e.message);
+    }
+  }
+
   const nestedPackages = path.resolve(targetDir, 'packages');
   if (fs.existsSync(rootPackages) && !fs.existsSync(nestedPackages)) {
     try {

@@ -11,6 +11,8 @@ dist
 build
 .turbo
 apps/web/apps/
+apps/web/packages
+
 
 
 # env
