@@ -1,5 +1,5 @@
-import { httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
+import { httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "@realty-smartz/api";
 import superjson from "superjson";
 
