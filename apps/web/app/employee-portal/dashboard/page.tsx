@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { CheckInOutCard } from "@/components/CheckInOutCard";
+import { UpcomingBirthdaysWidget } from "@/components/UpcomingBirthdaysWidget";
 import { isWeeklyOffDay } from "@realty-smartz/shared";
 
 export default function EmployeeDashboardPage() {
@@ -655,6 +656,9 @@ export default function EmployeeDashboardPage() {
 
         {/* COLUMN 3: Inbox / Activities & Tasks (4 Cols - Matching Image 1 & 2) */}
         <div className="lg:col-span-4 space-y-5">
+          {/* Upcoming Birthdays Widget */}
+          <UpcomingBirthdaysWidget portal="employee" />
+
           {/* Inbox Feed Card */}
           <motion.div
             whileHover={{ y: -3 }}

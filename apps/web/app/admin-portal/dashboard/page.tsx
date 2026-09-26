@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
+import { UpcomingBirthdaysWidget } from "@/components/UpcomingBirthdaysWidget";
 
 export default function AdminDashboardPage() {
   const [activeTabFilter, setActiveTabFilter] = useState<"overview" | "workforce" | "approvals">("overview");
@@ -558,6 +559,9 @@ export default function AdminDashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Upcoming Birthdays Widget */}
+          <UpcomingBirthdaysWidget portal="admin" />
 
           {/* Quick Workforce Metrics Banner */}
           <div className="rounded-2xl bg-gradient-to-br from-[#181C26] to-[#2B3A67] p-5 text-white shadow-md">

@@ -7,6 +7,8 @@ import { leaveRouter } from "./routers/leave";
 import { companySettingsRouter } from "./routers/companySettings";
 import { recruitmentRouter } from "./routers/recruitment";
 import { performanceRouter } from "./routers/performance";
+import { googleSheetsRouter } from "./routers/googleSheets";
+import { emailSettingsRouter } from "./routers/emailSettings";
 
 export const appRouter = router({
   employee: employeeRouter,
@@ -17,6 +19,8 @@ export const appRouter = router({
   companySettings: companySettingsRouter,
   recruitment: recruitmentRouter,
   performance: performanceRouter,
+  googleSheets: googleSheetsRouter,
+  emailSettings: emailSettingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
@@ -28,3 +32,25 @@ export type {
   SessionUser,
   CreateContextOptions,
 } from "./context";
+
+export {
+  generateDailyAttendanceData,
+  syncReportToGoogleSheet,
+  type GoogleSheetConfig,
+  type DailyReportRow,
+} from "./lib/google-sheets";
+export {
+  getActiveGoogleSheetConfig,
+  setLastSyncMetadata,
+} from "./routers/googleSheets";
+export {
+  sendMail,
+  notifyWelcomeEmployee,
+  notifyPunchDetails,
+  notifyCheckOutDetails,
+  notifyLatePunch,
+  notifyOutsideGeofence,
+  testSmtpConnection,
+  getSmtpConfig,
+  setRuntimeSmtpConfig,
+} from "./lib/email";

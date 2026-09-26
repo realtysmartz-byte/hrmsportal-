@@ -14,6 +14,8 @@ import {
 } from "@/lib/geolocation";
 import { canManageCompanySettings } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
+import Link from "next/link";
+import { FileSpreadsheet, Mail } from "lucide-react";
 import { LocationMap } from "@/components/LocationMap";
 
 export default function CompanySettingsPage() {
@@ -210,6 +212,54 @@ export default function CompanySettingsPage() {
               />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Google Sheets Daily Sync Integration Card */}
+      <Card className="rounded-2xl border-neutral-200/80 shadow-sm bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border">
+        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+              <FileSpreadsheet className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-neutral-900 text-sm">
+                Google Sheets Daily Report Sync
+              </h4>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Automatically generate a new date tab daily in your Google Sheet with full employee attendance and hours.
+              </p>
+            </div>
+          </div>
+          <Link href="/admin-portal/settings/google-sheets" className="shrink-0">
+            <Button size="sm" className="bg-[#181C26] hover:bg-neutral-800 text-white font-bold text-xs gap-1.5 w-full sm:w-auto">
+              Configure Sync →
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+
+      {/* Hostinger Email & SMTP Configuration Card */}
+      <Card className="rounded-2xl border-neutral-200/80 shadow-sm bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
+        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+              <Mail className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-neutral-900 text-sm">
+                Email & Hostinger SMTP Settings
+              </h4>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Configure info@realtysmartz.in credentials, send test emails, and manage automated welcome & punch alerts.
+              </p>
+            </div>
+          </div>
+          <Link href="/admin-portal/settings/email" className="shrink-0">
+            <Button size="sm" className="bg-[#181C26] hover:bg-neutral-800 text-white font-bold text-xs gap-1.5 w-full sm:w-auto">
+              Manage Email →
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>

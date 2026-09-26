@@ -253,10 +253,10 @@ export const attendanceRouter = router({
             },
           });
 
-      // Fire-and-forget policy emails
+      // Fire-and-forget punching details & policy emails
       void (async () => {
         try {
-          const { notifyLatePunch, notifyOutsideGeofence } = await import(
+          const { notifyPunchDetails, notifyOutsideGeofence } = await import(
             "../lib/email"
           );
           const emp = await ctx.prisma.employee.findUnique({
@@ -271,17 +271,20 @@ export const attendanceRouter = router({
           });
           if (!emp) return;
           const name = `${emp.firstName} ${emp.lastName}`;
-          if (status === "LATE") {
-            await notifyLatePunch({
-              employeeName: name,
-              employeeEmail: emp.email,
-              employeeCode: emp.employeeCode,
-              checkInTime: now,
-              address: input.address,
-              withinGeofence,
-              managerEmail: emp.manager?.email,
-            });
-          } else if (!withinGeofence) {
+
+          // Always send punching details email to employee (and manager/HR if late)
+          await notifyPunchDetails({
+            employeeName: name,
+            employeeEmail: emp.email,
+            employeeCode: emp.employeeCode,
+            checkInTime: now,
+            status,
+            address: input.address,
+            withinGeofence,
+            managerEmail: emp.manager?.email,
+          });
+
+          if (!withinGeofence) {
             await notifyOutsideGeofence({
               employeeName: name,
               employeeEmail: emp.email,
@@ -332,17 +335,51 @@ export const attendanceRouter = router({
         status = "HALF_DAY";
       }
 
-      return ctx.prisma.attendanceLog.update({
+      const roundedHours = Math.round(totalHours * 100) / 100;
+
+      const updated = await ctx.prisma.attendanceLog.update({
         where: { id: existing.id },
         data: {
           checkOutTime: now,
           checkOutLat: input.lat,
           checkOutLng: input.lng,
           checkOutAddress: input.address,
-          totalHours: Math.round(totalHours * 100) / 100,
+          totalHours: roundedHours,
           status,
         },
       });
+
+      // Fire-and-forget check-out notification
+      void (async () => {
+        try {
+          const { notifyCheckOutDetails } = await import("../lib/email");
+          const emp = await ctx.prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              manager: { select: { email: true } },
+            },
+          });
+          if (!emp) return;
+          const name = `${emp.firstName} ${emp.lastName}`;
+          await notifyCheckOutDetails({
+            employeeName: name,
+            employeeEmail: emp.email,
+            employeeCode: emp.employeeCode,
+            checkOutTime: now,
+            totalHours: roundedHours,
+            address: input.address,
+            managerEmail: emp.manager?.email,
+          });
+        } catch (err) {
+          console.error("[attendance.checkOut] email notify failed:", err);
+        }
+      })();
+
+      return updated;
     }),
 
   team: protectedProcedure

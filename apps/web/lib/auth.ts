@@ -207,6 +207,20 @@ export const authOptions: NextAuthOptions = {
         if (canAccessAdminPortal(employee.role as Role)) {
           return "/login?error=GoogleEmployeeOnly&portal=employee";
         }
+
+        // Auto-fetch profile photo from Google account if not already set
+        // Do NOT overwrite an existing profilePhotoUrl if the employee has already manually set one
+        if (!employee.profilePhotoUrl && user.image) {
+          try {
+            await prisma.employee.update({
+              where: { id: employee.id },
+              data: { profilePhotoUrl: user.image },
+            });
+          } catch (err) {
+            console.error("[auth] failed to auto-fetch Google profile photo:", err);
+          }
+        }
+
         return true;
       }
       return true;

@@ -9,9 +9,10 @@ import {
   EMPLOYEE_CODE_PREFIX,
   canManageEmployees,
   canViewSensitiveEmployeeData,
+  getEmployeeVisibilityLevel,
   isWorkingDay,
 } from "@realty-smartz/shared";
-import type { Role, OrgChartNode } from "@realty-smartz/shared";
+import type { Role, OrgChartNode, EmployeeVisibilityLevel } from "@realty-smartz/shared";
 import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import {
   assertCanViewSensitive,
@@ -122,6 +123,7 @@ function redactEmployeeSensitiveData<T extends Record<string, unknown>>(employee
     emergencyContactPhone: null,
     workLocationLat: null,
     workLocationLng: null,
+    gender: null,
   };
 }
 
@@ -199,10 +201,11 @@ export const employeeRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
-      const canViewSensitive = canViewSensitiveEmployeeData(
+      const visibility = getEmployeeVisibilityLevel(
         { id: actor.id, role: actor.role as Role },
-        { id: employee.id, managerId: employee.managerId }
+        employee
       );
+      const canViewSensitive = visibility === "FULL";
 
       const { passwordHash: _, ...safe } = employee;
       const sanitized = canViewSensitive
@@ -211,13 +214,15 @@ export const employeeRouter = router({
 
       return {
         ...sanitized,
-        profileCompletion: profileCompletionPercent(employee),
+        profileCompletion: canViewSensitive ? profileCompletionPercent(employee) : 0,
         access: {
           canViewSensitive,
+          visibilityLevel: visibility,
           canEdit:
             canManageEmployees(actor.role as Role) || actor.id === employee.id,
           canManage: canManageEmployees(actor.role as Role),
           isSelf: actor.id === employee.id,
+          isManager: employee.managerId === actor.id,
         },
       };
     }),
@@ -247,10 +252,11 @@ export const employeeRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
-      const canViewSensitive = canViewSensitiveEmployeeData(
+      const visibility = getEmployeeVisibilityLevel(
         { id: actor.id, role: actor.role as Role },
-        { id: employee.id, managerId: employee.managerId }
+        employee
       );
+      const canViewSensitive = visibility === "FULL";
 
       const year = new Date().getFullYear();
       const now = new Date();
@@ -325,7 +331,7 @@ export const employeeRouter = router({
       );
 
       let daysSinceJoining: number | null = null;
-      if (employee.dateOfJoining) {
+      if (employee.dateOfJoining && canViewSensitive) {
         daysSinceJoining = Math.max(
           0,
           Math.floor(
@@ -343,14 +349,16 @@ export const employeeRouter = router({
       return {
         employee: {
           ...sanitizedEmployee,
-          profileCompletion: profileCompletionPercent(employee),
+          profileCompletion: canViewSensitive ? profileCompletionPercent(employee) : 0,
         },
         access: {
           canViewSensitive,
+          visibilityLevel: visibility,
           canEdit:
             canManageEmployees(actor.role as Role) || actor.id === employee.id,
           canManage: canManageEmployees(actor.role as Role),
           isSelf: actor.id === employee.id,
+          isManager: employee.managerId === actor.id,
         },
         overview: {
           attendancePct,
@@ -530,6 +538,26 @@ export const employeeRouter = router({
           skipDuplicates: true,
         });
       }
+
+      // Fire-and-forget welcome email with credentials to the newly created employee
+      void (async () => {
+        try {
+          const { notifyWelcomeEmployee } = await import("../lib/email");
+          const name = [employee.firstName, employee.lastName].filter(Boolean).join(" ");
+          await notifyWelcomeEmployee({
+            employeeName: name,
+            employeeEmail: employee.email,
+            employeeCode: employee.employeeCode,
+            rawPassword: input.password,
+            role: employee.role,
+            departmentName: employee.department?.name,
+            designationTitle: employee.designation?.title,
+            dateOfJoining: employee.dateOfJoining,
+          });
+        } catch (err) {
+          console.error("[employee.create] Failed to send welcome email:", err);
+        }
+      })();
 
       const { passwordHash: _, ...safe } = employee;
       return safe;
@@ -761,4 +789,102 @@ export const employeeRouter = router({
       recentJoiners: recentJoiners.map(({ passwordHash: _, ...rest }) => rest),
     };
   }),
+
+  updateMyPhoto: protectedProcedure
+    .input(
+      z.object({
+        profilePhotoUrl: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const actor = await resolveActorId(ctx);
+      const updated = await ctx.prisma.employee.update({
+        where: { id: actor.id },
+        data: { profilePhotoUrl: input.profilePhotoUrl },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          profilePhotoUrl: true,
+        },
+      });
+      return updated;
+    }),
+
+  getUpcomingBirthdays: protectedProcedure.query(async ({ ctx }) => {
+    const employees = await ctx.prisma.employee.findMany({
+      where: {
+        status: { in: ["ACTIVE", "ON_LEAVE"] },
+        dateOfBirth: { not: null },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        profilePhotoUrl: true,
+        dateOfBirth: true,
+        department: { select: { id: true, name: true } },
+        designation: { select: { id: true, title: true } },
+      },
+    });
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const today = new Date(currentYear, now.getMonth(), now.getDate());
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const upcoming: {
+      id: string;
+      name: string;
+      firstName: string;
+      lastName: string;
+      profilePhotoUrl: string | null;
+      department: string | null;
+      designation: string | null;
+      birthdayDate: string;
+      isToday: boolean;
+      daysUntil: number;
+    }[] = [];
+
+    for (const emp of employees) {
+      if (!emp.dateOfBirth) continue;
+      const dob = new Date(emp.dateOfBirth);
+      const birthMonth = dob.getMonth();
+      const birthDay = dob.getDate();
+
+      // Check current year birthday
+      let nextBirthday = new Date(currentYear, birthMonth, birthDay);
+      // If birthday has already passed this year, wrap to next year (handles year wrap-around like Dec 20 to Jan 19)
+      if (nextBirthday.getTime() < today.getTime()) {
+        nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
+      }
+
+      const diffTime = nextBirthday.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0 && diffDays <= 30) {
+        upcoming.push({
+          id: emp.id,
+          name: `${emp.firstName} ${emp.lastName}`.trim(),
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          profilePhotoUrl: emp.profilePhotoUrl,
+          department: emp.department?.name ?? null,
+          designation: emp.designation?.title ?? null,
+          birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
+          isToday: diffDays === 0,
+          daysUntil: diffDays,
+        });
+      }
+    }
+
+    // Sort by how soon the birthday is
+    upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+    return upcoming;
+  }),
 });
+

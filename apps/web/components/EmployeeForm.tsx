@@ -269,6 +269,18 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                 onChange={(e) => setField("profilePhotoUrl", e.target.value)}
                 placeholder="https://..."
               />
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-xs text-neutral-500 font-medium">Photo source:</span>
+                {values.profilePhotoUrl ? (
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-neutral-100 text-neutral-800 border border-neutral-200">
+                    {values.profilePhotoUrl.includes("googleusercontent.com") || values.profilePhotoUrl.includes("google")
+                      ? "Google Account"
+                      : "Custom Upload"}
+                  </span>
+                ) : (
+                  <span className="text-xs text-neutral-400">None set (uses initials)</span>
+                )}
+              </div>
             </Field>
           </div>
         </CardContent>

@@ -81,15 +81,31 @@ export function canManageEmployees(role: Role): boolean {
   return HR_ADMIN_ROLES.includes(role);
 }
 
-/** Sensitive profile tabs: Attendance, Leave, Documents */
+export type EmployeeVisibilityLevel = "FULL" | "LIMITED" | "NONE";
+
+/**
+ * Shared visibility logic for employee directory & profile hub access control:
+ * - FULL: Self, ADMIN, HR, or Direct Manager of the target employee
+ * - LIMITED: Regular colleagues (view-only directory info: name, photo, designation, department, work email, phone, manager)
+ * - NONE: Invalid or missing target
+ */
+export function getEmployeeVisibilityLevel(
+  viewer: { id: string; role: Role },
+  target: { id: string; managerId?: string | null } | null | undefined
+): EmployeeVisibilityLevel {
+  if (!target || !target.id) return "NONE";
+  if (viewer.id === target.id) return "FULL";
+  if (HR_ADMIN_ROLES.includes(viewer.role)) return "FULL";
+  if (viewer.role === "MANAGER" && target.managerId === viewer.id) return "FULL";
+  return "LIMITED";
+}
+
+/** Sensitive profile tabs: Attendance, Leave, Documents, Performance */
 export function canViewSensitiveEmployeeData(
   viewer: { id: string; role: Role },
   target: { id: string; managerId: string | null }
 ): boolean {
-  if (viewer.id === target.id) return true;
-  if (HR_ADMIN_ROLES.includes(viewer.role)) return true;
-  if (viewer.role === "MANAGER" && target.managerId === viewer.id) return true;
-  return false;
+  return getEmployeeVisibilityLevel(viewer, target) === "FULL";
 }
 
 export function canManageOrg(role: Role): boolean {

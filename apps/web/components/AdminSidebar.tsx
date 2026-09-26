@@ -27,6 +27,8 @@ import {
   PanelLeftOpen,
   MapPin,
   Download,
+  FileSpreadsheet,
+  Mail,
 } from "lucide-react";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,8 @@ const coreNavItems = [
 const settingsNavItems = [
   { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText },
   { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings },
+  { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet },
+  { href: "/admin-portal/settings/email", label: "Email & SMTP", icon: Mail },
 ];
 
 interface AdminSidebarProps {

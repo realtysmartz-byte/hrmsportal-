@@ -12,6 +12,7 @@ import {
   Filter,
   ArrowUpDown,
   Building,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,24 @@ export default function TeamAttendancePage() {
     },
     { enabled: allowed }
   );
+
+  const [googleSheetResult, setGoogleSheetResult] = useState<{
+    msg: string;
+    url?: string;
+  } | null>(null);
+
+  const syncGoogleSheet = trpc.googleSheets.syncDailyReport.useMutation({
+    onSuccess: (res) => {
+      setGoogleSheetResult({
+        msg: `Tab "${res.sheetTitle}" synced successfully with ${res.rowCount} records!`,
+        url: res.spreadsheetUrl,
+      });
+      setTimeout(() => setGoogleSheetResult(null), 8000);
+    },
+    onError: (err) => {
+      alert(`Google Sheet Sync Error: ${err.message}`);
+    },
+  });
 
   useEffect(() => {
     if (status === "authenticated" && !allowed) {
@@ -184,11 +203,48 @@ export default function TeamAttendancePage() {
             Real-time workplace verification, punch times, and premise boundary compliance
           </p>
         </div>
-        <Button variant="outline" className="gap-2 text-xs" onClick={exportCsv}>
-          <Download className="h-4 w-4 text-neutral-500" />
-          Export CSV
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2 text-xs border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold"
+            disabled={syncGoogleSheet.isLoading}
+            onClick={() => syncGoogleSheet.mutate({ date })}
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+            {syncGoogleSheet.isLoading ? "Creating Tab..." : `Sync "${date}" to Google Sheet`}
+          </Button>
+          <Button variant="outline" className="gap-2 text-xs" onClick={exportCsv}>
+            <Download className="h-4 w-4 text-neutral-500" />
+            Export CSV
+          </Button>
+        </div>
       </div>
+
+      {googleSheetResult && (
+        <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 font-medium">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{googleSheetResult.msg}</span>
+            {googleSheetResult.url && (
+              <a
+                href={googleSheetResult.url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold underline ml-1 hover:opacity-80"
+              >
+                Open Google Sheet Tab ↗
+              </a>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setGoogleSheetResult(null)}
+            className="text-neutral-400 hover:text-neutral-600"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 2. QUICK SUMMARY PILL BAR */}
       <div className="flex flex-wrap gap-2 text-xs">

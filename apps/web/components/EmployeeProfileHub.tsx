@@ -17,6 +17,12 @@ import {
   Target,
   ChevronDown,
   ChevronUp,
+  Camera,
+  Upload,
+  ShieldCheck,
+  Building,
+  Check,
+  X,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -96,9 +102,22 @@ export function EmployeeProfileHub({
       ? `/admin-portal/employees/${employeeId}/edit`
       : undefined;
 
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [photoInputUrl, setPhotoInputUrl] = useState("");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
   const deleteMutation = trpc.employee.delete.useMutation({
     onSuccess: () => {
       window.location.href = "/admin-portal/employees";
+    },
+  });
+
+  const updatePhotoMutation = trpc.employee.updateMyPhoto.useMutation({
+    onSuccess: () => {
+      utils.employee.profileHub.invalidate({ id: employeeId });
+      setShowPhotoModal(false);
+      setPhotoPreview(null);
+      setPhotoInputUrl("");
     },
   });
 
@@ -209,16 +228,28 @@ export function EmployeeProfileHub({
 
         <div className="relative px-4 pb-0 pt-0 md:px-6">
           <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-display text-xl font-bold text-white shadow-md md:h-24 md:w-24 md:text-2xl">
-              {emp.profilePhotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={emp.profilePhotoUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                initials(emp.firstName, emp.lastName)
+            <div className="relative group">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-display text-xl font-bold text-white shadow-md md:h-24 md:w-24 md:text-2xl">
+                {emp.profilePhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={emp.profilePhotoUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials(emp.firstName, emp.lastName)
+                )}
+              </div>
+              {access.isSelf && (
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(true)}
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#181C26] text-white shadow-md hover:bg-neutral-800 transition-colors"
+                  title="Upload / Change profile photo"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
             <div className="min-w-0 flex-1 pb-3">
@@ -257,94 +288,423 @@ export function EmployeeProfileHub({
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <Badge variant="outline">{emp.employeeCode}</Badge>
                 <Badge variant="secondary">{emp.role}</Badge>
-                <div className="flex min-w-[140px] max-w-xs flex-1 items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] transition-all duration-200"
-                      style={{ width: `${emp.profileCompletion}%` }}
-                    />
+                {access.canViewSensitive ? (
+                  <div className="flex min-w-[140px] max-w-xs flex-1 items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] transition-all duration-200"
+                        style={{ width: `${emp.profileCompletion}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] font-semibold text-neutral-600">
+                      {emp.profileCompletion}% Complete
+                    </span>
                   </div>
-                  <span className="text-[11px] font-semibold text-neutral-600">
-                    {emp.profileCompletion}% Complete
-                  </span>
-                </div>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border-neutral-200 bg-neutral-100/70 text-[11px] font-semibold text-neutral-700"
+                  >
+                    Colleague Directory
+                  </Badge>
+                )}
+
+                {/* Photo source indicator & change control for own profile */}
+                {access.isSelf && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-neutral-400 font-medium">Photo source:</span>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-neutral-100 text-neutral-800 border border-neutral-200">
+                      {emp.profilePhotoUrl
+                        ? emp.profilePhotoUrl.includes("googleusercontent.com") ||
+                          emp.profilePhotoUrl.includes("google")
+                          ? "Google Account"
+                          : "Custom Upload"
+                        : "Initials"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPhotoModal(true)}
+                      className="text-[11px] font-bold text-[#FF7A70] hover:underline"
+                    >
+                      Change Photo
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-2 md:px-4">
-        <div className="flex min-w-max gap-0 overflow-x-auto">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "relative px-4 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150",
-                tab === t.id
-                  ? "text-[#FF7A70] font-bold"
-                  : "text-neutral-500 hover:text-neutral-800"
-              )}
-            >
-              {t.label}
-              {tab === t.id && (
-                <motion.span
-                  layoutId="profile-tab"
-                  className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A]"
+      {/* Either Limited Colleague Profile View OR Full Tabbed Profile Hub */}
+      {!access.canViewSensitive ? (
+        <LimitedColleagueProfileView emp={emp} basePath={basePath} />
+      ) : (
+        <>
+          {/* Tabs */}
+          <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-2 md:px-4">
+            <div className="flex min-w-max gap-0 overflow-x-auto">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "relative px-4 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150",
+                    tab === t.id
+                      ? "text-[#FF7A70] font-bold"
+                      : "text-neutral-500 hover:text-neutral-800"
+                  )}
+                >
+                  {t.label}
+                  {tab === t.id && (
+                    <motion.span
+                      layoutId="profile-tab"
+                      className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A]"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-neutral-50/80 p-4 md:p-6">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {tab === "overview" && (
+                  <OverviewTab
+                    emp={emp}
+                    overview={overview}
+                    basePath={basePath}
+                    canViewSensitive={access.canViewSensitive}
+                  />
+                )}
+                {tab === "job" && (
+                  <JobTab emp={emp} jobHistory={jobHistory} basePath={basePath} />
+                )}
+                {tab === "attendance" && (
+                  <AttendanceTab employeeId={emp.id} />
+                )}
+                {tab === "leave" && (
+                  <LeaveTab
+                    employeeId={emp.id}
+                    canManage={access.canManage}
+                    onAdjusted={() => {
+                      utils.employee.profileHub.invalidate({ id: emp.id });
+                      utils.leave.forEmployee.invalidate({ employeeId: emp.id });
+                    }}
+                  />
+                )}
+                {tab === "documents" && (
+                  <DocumentsTab
+                    employeeId={emp.id}
+                    canUpload={access.canEdit}
+                  />
+                )}
+                {tab === "performance" && (
+                  <PerformanceTab employeeId={emp.id} />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </>
+      )}
+
+      {/* Photo Change Modal for Employee */}
+      {showPhotoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-neutral-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <h3 className="font-display text-base font-bold text-neutral-900">
+                Profile Photo Settings
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhotoModal(false);
+                  setPhotoPreview(null);
+                  setPhotoInputUrl("");
+                }}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              {/* Current Photo Preview & Source */}
+              <div className="flex items-center gap-4 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white font-bold text-lg shadow-sm">
+                  {photoPreview || emp.profilePhotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photoPreview || emp.profilePhotoUrl || ""}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials(emp.firstName, emp.lastName)
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-neutral-500 font-medium">Active Photo Source:</p>
+                  <p className="text-sm font-bold text-neutral-900">
+                    {emp.profilePhotoUrl
+                      ? emp.profilePhotoUrl.includes("googleusercontent.com") ||
+                        emp.profilePhotoUrl.includes("google")
+                        ? "Google Account"
+                        : "Custom Upload"
+                      : "Default Initials"}
+                  </p>
+                  <p className="text-[11px] text-neutral-400 mt-0.5">
+                    Upload a custom photo anytime to customize your profile avatar.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload file */}
+              <div>
+                <Label className="text-xs font-semibold">Upload Image File</Label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  className="mt-1.5 block w-full text-xs text-neutral-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:opacity-90 cursor-pointer"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      alert("File size exceeds 5MB limit");
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === "string") {
+                        setPhotoPreview(reader.result);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
                 />
-              )}
-            </button>
-          ))}
+              </div>
+
+              {/* Or Photo URL */}
+              <div>
+                <Label className="text-xs font-semibold">Or Image URL</Label>
+                <Input
+                  type="url"
+                  className="mt-1"
+                  placeholder="https://..."
+                  value={photoInputUrl}
+                  onChange={(e) => {
+                    setPhotoInputUrl(e.target.value);
+                    setPhotoPreview(e.target.value);
+                  }}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowPhotoModal(false);
+                    setPhotoPreview(null);
+                    setPhotoInputUrl("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-[#181C26] text-white hover:bg-neutral-800"
+                  disabled={
+                    (!photoPreview && !photoInputUrl) ||
+                    updatePhotoMutation.isLoading
+                  }
+                  onClick={() => {
+                    const url = photoPreview || photoInputUrl;
+                    if (url) {
+                      updatePhotoMutation.mutate({ profilePhotoUrl: url });
+                    }
+                  }}
+                >
+                  {updatePhotoMutation.isLoading ? "Saving..." : "Save Photo"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function LimitedColleagueProfileView({
+  emp,
+  basePath,
+}: {
+  emp: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    workLocationName: string | null;
+    designation: { title: string } | null;
+    department: { name: string } | null;
+    manager: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      employeeCode: string;
+    } | null;
+    dateOfJoining: Date | string | null;
+    status: string;
+    directReports: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      employeeCode: string;
+      profilePhotoUrl: string | null;
+      designation: { title: string } | null;
+    }[];
+  };
+  basePath: string;
+}) {
+  return (
+    <div className="bg-neutral-50/80 p-4 md:p-6 space-y-5">
+      {/* 3 Bento Cards for Directory Details */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Card 1: Job & Department */}
+        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+          <CardHeader className="pb-3 border-b border-neutral-100">
+            <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <Building className="h-4 w-4 text-primary" />
+              Role & Department
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <InfoRow label="Designation" value={emp.designation?.title ?? "—"} />
+            <InfoRow label="Department" value={emp.department?.name ?? "—"} />
+            <InfoRow label="Date of Joining" value={formatDate(emp.dateOfJoining)} />
+            <InfoRow label="Status" value={emp.status.replace("_", " ")} />
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Work Contact */}
+        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+          <CardHeader className="pb-3 border-b border-neutral-100">
+            <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary" />
+              Work Contact
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <InfoRow label="Work Email" value={emp.email} />
+            <InfoRow label="Work Phone" value={emp.phone || "Company office"} />
+            <InfoRow label="Office Location" value={emp.workLocationName || "Gurugram Office"} />
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Reporting Manager */}
+        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+          <CardHeader className="pb-3 border-b border-neutral-100">
+            <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <Network className="h-4 w-4 text-primary" />
+              Reporting Manager
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <InfoRow
+              label="Manager"
+              value={
+                emp.manager
+                  ? fullName(emp.manager.firstName, emp.manager.lastName)
+                  : "Leadership Team"
+              }
+              href={emp.manager ? `${basePath}/${emp.manager.id}` : undefined}
+            />
+            {emp.manager && (
+              <InfoRow label="Manager Code" value={emp.manager.employeeCode} />
+            )}
+            <InfoRow
+              label="Direct Reports"
+              value={
+                emp.directReports && emp.directReports.length > 0
+                  ? `${emp.directReports.length} colleague(s)`
+                  : "None"
+              }
+            />
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="bg-neutral-50/80 p-4 md:p-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            {tab === "overview" && (
-              <OverviewTab
-                emp={emp}
-                overview={overview}
-                basePath={basePath}
-                canViewSensitive={access.canViewSensitive}
-              />
-            )}
-            {tab === "job" && (
-              <JobTab emp={emp} jobHistory={jobHistory} basePath={basePath} />
-            )}
-            {tab === "attendance" && access.canViewSensitive && (
-              <AttendanceTab employeeId={emp.id} />
-            )}
-            {tab === "leave" && access.canViewSensitive && (
-              <LeaveTab
-                employeeId={emp.id}
-                canManage={access.canManage}
-                onAdjusted={() => {
-                  utils.employee.profileHub.invalidate({ id: emp.id });
-                  utils.leave.forEmployee.invalidate({ employeeId: emp.id });
-                }}
-              />
-            )}
-            {tab === "documents" && access.canViewSensitive && (
-              <DocumentsTab
-                employeeId={emp.id}
-                canUpload={access.canEdit}
-              />
-            )}
-            {tab === "performance" && (
-              <PerformanceTab employeeId={emp.id} />
-            )}
-          </motion.div>
-        </AnimatePresence>
+      {/* Direct Reports List if any */}
+      {emp.directReports && emp.directReports.length > 0 && (
+        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+          <CardHeader className="pb-3 border-b border-neutral-100">
+            <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <Network className="h-4 w-4 text-primary" />
+              Team Members ({emp.directReports.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {emp.directReports.map((report) => (
+                <Link
+                  key={report.id}
+                  href={`${basePath}/${report.id}`}
+                  className="flex items-center gap-3 rounded-xl border border-neutral-200/70 p-3 hover:bg-neutral-50 transition-colors shadow-2xs"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-2xs">
+                    {report.profilePhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={report.profilePhotoUrl}
+                        alt=""
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      initials(report.firstName, report.lastName)
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-xs text-neutral-900 truncate">
+                      {fullName(report.firstName, report.lastName)}
+                    </p>
+                    <p className="text-[11px] text-neutral-500 truncate">
+                      {report.designation?.title ?? "Team Member"} · {report.employeeCode}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Access Control Notice */}
+      <div className="rounded-xl border border-neutral-200/80 bg-white p-4 text-xs text-neutral-500 flex items-start gap-3 shadow-2xs">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700">
+          <ShieldCheck className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="font-semibold text-neutral-800">
+            Company Directory · Public Colleague Profile
+          </p>
+          <p className="mt-0.5 text-neutral-500 leading-relaxed">
+            Personal records (attendance logs, leave balances, performance reviews, and personal identity documents) are strictly confidential and accessible only to the employee, their direct reporting manager, and HR administrators.
+          </p>
+        </div>
       </div>
     </div>
   );
