@@ -503,40 +503,28 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden bg-[#F5F7FB]">
-      {/* 1. AMBIENT MESH GRADIENT (Matching Image 3 Warm Sunset Aura) */}
-      <div className="fixed inset-0 pointer-events-none">
-        {/* Top Left Peach / Coral Glow */}
-        <div className="absolute -top-32 -left-32 w-[550px] h-[550px] rounded-full bg-gradient-to-br from-[#FF8B7D]/25 to-[#FFA07A]/15 blur-[120px]" />
-        {/* Center Lavender / Violet Glow */}
-        <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#0F5C74]/15 via-[#8A2BE2]/10 to-transparent blur-[140px]" />
-        {/* Bottom Rose Ambient Glow */}
-        <div className="absolute -bottom-32 -right-32 w-[650px] h-[650px] rounded-full bg-gradient-to-tl from-[#FF7A70]/20 to-[#FFA07A]/10 blur-[130px]" />
-        {/* Subtle Grid Texture Overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.035]"
-          style={{
-            backgroundImage: `radial-gradient(rgba(0, 0, 0, 0.4) 1px, transparent 1px)`,
-            backgroundSize: "24px 24px",
-          }}
-        />
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden bg-[#0c0d14]">
+      {/* 1. BACKGROUND VIDEO ANIMATION */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="h-full w-full object-cover object-center"
+        >
+          <source src="/icons/loginbackgroundanimations.mp4" type="video/mp4" />
+        </video>
+        {/* Dark Vignette & Backdrop Filter Overlay for Contrast */}
+        <div className="absolute inset-0 bg-[#0C0D14]/50 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0C0D14] via-transparent to-[#0C0D14]/70" />
       </div>
 
-      {/* 2. WHOLE BACKGROUND COMPANY LOGO WATERMARK (As explicitly requested by user) */}
-      <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
-        <img
-          src="/logo.png"
-          alt=""
-          width={800}
-          height={800}
-          className="w-[750px] h-[750px] sm:w-[900px] sm:h-[900px] object-contain opacity-[0.05] select-none filter blur-[0.5px] transform -rotate-12 transition-transform duration-1000"
-        />
-      </div>
-
-      {/* 3. CENTER FLOATING CARD CONTAINER */}
+      {/* 2. CENTER FLOATING CARD CONTAINER */}
       <Suspense
         fallback={
-          <div className="relative z-10 text-xs font-semibold text-neutral-500 animate-pulse">
+          <div className="relative z-10 text-xs font-semibold text-neutral-400 animate-pulse">
             Loading workspace...
           </div>
         }
@@ -547,7 +535,7 @@ export default function LoginPage() {
       {/* Footer */}
       <footer
         suppressHydrationWarning
-        className="relative z-10 mt-6 text-center text-xs text-neutral-500"
+        className="relative z-10 mt-6 text-center text-xs text-neutral-400 font-medium drop-shadow-sm"
       >
         © 2026 Realty Smartz Private Limited · All rights reserved.
       </footer>
