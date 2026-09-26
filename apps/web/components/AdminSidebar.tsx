@@ -71,15 +71,15 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "relative flex h-screen shrink-0 flex-col bg-[#11121A] text-white border-r border-white/10 shadow-2xl transition-all duration-300 ease-in-out select-none",
+        "relative flex h-full max-h-screen shrink-0 flex-col bg-[#11121A] text-white border-r border-white/10 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-x-hidden",
         isCollapsed ? "w-[76px]" : "w-[260px]"
       )}
     >
       {/* Brand & Stretch/Collapse Header */}
       <div
         className={cn(
-          "flex items-center border-b border-white/10 px-4 py-4 transition-all",
-          isCollapsed ? "justify-center" : "justify-between"
+          "flex items-center border-b border-white/10 transition-all",
+          isCollapsed ? "flex-col gap-2 py-3 px-2 justify-center" : "justify-between px-4 py-4"
         )}
       >
         <Link
@@ -117,20 +117,31 @@ export function AdminSidebar({
         </Link>
 
         {/* Stretch / Collapse Action Button (Desktop Only) */}
-        {!isCollapsed && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title="Collapse sidebar (Ctrl+B)"
-            className="hidden lg:flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white transition-all active:scale-95 border border-white/5"
-          >
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          className={cn(
+            "hidden lg:flex items-center justify-center rounded-xl bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white transition-all active:scale-95 border border-white/5",
+            isCollapsed ? "h-7 w-7" : "h-8 w-8"
+          )}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="h-4 w-4 text-[#FF7A70]" />
+          ) : (
             <PanelLeftClose className="h-4 w-4" />
-          </button>
-        )}
+          )}
+        </button>
       </div>
 
       {/* Main Navigation Items */}
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4 scrollbar-none">
+      <nav
+        className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-none",
+          isCollapsed ? "px-2 space-y-3" : "px-3 space-y-6"
+        )}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
         {/* Section: Core Operations */}
         <div className="space-y-1">
           {!isCollapsed && (
@@ -150,8 +161,8 @@ export function AdminSidebar({
                   href={item.href}
                   onClick={onCloseMobile}
                   className={cn(
-                    "flex items-center rounded-2xl py-2.5 text-xs font-semibold transition-all duration-200",
-                    isCollapsed ? "justify-center px-0 h-11 w-11 mx-auto" : "gap-3 px-3",
+                    "flex items-center rounded-2xl text-xs font-semibold transition-all duration-200",
+                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
                     active
                       ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)]"
                       : "text-neutral-400 hover:bg-white/5 hover:text-white"
@@ -203,8 +214,8 @@ export function AdminSidebar({
                   href={item.href}
                   onClick={onCloseMobile}
                   className={cn(
-                    "flex items-center rounded-2xl py-2.5 text-xs font-semibold transition-all duration-200",
-                    isCollapsed ? "justify-center px-0 h-11 w-11 mx-auto" : "gap-3 px-3",
+                    "flex items-center rounded-2xl text-xs font-semibold transition-all duration-200",
+                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
                     active
                       ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)]"
                       : "text-neutral-400 hover:bg-white/5 hover:text-white"
@@ -255,12 +266,12 @@ export function AdminSidebar({
 
       {/* Dock Stretch Trigger Button (When Collapsed) */}
       {isCollapsed && (
-        <div className="p-3 border-t border-white/10 flex justify-center">
+        <div className="p-2 border-t border-white/10 flex justify-center shrink-0">
           <button
             type="button"
             onClick={onToggleCollapse}
             title="Expand sidebar (Ctrl+B)"
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white transition-all active:scale-95 border border-white/5"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-[#FF7A70] hover:bg-[#FF7A70]/10 hover:text-white transition-all active:scale-95 border border-white/5"
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>
@@ -268,14 +279,14 @@ export function AdminSidebar({
       )}
 
       {/* Footer Profile & Portal Switcher */}
-      <div className="border-t border-white/10 p-3 space-y-2 bg-[#0E0F16]">
+      <div className={cn("border-t border-white/10 space-y-2 bg-[#0E0F16] shrink-0", isCollapsed ? "p-2" : "p-3")}>
         {/* Install App Button */}
         <button
           type="button"
           onClick={() => setShowInstallModal(true)}
           className={cn(
-            "flex w-full items-center rounded-2xl border border-white/10 bg-white/5 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
-            isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3"
+            "flex w-full items-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
+            isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Install Realty Smartz App (Mobile & Desktop)"
         >
@@ -295,8 +306,8 @@ export function AdminSidebar({
           href="/employee-portal/dashboard"
           onClick={onCloseMobile}
           className={cn(
-            "flex items-center rounded-2xl border border-white/10 bg-white/5 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
-            isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3"
+            "flex items-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
+            isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Switch to Employee Portal"
         >
@@ -311,7 +322,7 @@ export function AdminSidebar({
         <div
           className={cn(
             "flex items-center rounded-2xl bg-white/[0.04] border border-white/10 transition-all",
-            isCollapsed ? "flex-col gap-2 p-2" : "justify-between p-2.5"
+            isCollapsed ? "flex-col gap-1.5 p-1.5" : "justify-between p-2.5"
           )}
         >
           <div className="flex items-center gap-2.5 min-w-0">
@@ -338,7 +349,7 @@ export function AdminSidebar({
             onClick={() => signOut({ callbackUrl: "/login?portal=admin" })}
             className={cn(
               "flex items-center justify-center rounded-xl text-neutral-400 hover:bg-rose-500/20 hover:text-rose-400 transition-colors",
-              isCollapsed ? "h-8 w-8 text-rose-400 bg-rose-500/10" : "h-7 w-7"
+              isCollapsed ? "h-7 w-7 text-rose-400 bg-rose-500/10" : "h-7 w-7"
             )}
           >
             <LogOut className="h-3.5 w-3.5" />

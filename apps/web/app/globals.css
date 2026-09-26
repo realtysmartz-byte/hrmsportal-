@@ -194,5 +194,27 @@
     color: #ffffff;
     box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.25);
   }
+
+  /* Utility: Hide scrollbars completely while keeping scroll functionality */
+  .scrollbar-none::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+}
+
+/* Global utility fallback for scrollbar-none */
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 

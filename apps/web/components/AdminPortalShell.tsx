@@ -52,8 +52,8 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
 
   return (
     <div className="relative flex min-h-screen w-full max-w-full overflow-x-hidden bg-[#F6F8FB] antialiased">
-      {/* 1. DESKTOP STRETCHABLE SIDEBAR (Fixed to left) */}
-      <div className="hidden lg:block fixed inset-y-0 left-0 z-40">
+      {/* 1. DESKTOP STRETCHABLE SIDEBAR */}
+      <div className="hidden lg:block sticky top-0 h-screen shrink-0 z-40">
         <AdminSidebar
           isCollapsed={mounted ? isCollapsed : false}
           onToggleCollapse={toggleCollapse}
@@ -88,13 +88,8 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
         )}
       </AnimatePresence>
 
-      {/* 3. MAIN CONTENT CONTAINER (Flexes smoothly based on sidebar width) */}
-      <div
-        className={cn(
-          "flex min-h-screen flex-1 flex-col transition-all duration-300 ease-in-out min-w-0 w-full max-w-full overflow-x-hidden",
-          mounted && isCollapsed ? "lg:pl-[76px]" : "lg:pl-[260px]"
-        )}
-      >
+      {/* 3. MAIN CONTENT CONTAINER */}
+      <div className="flex min-h-screen flex-1 flex-col transition-all duration-300 ease-in-out min-w-0 w-full max-w-full overflow-x-hidden">
         {/* Mobile Header Bar */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden shadow-xs">
           <div className="flex items-center gap-3">
