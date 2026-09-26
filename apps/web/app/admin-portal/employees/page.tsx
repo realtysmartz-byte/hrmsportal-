@@ -92,7 +92,7 @@ export default function EmployeesPage() {
       <div className="rounded-2xl border border-neutral-200/80 bg-white/90 backdrop-blur-md p-3 sm:p-4 shadow-2xs overflow-hidden">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search Field */}
-          <div className="relative min-w-[240px] flex-1">
+          <div className="relative min-w-0 sm:min-w-[200px] flex-1">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <Input
               className="pl-10"

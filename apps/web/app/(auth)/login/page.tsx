@@ -127,12 +127,16 @@ function LoginForm() {
       return;
     }
 
+    const callbackParam = searchParams.get("callbackUrl");
+
     const result = await signIn("credentials", {
       email: cleanEmail,
       password: cleanPassword,
       redirect: false,
       callbackUrl:
-        portal === "admin"
+        callbackParam && callbackParam.startsWith("/") && !callbackParam.includes("/login")
+          ? callbackParam
+          : portal === "admin"
           ? "/admin-portal/dashboard"
           : "/employee-portal/dashboard",
     });
@@ -150,27 +154,23 @@ function LoginForm() {
       return;
     }
 
-    let role: Role = "EMPLOYEE";
+    // Determine target destination
+    let destination = "/";
+    if (callbackParam && callbackParam.startsWith("/") && !callbackParam.startsWith("//") && !callbackParam.includes("/login")) {
+      destination = callbackParam;
+    }
+
     try {
-      const session = await waitForSession(4);
+      const session = await waitForSession(3);
       if (session?.user?.role) {
-        role = session.user.role as Role;
-        if (portal === "admin" && !canAccessAdminPortal(role)) {
-          setLoading(false);
-          setError(
-            "Admin Portal is for Admin/HR only. Managers use Employee Portal → My Team."
-          );
-          return;
+        const role = session.user.role as Role;
+        if (destination === "/" || destination.includes("/login")) {
+          destination = homePathForRole(role);
         }
       }
     } catch {
-      // Proceed to destination if session resolution is delayed
+      // Destination will fallback to "/" which handles server-side role redirection
     }
-
-    const destination =
-      portal === "employee"
-        ? "/employee-portal/dashboard"
-        : homePathForRole(role);
 
     setLoading(false);
     // Top-level document navigation ensures Safari/iOS WebKit flushes session cookies

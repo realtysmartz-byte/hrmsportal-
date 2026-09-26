@@ -107,7 +107,7 @@ export default function DesignationsPage() {
           Create New Designation
         </h2>
         <form onSubmit={onCreate} className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[260px] flex-1">
+          <div className="min-w-0 sm:min-w-[200px] flex-1">
             <Input
               placeholder="e.g. Senior Associate, VP of Sales, Project Lead"
               value={title}

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, X, Share } from "lucide-react";
-import { Logo } from "@/components/Logo";
+import { Download, X, Share, PlusSquare, Smartphone } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -19,20 +18,32 @@ export function PwaInstallBanner() {
   const [isIosDevice, setIsIosDevice] = useState(false);
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
-    // 1. Check if running in standalone / installed PWA mode
+    // 1. Comprehensive standalone detection across iOS WebClip and modern Chromium
     const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
-      document.referrer.includes("android-app://");
+      (typeof window !== "undefined" && (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.matchMedia("(display-mode: fullscreen)").matches ||
+        window.matchMedia("(display-mode: minimal-ui)").matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+        document.referrer.includes("android-app://") ||
+        window.location.search.includes("source=pwa") ||
+        sessionStorage.getItem("rs_is_pwa_standalone") === "true"
+      ));
 
     if (isStandalone) {
+      try {
+        sessionStorage.setItem("rs_is_pwa_standalone", "true");
+      } catch {
+        // ignore
+      }
       setIsStandaloneMode(true);
       return;
     }
 
-    // 2. Check if dismissed in localStorage within the last 14 days
+    // 2. Check if dismissed recently
     try {
       const dismissedAt = localStorage.getItem(DISMISS_STORAGE_KEY);
       if (dismissedAt) {
@@ -42,16 +53,14 @@ export function PwaInstallBanner() {
         }
       }
 
-      // Check session dismissal (show at most once per session)
-      const sessionDismissed = sessionStorage.getItem(SESSION_DISMISS_KEY);
-      if (sessionDismissed === "true") {
+      if (sessionStorage.getItem(SESSION_DISMISS_KEY) === "true") {
         return;
       }
     } catch {
       // Storage access blocked or restricted
     }
 
-    // 3. Detect iOS (iPhone, iPad, iPod, iPadOS on Mac user-agent)
+    // 3. Detect iOS (iPhone, iPad, iPod, or iPadOS on Mac)
     const userAgent = window.navigator.userAgent;
     const isIos =
       (/iPad|iPhone|iPod/.test(userAgent) ||
@@ -77,6 +86,7 @@ export function PwaInstallBanner() {
       setDeferredPrompt(null);
       try {
         localStorage.setItem(DISMISS_STORAGE_KEY, Date.now().toString());
+        sessionStorage.setItem("rs_is_pwa_standalone", "true");
       } catch {
         // ignore
       }
@@ -93,8 +103,8 @@ export function PwaInstallBanner() {
 
   const handleDismiss = () => {
     setIsVisible(false);
+    setShowIosGuide(false);
     try {
-      // Store 14-day persistent dismissal and session dismissal
       localStorage.setItem(DISMISS_STORAGE_KEY, Date.now().toString());
       sessionStorage.setItem(SESSION_DISMISS_KEY, "true");
     } catch {
@@ -103,6 +113,11 @@ export function PwaInstallBanner() {
   };
 
   const handleInstallClick = async () => {
+    if (isIosDevice) {
+      setShowIosGuide(true);
+      return;
+    }
+
     if (!deferredPrompt) return;
 
     try {
@@ -112,7 +127,6 @@ export function PwaInstallBanner() {
         setIsVisible(false);
         setDeferredPrompt(null);
       } else {
-        // Dismissed prompt: mark session dismissal
         sessionStorage.setItem(SESSION_DISMISS_KEY, "true");
         setIsVisible(false);
       }
@@ -121,71 +135,149 @@ export function PwaInstallBanner() {
     }
   };
 
-  // Do not render if standalone or not visible
+  // Do not render if app is running in standalone mode or not visible
   if (isStandaloneMode || !isVisible) {
     return null;
   }
 
   return (
-    <div
-      role="region"
-      aria-label="Install Realty Smartz Private Limited App"
-      className="relative z-40 border-b border-white/10 bg-gradient-to-r from-[#181926] via-[#232638] to-[#181926] text-white shadow-lg transition-all duration-200"
-    >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 p-1.5 sm:flex border border-white/10">
-            <img
-              src="/logo.png"
-              alt="Realty Smartz Private Limited"
-              className="h-6 w-6 object-contain"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-display text-xs sm:text-sm font-bold tracking-tight text-white">
-                Realty Smartz Private Limited
-              </span>
-              <span className="rounded-full bg-gradient-to-r from-[#FF7A70]/30 to-[#FFA07A]/30 border border-[#FF7A70]/40 px-2 py-0.5 text-[10px] font-semibold text-[#FFA07A]">
-                PWA
-              </span>
+    <>
+      {/* Top Banner (Responsive, never overflows on mobile) */}
+      <div
+        role="region"
+        aria-label="Install Realty Smartz Private Limited App"
+        className="relative z-40 w-full overflow-hidden border-b border-white/10 bg-gradient-to-r from-[#181926] via-[#232638] to-[#181926] text-white shadow-md"
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:py-2.5">
+          {/* Left: App Logo & Details */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 p-1 sm:h-9 sm:w-9 sm:rounded-xl border border-white/10 flex">
+              <img
+                src="/logo.png"
+                alt="Realty Smartz"
+                className="h-5 w-5 sm:h-6 sm:w-6 object-contain"
+              />
             </div>
-            <p className="truncate text-xs text-neutral-300">
-              {isIosDevice
-                ? "Install on iPhone: Tap Share (↑) & select 'Add to Home Screen'"
-                : "Install app for instant check-in, push alerts, and fast offline access"}
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-display text-xs sm:text-sm font-bold tracking-tight text-white">
+                  Realty Smartz
+                </span>
+                <span className="shrink-0 rounded-full bg-gradient-to-r from-[#FF7A70]/30 to-[#FFA07A]/30 border border-[#FF7A70]/40 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-semibold text-[#FFA07A]">
+                  PWA
+                </span>
+              </div>
+              <p className="truncate text-[11px] sm:text-xs text-neutral-300">
+                {isIosDevice
+                  ? "Install for instant check-in & offline access"
+                  : "Install app for instant check-in & offline access"}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {isIosDevice ? (
-            <div className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white shadow-sm border border-white/15 backdrop-blur-xs">
-              <Share className="h-3.5 w-3.5 text-[#FFA07A]" />
-              <span className="hidden sm:inline">Tap Share &rarr; Add to Home Screen</span>
-              <span className="sm:hidden">Share &rarr; Add</span>
-            </div>
-          ) : (
+          {/* Right: Install & Dismiss Actions */}
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={handleInstallClick}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:scale-95 focus:outline-none"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:scale-95 focus:outline-none"
             >
               <Download className="h-3.5 w-3.5" />
-              <span>Install App</span>
+              <span>Install</span>
             </button>
-          )}
 
-          <button
-            type="button"
-            onClick={handleDismiss}
-            aria-label="Dismiss install banner"
-            className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              aria-label="Dismiss install banner"
+              className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* iOS Installation Instructions Modal */}
+      {showIosGuide && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm rounded-3xl bg-[#1c1d2c] border border-white/15 p-5 text-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded-2xl bg-white/10 border border-white/15 p-2 flex items-center justify-center">
+                  <img src="/logo.png" alt="Realty Smartz" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                  <h3 className="font-display text-sm font-bold text-white">
+                    Install on iPhone
+                  </h3>
+                  <p className="text-[11px] text-neutral-400">
+                    Realty Smartz HRMS App
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowIosGuide(false)}
+                className="rounded-full p-1 text-neutral-400 hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Step-by-Step Instructions */}
+            <div className="mt-4 space-y-3.5 text-xs text-neutral-300">
+              <div className="flex items-start gap-3 rounded-xl bg-white/5 p-3 border border-white/10">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                  1
+                </span>
+                <div className="leading-snug">
+                  <span>In Safari, tap the </span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-white bg-white/10 px-1.5 py-0.5 rounded">
+                    <Share className="h-3 w-3 text-[#FFA07A]" /> Share
+                  </span>
+                  <span> button at the bottom of your screen.</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl bg-white/5 p-3 border border-white/10">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                  2
+                </span>
+                <div className="leading-snug">
+                  <span>Scroll down and select </span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-white bg-white/10 px-1.5 py-0.5 rounded">
+                    <PlusSquare className="h-3 w-3 text-[#FFA07A]" /> Add to Home Screen
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl bg-white/5 p-3 border border-white/10">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                  3
+                </span>
+                <div className="leading-snug">
+                  <span>Tap </span>
+                  <span className="font-semibold text-white">Add</span>
+                  <span> in the top right corner. The app icon will appear on your Home Screen!</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action */}
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="w-full rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] py-2.5 text-xs font-bold text-white shadow-md transition hover:opacity-95 active:scale-98"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

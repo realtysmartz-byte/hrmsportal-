@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
       },
     },
     csrfToken: {
-      name: useSecure ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
+      name: useSecure ? "__Secure-next-auth.csrf-token" : "next-auth.csrf-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
