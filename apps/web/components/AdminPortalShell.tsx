@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ArrowLeftRight } from "lucide-react";
+import { Menu, X, ArrowLeftRight, LogOut, Download } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
 
 interface AdminPortalShellProps {
@@ -14,6 +16,7 @@ interface AdminPortalShellProps {
 export function AdminPortalShell({ children }: AdminPortalShellProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -120,14 +123,41 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
             </div>
           </div>
 
-          <Link
-            href="/employee-portal/dashboard"
-            className="flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
-          >
-            <ArrowLeftRight className="h-3 w-3 text-[#FF7A70]" />
-            <span>Employee View</span>
-          </Link>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => setShowInstallModal(true)}
+              className="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+              title="Install Realty Smartz App"
+            >
+              <Download className="h-3 w-3 text-[#FF7A70]" />
+              <span className="hidden sm:inline">Install</span>
+            </button>
+
+            <Link
+              href="/employee-portal/dashboard"
+              className="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+            >
+              <ArrowLeftRight className="h-3 w-3 text-[#FF7A70]" />
+              <span className="hidden sm:inline">Employee View</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/login?portal=admin" })}
+              className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
+              title="Log Out of Admin Console"
+            >
+              <LogOut className="h-3.5 w-3.5 text-rose-600" />
+              <span>Log Out</span>
+            </button>
+          </div>
         </header>
+
+        <InstallGuideModal
+          isOpen={showInstallModal}
+          onClose={() => setShowInstallModal(false)}
+        />
 
         {/* Dashboard Main Content */}
         <main className="flex-1 w-full max-w-full overflow-x-hidden">

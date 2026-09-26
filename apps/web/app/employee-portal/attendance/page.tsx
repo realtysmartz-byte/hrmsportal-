@@ -25,6 +25,16 @@ export default function EmployeeAttendancePage() {
     now.getFullYear() === year && now.getMonth() + 1 === month;
   const todayDate = now.getDate();
 
+  const selectedDateObj = useMemo(() => {
+    if (selectedDay == null) return new Date();
+    return new Date(year, month - 1, selectedDay);
+  }, [year, month, selectedDay]);
+
+  const { data: locationPings } = trpc.attendance.myLocationPings.useQuery({
+    date: selectedDateObj,
+    limit: 48,
+  });
+
   const logByDay = useMemo(() => {
     const map = new Map<number, NonNullable<typeof data>["logs"][number]>();
     for (const log of data?.logs ?? []) {
@@ -284,6 +294,56 @@ export default function EmployeeAttendancePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 30-Minute Automated Location History Card */}
+      <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <CardTitle className="text-base font-bold text-neutral-900">
+                30-Minute Location History
+              </CardTitle>
+            </div>
+            <Badge variant="outline" className="text-[10px] font-semibold text-teal-700 border-teal-200 bg-teal-50/50">
+              Auto-tracked every 30m
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!locationPings || locationPings.length === 0 ? (
+            <p className="text-xs text-neutral-400 py-4 text-center">
+              No location traces recorded for this day. Location traces are captured every 30 minutes while you are signed in.
+            </p>
+          ) : (
+            <div className="divide-y divide-neutral-100 max-h-64 overflow-y-auto">
+              {locationPings.map((ping) => (
+                <div key={ping.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                    <span className="font-semibold text-neutral-800 shrink-0">
+                      {new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="text-neutral-500 truncate" title={ping.address || ""}>
+                      {ping.address || `${ping.lat.toFixed(4)}, ${ping.lng.toFixed(4)}`}
+                    </span>
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=16`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#FF7A70] hover:underline font-semibold shrink-0 text-[11px]"
+                  >
+                    Map &rarr;
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

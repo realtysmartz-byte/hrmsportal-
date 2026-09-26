@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, X, Share, PlusSquare, Smartphone } from "lucide-react";
+import { InstallGuideModal } from "@/components/InstallGuideModal";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -198,86 +199,11 @@ export function PwaInstallBanner() {
         </div>
       </div>
 
-      {/* iOS Installation Instructions Modal */}
-      {showIosGuide && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-sm rounded-3xl bg-[#1c1d2c] border border-white/15 p-5 text-white shadow-2xl">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 shrink-0 rounded-2xl bg-white/10 border border-white/15 p-2 flex items-center justify-center">
-                  <img src="/logo.png" alt="Realty Smartz" className="h-full w-full object-contain" />
-                </div>
-                <div>
-                  <h3 className="font-display text-sm font-bold text-white">
-                    Install on iPhone
-                  </h3>
-                  <p className="text-[11px] text-neutral-400">
-                    Realty Smartz HRMS App
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowIosGuide(false)}
-                className="rounded-full p-1 text-neutral-400 hover:bg-white/10 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Step-by-Step Instructions */}
-            <div className="mt-4 space-y-3.5 text-xs text-neutral-300">
-              <div className="flex items-start gap-3 rounded-xl bg-white/5 p-3 border border-white/10">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
-                  1
-                </span>
-                <div className="leading-snug">
-                  <span>In Safari, tap the </span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-white bg-white/10 px-1.5 py-0.5 rounded">
-                    <Share className="h-3 w-3 text-[#FFA07A]" /> Share
-                  </span>
-                  <span> button at the bottom of your screen.</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl bg-white/5 p-3 border border-white/10">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
-                  2
-                </span>
-                <div className="leading-snug">
-                  <span>Scroll down and select </span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-white bg-white/10 px-1.5 py-0.5 rounded">
-                    <PlusSquare className="h-3 w-3 text-[#FFA07A]" /> Add to Home Screen
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl bg-white/5 p-3 border border-white/10">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
-                  3
-                </span>
-                <div className="leading-snug">
-                  <span>Tap </span>
-                  <span className="font-semibold text-white">Add</span>
-                  <span> in the top right corner. The app icon will appear on your Home Screen!</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action */}
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={handleDismiss}
-                className="w-full rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] py-2.5 text-xs font-bold text-white shadow-md transition hover:opacity-95 active:scale-98"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Installation Instructions Modal */}
+      <InstallGuideModal
+        isOpen={showIosGuide}
+        onClose={() => setShowIosGuide(false)}
+      />
     </>
   );
 }

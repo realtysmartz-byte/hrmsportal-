@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -18,16 +19,19 @@ import {
   Award,
   Bell,
   Calendar,
+  Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { canAccessAdminPortal, isManager } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 
 export function EmployeeTopNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [showInstallModal, setShowInstallModal] = useState(false);
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
 
   const links = [
@@ -120,6 +124,17 @@ export function EmployeeTopNav() {
             <Search className="h-4 w-4" />
           </Link>
 
+          {/* Install App Quick Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowInstallModal(true)}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors shadow-2xs"
+            title="Install Realty Smartz App (Mobile / Desktop)"
+          >
+            <Download className="h-3.5 w-3.5 text-[#FF7A70]" />
+            <span className="hidden sm:inline">Install App</span>
+          </button>
+
           {/* Admin Switcher (If Authorized) */}
           {canAccessAdminPortal(role) && (
             <Link href="/admin-portal/dashboard">
@@ -148,19 +163,23 @@ export function EmployeeTopNav() {
               </span>
             </Link>
 
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-neutral-500 hover:bg-rose-50 hover:text-rose-600"
-              aria-label="Sign out"
+            <button
+              type="button"
               onClick={() => signOut({ callbackUrl: "/login?portal=employee" })}
-              title="Sign Out"
+              className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
+              title="Log Out of Employee Portal"
             >
-              <LogOut className="h-4 w-4" />
-            </Button>
+              <LogOut className="h-3.5 w-3.5 text-rose-600" />
+              <span className="hidden sm:inline">Log Out</span>
+            </button>
           </div>
         </div>
       </div>
+
+      <InstallGuideModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+      />
 
       {/* Mobile Scrollable Horizontal Pill Bar */}
       <div className="lg:hidden border-t border-neutral-100 px-3 py-2 overflow-x-auto bg-neutral-50/80">

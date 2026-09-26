@@ -478,4 +478,49 @@ export const attendanceRouter = router({
         take: input.limit,
       });
     }),
+
+  allLocationPings: protectedProcedure
+    .input(
+      z.object({
+        date: z.coerce.date().optional(),
+        employeeId: z.string().optional(),
+        limit: z.number().int().min(1).max(200).default(100),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const role = (ctx.session!.user.role ?? "EMPLOYEE") as Role;
+      if (!canViewTeamAttendance(role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to view team location tracking.",
+        });
+      }
+
+      const day = input.date
+        ? startOfDayUTC(input.date)
+        : startOfDayUTC(new Date());
+      const next = new Date(day);
+      next.setUTCDate(next.getUTCDate() + 1);
+
+      return ctx.prisma.locationPing.findMany({
+        where: {
+          employeeId: input.employeeId || undefined,
+          capturedAt: { gte: day, lt: next },
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              department: { select: { name: true } },
+              designation: { select: { title: true } },
+            },
+          },
+        },
+        orderBy: { capturedAt: "desc" },
+        take: input.limit,
+      });
+    }),
 });
