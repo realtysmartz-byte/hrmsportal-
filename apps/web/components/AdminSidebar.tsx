@@ -50,7 +50,7 @@ const settingsNavItems = [
   { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText },
   { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings },
   { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet },
-  { href: "/admin-portal/settings/email", label: "Email & SMTP", icon: Mail },
+  { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail },
 ];
 
 interface AdminSidebarProps {

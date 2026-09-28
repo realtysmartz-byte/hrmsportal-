@@ -233,13 +233,13 @@ export default function CompanySettingsPage() {
           </div>
           <Link href="/admin-portal/settings/google-sheets" className="shrink-0">
             <Button size="sm" className="bg-[#181C26] hover:bg-neutral-800 text-white font-bold text-xs gap-1.5 w-full sm:w-auto">
-              Configure Sync →
+              View Sync Status →
             </Button>
           </Link>
         </CardContent>
       </Card>
 
-      {/* Hostinger Email & SMTP Configuration Card */}
+      {/* Email Notification Service Card */}
       <Card className="rounded-2xl border-neutral-200/80 shadow-sm bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -248,16 +248,16 @@ export default function CompanySettingsPage() {
             </div>
             <div>
               <h4 className="font-bold text-neutral-900 text-sm">
-                Email & Hostinger SMTP Settings
+                Email Notification Service
               </h4>
               <p className="text-xs text-neutral-500 mt-0.5">
-                Configure info@realtysmartz.in credentials, send test emails, and manage automated welcome & punch alerts.
+                Verify mail deliverability, check service status, and test automated punch and welcome notifications.
               </p>
             </div>
           </div>
           <Link href="/admin-portal/settings/email" className="shrink-0">
             <Button size="sm" className="bg-[#181C26] hover:bg-neutral-800 text-white font-bold text-xs gap-1.5 w-full sm:w-auto">
-              Manage Email →
+              View Email Service →
             </Button>
           </Link>
         </CardContent>

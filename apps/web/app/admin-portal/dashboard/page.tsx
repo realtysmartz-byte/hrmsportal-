@@ -496,8 +496,8 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* COLUMN 2: Recent Joiners & Team Talent Grid (~4.5/12 cols) */}
-        <div className="space-y-5 lg:col-span-4">
-          <div className="glass-card rounded-2xl p-5">
+        <div className="space-y-5 lg:col-span-4 min-w-0">
+          <div className="glass-card rounded-2xl p-5 overflow-hidden">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="font-display text-sm font-bold text-neutral-900">
@@ -509,7 +509,7 @@ export default function AdminDashboardPage() {
               </div>
               <Link
                 href="/admin-portal/employees"
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline shrink-0"
               >
                 View all <ArrowRight className="h-3 w-3" />
               </Link>
@@ -520,31 +520,35 @@ export default function AdminDashboardPage() {
                 {data.recentJoiners.map((emp) => (
                   <div
                     key={emp.id}
-                    className="flex items-center justify-between rounded-xl border border-neutral-200/70 bg-white/60 p-3 hover:bg-white hover:border-neutral-300 transition-all shadow-2xs"
+                    className="flex items-center justify-between gap-2.5 rounded-xl border border-neutral-200/70 bg-white/60 p-3 hover:bg-white hover:border-neutral-300 transition-all shadow-2xs overflow-hidden"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white shadow-2xs">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-2xs">
                         {emp.firstName[0]}
-                        {emp.lastName[0]}
+                        {emp.lastName?.[0] ?? ""}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <Link
                           href={`/admin-portal/employees/${emp.id}`}
                           className="font-bold text-xs text-neutral-900 hover:text-primary truncate block"
+                          title={`${emp.firstName} ${emp.lastName}`}
                         >
                           {emp.firstName} {emp.lastName}
                         </Link>
-                        <p className="text-[11px] text-neutral-500 truncate">
+                        <p
+                          className="text-[11px] text-neutral-500 truncate"
+                          title={`${emp.designation?.title ?? "Specialist"} · ${emp.department?.name ?? "General"}`}
+                        >
                           {emp.designation?.title ?? "Specialist"} · {emp.department?.name ?? "General"}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
+                    <div className="text-right shrink-0 pl-1">
+                      <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
                         Active
                       </span>
-                      <p className="mt-1 text-[10px] text-neutral-400">
-                        Joined {formatDate(emp.dateOfJoining)}
+                      <p className="mt-1 text-[10px] text-neutral-400 whitespace-nowrap">
+                        {formatDate(emp.dateOfJoining)}
                       </p>
                     </div>
                   </div>

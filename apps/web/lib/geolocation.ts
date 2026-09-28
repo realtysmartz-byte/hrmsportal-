@@ -13,17 +13,31 @@ export async function reverseGeocodePlace(
   lat: number,
   lng: number
 ): Promise<GeoPlace> {
-  const res = await fetch(
-    `/api/geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
-  );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to reverse-geocode location");
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(
+      `/api/geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = (await res.json()) as GeoPlace;
+      return {
+        name: data.name || "Current location",
+        address: data.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        lat,
+        lng,
+      };
+    }
+  } catch (e) {
+    console.warn("[geolocation] Reverse geocode network fallback:", e);
   }
-  const data = (await res.json()) as GeoPlace;
+
+  // Graceful fallback to GPS coordinates (never blocks employee punch-in)
   return {
-    name: data.name || "Current location",
-    address: data.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+    name: "Location Coordinates",
+    address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
     lat,
     lng,
   };
@@ -40,15 +54,30 @@ export async function reverseGeocode(
 
 export function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
+    if (typeof window === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported by this browser"));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 0,
-    });
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      (err) => {
+        // If high accuracy times out (e.g. indoors or slow mobile GPS lock), retry with standard accuracy
+        if (err.code === 3) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 60000,
+          });
+        } else {
+          reject(err);
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000,
+      }
+    );
   });
 }
 

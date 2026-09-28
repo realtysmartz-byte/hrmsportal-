@@ -73,7 +73,7 @@ async function main() {
   const executiveDept = await prisma.department.create({
     data: { name: "Executive" },
   });
-  await prisma.department.create({ data: { name: "Human Resources" } });
+  const hrDept = await prisma.department.create({ data: { name: "Human Resources" } });
   await prisma.department.create({ data: { name: "Engineering" } });
   await prisma.department.create({ data: { name: "Sales" } });
   await prisma.department.create({ data: { name: "Finance" } });
@@ -85,7 +85,7 @@ async function main() {
   const ceo = await prisma.designation.create({
     data: { title: "Chief Executive Officer" },
   });
-  await prisma.designation.create({ data: { title: "HR Manager" } });
+  const hrManagerDesig = await prisma.designation.create({ data: { title: "HR Manager" } });
   await prisma.designation.create({ data: { title: "Engineering Manager" } });
   await prisma.designation.create({ data: { title: "Sales Manager" } });
   await prisma.designation.create({ data: { title: "Software Engineer" } });
@@ -93,26 +93,26 @@ async function main() {
   await prisma.designation.create({ data: { title: "HR Executive" } });
   await prisma.designation.create({ data: { title: "Finance Executive" } });
 
-  // 6. Exactly ONE Production Admin Employee
-  console.log("Creating sole system administrator...");
-  const adminPasswordHash = await bcrypt.hash("Admin@123", 12);
+  // 6. Exactly ONE Production HR Admin Employee
+  console.log("Creating sole system administrator (HR Admin)...");
+  const adminPasswordHash = await bcrypt.hash("HR@realty#$", 12);
   const now = new Date();
   const currentYear = now.getFullYear();
 
   const admin = await prisma.employee.create({
     data: {
       employeeCode: "RS-0001",
-      firstName: "Admin",
-      lastName: "User",
-      email: "admin@realtysmartz.com",
+      firstName: "HR",
+      lastName: "Admin",
+      email: "hr@realtysmartz.in",
       passwordHash: adminPasswordHash,
       phone: "+91 98765 00001",
       role: Role.ADMIN,
-      departmentId: executiveDept.id,
-      designationId: ceo.id,
+      departmentId: hrDept.id,
+      designationId: hrManagerDesig.id,
       dateOfJoining: now,
-      dateOfBirth: new Date("1990-01-01"),
-      address: "Gurugram, Haryana",
+      dateOfBirth: new Date("1992-05-15"),
+      address: "Realty Smartz HQ, Gurugram, Haryana",
       status: EmployeeStatus.ACTIVE,
       workLocationName: "Realty Smartz Private Limited HQ, Gurugram",
       workLocationLat: 28.4595,

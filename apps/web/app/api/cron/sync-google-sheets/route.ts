@@ -52,12 +52,13 @@ export async function GET(req: Request) {
       sheetTitle: result.sheetTitle,
       rowCount: result.rowCount,
       syncedAt: new Date().toISOString(),
-      spreadsheetUrl: result.spreadsheetUrl,
     });
 
     return NextResponse.json({
+      success: true,
       message: `Daily report synced to tab "${result.sheetTitle}"`,
-      ...result,
+      sheetTitle: result.sheetTitle,
+      rowCount: result.rowCount,
     });
   } catch (error: any) {
     console.error("[cron/sync-google-sheets] Error:", error);

@@ -88,11 +88,11 @@ export async function generateDailyAttendanceData(
     "Designation",
     "Date",
     "Status",
-    "Check-In Time",
-    "Check-In Location",
+    "Punch-In Time",
+    "Punch-In Location",
     "Geofence Status",
-    "Check-Out Time",
-    "Check-Out Location",
+    "Punch-Out Time",
+    "Punch-Out Location",
     "Total Hours",
     "Notes",
   ];
@@ -250,7 +250,7 @@ export async function syncReportToGoogleSheet(
     rows: DailyReportRow[];
     rawValues: (string | number)[][];
   }
-): Promise<{ success: boolean; sheetTitle: string; rowCount: number; spreadsheetUrl: string }> {
+): Promise<{ success: boolean; sheetTitle: string; rowCount: number }> {
   const { dateStr, rawValues, rows } = reportData;
 
   // Option A: Google Apps Script Webhook (if provided and preferred)
@@ -266,38 +266,48 @@ export async function syncReportToGoogleSheet(
       }),
     });
 
-    if (!webhookRes.ok) {
-      const err = await webhookRes.text();
-      throw new Error(`Google Apps Script Webhook returned ${webhookRes.status}: ${err}`);
+    const responseText = await webhookRes.text();
+    if (
+      !webhookRes.ok ||
+      responseText.includes("Script function not found") ||
+      responseText.includes("<!DOCTYPE html>")
+    ) {
+      console.error(
+        "[google-sheets] Webhook sync failed:",
+        webhookRes.status,
+        responseText.slice(0, 300)
+      );
+      if (responseText.includes("Script function not found")) {
+        throw new Error(
+          "Google Apps Script is missing the 'doPost' function. Please update your script in Extensions > Apps Script with the provided code and deploy as a Web App."
+        );
+      }
+      throw new Error(
+        `Google Sheets Webhook responded with error status ${webhookRes.status}.`
+      );
     }
 
     return {
       success: true,
       sheetTitle: dateStr,
       rowCount: rows.length,
-      spreadsheetUrl: config.spreadsheetId
-        ? `https://docs.google.com/spreadsheets/d/${config.spreadsheetId}`
-        : config.webhookUrl,
     };
   }
 
   // Option B: Official Google Sheets API v4 with Service Account
-  const spreadsheetId =
-    config.spreadsheetId || process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-  const clientEmail =
-    config.serviceAccountEmail || process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL;
-  const privateKey =
-    config.privateKey || process.env.GOOGLE_SHEETS_PRIVATE_KEY;
+  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  const clientEmail = process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
 
   if (!spreadsheetId) {
     throw new Error(
-      "Google Spreadsheet ID is missing. Please provide GOOGLE_SHEETS_SPREADSHEET_ID in settings or .env"
+      "Google Spreadsheet is not configured in backend environment."
     );
   }
 
   if (!clientEmail || !privateKey) {
     throw new Error(
-      "Google Service Account Email or Private Key is missing. Please configure credentials in settings or .env"
+      "Google Service Account credentials are not configured in backend environment."
     );
   }
 
@@ -316,9 +326,9 @@ export async function syncReportToGoogleSheet(
   );
 
   if (!metaRes.ok) {
-    const errText = await metaRes.text();
+    console.error("[google-sheets] Access failed:", metaRes.status, await metaRes.text());
     throw new Error(
-      `Cannot access Google Spreadsheet (${metaRes.status}): Make sure you shared the Google Sheet with editor access to ${clientEmail}. Error: ${errText}`
+      `Cannot access Google Spreadsheet (${metaRes.status}). Please check backend configuration.`
     );
   }
 
@@ -360,8 +370,8 @@ export async function syncReportToGoogleSheet(
     );
 
     if (!addSheetRes.ok) {
-      const errText = await addSheetRes.text();
-      throw new Error(`Failed to create new tab for ${dateStr}: ${errText}`);
+      console.error("[google-sheets] Failed to create new tab:", addSheetRes.status, await addSheetRes.text());
+      throw new Error(`Failed to create new date tab for ${dateStr}. Please check Google Sheets permissions.`);
     }
 
     const addSheetData = (await addSheetRes.json()) as {
@@ -391,8 +401,8 @@ export async function syncReportToGoogleSheet(
   );
 
   if (!writeRes.ok) {
-    const errText = await writeRes.text();
-    throw new Error(`Failed to write values into tab ${dateStr}: ${errText}`);
+    console.error("[google-sheets] Failed to write values:", writeRes.status, await writeRes.text());
+    throw new Error(`Failed to write attendance records into tab ${dateStr}.`);
   }
 
   // 5. Apply header styling & auto-fit columns if sheetId is known
@@ -457,6 +467,5 @@ export async function syncReportToGoogleSheet(
     success: true,
     sheetTitle: dateStr,
     rowCount: rows.length,
-    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId ?? 0}`,
   };
 }

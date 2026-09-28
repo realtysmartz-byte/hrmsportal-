@@ -9,8 +9,6 @@ export interface SmtpConfig {
   from?: string | null;
 }
 
-let runtimeSmtpConfig: SmtpConfig = {};
-
 export interface ActiveSmtpConfig {
   host: string;
   port: number;
@@ -20,29 +18,21 @@ export interface ActiveSmtpConfig {
   from: string;
 }
 
-export function setRuntimeSmtpConfig(config: SmtpConfig) {
-  runtimeSmtpConfig = { ...runtimeSmtpConfig, ...config };
-}
-
 export function getSmtpConfig(): ActiveSmtpConfig {
-  const host =
-    runtimeSmtpConfig.host || process.env.SMTP_HOST || "smtp.hostinger.com";
-  const port = Number(
-    runtimeSmtpConfig.port || process.env.SMTP_PORT || 465
-  );
-  const secure =
-    runtimeSmtpConfig.secure !== undefined && runtimeSmtpConfig.secure !== null
-      ? Boolean(runtimeSmtpConfig.secure)
-      : process.env.SMTP_SECURE === "true" || port === 465;
-  const user =
-    runtimeSmtpConfig.user || process.env.SMTP_USER || "info@realtysmartz.in";
-  const pass = runtimeSmtpConfig.pass || process.env.SMTP_PASS || "";
-  const from =
-    runtimeSmtpConfig.from ||
-    process.env.SMTP_FROM ||
-    `Realty Smartz HRMS <${user}>`;
+  const host = process.env.SMTP_HOST || "smtp.hostinger.com";
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const user = process.env.SMTP_USER || "info@realtysmartz.in";
+  const pass = process.env.SMTP_PASS || "";
+  const from = process.env.SMTP_FROM || `Realty Smartz HRMS <${user}>`;
 
   return { host, port, secure, user, pass, from };
+}
+
+export function getHrNotifyEmails(): string[] {
+  const raw = process.env.HR_NOTIFY_EMAIL;
+  if (!raw) return ["hr@realtysmartz.in"];
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 export function isSmtpConfigured(): boolean {
@@ -221,8 +211,7 @@ export async function sendMail(
     );
     return {
       success: false,
-      error:
-        "SMTP not configured. Please add SMTP_PASS in .env or configure in Admin Portal -> Settings.",
+      error: "SMTP service is not configured in backend environment.",
     };
   }
 
@@ -340,8 +329,7 @@ export async function notifyWelcomeEmployee(args: {
     },
   });
 
-  const recipients = [args.employeeEmail];
-  if (process.env.HR_NOTIFY_EMAIL) recipients.push(process.env.HR_NOTIFY_EMAIL);
+  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
 
   return sendMail({
     to: [...new Set(recipients)],
@@ -428,9 +416,8 @@ export async function notifyPunchDetails(args: {
     body,
   });
 
-  const recipients = [args.employeeEmail];
+  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
   if (args.managerEmail) recipients.push(args.managerEmail);
-  if (process.env.HR_NOTIFY_EMAIL) recipients.push(process.env.HR_NOTIFY_EMAIL);
 
   const subject = isLate
     ? `⚠️ [Attendance Alert] Late Punch — ${args.employeeName} (${timeFormatted})`
@@ -541,9 +528,8 @@ export async function notifyOutsideGeofence(args: {
     <p>Company attendance policy requires all employees to mark attendance within company premise boundaries unless assigned to off-site field duty.</p>
   `;
 
-  const recipients = [args.employeeEmail];
+  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
   if (args.managerEmail) recipients.push(args.managerEmail);
-  if (process.env.HR_NOTIFY_EMAIL) recipients.push(process.env.HR_NOTIFY_EMAIL);
 
   return sendMail({
     to: [...new Set(recipients)],
@@ -579,9 +565,8 @@ export async function notifyLeaveApplied(args: {
     </ul>
   `;
 
-  const recipients = [args.employeeEmail];
+  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
   if (args.managerEmail) recipients.push(args.managerEmail);
-  if (process.env.HR_NOTIFY_EMAIL) recipients.push(process.env.HR_NOTIFY_EMAIL);
 
   return sendMail({
     to: [...new Set(recipients)],
@@ -662,8 +647,7 @@ export async function testSmtpConnection(
   if (!cfg.pass) {
     return {
       success: false,
-      message:
-        "SMTP Password is missing. Please provide SMTP_PASS for info@realtysmartz.in",
+      message: "SMTP is not configured in backend environment.",
     };
   }
 
@@ -671,7 +655,7 @@ export async function testSmtpConnection(
   if (!transporter) {
     return {
       success: false,
-      message: "Could not initialize SMTP transport with current settings.",
+      message: "Could not initialize SMTP transport.",
     };
   }
 
@@ -679,14 +663,14 @@ export async function testSmtpConnection(
     await transporter.verify();
     const result = await sendMail({
       to: targetEmail,
-      subject: "✅ [Realty Smartz] SMTP Connection Test Successful",
+      subject: "✅ [Realty Smartz] Email Notification System Verified",
       html: layout({
-        title: "SMTP Connection Verified!",
-        badge: "TEST PASSED",
+        title: "Email System Verified",
+        badge: "VERIFIED",
         badgeColor: "#10B981",
         body: `
-          <p>Congratulations! Your outgoing email service for <strong>${cfg.user}</strong> via <strong>${cfg.host}:${cfg.port}</strong> is working properly.</p>
-          <p>All system emails (new employee welcome credentials, daily check-in details, and late punch alerts) will now be sent automatically to staff and HR.</p>
+          <p>Your outgoing email service is operational and verified.</p>
+          <p>All automated emails (new employee welcome credentials, daily check-in details, and late punch alerts) are active and delivered directly to employee inboxes.</p>
         `,
       }),
     });
@@ -703,9 +687,10 @@ export async function testSmtpConnection(
       message: `Test email successfully sent to ${targetEmail}! Check inbox.`,
     };
   } catch (err: any) {
+    console.error("[email] SMTP verification failed:", err);
     return {
       success: false,
-      message: err?.message || String(err),
+      message: "SMTP connection or authentication failed. Please check server environment configuration.",
     };
   }
 }

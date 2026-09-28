@@ -59,18 +59,14 @@ export default function TeamAttendancePage() {
     { enabled: allowed }
   );
 
-  const [googleSheetResult, setGoogleSheetResult] = useState<{
-    msg: string;
-    url?: string;
-  } | null>(null);
+  const [googleSheetResult, setGoogleSheetResult] = useState<string | null>(null);
 
   const syncGoogleSheet = trpc.googleSheets.syncDailyReport.useMutation({
     onSuccess: (res) => {
-      setGoogleSheetResult({
-        msg: `Tab "${res.sheetTitle}" synced successfully with ${res.rowCount} records!`,
-        url: res.spreadsheetUrl,
-      });
-      setTimeout(() => setGoogleSheetResult(null), 8000);
+      setGoogleSheetResult(
+        `Daily attendance for "${date}" synced successfully (${res.rowCount} records).`
+      );
+      setTimeout(() => setGoogleSheetResult(null), 6000);
     },
     onError: (err) => {
       alert(`Google Sheet Sync Error: ${err.message}`);
@@ -224,17 +220,7 @@ export default function TeamAttendancePage() {
         <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 font-medium">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>{googleSheetResult.msg}</span>
-            {googleSheetResult.url && (
-              <a
-                href={googleSheetResult.url}
-                target="_blank"
-                rel="noreferrer"
-                className="font-bold underline ml-1 hover:opacity-80"
-              >
-                Open Google Sheet Tab ↗
-              </a>
-            )}
+            <span>{googleSheetResult}</span>
           </div>
           <button
             type="button"

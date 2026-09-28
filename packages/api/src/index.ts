@@ -52,5 +52,4 @@ export {
   notifyOutsideGeofence,
   testSmtpConnection,
   getSmtpConfig,
-  setRuntimeSmtpConfig,
 } from "./lib/email";

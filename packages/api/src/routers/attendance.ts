@@ -299,6 +299,32 @@ export const attendanceRouter = router({
         }
       })();
 
+      // Fire-and-forget real-time Google Sheet sync
+      void (async () => {
+        try {
+          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
+            "./googleSheets"
+          );
+          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+            "../lib/google-sheets"
+          );
+          const sheetConfig = getActiveGoogleSheetConfig();
+          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
+            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+            setLastSyncMetadata({
+              date: reportData.dateStr,
+              sheetTitle: res.sheetTitle,
+              rowCount: res.rowCount,
+              syncedAt: new Date().toISOString(),
+            });
+            console.info("[attendance.checkIn] Real-time Google Sheet sync succeeded:", res.sheetTitle);
+          }
+        } catch (err) {
+          console.error("[attendance.checkIn] Real-time Google Sheet sync error:", err);
+        }
+      })();
+
       return log;
     }),
 
@@ -376,6 +402,32 @@ export const attendanceRouter = router({
           });
         } catch (err) {
           console.error("[attendance.checkOut] email notify failed:", err);
+        }
+      })();
+
+      // Fire-and-forget real-time Google Sheet sync on checkout
+      void (async () => {
+        try {
+          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
+            "./googleSheets"
+          );
+          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+            "../lib/google-sheets"
+          );
+          const sheetConfig = getActiveGoogleSheetConfig();
+          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
+            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+            setLastSyncMetadata({
+              date: reportData.dateStr,
+              sheetTitle: res.sheetTitle,
+              rowCount: res.rowCount,
+              syncedAt: new Date().toISOString(),
+            });
+            console.info("[attendance.checkOut] Real-time Google Sheet sync succeeded:", res.sheetTitle);
+          }
+        } catch (err) {
+          console.error("[attendance.checkOut] Real-time Google Sheet sync error:", err);
         }
       })();
 
