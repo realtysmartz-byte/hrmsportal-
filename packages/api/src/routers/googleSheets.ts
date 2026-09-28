@@ -90,22 +90,30 @@ export const googleSheetsRouter = router({
         targetDate
       );
 
-      const result = await syncReportToGoogleSheet(config, reportData);
+      try {
+        const result = await syncReportToGoogleSheet(config, reportData);
 
-      lastSyncMetadata = {
-        date: reportData.dateStr,
-        sheetTitle: result.sheetTitle,
-        rowCount: result.rowCount,
-        syncedAt: new Date().toISOString(),
-      };
+        lastSyncMetadata = {
+          date: reportData.dateStr,
+          sheetTitle: result.sheetTitle,
+          rowCount: result.rowCount,
+          syncedAt: new Date().toISOString(),
+        };
 
-      return {
-        success: true,
-        sheetTitle: result.sheetTitle,
-        rowCount: result.rowCount,
-        formattedDate: reportData.formattedDate,
-        date: reportData.dateStr,
-      };
+        return {
+          success: true,
+          sheetTitle: result.sheetTitle,
+          rowCount: result.rowCount,
+          formattedDate: reportData.formattedDate,
+          date: reportData.dateStr,
+        };
+      } catch (err: any) {
+        console.error("[googleSheets.syncDailyReport] Sync failed:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err?.message || "Failed to sync attendance data to Google Sheets.",
+        });
+      }
     }),
 
   testConnection: protectedProcedure.mutation(async ({ ctx }) => {
@@ -118,11 +126,19 @@ export const googleSheetsRouter = router({
     const today = new Date();
     const reportData = await generateDailyAttendanceData(ctx.prisma, today);
 
-    const result = await syncReportToGoogleSheet(config, reportData);
-    return {
-      success: true,
-      sheetTitle: result.sheetTitle,
-      rowCount: result.rowCount,
-    };
+    try {
+      const result = await syncReportToGoogleSheet(config, reportData);
+      return {
+        success: true,
+        sheetTitle: result.sheetTitle,
+        rowCount: result.rowCount,
+      };
+    } catch (err: any) {
+      console.error("[googleSheets.testConnection] Connection failed:", err);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: err?.message || "Failed to connect to Google Sheets.",
+      });
+    }
   }),
 });
