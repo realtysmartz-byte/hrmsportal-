@@ -1,5 +1,11 @@
 import crypto from "crypto";
 import type { PrismaClient } from "@realty-smartz/db";
+import {
+  startOfDayUTC,
+  getISTDateParts,
+  TIMEZONE_IST,
+} from "@realty-smartz/shared";
+import { ensureAutoPunchOut } from "./attendance-auto";
 
 export interface GoogleSheetConfig {
   spreadsheetId?: string | null;
@@ -26,13 +32,14 @@ export interface DailyReportRow {
 }
 
 /**
- * Format time for display (e.g. "09:30 AM")
+ * Format time in 12-hour IST format (e.g. "09:30 AM")
  */
 function formatTime12(date?: Date | string | null): string {
   if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleTimeString("en-IN", {
+    timeZone: TIMEZONE_IST,
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -46,17 +53,20 @@ export async function generateDailyAttendanceData(
   prisma: PrismaClient,
   targetDate: Date
 ): Promise<{ dateStr: string; formattedDate: string; rows: DailyReportRow[]; rawValues: (string | number)[][] }> {
-  const y = targetDate.getFullYear();
-  const m = String(targetDate.getMonth() + 1).padStart(2, "0");
-  const d = String(targetDate.getDate()).padStart(2, "0");
-  const dateStr = `${y}-${m}-${d}`;
+  // First ensure any pending unclosed logs are auto-punched out to 7:00 PM IST
+  await ensureAutoPunchOut(prisma);
+
+  const ist = getISTDateParts(targetDate);
+  const dateStr = `${ist.year}-${String(ist.month).padStart(2, "0")}-${String(ist.day).padStart(2, "0")}`;
   const formattedDate = targetDate.toLocaleDateString("en-IN", {
+    timeZone: TIMEZONE_IST,
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 
-  const dayStart = new Date(Date.UTC(y, targetDate.getMonth(), targetDate.getDate()));
+  const dayStart = startOfDayUTC(targetDate);
+
 
   // 1. Fetch all active or on-leave employees
   const employees = await prisma.employee.findMany({

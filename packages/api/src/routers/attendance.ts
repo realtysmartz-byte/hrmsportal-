@@ -9,6 +9,8 @@ import {
   locationPingSchema,
   haversineDistanceM,
   startOfDayUTC,
+  getISTDateParts,
+  isWeeklyOffDay,
   LATE_CHECK_IN_HOUR,
   canViewTeamAttendance,
   isWorkingDay,
@@ -17,11 +19,15 @@ import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
 import { protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
+import { ensureAutoPunchOut } from "../lib/attendance-auto";
 
 function attendanceStatusFromCheckIn(
   checkInTime: Date
 ): "LATE" | "PRESENT" {
-  return checkInTime.getHours() >= LATE_CHECK_IN_HOUR ? "LATE" : "PRESENT";
+  const ist = getISTDateParts(checkInTime);
+  return ist.hour > LATE_CHECK_IN_HOUR || (ist.hour === LATE_CHECK_IN_HOUR && ist.minute > 0)
+    ? "LATE"
+    : "PRESENT";
 }
 
 async function resolveEmployeeId(ctx: Context) {
@@ -67,9 +73,10 @@ function summarizeLogs(
   if (checkIns.length > 0) {
     const avgMs =
       checkIns.reduce((sum, t) => {
+        const ist = getISTDateParts(t);
         return (
           sum +
-          (t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds()) * 1000
+          (ist.hour * 3600 + ist.minute * 60 + ist.second) * 1000
         );
       }, 0) / checkIns.length;
     const totalSec = Math.floor(avgMs / 1000);
@@ -90,6 +97,7 @@ function summarizeLogs(
 export const attendanceRouter = router({
   today: protectedProcedure.query(async ({ ctx }) => {
     const employeeId = await resolveEmployeeId(ctx);
+    await ensureAutoPunchOut(ctx.prisma, employeeId);
     const today = startOfDayUTC(new Date());
     return ctx.prisma.attendanceLog.findUnique({
       where: {
@@ -98,10 +106,88 @@ export const attendanceRouter = router({
     });
   }),
 
+  /**
+   * Returns past 7 days (1 week) attendance history for current logged-in employee.
+   * Auto-punches out past 7:00 PM and gives complete punch-in/out and shift breakdown.
+   */
+  myRecentWeek: protectedProcedure.query(async ({ ctx }) => {
+    const employeeId = await resolveEmployeeId(ctx);
+    await ensureAutoPunchOut(ctx.prisma, employeeId);
+
+    const today = startOfDayUTC(new Date());
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setUTCDate(d.getUTCDate() - i);
+      days.push(d);
+    }
+    const oldest = days[days.length - 1];
+
+    const logs = await ctx.prisma.attendanceLog.findMany({
+      where: {
+        employeeId,
+        date: { gte: oldest, lte: today },
+      },
+      orderBy: { date: "desc" },
+    });
+
+    const logMap = new Map(
+      logs.map((l) => [l.date.toISOString().slice(0, 10), l])
+    );
+
+    const result = days.map((d) => {
+      const key = d.toISOString().slice(0, 10);
+      const log = logMap.get(key) || null;
+      const isToday = key === today.toISOString().slice(0, 10);
+      const dow = d.getUTCDay();
+      const isOff = isWeeklyOffDay(dow);
+
+      return {
+        date: d,
+        dateStr: key,
+        formattedDate: d.toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
+        dayName: d.toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          weekday: "short",
+        }),
+        fullDayName: d.toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          weekday: "long",
+        }),
+        isToday,
+        isWeeklyOff: isOff,
+        log: log
+          ? {
+              id: log.id,
+              status: log.status,
+              checkInTime: log.checkInTime,
+              checkOutTime: log.checkOutTime,
+              checkInAddress: log.checkInAddress,
+              checkOutAddress: log.checkOutAddress,
+              totalHours: log.totalHours,
+              withinGeofence: log.withinGeofence,
+              notes: log.notes,
+              isAutoCheckedOut: Boolean(
+                log.checkOutTime && log.notes?.includes("Auto checked out")
+              ),
+            }
+          : null,
+      };
+    });
+
+    return result;
+  }),
+
   myMonth: protectedProcedure
     .input(myAttendanceMonthSchema)
     .query(async ({ ctx, input }) => {
       const employeeId = await resolveEmployeeId(ctx);
+      await ensureAutoPunchOut(ctx.prisma, employeeId);
       const start = new Date(Date.UTC(input.year, input.month - 1, 1));
       const end = new Date(Date.UTC(input.year, input.month, 0));
 
@@ -442,6 +528,8 @@ export const attendanceRouter = router({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
+      await ensureAutoPunchOut(ctx.prisma);
+
       const targetDate = startOfDayUTC(input.date ?? new Date());
       const employeeWhere: Record<string, unknown> = {
         status: { in: ["ACTIVE", "ON_LEAVE"] },
@@ -487,6 +575,166 @@ export const attendanceRouter = router({
 
       return { date: targetDate, rows };
     }),
+
+  /**
+   * Returns all attendance entries across employees with date range presets,
+   * search query, department filter, status filter, and pagination.
+   */
+  allEntries: protectedProcedure
+    .input(
+      z.object({
+        range: z
+          .enum(["today", "week", "month", "all", "custom"])
+          .default("all"),
+        startDate: z.coerce.date().optional(),
+        endDate: z.coerce.date().optional(),
+        departmentId: z.string().optional(),
+        status: z
+          .enum([
+            "PRESENT",
+            "LATE",
+            "HALF_DAY",
+            "ABSENT",
+            "ON_LEAVE",
+            "HOLIDAY",
+          ])
+          .optional(),
+        outsideGeofenceOnly: z.boolean().optional(),
+        search: z.string().optional(),
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(200).default(50),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      if (!canViewTeamAttendance(role)) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      await ensureAutoPunchOut(ctx.prisma);
+
+      const today = startOfDayUTC(new Date());
+
+      // Determine date range condition
+      let dateFilter: { gte?: Date; lte?: Date } | undefined = undefined;
+
+      if (input.range === "today") {
+        dateFilter = { gte: today, lte: today };
+      } else if (input.range === "week") {
+        const weekAgo = new Date(today);
+        weekAgo.setUTCDate(weekAgo.getUTCDate() - 6);
+        dateFilter = { gte: weekAgo, lte: today };
+      } else if (input.range === "month") {
+        const ist = getISTDateParts(today);
+        const startOfMonth = new Date(Date.UTC(ist.year, ist.month - 1, 1));
+        const endOfMonth = new Date(Date.UTC(ist.year, ist.month, 0));
+        dateFilter = { gte: startOfMonth, lte: endOfMonth };
+      } else if (input.range === "custom") {
+        if (input.startDate || input.endDate) {
+          dateFilter = {};
+          if (input.startDate) dateFilter.gte = startOfDayUTC(input.startDate);
+          if (input.endDate) dateFilter.lte = startOfDayUTC(input.endDate);
+        }
+      }
+
+      // Build employee filters
+      const employeeWhere: Record<string, unknown> = {};
+      if (role === "MANAGER") {
+        employeeWhere.managerId = await resolveEmployeeId(ctx);
+      }
+      if (input.departmentId) {
+        employeeWhere.departmentId = input.departmentId;
+      }
+      if (input.search && input.search.trim()) {
+        const q = input.search.trim();
+        employeeWhere.OR = [
+          { firstName: { contains: q, mode: "insensitive" } },
+          { lastName: { contains: q, mode: "insensitive" } },
+          { employeeCode: { contains: q, mode: "insensitive" } },
+        ];
+      }
+
+      const logWhere: Record<string, unknown> = {
+        employee: employeeWhere,
+      };
+
+      if (dateFilter) {
+        logWhere.date = dateFilter;
+      }
+      if (input.status) {
+        logWhere.status = input.status;
+      }
+      if (input.outsideGeofenceOnly) {
+        logWhere.withinGeofence = false;
+        logWhere.checkInTime = { not: null };
+      }
+
+      const [entries, totalCount, statsLogs] = await Promise.all([
+        ctx.prisma.attendanceLog.findMany({
+          where: logWhere,
+          include: {
+            employee: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                employeeCode: true,
+                profilePhotoUrl: true,
+                department: { select: { id: true, name: true } },
+                designation: { select: { id: true, title: true } },
+              },
+            },
+          },
+          orderBy: [{ date: "desc" }, { checkInTime: "desc" }],
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+        }),
+        ctx.prisma.attendanceLog.count({ where: logWhere }),
+        ctx.prisma.attendanceLog.findMany({
+          where: logWhere,
+          select: {
+            status: true,
+            checkInTime: true,
+            withinGeofence: true,
+            totalHours: true,
+          },
+        }),
+      ]);
+
+      const presentCount = statsLogs.filter((l) =>
+        ["PRESENT", "LATE", "HALF_DAY"].includes(l.status)
+      ).length;
+      const lateCount = statsLogs.filter((l) => l.status === "LATE").length;
+      const halfDayCount = statsLogs.filter((l) => l.status === "HALF_DAY").length;
+      const absentCount = statsLogs.filter((l) => l.status === "ABSENT").length;
+      const outsideCount = statsLogs.filter(
+        (l) => l.checkInTime && !l.withinGeofence
+      ).length;
+
+      const totalHoursSum = statsLogs.reduce(
+        (acc, l) => acc + (l.totalHours || 0),
+        0
+      );
+      const avgHours =
+        presentCount > 0 ? Math.round((totalHoursSum / presentCount) * 10) / 10 : 0;
+
+      return {
+        entries,
+        totalCount,
+        page: input.page,
+        pageSize: input.pageSize,
+        totalPages: Math.max(1, Math.ceil(totalCount / input.pageSize)),
+        summary: {
+          presentCount,
+          lateCount,
+          halfDayCount,
+          absentCount,
+          outsideCount,
+          avgHours,
+        },
+      };
+    }),
+
 
   locationPing: protectedProcedure
     .input(locationPingSchema)

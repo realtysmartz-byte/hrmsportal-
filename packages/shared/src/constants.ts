@@ -213,6 +213,81 @@ export function listWeekdayDates(start: Date, end: Date): Date[] {
   return dates;
 }
 
-export function startOfDayUTC(d: Date): Date {
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+/** Timezone for all Realty Smartz operations (Indian Standard Time) */
+export const TIMEZONE_IST = "Asia/Kolkata";
+
+/** Daily automatic checkout hour (19:00 / 7:00 PM IST) */
+export const AUTO_PUNCH_OUT_HOUR_IST = 19;
+export const AUTO_PUNCH_OUT_MINUTE_IST = 0;
+
+/** Extract date and time parts in IST (Asia/Kolkata) */
+export function getISTDateParts(d: Date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIMEZONE_IST,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(d);
+  const find = (type: string) => {
+    const val = parts.find((p) => p.type === type)?.value;
+    return val ? parseInt(val, 10) : 0;
+  };
+  return {
+    year: find("year"),
+    month: find("month"), // 1-12
+    day: find("day"),
+    hour: find("hour") === 24 ? 0 : find("hour"), // 0-23
+    minute: find("minute"),
+    second: find("second"),
+  };
 }
+
+/**
+ * Returns UTC midnight Date corresponding to the IST calendar day.
+ * Ensures consistent day-boundaries whether running on Vercel (UTC) or local.
+ */
+export function startOfDayUTC(d: Date = new Date()): Date {
+  const ist = getISTDateParts(d);
+  return new Date(Date.UTC(ist.year, ist.month - 1, ist.day));
+}
+
+/**
+ * Returns the exact 7:00 PM IST (19:00:00 IST = 13:30:00 UTC) Date for a given date.
+ */
+export function getAutoPunchOutTimeIST(forDate: Date): Date {
+  const ist = getISTDateParts(forDate);
+  // 19:00:00 IST is 13:30:00.000 UTC
+  return new Date(Date.UTC(ist.year, ist.month - 1, ist.day, 13, 30, 0, 0));
+}
+
+/** Format a time in 12-hour IST format (e.g. "09:45 AM") */
+export function formatTimeIST(date?: Date | string | null): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/** Format a date in IST format (e.g. "25 Sep 2026") */
+export function formatDateIST(date?: Date | string | null): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+

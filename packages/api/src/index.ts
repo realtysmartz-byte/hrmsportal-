@@ -53,3 +53,6 @@ export {
   testSmtpConnection,
   getSmtpConfig,
 } from "./lib/email";
+
+export { ensureAutoPunchOut } from "./lib/attendance-auto";
+

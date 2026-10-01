@@ -23,6 +23,7 @@ import {
   type GeoPlace,
 } from "@/lib/geolocation";
 import { LocationMap } from "@/components/LocationMap";
+import { formatTimeIST, TIMEZONE_IST, getISTDateParts } from "@realty-smartz/shared";
 
 export function CheckInOutCard() {
   const { data: session } = useSession();
@@ -38,12 +39,13 @@ export function CheckInOutCard() {
   const [captured, setCaptured] = useState<GeoPlace | null>(null);
   const [showMap, setShowMap] = useState(false);
 
-  // Live clock
+  // Live clock in Indian Standard Time (IST)
   useEffect(() => {
     function updateClock() {
       const now = new Date();
       setCurrentTime(
         now.toLocaleTimeString("en-US", {
+          timeZone: TIMEZONE_IST,
           hour: "numeric",
           minute: "2-digit",
           second: "2-digit",
@@ -52,23 +54,32 @@ export function CheckInOutCard() {
       );
       setCurrentDate(
         now.toLocaleDateString("en-US", {
+          timeZone: TIMEZONE_IST,
           weekday: "long",
           day: "numeric",
           month: "short",
           year: "numeric",
         })
       );
+
+      // Check if 7:00 PM IST is reached while user is on duty
+      const ist = getISTDateParts(now);
+      if (ist.hour >= 19 && today?.checkInTime && !today?.checkOutTime) {
+        void utils.attendance.today.invalidate();
+        void utils.attendance.myRecentWeek.invalidate();
+      }
     }
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [today?.checkInTime, today?.checkOutTime, utils]);
 
   const checkIn = trpc.attendance.checkIn.useMutation({
     onSuccess: async () => {
       await utils.attendance.today.invalidate();
       await utils.attendance.today.refetch();
       await utils.attendance.myMonth.invalidate();
+      await utils.attendance.myRecentWeek.invalidate();
       setError("");
       setIsPermissionDenied(false);
     },
@@ -79,6 +90,7 @@ export function CheckInOutCard() {
       await utils.attendance.today.invalidate();
       await utils.attendance.today.refetch();
       await utils.attendance.myMonth.invalidate();
+      await utils.attendance.myRecentWeek.invalidate();
       setError("");
       setIsPermissionDenied(false);
     },
@@ -238,14 +250,25 @@ export function CheckInOutCard() {
 
               {/* Checkout details if already checked out */}
               {checkedOut && today?.checkOutTime && (
-                <div className="mt-2 rounded-xl bg-emerald-50/90 border border-emerald-200/90 px-4 py-2 text-xs text-emerald-900 shadow-2xs">
-                  <p className="font-semibold text-emerald-800">
-                    ✓ Checked out at {new Date(today.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    {today.totalHours != null && ` · Total: ${today.totalHours} hrs`}
-                  </p>
+                <div className="mt-2 rounded-xl bg-emerald-50/90 border border-emerald-200/90 px-4 py-2.5 text-xs text-emerald-900 shadow-2xs max-w-sm">
+                  <div className="flex items-center justify-center gap-1.5 font-semibold text-emerald-800">
+                    <span>
+                      ✓ Checked out at {formatTimeIST(today.checkOutTime)}
+                    </span>
+                    {today.totalHours != null && (
+                      <span className="font-normal text-emerald-700">
+                        ({today.totalHours} hrs worked)
+                      </span>
+                    )}
+                  </div>
+                  {today.notes?.includes("Auto checked out") && (
+                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-300">
+                      ⚡ Shift End Auto Punch-Out (7:00 PM IST)
+                    </span>
+                  )}
                   {today.checkInTime && (
-                    <p className="text-[11px] text-emerald-700/80 mt-0.5">
-                      Checked in at {new Date(today.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    <p className="text-[11px] text-emerald-700/80 mt-1">
+                      Punched in at {formatTimeIST(today.checkInTime)}
                     </p>
                   )}
                 </div>

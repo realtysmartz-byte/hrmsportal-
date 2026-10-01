@@ -8,8 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import { isWeeklyOffDay } from "@realty-smartz/shared";
-import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock } from "lucide-react";
+import { isWeeklyOffDay, formatTimeIST } from "@realty-smartz/shared";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Zap,
+  History,
+} from "lucide-react";
 
 export default function EmployeeAttendancePage() {
   const now = new Date();
@@ -18,6 +28,9 @@ export default function EmployeeAttendancePage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(now.getDate());
 
   const { data } = trpc.attendance.myMonth.useQuery({ year, month });
+  const { data: recentWeek, isLoading: isWeekLoading } =
+    trpc.attendance.myRecentWeek.useQuery();
+
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDow = new Date(year, month - 1, 1).getDay();
 
@@ -47,19 +60,232 @@ export default function EmployeeAttendancePage() {
     selectedDay != null ? logByDay.get(selectedDay) ?? null : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto overflow-hidden">
       {/* Page Header */}
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
           My Attendance
         </h1>
         <p className="text-sm text-neutral-500">
-          Realty Smartz Private Limited · Daily check-ins, monthly calendar, and punctuality records
+          Realty Smartz Private Limited · Daily check-ins, 1-week punch log, monthly calendar, and punctuality records
         </p>
       </div>
 
       {/* Check In / Out Card */}
       <CheckInOutCard />
+
+      {/* 1-Week (Past 7 Days) Daily Punch In / Punch Out Record */}
+      <Card className="border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-neutral-100 bg-neutral-50/50 pb-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <History className="h-4 w-4" />
+              </span>
+              <div>
+                <CardTitle className="font-display text-base font-bold text-neutral-900">
+                  Past 7 Days Punch Record (1 Week)
+                </CardTitle>
+                <p className="text-xs text-neutral-500">
+                  Live punch-in times, punch-out times, total hours worked, and shift status
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-medium">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Auto Punch-Out at 7:00 PM IST Active</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-neutral-200/80 bg-neutral-50/80 text-neutral-600 font-semibold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="px-4 py-3">Date & Day</th>
+                  <th className="px-4 py-3">Attendance Status</th>
+                  <th className="px-4 py-3">Punch In</th>
+                  <th className="px-4 py-3">Punch Out</th>
+                  <th className="px-4 py-3">Total Hours</th>
+                  <th className="px-4 py-3">Geofence / Location</th>
+                  <th className="px-4 py-3">Notes / Audit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {isWeekLoading && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-xs text-neutral-400">
+                      Loading your 7-day attendance records...
+                    </td>
+                  </tr>
+                )}
+                {!isWeekLoading && recentWeek?.map((day) => {
+                  const log = day.log;
+                  const isCheckedIn = Boolean(log?.checkInTime);
+                  const isCheckedOut = Boolean(log?.checkOutTime);
+
+                  return (
+                    <tr
+                      key={day.dateStr}
+                      className={cn(
+                        "hover:bg-neutral-50/60 transition-colors",
+                        day.isToday && "bg-primary/5 font-medium"
+                      )}
+                    >
+                      {/* Date & Day */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <p className="font-semibold text-neutral-900">
+                              {day.fullDayName}
+                            </p>
+                            <p className="text-[11px] text-neutral-500">
+                              {day.formattedDate}
+                            </p>
+                          </div>
+                          {day.isToday && (
+                            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+                              Today
+                            </span>
+                          )}
+                          {day.isWeeklyOff && !log && (
+                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-500">
+                              Weekly Off (Tue)
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3.5">
+                        {!log ? (
+                          day.isWeeklyOff ? (
+                            <span className="inline-flex items-center rounded-md bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">
+                              Weekly Off
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-md bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-maroon border border-rose-200">
+                              Absent
+                            </span>
+                          )
+                        ) : log.status === "PRESENT" ? (
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                            Present
+                          </span>
+                        ) : log.status === "LATE" ? (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+                            Late Punch
+                          </span>
+                        ) : log.status === "HALF_DAY" ? (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-300">
+                            Half Day (&lt; 4 hrs)
+                          </span>
+                        ) : log.status === "ON_LEAVE" ? (
+                          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-primary border border-indigo-200">
+                            On Leave
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">
+                            {log.status}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Punch In */}
+                      <td className="px-4 py-3.5">
+                        {isCheckedIn ? (
+                          <div className="flex items-center gap-1.5 font-semibold text-neutral-900">
+                            <Clock className="h-3.5 w-3.5 text-primary" />
+                            <span>{formatTimeIST(log!.checkInTime)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Punch Out */}
+                      <td className="px-4 py-3.5">
+                        {isCheckedOut ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5 font-semibold text-neutral-900">
+                              <Clock className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>{formatTimeIST(log!.checkOutTime)}</span>
+                            </div>
+                            {log!.isAutoCheckedOut && (
+                              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                                ⚡ Auto 7:00 PM
+                              </span>
+                            )}
+                          </div>
+                        ) : isCheckedIn ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-primary border border-indigo-200 animate-pulse">
+                            On Duty (Auto 7 PM)
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Total Hours */}
+                      <td className="px-4 py-3.5 font-semibold text-neutral-900">
+                        {log?.totalHours != null ? (
+                          <span className={cn(
+                            log.totalHours >= 8 ? "text-emerald-700" : log.totalHours < 4 ? "text-amber-700" : "text-neutral-800"
+                          )}>
+                            {log.totalHours} hrs
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400 font-normal">—</span>
+                        )}
+                      </td>
+
+                      {/* Geofence / Location */}
+                      <td className="px-4 py-3.5">
+                        {isCheckedIn ? (
+                          <div className="space-y-0.5">
+                            <span className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                              log!.withinGeofence
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-amber-50 text-amber-800 border border-amber-300"
+                            )}>
+                              {log!.withinGeofence ? (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                              )}
+                              <span>{log!.withinGeofence ? "Inside Office" : "Outside Geofence"}</span>
+                            </span>
+                            {log?.checkInAddress && (
+                              <p className="text-[10px] text-neutral-400 truncate max-w-[180px]" title={log.checkInAddress}>
+                                {log.checkInAddress}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Notes / Audit */}
+                      <td className="px-4 py-3.5 text-neutral-600 text-[11px]">
+                        {log?.notes ? (
+                          <span className="truncate max-w-[200px] block" title={log.notes}>
+                            {log.notes}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
 
       {/* Mini Stats Summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
