@@ -257,8 +257,8 @@ export default function EmployeeAttendancePage() {
                               <span>{log!.withinGeofence ? "Inside Office" : "Outside Geofence"}</span>
                             </span>
                             {log?.checkInAddress && (
-                              <p className="text-[10px] text-neutral-400 truncate max-w-[180px]" title={log.checkInAddress}>
-                                {log.checkInAddress}
+                              <p className="text-[10px] text-neutral-400 truncate max-w-[180px]" title={log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")}>
+                                {log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")}
                               </p>
                             )}
                           </div>

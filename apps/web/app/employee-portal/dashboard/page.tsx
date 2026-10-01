@@ -622,7 +622,7 @@ export default function EmployeeDashboardPage() {
                     </p>
                   )}
                   <p className="truncate text-[11px] text-neutral-500">
-                    📍 {selectedLog.checkInAddress || "Gurugram Office"}
+                    📍 {(selectedLog.checkInAddress ? selectedLog.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited") : "Realty Smartz Private Limited HQ, Gurugram")}
                   </p>
                 </div>
               ) : (

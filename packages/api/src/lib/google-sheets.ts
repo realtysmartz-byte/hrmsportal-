@@ -120,14 +120,14 @@ export async function generateDailyAttendanceData(
 
     let checkInLoc = "—";
     if (log?.checkInAddress) {
-      checkInLoc = log.checkInAddress;
+      checkInLoc = log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
     } else if (log?.checkInLat && log?.checkInLng) {
       checkInLoc = `${log.checkInLat.toFixed(5)}, ${log.checkInLng.toFixed(5)}`;
     }
 
     let checkOutLoc = "—";
     if (log?.checkOutAddress) {
-      checkOutLoc = log.checkOutAddress;
+      checkOutLoc = log.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
     } else if (log?.checkOutLat && log?.checkOutLng) {
       checkOutLoc = `${log.checkOutLat.toFixed(5)}, ${log.checkOutLng.toFixed(5)}`;
     }

@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     };
 
     const addr = data.address ?? {};
-    const placeName =
+    let placeName =
       data.name ||
       addr.building ||
       addr.amenity ||
@@ -53,9 +53,18 @@ export async function GET(req: NextRequest) {
       addr.village ||
       addr.town ||
       addr.city ||
-      "Current location";
+      "Realty Smartz Private Limited";
 
-    const address = data.display_name || `${lat}, ${lng}`;
+    let address = data.display_name || `${lat}, ${lng}`;
+
+    // Overwrite OSM "Sunbreeze" locality tag or generic strings with official corporate branding
+    if (!placeName || /sunbreeze/i.test(placeName) || placeName === "Current location") {
+      placeName = "Realty Smartz Private Limited";
+    }
+
+    if (/sunbreeze/i.test(address)) {
+      address = address.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+    }
 
     return NextResponse.json({
       name: placeName,

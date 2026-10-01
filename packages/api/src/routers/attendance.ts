@@ -167,8 +167,12 @@ export const attendanceRouter = router({
               status: log.status,
               checkInTime: log.checkInTime,
               checkOutTime: log.checkOutTime,
-              checkInAddress: log.checkInAddress,
-              checkOutAddress: log.checkOutAddress,
+              checkInAddress: log.checkInAddress
+                ? log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
+                : log.checkInAddress,
+              checkOutAddress: log.checkOutAddress
+                ? log.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
+                : log.checkOutAddress,
               totalHours: log.totalHours,
               withinGeofence: log.withinGeofence,
               notes: log.notes,
@@ -314,11 +318,21 @@ export const attendanceRouter = router({
       const now = new Date();
       const status = attendanceStatusFromCheckIn(now);
 
+      // Resolve official address: inside geofence uses official office name; outside cleans any OSM artifacts
+      let finalAddress = input.address;
+      if (withinGeofence) {
+        finalAddress = settings.officeName || "Realty Smartz Private Limited HQ, Gurugram";
+      } else if (finalAddress) {
+        finalAddress = finalAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      } else {
+        finalAddress = "Realty Smartz Private Limited";
+      }
+
       const locationData = {
         checkInTime: now,
         checkInLat: input.lat,
         checkInLng: input.lng,
-        checkInAddress: input.address,
+        checkInAddress: finalAddress,
         withinGeofence,
         status,
         notes: withinGeofence
@@ -365,7 +379,7 @@ export const attendanceRouter = router({
             employeeCode: emp.employeeCode,
             checkInTime: now,
             status,
-            address: input.address,
+            address: finalAddress,
             withinGeofence,
             managerEmail: emp.manager?.email,
           });
@@ -376,7 +390,7 @@ export const attendanceRouter = router({
               employeeEmail: emp.email,
               employeeCode: emp.employeeCode,
               checkInTime: now,
-              address: input.address,
+              address: finalAddress,
               managerEmail: emp.manager?.email,
             });
           }
@@ -449,13 +463,26 @@ export const attendanceRouter = router({
 
       const roundedHours = Math.round(totalHours * 100) / 100;
 
+      const settings = await ctx.prisma.companySettings.findUnique({
+        where: { id: "singleton" },
+      });
+
+      let finalOutAddress = input.address;
+      if (existing.withinGeofence && settings?.officeName) {
+        finalOutAddress = settings.officeName;
+      } else if (finalOutAddress) {
+        finalOutAddress = finalOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      } else {
+        finalOutAddress = "Realty Smartz Private Limited";
+      }
+
       const updated = await ctx.prisma.attendanceLog.update({
         where: { id: existing.id },
         data: {
           checkOutTime: now,
           checkOutLat: input.lat,
           checkOutLng: input.lng,
-          checkOutAddress: input.address,
+          checkOutAddress: finalOutAddress,
           totalHours: roundedHours,
           status,
         },
@@ -483,7 +510,7 @@ export const attendanceRouter = router({
             employeeCode: emp.employeeCode,
             checkOutTime: now,
             totalHours: roundedHours,
-            address: input.address,
+            address: finalOutAddress,
             managerEmail: emp.manager?.email,
           });
         } catch (err) {
@@ -718,8 +745,18 @@ export const attendanceRouter = router({
       const avgHours =
         presentCount > 0 ? Math.round((totalHoursSum / presentCount) * 10) / 10 : 0;
 
+      const sanitizedEntries = entries.map((entry) => ({
+        ...entry,
+        checkInAddress: entry.checkInAddress
+          ? entry.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
+          : entry.checkInAddress,
+        checkOutAddress: entry.checkOutAddress
+          ? entry.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
+          : entry.checkOutAddress,
+      }));
+
       return {
-        entries,
+        entries: sanitizedEntries,
         totalCount,
         page: input.page,
         pageSize: input.pageSize,
@@ -755,12 +792,19 @@ export const attendanceRouter = router({
         withinGeofence = distanceM <= settings.geofenceRadiusM;
       }
 
+      let cleanAddress = input.address || null;
+      if (withinGeofence && settings?.officeName) {
+        cleanAddress = settings.officeName;
+      } else if (cleanAddress) {
+        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      }
+
       return ctx.prisma.locationPing.create({
         data: {
           employeeId,
           lat: input.lat,
           lng: input.lng,
-          address: input.address || null,
+          address: cleanAddress,
           accuracyM: input.accuracyM ?? null,
           withinGeofence,
         },

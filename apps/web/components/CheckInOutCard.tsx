@@ -108,9 +108,19 @@ export function CheckInOutCard() {
       const place = await reverseGeocodePlace(lat, lng);
       setCaptured(place);
 
-      const addressLabel = place.address
-        ? `${place.name} — ${place.address}`
-        : place.name;
+      let cleanName = place.name;
+      let cleanAddress = place.address;
+
+      if (!cleanName || /sunbreeze/i.test(cleanName) || cleanName === "Current location") {
+        cleanName = "Realty Smartz Private Limited";
+      }
+      if (cleanAddress && /sunbreeze/i.test(cleanAddress)) {
+        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      }
+
+      const addressLabel = cleanAddress
+        ? `${cleanName} — ${cleanAddress}`
+        : cleanName;
 
       if (mode === "in") {
         await checkIn.mutateAsync({ lat, lng, address: addressLabel });
@@ -232,7 +242,9 @@ export function CheckInOutCard() {
               <div className="inline-flex max-w-md items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50/80 px-4 py-1.5 text-xs text-neutral-700 shadow-2xs">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
                 <span className="truncate">
-                  {today?.checkInAddress || "Near Realty Smartz Private Limited HQ, Gurugram"}
+                  {today?.checkInAddress
+                    ? today.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
+                    : (settings?.officeName || "Realty Smartz Private Limited HQ, Gurugram")}
                 </span>
               </div>
 
@@ -365,7 +377,7 @@ export function CheckInOutCard() {
                   <LocationMap
                     lat={today?.checkInLat ?? captured?.lat ?? 0}
                     lng={today?.checkInLng ?? captured?.lng ?? 0}
-                    label={today?.checkInAddress ?? captured?.name ?? "Check-in Location"}
+                    label={(today?.checkInAddress ?? captured?.name ?? "Realty Smartz Private Limited HQ").replace(/sunbreeze/gi, "Realty Smartz Private Limited")}
                     height={180}
                   />
                 </div>

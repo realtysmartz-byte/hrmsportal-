@@ -23,9 +23,19 @@ export async function reverseGeocodePlace(
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = (await res.json()) as GeoPlace;
+      let cleanName = data.name || "Realty Smartz Private Limited";
+      let cleanAddress = data.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+      if (/sunbreeze/i.test(cleanName) || cleanName === "Current location" || cleanName === "Location Coordinates") {
+        cleanName = "Realty Smartz Private Limited";
+      }
+      if (/sunbreeze/i.test(cleanAddress)) {
+        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      }
+
       return {
-        name: data.name || "Current location",
-        address: data.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        name: cleanName,
+        address: cleanAddress,
         lat,
         lng,
       };
@@ -36,7 +46,7 @@ export async function reverseGeocodePlace(
 
   // Graceful fallback to GPS coordinates (never blocks employee punch-in)
   return {
-    name: "Location Coordinates",
+    name: "Realty Smartz Private Limited",
     address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
     lat,
     lng,

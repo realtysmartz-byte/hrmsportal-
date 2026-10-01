@@ -1311,13 +1311,13 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                       <TableCell>
                         <div className="text-sm">{formatTime(log.checkInTime)}</div>
                         <div className="max-w-[180px] truncate text-caption text-neutral-500">
-                          {log.checkInAddress || "—"}
+                          {log.checkInAddress ? log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited") : "—"}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{formatTime(log.checkOutTime)}</div>
                         <div className="max-w-[180px] truncate text-caption text-neutral-500">
-                          {log.checkOutAddress || "—"}
+                          {log.checkOutAddress ? log.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited") : "—"}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1375,7 +1375,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                       <LocationMap
                         lat={log.checkInLat}
                         lng={log.checkInLng}
-                        label={log.checkInAddress}
+                        label={log.checkInAddress ? log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited") : "Realty Smartz Private Limited HQ"}
                         height={220}
                       />
                     </div>

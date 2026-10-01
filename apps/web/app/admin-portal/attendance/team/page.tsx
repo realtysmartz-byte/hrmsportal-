@@ -173,7 +173,7 @@ export default function TeamAttendancePage() {
             ? "Inside Office"
             : "Outside Geofence"
           : "—",
-        entry.checkInAddress ?? entry.checkOutAddress ?? "—",
+        ((entry.checkInAddress ?? entry.checkOutAddress) || "—").replace(/sunbreeze/gi, "Realty Smartz Private Limited"),
         entry.notes ?? "—",
       ].map((c) => `"${String(c).replace(/"/g, '""')}"`);
     });
@@ -644,7 +644,7 @@ export default function TeamAttendancePage() {
                                 setSelectedMapLog({
                                   lat: entry.checkInLat!,
                                   lng: entry.checkInLng!,
-                                  label: entry.checkInAddress || "Punch location",
+                                  label: (entry.checkInAddress || "Realty Smartz Private Limited HQ").replace(/sunbreeze/gi, "Realty Smartz Private Limited"),
                                   employeeName: fullName(entry.employee.firstName, entry.employee.lastName),
                                 })
                               }
@@ -942,7 +942,7 @@ export default function TeamAttendancePage() {
                               setSelectedMapLog({
                                 lat: log.checkInLat!,
                                 lng: log.checkInLng!,
-                                label: log.checkInAddress || "Check-in point",
+                                label: (log.checkInAddress || "Realty Smartz Private Limited HQ").replace(/sunbreeze/gi, "Realty Smartz Private Limited"),
                                 employeeName: fullName(r.employee.firstName, r.employee.lastName),
                               })
                             }
