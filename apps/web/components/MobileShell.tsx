@@ -45,7 +45,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
               type="button"
               aria-label="Sign out"
               className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-              onClick={() => signOut({ callbackUrl: "/login?portal=employee" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="h-4 w-4" />
             </button>

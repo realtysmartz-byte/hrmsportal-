@@ -196,16 +196,16 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!employee) {
-          return "/login?error=GoogleNotLinked&portal=employee";
+          return "/login?error=GoogleNotLinked";
         }
         if (
           employee.status === "RESIGNED" ||
           employee.status === "TERMINATED"
         ) {
-          return "/login?error=AccountInactive&portal=employee";
+          return "/login?error=AccountInactive";
         }
         if (canAccessAdminPortal(employee.role as Role)) {
-          return "/login?error=GoogleEmployeeOnly&portal=employee";
+          return "/login?error=GoogleEmployeeOnly";
         }
 
         // Auto-fetch profile photo from Google account if not already set

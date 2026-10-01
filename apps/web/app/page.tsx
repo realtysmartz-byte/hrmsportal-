@@ -7,7 +7,7 @@ import type { Role } from "@realty-smartz/shared";
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
   if (!session) {
-    redirect("/login?portal=employee");
+    redirect("/login");
   }
   redirect(homePathForRole(session.user.role as Role));
 }

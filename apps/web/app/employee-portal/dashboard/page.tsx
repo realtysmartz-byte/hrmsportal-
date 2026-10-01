@@ -33,9 +33,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { CheckInOutCard } from "@/components/CheckInOutCard";
 import { UpcomingBirthdaysWidget } from "@/components/UpcomingBirthdaysWidget";
-import { isWeeklyOffDay } from "@realty-smartz/shared";
+import { isWeeklyOffDay, formatTimeIST } from "@realty-smartz/shared";
 
 export default function EmployeeDashboardPage() {
   const { data: session } = useSession();
@@ -50,7 +51,6 @@ export default function EmployeeDashboardPage() {
   const [selectedDay, setSelectedDay] = useState<number>(now.getDate());
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [activeTabFilter, setActiveTabFilter] = useState<"projects" | "invoices" | "settings">("projects");
-  const [showFullCheckInModal, setShowFullCheckInModal] = useState(false);
 
   // Queries
   const { data: monthData } = trpc.attendance.myMonth.useQuery({
@@ -59,6 +59,7 @@ export default function EmployeeDashboardPage() {
   });
   const { data: balances } = trpc.leave.myBalances.useQuery();
   const { data: today } = trpc.attendance.today.useQuery();
+  const { data: recentWeek } = trpc.attendance.myRecentWeek.useQuery();
   const { data: interviews } = trpc.recruitment.myInterviews.useQuery(undefined, {
     retry: false,
   });
@@ -151,7 +152,109 @@ export default function EmployeeDashboardPage() {
         </div>
       </div>
 
-      {/* TOP ROW: Ongoing Projects / Pastel Status Cards (Matching Image 1 & 2) */}
+      {/* 1. PRIMARY SECTION: PUNCH IN / PUNCH OUT (FIRST ON HOME PAGE) */}
+      <div className="w-full">
+        <CheckInOutCard />
+      </div>
+
+      {/* 2. RECENT 7-DAY SHIFTS & PUNCH RECORD SUMMARY */}
+      {recentWeek && recentWeek.length > 0 && (
+        <div className="rounded-2xl border border-neutral-200/80 bg-white p-4 sm:p-5 shadow-2xs">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3.5">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-sm font-bold text-neutral-900">
+                Recent 7-Day Shifts & Punches
+              </h3>
+            </div>
+            <Link
+              href="/employee-portal/attendance"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              <span>Full Attendance Details</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {/* Responsive Shift Grid (Fits 100% on Mobile) */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7 text-xs">
+            {recentWeek.map((day) => {
+              const log = day.log;
+              const isCheckedIn = Boolean(log?.checkInTime);
+              const isCheckedOut = Boolean(log?.checkOutTime);
+
+              return (
+                <div
+                  key={day.dateStr}
+                  className={cn(
+                    "flex flex-col justify-between rounded-xl p-2.5 border transition-all",
+                    day.isToday
+                      ? "border-primary/40 bg-primary/5 shadow-2xs"
+                      : "border-neutral-200/70 bg-neutral-50/60 hover:bg-neutral-50"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[11px] text-neutral-900 truncate">
+                      {day.dayName}
+                    </span>
+                    {day.isToday && (
+                      <span className="rounded-full bg-primary/20 px-1.5 py-0.2 text-[9px] font-bold text-primary">
+                        Today
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-neutral-500 block -mt-0.5">
+                    {day.formattedDate.split(",")[0] || day.formattedDate}
+                  </span>
+
+                  <div className="my-2 space-y-0.5">
+                    {isCheckedIn ? (
+                      <>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-neutral-500 text-[10px]">In:</span>
+                          <span className="font-semibold text-neutral-900">
+                            {formatTimeIST(log!.checkInTime)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-neutral-500 text-[10px]">Out:</span>
+                          <span className="font-semibold text-neutral-900">
+                            {isCheckedOut ? formatTimeIST(log!.checkOutTime) : "On Duty"}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-neutral-400 block py-1 font-medium">
+                        {day.isWeeklyOff ? "Weekly Off" : "Absent"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-1.5 border-t border-neutral-200/50 flex items-center justify-between text-[10px]">
+                    <span className={cn(
+                      "font-semibold",
+                      log?.status === "PRESENT" && "text-emerald-700",
+                      log?.status === "LATE" && "text-amber-700",
+                      log?.status === "HALF_DAY" && "text-amber-800",
+                      log?.status === "ABSENT" && "text-rose-700",
+                      !log && "text-neutral-400"
+                    )}>
+                      {log ? (log.status === "PRESENT" ? "Present" : log.status === "LATE" ? "Late" : log.status.replace("_", " ")) : "Off"}
+                    </span>
+                    {log?.totalHours != null && (
+                      <span className="font-bold text-neutral-700">
+                        {log.totalHours}h
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3. WORKSPACE STATUS CARDS (Matching Image 1 & 2) */}
       <div className="grid gap-4 md:gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {/* Card 1: Warm Amber Pastel Card */}
         <motion.div
@@ -443,28 +546,20 @@ export default function EmployeeDashboardPage() {
               </div>
             </div>
 
-            {/* Quick Check-In Trigger Modal / Expand Button */}
+            {/* Link to Full Attendance & Shifts */}
             <div className="mt-5 pt-2">
-              <Button
-                onClick={() => setShowFullCheckInModal(!showFullCheckInModal)}
-                className="w-full h-10 gap-2 rounded-xl text-xs font-semibold bg-primary hover:bg-[#1E294A]"
-              >
-                {today?.checkInTime ? <LogOut className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                {showFullCheckInModal ? "Hide Check-in Panel" : today?.checkInTime ? "Manage Punch Out" : "Punch In Now"}
-              </Button>
+              <Link href="/employee-portal/attendance" className="block w-full">
+                <Button
+                  variant="outline"
+                  className="w-full h-10 gap-2 rounded-xl text-xs font-semibold border-neutral-200 text-neutral-800 hover:bg-neutral-50 shadow-2xs"
+                >
+                  <Clock className="h-4 w-4 text-primary" />
+                  <span>View Full Attendance History</span>
+                  <ArrowRight className="h-3.5 w-3.5 ml-auto text-neutral-400" />
+                </Button>
+              </Link>
             </div>
           </motion.div>
-
-          {/* Collapsible Full CheckInOutCard */}
-          {showFullCheckInModal && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <CheckInOutCard />
-            </motion.div>
-          )}
         </div>
 
         {/* COLUMN 2: Calendar Card (4 Cols - Matching Image 1) */}

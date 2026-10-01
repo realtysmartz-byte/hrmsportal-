@@ -25,8 +25,6 @@ import {
 import type { Role } from "@realty-smartz/shared";
 import { cn } from "@/lib/utils";
 
-type Portal = "employee" | "admin";
-
 const GOOGLE_ERRORS: Record<string, string> = {
   GoogleNotLinked:
     "No employee account matches this Google email. Ask HR to add you first.",
@@ -60,7 +58,6 @@ function LoginForm() {
   const searchParams = useSearchParams();
 
   const [mounted, setMounted] = useState(false);
-  const [portal, setPortal] = useState<Portal>("employee");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -71,24 +68,16 @@ function LoginForm() {
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [activeTestimonialIdx, setActiveTestimonialIdx] = useState(0);
 
-  // Sync state cleanly after initial hydration to prevent SSR hydration mismatch
   useEffect(() => {
     setMounted(true);
-    const portalParam = searchParams.get("portal");
-    if (portalParam === "admin") {
-      setPortal("admin");
-    } else if (portalParam === "employee") {
-      setPortal("employee");
-    }
-  }, [searchParams]);
+  }, []);
 
   // Show Google error once, then clean the URL
   useEffect(() => {
     const code = searchParams.get("error");
     if (code) {
       setError(GOOGLE_ERRORS[code] || `Sign-in error: ${code}`);
-      const portalParam = searchParams.get("portal") || "employee";
-      router.replace(`${pathname}?portal=${portalParam}`);
+      router.replace(pathname);
     }
   }, [searchParams, pathname, router]);
 
@@ -97,12 +86,6 @@ function LoginForm() {
       setGoogleEnabled(Boolean(p?.google));
     });
   }, []);
-
-  function switchPortal(next: Portal) {
-    setPortal(next);
-    setError("");
-    router.replace(`${pathname}?portal=${next}`);
-  }
 
   async function waitForSession(retries = 8) {
     for (let i = 0; i < retries; i++) {
@@ -136,8 +119,6 @@ function LoginForm() {
       callbackUrl:
         callbackParam && callbackParam.startsWith("/") && !callbackParam.includes("/login")
           ? callbackParam
-          : portal === "admin"
-          ? "/admin-portal/dashboard"
           : "/employee-portal/dashboard",
     });
 
@@ -188,9 +169,6 @@ function LoginForm() {
 
   const currentTestimonial = TESTIMONIALS[activeTestimonialIdx];
 
-  // Active portal display (default to employee on SSR to avoid hydration divergence)
-  const activePortal = mounted ? portal : "employee";
-
   return (
     <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[36px] bg-[#181926]/95 backdrop-blur-2xl border border-white/10 shadow-[0_25px_80px_rgba(0,0,0,0.45)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white">
       {/* LEFT COLUMN: Modern Login Form (~6.5/12 cols) */}
@@ -225,30 +203,12 @@ function LoginForm() {
             </p>
           </div>
 
-          {/* Portal Switcher Capsule (Image 3 Style) */}
-          <div className="mt-6 flex items-center rounded-full bg-[#11121A] p-1 border border-white/10 max-w-xs shadow-inner">
-            <button
-              type="button"
-              onClick={() => switchPortal("employee")}
-              className={`flex-1 rounded-full py-2 text-xs font-semibold transition-all duration-200 ${
-                activePortal === "employee"
-                  ? "bg-[#252836] text-white shadow-sm font-bold border border-white/10"
-                  : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              Employee
-            </button>
-            <button
-              type="button"
-              onClick={() => switchPortal("admin")}
-              className={`flex-1 rounded-full py-2 text-xs font-semibold transition-all duration-200 ${
-                activePortal === "admin"
-                  ? "bg-[#252836] text-white shadow-sm font-bold border border-white/10"
-                  : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              Admin Portal
-            </button>
+          {/* Universal Single Sign-In Capsule */}
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#11121A] px-3.5 py-1.5 border border-white/10 shadow-inner">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-medium text-neutral-300">
+              Universal Sign-In · Employee, Candidate & Admin
+            </span>
           </div>
 
           {/* Error Banner */}
@@ -278,11 +238,7 @@ function LoginForm() {
                   autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={
-                    activePortal === "admin"
-                      ? "admin@realtysmartz.com"
-                      : "you@realtysmartz.com"
-                  }
+                  placeholder="you@realtysmartz.com"
                   required
                   className="w-full rounded-2xl border border-white/10 bg-[#11121A] px-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-1 focus:ring-[#FF7A70]"
                 />
@@ -352,41 +308,39 @@ function LoginForm() {
           </form>
 
           {/* Social Sign-in (Google OAuth) */}
-          {activePortal === "employee" && (
-            <div className="mt-6 pt-5 border-t border-white/10 text-center">
-              <p className="text-[11px] text-neutral-400 mb-3">
-                Or continue with enterprise sign-in
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  disabled={googleLoading}
-                  onClick={onGoogleSignIn}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-900 shadow-md hover:scale-105 active:scale-95 transition-transform"
-                  title="Sign in with Google"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.88c2.27-2.09 3.66-5.17 3.66-9.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.09C3.26 21.36 7.37 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.32c-.25-.72-.38-1.49-.38-2.32s.13-1.6.38-2.32V6.59H1.26C.46 8.18 0 9.99 0 12s.46 3.82 1.26 5.41l4.02-3.09z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.64 1.26 6.59l4.02 3.09c.95-2.83 3.6-4.93 6.72-4.93z"
-                    />
-                  </svg>
-                </button>
-              </div>
+          <div className="mt-6 pt-5 border-t border-white/10 text-center">
+            <p className="text-[11px] text-neutral-400 mb-3">
+              Or continue with enterprise sign-in
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={googleLoading}
+                onClick={onGoogleSignIn}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-900 shadow-md hover:scale-105 active:scale-95 transition-transform"
+                title="Sign in with Google"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.88c2.27-2.09 3.66-5.17 3.66-9.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.09C3.26 21.36 7.37 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.32c-.25-.72-.38-1.49-.38-2.32s.13-1.6.38-2.32V6.59H1.26C.46 8.18 0 9.99 0 12s.46 3.82 1.26 5.41l4.02-3.09z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.64 1.26 6.59l4.02 3.09c.95-2.83 3.6-4.93 6.72-4.93z"
+                  />
+                </svg>
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer Note */}

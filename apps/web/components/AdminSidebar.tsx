@@ -350,7 +350,7 @@ export function AdminSidebar({
           <button
             type="button"
             title="Sign out of Realty Smartz"
-            onClick={() => signOut({ callbackUrl: "/login?portal=admin" })}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className={cn(
               "flex items-center justify-center rounded-xl text-neutral-400 hover:bg-rose-500/20 hover:text-rose-400 transition-colors",
               isCollapsed ? "h-7 w-7 text-rose-400 bg-rose-500/10" : "h-7 w-7"

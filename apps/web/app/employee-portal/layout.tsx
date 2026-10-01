@@ -10,7 +10,7 @@ export default async function EmployeePortalLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login?portal=employee");
+  if (!session) redirect("/login");
 
   return (
     <div className="min-h-screen bg-[#F6F8FB] pb-[env(safe-area-inset-bottom)]">

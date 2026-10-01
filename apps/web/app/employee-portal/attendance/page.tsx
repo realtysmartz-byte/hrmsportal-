@@ -98,7 +98,133 @@ export default function EmployeeAttendancePage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Mobile View: Clean Card List (Fits 100% on phone screens with zero horizontal overflow) */}
+          <div className="block sm:hidden divide-y divide-neutral-100">
+            {isWeekLoading && (
+              <div className="py-8 text-center text-xs text-neutral-400">
+                Loading your 7-day attendance records...
+              </div>
+            )}
+            {!isWeekLoading && recentWeek?.map((day) => {
+              const log = day.log;
+              const isCheckedIn = Boolean(log?.checkInTime);
+              const isCheckedOut = Boolean(log?.checkOutTime);
+
+              return (
+                <div
+                  key={day.dateStr}
+                  className={cn(
+                    "p-3.5 space-y-2.5 transition-colors",
+                    day.isToday ? "bg-primary/5" : "hover:bg-neutral-50/50"
+                  )}
+                >
+                  {/* Header Row: Date & Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-bold text-neutral-900 text-xs">
+                        {day.fullDayName}
+                      </p>
+                      <span className="text-[11px] text-neutral-500">
+                        ({day.formattedDate})
+                      </span>
+                      {day.isToday && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.2 text-[10px] font-bold text-primary">
+                          Today
+                        </span>
+                      )}
+                      {day.isWeeklyOff && !log && (
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.2 text-[10px] font-semibold text-neutral-500">
+                          Weekly Off
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Status Pill */}
+                    {log ? (
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                          log.status === "PRESENT" && "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                          log.status === "LATE" && "bg-amber-50 text-amber-700 border border-amber-200",
+                          log.status === "HALF_DAY" && "bg-amber-50 text-amber-800 border border-amber-300",
+                          log.status === "ABSENT" && "bg-rose-50 text-rose-700 border border-rose-200",
+                          log.status === "ON_LEAVE" && "bg-sky-50 text-sky-700 border border-sky-200"
+                        )}
+                      >
+                        {log.status === "PRESENT" ? "Present" : log.status === "LATE" ? "Late Punch" : log.status.replace("_", " ")}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-neutral-400">
+                        {day.isWeeklyOff ? "Weekly Off" : "Absent"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Punch In / Out / Total Hours Metric Bar */}
+                  {isCheckedIn ? (
+                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-white p-2.5 text-xs border border-neutral-200/80 shadow-2xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block">
+                          Punch In
+                        </span>
+                        <span className="font-semibold text-neutral-900 text-xs flex items-center gap-1 mt-0.5">
+                          <Clock className="h-3 w-3 text-primary" />
+                          {formatTimeIST(log!.checkInTime)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block">
+                          Punch Out
+                        </span>
+                        <span className="font-semibold text-neutral-900 text-xs flex items-center gap-1 mt-0.5">
+                          <Clock className="h-3 w-3 text-emerald-600" />
+                          {isCheckedOut ? formatTimeIST(log!.checkOutTime) : "On Duty"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block">
+                          Hours
+                        </span>
+                        <span
+                          className={cn(
+                            "font-bold text-xs mt-0.5 block",
+                            (log!.totalHours ?? 0) >= 8
+                              ? "text-emerald-700"
+                              : "text-neutral-800"
+                          )}
+                        >
+                          {log!.totalHours != null ? `${log!.totalHours} hrs` : "Active"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Badges / Location / Shift Footer */}
+                  {isCheckedIn && (
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-neutral-500 pt-0.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-neutral-700">
+                        {log!.withinGeofence ? (
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3 text-amber-600" />
+                        )}
+                        <span>{log!.withinGeofence ? "Inside Office (Gurugram HQ)" : "Outside Geofence"}</span>
+                      </span>
+
+                      {log!.isAutoCheckedOut && (
+                        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                          ⚡ Auto 7:00 PM
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop View: Full 7-Column Table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-neutral-200/80 bg-neutral-50/80 text-neutral-600 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>

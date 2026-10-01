@@ -12,7 +12,7 @@ export default async function AdminPortalLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login?portal=admin");
+  if (!session) redirect("/login");
 
   if (!canAccessAdminPortal(session.user.role as Role)) {
     redirect("/employee-portal/dashboard");

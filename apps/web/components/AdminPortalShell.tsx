@@ -139,7 +139,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
 
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login?portal=admin" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
               title="Log Out of Admin Console"
             >

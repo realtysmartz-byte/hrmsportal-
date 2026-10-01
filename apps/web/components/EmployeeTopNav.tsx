@@ -165,7 +165,7 @@ export function EmployeeTopNav() {
 
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login?portal=employee" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
               title="Log Out of Employee Portal"
             >
@@ -182,7 +182,7 @@ export function EmployeeTopNav() {
       />
 
       {/* Mobile Scrollable Horizontal Pill Bar */}
-      <div className="lg:hidden border-t border-neutral-100 px-3 py-2 overflow-x-auto bg-neutral-50/80">
+      <div className="lg:hidden border-t border-neutral-100 px-3 py-2 overflow-x-auto bg-neutral-50/80 scrollbar-none touch-pan-x">
         <div className="flex items-center gap-1.5 min-w-max">
           {links.map((item) => {
             const active =

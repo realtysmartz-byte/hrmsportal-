@@ -179,7 +179,7 @@ export function Sidebar() {
           variant="outline"
           size="sm"
           className="w-full justify-start gap-2"
-          onClick={() => signOut({ callbackUrl: "/login?portal=admin" })}
+          onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <LogOut className="h-4 w-4" />
           Sign out
