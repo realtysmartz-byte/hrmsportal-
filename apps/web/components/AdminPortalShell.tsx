@@ -91,60 +91,61 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
       {/* 3. MAIN CONTENT CONTAINER */}
       <div className="flex min-h-screen flex-1 flex-col transition-all duration-300 ease-in-out min-w-0 w-full max-w-full overflow-x-hidden">
         {/* Mobile Header Bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden shadow-xs">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3 pt-[max(0.6rem,env(safe-area-inset-top))] lg:hidden shadow-xs">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsMobileOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-100 text-neutral-800 hover:bg-neutral-200 active:scale-95 transition-all"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-800 hover:bg-neutral-200 active:scale-95 transition-all"
               title="Open Navigation Menu"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <img
                 src="/logo.png"
                 alt="Realty Smartz"
-                className="h-6 w-6 object-contain"
+                className="h-6 w-6 shrink-0 object-contain"
               />
-              <div>
-                <p className="font-display text-xs font-bold text-neutral-900 leading-tight">
+              <div className="min-w-0">
+                <p className="font-display text-xs font-bold text-neutral-900 leading-tight truncate">
                   Admin Console
                 </p>
-                <p className="text-[10px] text-neutral-400 font-medium leading-none">
-                  Realty Smartz Private Limited
+                <p className="text-[9px] sm:text-[10px] text-neutral-400 font-medium leading-none truncate hidden xs:block">
+                  Realty Smartz
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setShowInstallModal(true)}
-              className="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+              className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 sm:px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors shadow-2xs"
               title="Install Realty Smartz App"
             >
-              <Download className="h-3 w-3 text-[#FF7A70]" />
+              <Download className="h-3.5 w-3.5 text-[#FF7A70]" />
               <span className="hidden sm:inline">Install</span>
             </button>
 
             <Link
               href="/employee-portal/dashboard"
-              className="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+              className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 sm:px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors shadow-2xs"
+              title="Switch to Employee View"
             >
-              <ArrowLeftRight className="h-3 w-3 text-[#FF7A70]" />
+              <ArrowLeftRight className="h-3.5 w-3.5 text-[#FF7A70]" />
               <span className="hidden sm:inline">Employee View</span>
             </Link>
 
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
+              className="flex h-8 items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 sm:px-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
               title="Log Out of Admin Console"
             >
               <LogOut className="h-3.5 w-3.5 text-rose-600" />
-              <span>Log Out</span>
+              <span className="hidden sm:inline">Log Out</span>
             </button>
           </div>
         </header>
@@ -156,7 +157,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
 
         {/* Dashboard Main Content */}
         <main className="flex-1 w-full max-w-full overflow-x-hidden">
-          <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8 overflow-hidden">
+          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-6 lg:p-8 overflow-hidden">
             {children}
           </div>
         </main>

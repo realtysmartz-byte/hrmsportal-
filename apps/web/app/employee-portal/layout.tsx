@@ -13,9 +13,9 @@ export default async function EmployeePortalLayout({
   if (!session) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-[#F6F8FB] pb-[env(safe-area-inset-bottom)]">
+    <div className="min-h-screen bg-[#F6F8FB]">
       <EmployeeTopNav />
-      <main className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
+      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-8 pb-24 lg:pb-8">
         {children}
       </main>
       <LocationTracker />

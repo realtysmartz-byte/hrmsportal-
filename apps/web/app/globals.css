@@ -97,8 +97,13 @@
   }
 
   a,
-  button {
+  button,
+  input,
+  select,
+  textarea {
     @apply transition-colors duration-150 ease-out;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 }
 

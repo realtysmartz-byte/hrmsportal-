@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -65,66 +65,114 @@ export default function DirectoryPage() {
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Colleague</TableHead>
-                <TableHead>Designation</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 && (
+        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+          {/* Mobile Colleague Cards (sm:hidden) */}
+          <div className="block sm:hidden divide-y divide-neutral-100">
+            {rows.length === 0 && (
+              <EmptyState
+                title="No colleagues found"
+                description="Try a different search or department filter."
+                className="border-0"
+              />
+            )}
+            {rows.map((emp) => (
+              <Link
+                key={emp.id}
+                href={`/employee-portal/directory/${emp.id}`}
+                className="flex items-center justify-between p-3.5 hover:bg-neutral-50/70 transition-colors gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-50 text-caption font-semibold text-teal-700">
+                    {emp.profilePhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={emp.profilePhotoUrl}
+                        alt=""
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      initials(emp.firstName, emp.lastName)
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm text-neutral-900 truncate">
+                      {fullName(emp.firstName, emp.lastName)}
+                    </p>
+                    <p className="text-[11px] text-neutral-500 truncate">
+                      {emp.designation?.title ?? "No designation"} {emp.department?.name ? `• ${emp.department.name}` : ""}
+                    </p>
+                    <div className="mt-1">
+                      <StatusBadge status={emp.status} />
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop Table (hidden sm:block) */}
+          <div className="hidden sm:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="p-0">
-                    <EmptyState
-                      title="No colleagues found"
-                      description="Try a different search or department filter."
-                      className="border-0"
-                    />
-                  </TableCell>
+                  <TableHead>Colleague</TableHead>
+                  <TableHead>Designation</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              )}
-              {rows.map((emp) => (
-                <TableRow key={emp.id}>
-                  <TableCell>
-                    <Link
-                      href={`/employee-portal/directory/${emp.id}`}
-                      className="flex items-center gap-3 transition-opacity duration-150 hover:opacity-80"
-                    >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-caption font-semibold text-teal-700">
-                        {emp.profilePhotoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={emp.profilePhotoUrl}
-                            alt=""
-                            className="h-full w-full rounded-full object-cover"
-                          />
-                        ) : (
-                          initials(emp.firstName, emp.lastName)
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-teal-800">
-                          {fullName(emp.firstName, emp.lastName)}
-                        </p>
-                        <p className="text-caption text-neutral-500">
-                          {emp.email}
-                        </p>
-                      </div>
-                    </Link>
-                  </TableCell>
-                  <TableCell>{emp.designation?.title ?? "—"}</TableCell>
-                  <TableCell>{emp.department?.name ?? "—"}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={emp.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="p-0">
+                      <EmptyState
+                        title="No colleagues found"
+                        description="Try a different search or department filter."
+                        className="border-0"
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {rows.map((emp) => (
+                  <TableRow key={emp.id}>
+                    <TableCell>
+                      <Link
+                        href={`/employee-portal/directory/${emp.id}`}
+                        className="flex items-center gap-3 transition-opacity duration-150 hover:opacity-80"
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-caption font-semibold text-teal-700">
+                          {emp.profilePhotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={emp.profilePhotoUrl}
+                              alt=""
+                              className="h-full w-full rounded-full object-cover"
+                            />
+                          ) : (
+                            initials(emp.firstName, emp.lastName)
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-teal-800">
+                            {fullName(emp.firstName, emp.lastName)}
+                          </p>
+                          <p className="text-caption text-neutral-500">
+                            {emp.email}
+                          </p>
+                        </div>
+                      </Link>
+                    </TableCell>
+                    <TableCell>{emp.designation?.title ?? "—"}</TableCell>
+                    <TableCell>{emp.department?.name ?? "—"}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={emp.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>

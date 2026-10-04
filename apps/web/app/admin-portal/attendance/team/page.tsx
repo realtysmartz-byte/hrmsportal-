@@ -293,19 +293,20 @@ export default function TeamAttendancePage() {
       )}
 
       {/* 2. DUAL-MODE VIEW TABS */}
-      <div className="flex border-b border-neutral-200 text-sm font-medium">
+      <div className="flex border-b border-neutral-200 text-xs sm:text-sm font-medium overflow-x-auto scrollbar-none touch-pan-x min-w-0">
         <button
           type="button"
           onClick={() => setActiveTab("all-entries")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-bold transition-all",
+            "flex items-center gap-1.5 sm:gap-2 border-b-2 px-3 sm:px-4 py-2.5 font-bold transition-all shrink-0",
             activeTab === "all-entries"
               ? "border-[#FF7A70] text-[#FF7A70]"
               : "border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300"
           )}
         >
           <History className="h-4 w-4" />
-          <span>All Attendance Logs (History & Range)</span>
+          <span>All Attendance Logs</span>
+          <span className="hidden sm:inline font-normal text-xs text-neutral-400">(History & Range)</span>
           {allEntriesData?.totalCount != null && (
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 font-semibold">
               {allEntriesData.totalCount}
@@ -317,14 +318,15 @@ export default function TeamAttendancePage() {
           type="button"
           onClick={() => setActiveTab("daily-roster")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-bold transition-all",
+            "flex items-center gap-1.5 sm:gap-2 border-b-2 px-3 sm:px-4 py-2.5 font-bold transition-all shrink-0",
             activeTab === "daily-roster"
               ? "border-[#FF7A70] text-[#FF7A70]"
               : "border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300"
           )}
         >
           <Users className="h-4 w-4" />
-          <span>Daily Office Roster (Single Date)</span>
+          <span>Daily Office Roster</span>
+          <span className="hidden sm:inline font-normal text-xs text-neutral-400">(Single Date)</span>
         </button>
       </div>
 
@@ -482,9 +484,131 @@ export default function TeamAttendancePage() {
             </div>
           </div>
 
-          {/* ALL ENTRIES TABLE */}
+          {/* ALL ENTRIES CARDS & TABLE */}
           <div className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-sm">
-            <div className="overflow-x-auto">
+            {/* MOBILE ENTRIES CARD VIEW (Phones & Tablets) */}
+            <div className="block lg:hidden divide-y divide-neutral-100">
+              {isAllEntriesLoading && (
+                <div className="py-8 text-center text-xs text-neutral-400">Loading all attendance logs...</div>
+              )}
+              {!isAllEntriesLoading && allEntriesData?.entries.length === 0 && (
+                <div className="py-8 text-center text-xs text-neutral-500">No attendance records match the selected filters.</div>
+              )}
+              {allEntriesData?.entries.map((entry) => {
+                const isCheckedIn = Boolean(entry.checkInTime);
+                const isCheckedOut = Boolean(entry.checkOutTime);
+                const isAutoCheckedOut = Boolean(entry.checkOutTime && entry.notes?.includes("Auto checked out"));
+
+                return (
+                  <div key={entry.id} className="p-3.5 space-y-2.5 hover:bg-neutral-50/50 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-neutral-900 text-xs truncate">
+                          {fullName(entry.employee.firstName, entry.employee.lastName)}
+                        </p>
+                        <p className="text-[11px] text-neutral-500 truncate">
+                          {entry.employee.employeeCode} · {entry.employee.department?.name ?? "General"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="text-[10px] text-neutral-400 font-semibold">{formatDateIST(entry.date)}</span>
+                        {entry.status === "PRESENT" && (
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                            Present
+                          </span>
+                        )}
+                        {entry.status === "LATE" && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                            Late Punch
+                          </span>
+                        )}
+                        {entry.status === "HALF_DAY" && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-300">
+                            Half Day
+                          </span>
+                        )}
+                        {entry.status === "ON_LEAVE" && (
+                          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-primary border border-indigo-200">
+                            On Leave
+                          </span>
+                        )}
+                        {entry.status === "ABSENT" && (
+                          <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-maroon border border-rose-200">
+                            Absent
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {isCheckedIn && (
+                      <div className="grid grid-cols-3 gap-2 rounded-xl bg-neutral-50 p-2.5 text-xs border border-neutral-200/60">
+                        <div>
+                          <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Punch In</span>
+                          <span className="font-semibold text-neutral-900 text-xs flex items-center gap-1 mt-0.5">
+                            <Clock className="h-3 w-3 text-primary" />
+                            {formatTimeIST(entry.checkInTime)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Punch Out</span>
+                          <span className="font-semibold text-neutral-900 text-xs flex items-center gap-1 mt-0.5">
+                            <Clock className="h-3 w-3 text-emerald-600" />
+                            {isCheckedOut ? formatTimeIST(entry.checkOutTime) : "On Duty"}
+                          </span>
+                          {isAutoCheckedOut && (
+                            <span className="text-[9px] font-bold text-emerald-700 block">⚡ Auto 7 PM</span>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Hours</span>
+                          <span className="font-bold text-xs mt-0.5 block text-neutral-800">
+                            {entry.totalHours != null ? `${entry.totalHours} hrs` : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-xs pt-0.5">
+                      {isCheckedIn ? (
+                        <span className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          entry.withinGeofence
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-amber-50 text-amber-800 border border-amber-300"
+                        )}>
+                          {entry.withinGeofence ? (
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                          ) : (
+                            <AlertTriangle className="h-3 w-3 text-amber-600" />
+                          )}
+                          <span>{entry.withinGeofence ? "In Premises" : "Outside Geofence"}</span>
+                        </span>
+                      ) : <span />}
+
+                      {entry.checkInLat != null && entry.checkInLng != null && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px] px-2 gap-1 border-neutral-200"
+                          onClick={() => setSelectedMapLog({
+                            lat: entry.checkInLat!,
+                            lng: entry.checkInLng!,
+                            label: (entry.checkInAddress || "Realty Smartz Private Limited HQ").replace(/sunbreeze/gi, "Realty Smartz Private Limited"),
+                            employeeName: fullName(entry.employee.firstName, entry.employee.lastName),
+                          })}
+                        >
+                          <MapPin className="h-3 w-3 text-primary" />
+                          <span>View Map</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP TABLE */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-neutral-50/80">
@@ -795,19 +919,167 @@ export default function TeamAttendancePage() {
 
           {/* Daily Records Table */}
           <div className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-neutral-50/80">
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Punch In (IST)</TableHead>
-                  <TableHead>Punch Out (IST)</TableHead>
-                  <TableHead>Hours</TableHead>
-                  <TableHead>Geofence Status</TableHead>
-                  <TableHead>Location / Pin</TableHead>
-                </TableRow>
-              </TableHeader>
+            {/* MOBILE CARDS VIEW */}
+            <div className="block lg:hidden divide-y divide-neutral-100">
+              {isDailyLoading && (
+                <div className="py-8 text-center text-xs text-neutral-400">
+                  Loading attendance records for {dailyDate}...
+                </div>
+              )}
+              {!isDailyLoading && filteredDailyRows.length === 0 && (
+                <div className="py-8 text-center text-xs text-neutral-500">
+                  No attendance records match your search or filter for {dailyDate}.
+                </div>
+              )}
+              {filteredDailyRows.map((r) => {
+                const log = r.log;
+                const hasCheckedIn = Boolean(log?.checkInTime);
+                const isCheckedOut = Boolean(log?.checkOutTime);
+                const isAuto = Boolean(log?.checkOutTime && log.notes?.includes("Auto checked out"));
+
+                return (
+                  <div key={r.employee.id} className="p-4 space-y-3 bg-white hover:bg-neutral-50/50 transition-colors">
+                    {/* Header: Name + Code + Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-neutral-900 text-sm truncate">
+                          {fullName(r.employee.firstName, r.employee.lastName)}
+                        </p>
+                        <p className="text-[11px] text-neutral-500 truncate">
+                          {r.employee.employeeCode} {r.employee.department?.name ? `• ${r.employee.department.name}` : ""}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0">
+                        {log?.status === "PRESENT" && (
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                            Present
+                          </span>
+                        )}
+                        {log?.status === "LATE" && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+                            Late Punch
+                          </span>
+                        )}
+                        {log?.status === "HALF_DAY" && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-300">
+                            Half Day
+                          </span>
+                        )}
+                        {log?.status === "ON_LEAVE" && (
+                          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-primary border border-indigo-200">
+                            On Leave
+                          </span>
+                        )}
+                        {(!log || log.status === "ABSENT") && (
+                          <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-semibold text-maroon border border-rose-200">
+                            Absent
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Punch Times & Total Hours */}
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-neutral-50/80 p-2.5 rounded-xl border border-neutral-100">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Punch In</span>
+                        {hasCheckedIn ? (
+                          <div className="flex items-center gap-1 font-semibold text-neutral-800">
+                            <Clock className="h-3 w-3 text-primary" />
+                            <span>{formatTimeIST(log!.checkInTime)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-neutral-400 font-medium">—</span>
+                        )}
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Punch Out</span>
+                        {isCheckedOut ? (
+                          <div>
+                            <div className="flex items-center gap-1 font-semibold text-emerald-700">
+                              <Clock className="h-3 w-3 text-emerald-600" />
+                              <span>{formatTimeIST(log!.checkOutTime)}</span>
+                            </div>
+                            {isAuto && (
+                              <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-200 mt-0.5">
+                                ⚡ Auto 7:00 PM
+                              </span>
+                            )}
+                          </div>
+                        ) : hasCheckedIn ? (
+                          <span className="text-[11px] font-semibold text-primary">On Duty</span>
+                        ) : (
+                          <span className="text-neutral-400 font-medium">—</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Geofence & Location */}
+                    <div className="flex items-center justify-between text-xs pt-0.5">
+                      {!hasCheckedIn ? (
+                        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">
+                          Not Checked In
+                        </span>
+                      ) : log?.withinGeofence ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                          <span>In Premises</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-300">
+                          <AlertTriangle className="h-3 w-3 text-amber-600" />
+                          <span>Outside Geofence</span>
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        {log?.totalHours != null && (
+                          <span className="text-xs font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-md">
+                            {log.totalHours} hrs
+                          </span>
+                        )}
+
+                        {log?.checkInLat != null && log?.checkInLng != null && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-[11px] px-2 gap-1 border-neutral-200"
+                            onClick={() =>
+                              setSelectedMapLog({
+                                lat: log.checkInLat!,
+                                lng: log.checkInLng!,
+                                label: (log.checkInAddress || "Realty Smartz Private Limited HQ").replace(/sunbreeze/gi, "Realty Smartz Private Limited"),
+                                employeeName: fullName(r.employee.firstName, r.employee.lastName),
+                              })
+                            }
+                          >
+                            <MapPin className="h-3 w-3 text-primary" />
+                            <span>View Pin</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP TABLE */}
+            <div className="hidden lg:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-neutral-50/80">
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Punch In (IST)</TableHead>
+                    <TableHead>Punch Out (IST)</TableHead>
+                    <TableHead>Hours</TableHead>
+                    <TableHead>Geofence Status</TableHead>
+                    <TableHead>Location / Pin</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {isDailyLoading && (
                   <TableRow>
@@ -959,6 +1231,7 @@ export default function TeamAttendancePage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </div>
         </div>
       )}

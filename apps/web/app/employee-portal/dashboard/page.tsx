@@ -108,7 +108,7 @@ export default function EmployeeDashboardPage() {
         </div>
 
         {/* Segmented Capsule View Filter & Status Pill */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 max-w-full overflow-x-auto scrollbar-none py-0.5">
           <div className="flex items-center rounded-full bg-neutral-100 p-1 border border-neutral-200/80 shadow-inner">
             <button
               type="button"

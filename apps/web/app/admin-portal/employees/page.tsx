@@ -170,98 +170,156 @@ export default function EmployeesPage() {
         <TableSkeleton rows={6} />
       ) : (
         <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Designation</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 && (
+          {/* Mobile Employee Cards (sm:hidden) */}
+          <div className="block sm:hidden divide-y divide-neutral-100">
+            {rows.length === 0 && (
+              <EmptyState
+                title="No employees found"
+                description="Try adjusting your search filters or register a new team member."
+                className="border-0 py-12"
+                action={
+                  canManage ? (
+                    <Link href="/admin-portal/employees/new">
+                      <Button size="sm">Add Employee</Button>
+                    </Link>
+                  ) : undefined
+                }
+              />
+            )}
+            {rows.map((emp) => (
+              <Link
+                key={emp.id}
+                href={`/admin-portal/employees/${emp.id}`}
+                className="flex items-center justify-between p-3.5 hover:bg-neutral-50/70 transition-colors gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs">
+                    {emp.profilePhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={emp.profilePhotoUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      initials(emp.firstName, emp.lastName)
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm text-neutral-900 truncate">
+                      {fullName(emp.firstName, emp.lastName)}
+                    </p>
+                    <p className="text-[11px] text-neutral-500 truncate">
+                      {emp.designation?.title ?? "No designation"} {emp.department?.name ? `• ${emp.department.name}` : ""}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-neutral-400 font-medium">
+                        {emp.employeeCode}
+                      </span>
+                      <StatusBadge status={emp.status} />
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop Table (hidden sm:block) */}
+          <div className="hidden sm:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="p-0">
-                    <EmptyState
-                      title="No employees found"
-                      description="Try adjusting your search filters or register a new team member."
-                      className="border-0 py-12"
-                      action={
-                        canManage ? (
-                          <Link href="/admin-portal/employees/new">
-                            <Button size="sm">Add Employee</Button>
-                          </Link>
-                        ) : undefined
-                      }
-                    />
-                  </TableCell>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Designation</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              )}
-              {rows.map((emp) => (
-                <TableRow key={emp.id} className="hover:bg-neutral-50/70 transition-colors">
-                  {/* Employee Details Column */}
-                  <TableCell>
-                    <Link
-                      href={`/admin-portal/employees/${emp.id}`}
-                      className="flex items-center gap-3.5 group/emp"
-                    >
-                      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs group-hover/emp:scale-105 transition-transform">
-                        {emp.profilePhotoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={emp.profilePhotoUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          initials(emp.firstName, emp.lastName)
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-neutral-900 group-hover/emp:text-[#FF7A70] transition-colors truncate">
-                          {fullName(emp.firstName, emp.lastName)}
-                        </p>
-                        <p className="text-[11px] font-mono text-neutral-400 font-medium">
-                          {emp.employeeCode}
-                        </p>
-                      </div>
-                    </Link>
-                  </TableCell>
+              </TableHeader>
+              <TableBody>
+                {rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="p-0">
+                      <EmptyState
+                        title="No employees found"
+                        description="Try adjusting your search filters or register a new team member."
+                        className="border-0 py-12"
+                        action={
+                          canManage ? (
+                            <Link href="/admin-portal/employees/new">
+                              <Button size="sm">Add Employee</Button>
+                            </Link>
+                          ) : undefined
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {rows.map((emp) => (
+                  <TableRow key={emp.id} className="hover:bg-neutral-50/70 transition-colors">
+                    {/* Employee Details Column */}
+                    <TableCell>
+                      <Link
+                        href={`/admin-portal/employees/${emp.id}`}
+                        className="flex items-center gap-3.5 group/emp"
+                      >
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs group-hover/emp:scale-105 transition-transform">
+                          {emp.profilePhotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={emp.profilePhotoUrl}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            initials(emp.firstName, emp.lastName)
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-neutral-900 group-hover/emp:text-[#FF7A70] transition-colors truncate">
+                            {fullName(emp.firstName, emp.lastName)}
+                          </p>
+                          <p className="text-[11px] font-mono text-neutral-400 font-medium">
+                            {emp.employeeCode}
+                          </p>
+                        </div>
+                      </Link>
+                    </TableCell>
 
-                  {/* Designation Column */}
-                  <TableCell className="font-medium text-neutral-700">
-                    {emp.designation?.title ?? "—"}
-                  </TableCell>
+                    {/* Designation Column */}
+                    <TableCell className="font-medium text-neutral-700">
+                      {emp.designation?.title ?? "—"}
+                    </TableCell>
 
-                  {/* Department Column */}
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100/80 px-2.5 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/60">
-                      <Building2 className="h-3 w-3 text-neutral-400" />
-                      {emp.department?.name ?? "—"}
-                    </span>
-                  </TableCell>
+                    {/* Department Column */}
+                    <TableCell>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100/80 px-2.5 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/60">
+                        <Building2 className="h-3 w-3 text-neutral-400" />
+                        {emp.department?.name ?? "—"}
+                      </span>
+                    </TableCell>
 
-                  {/* Status Column */}
-                  <TableCell>
-                    <StatusBadge status={emp.status} />
-                  </TableCell>
+                    {/* Status Column */}
+                    <TableCell>
+                      <StatusBadge status={emp.status} />
+                    </TableCell>
 
-                  {/* Action Column */}
-                  <TableCell className="text-right">
-                    <Link
-                      href={`/admin-portal/employees/${emp.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#FF7A70] transition-colors"
-                    >
-                      <span>Manage</span>
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    {/* Action Column */}
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/admin-portal/employees/${emp.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#FF7A70] transition-colors"
+                      >
+                        <span>Manage</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
