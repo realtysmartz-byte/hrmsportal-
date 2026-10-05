@@ -353,23 +353,22 @@ export const attendanceRouter = router({
             },
           });
 
-      // Fire-and-forget punching details & policy emails
-      void (async () => {
-        try {
-          const { notifyPunchDetails, notifyOutsideGeofence } = await import(
-            "../lib/email"
-          );
-          const emp = await ctx.prisma.employee.findUnique({
-            where: { id: employeeId },
-            select: {
-              email: true,
-              firstName: true,
-              lastName: true,
-              employeeCode: true,
-              manager: { select: { email: true } },
-            },
-          });
-          if (!emp) return;
+      // 1. Send punching details & policy emails
+      try {
+        const { notifyPunchDetails, notifyOutsideGeofence } = await import(
+          "../lib/email"
+        );
+        const emp = await ctx.prisma.employee.findUnique({
+          where: { id: employeeId },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            manager: { select: { email: true } },
+          },
+        });
+        if (emp) {
           const name = `${emp.firstName} ${emp.lastName}`;
 
           // Always send punching details email to employee (and manager/HR if late)
@@ -394,36 +393,34 @@ export const attendanceRouter = router({
               managerEmail: emp.manager?.email,
             });
           }
-        } catch (err) {
-          console.error("[attendance] email notify failed:", err);
         }
-      })();
+      } catch (err) {
+        console.error("[attendance.checkIn] email notify failed:", err);
+      }
 
-      // Fire-and-forget real-time Google Sheet sync
-      void (async () => {
-        try {
-          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
-            "./googleSheets"
-          );
-          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
-            "../lib/google-sheets"
-          );
-          const sheetConfig = getActiveGoogleSheetConfig();
-          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
-            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
-            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
-            setLastSyncMetadata({
-              date: reportData.dateStr,
-              sheetTitle: res.sheetTitle,
-              rowCount: res.rowCount,
-              syncedAt: new Date().toISOString(),
-            });
-            console.info("[attendance.checkIn] Real-time Google Sheet sync succeeded:", res.sheetTitle);
-          }
-        } catch (err) {
-          console.error("[attendance.checkIn] Real-time Google Sheet sync error:", err);
+      // 2. Real-time Google Sheet sync (awaited so serverless execution context does not freeze prematurely)
+      try {
+        const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
+          "./googleSheets"
+        );
+        const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+          "../lib/google-sheets"
+        );
+        const sheetConfig = getActiveGoogleSheetConfig();
+        if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+          const reportData = await generateDailyAttendanceData(ctx.prisma, today);
+          const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+          setLastSyncMetadata({
+            date: reportData.dateStr,
+            sheetTitle: res.sheetTitle,
+            rowCount: res.rowCount,
+            syncedAt: new Date().toISOString(),
+          });
+          console.info("[attendance.checkIn] Real-time Google Sheet sync succeeded:", res.sheetTitle);
         }
-      })();
+      } catch (err) {
+        console.error("[attendance.checkIn] Real-time Google Sheet sync error:", err);
+      }
 
       return log;
     }),
@@ -488,21 +485,20 @@ export const attendanceRouter = router({
         },
       });
 
-      // Fire-and-forget check-out notification
-      void (async () => {
-        try {
-          const { notifyCheckOutDetails } = await import("../lib/email");
-          const emp = await ctx.prisma.employee.findUnique({
-            where: { id: employeeId },
-            select: {
-              email: true,
-              firstName: true,
-              lastName: true,
-              employeeCode: true,
-              manager: { select: { email: true } },
-            },
-          });
-          if (!emp) return;
+      // 1. Check-out email notification
+      try {
+        const { notifyCheckOutDetails } = await import("../lib/email");
+        const emp = await ctx.prisma.employee.findUnique({
+          where: { id: employeeId },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            manager: { select: { email: true } },
+          },
+        });
+        if (emp) {
           const name = `${emp.firstName} ${emp.lastName}`;
           await notifyCheckOutDetails({
             employeeName: name,
@@ -513,36 +509,34 @@ export const attendanceRouter = router({
             address: finalOutAddress,
             managerEmail: emp.manager?.email,
           });
-        } catch (err) {
-          console.error("[attendance.checkOut] email notify failed:", err);
         }
-      })();
+      } catch (err) {
+        console.error("[attendance.checkOut] email notify failed:", err);
+      }
 
-      // Fire-and-forget real-time Google Sheet sync on checkout
-      void (async () => {
-        try {
-          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
-            "./googleSheets"
-          );
-          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
-            "../lib/google-sheets"
-          );
-          const sheetConfig = getActiveGoogleSheetConfig();
-          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
-            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
-            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
-            setLastSyncMetadata({
-              date: reportData.dateStr,
-              sheetTitle: res.sheetTitle,
-              rowCount: res.rowCount,
-              syncedAt: new Date().toISOString(),
-            });
-            console.info("[attendance.checkOut] Real-time Google Sheet sync succeeded:", res.sheetTitle);
-          }
-        } catch (err) {
-          console.error("[attendance.checkOut] Real-time Google Sheet sync error:", err);
+      // 2. Real-time Google Sheet sync on checkout (awaited so serverless execution context does not freeze prematurely)
+      try {
+        const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
+          "./googleSheets"
+        );
+        const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+          "../lib/google-sheets"
+        );
+        const sheetConfig = getActiveGoogleSheetConfig();
+        if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+          const reportData = await generateDailyAttendanceData(ctx.prisma, today);
+          const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+          setLastSyncMetadata({
+            date: reportData.dateStr,
+            sheetTitle: res.sheetTitle,
+            rowCount: res.rowCount,
+            syncedAt: new Date().toISOString(),
+          });
+          console.info("[attendance.checkOut] Real-time Google Sheet sync succeeded:", res.sheetTitle);
         }
-      })();
+      } catch (err) {
+        console.error("[attendance.checkOut] Real-time Google Sheet sync error:", err);
+      }
 
       return updated;
     }),

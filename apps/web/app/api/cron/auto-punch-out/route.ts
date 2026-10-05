@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@realty-smartz/db";
-import { ensureAutoPunchOut } from "@realty-smartz/api";
-
+import {
+  ensureAutoPunchOut,
+  generateDailyAttendanceData,
+  syncReportToGoogleSheet,
+  getActiveGoogleSheetConfig,
+  setLastSyncMetadata,
+} from "@realty-smartz/api";
+import { startOfDayUTC } from "@realty-smartz/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +25,27 @@ export async function GET(request: Request) {
     }
 
     const result = await ensureAutoPunchOut(prisma);
+
+    // If records were auto-punched out, immediately sync the updated day's report to Google Sheets
+    if (result.updatedCount > 0) {
+      try {
+        const config = getActiveGoogleSheetConfig();
+        if (config.webhookUrl || config.spreadsheetId) {
+          const today = startOfDayUTC(new Date());
+          const reportData = await generateDailyAttendanceData(prisma, today);
+          const sheetRes = await syncReportToGoogleSheet(config, reportData);
+          setLastSyncMetadata({
+            date: reportData.dateStr,
+            sheetTitle: sheetRes.sheetTitle,
+            rowCount: sheetRes.rowCount,
+            syncedAt: new Date().toISOString(),
+          });
+          console.info(`[cron:auto-punch-out] Synced ${result.updatedCount} auto-punched records to Google Sheet "${reportData.dateStr}"`);
+        }
+      } catch (sheetErr) {
+        console.error("[cron:auto-punch-out] Sheet sync error:", sheetErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
