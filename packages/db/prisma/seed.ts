@@ -28,25 +28,25 @@ async function main() {
   await prisma.designation.deleteMany();
   await prisma.department.deleteMany();
 
-  // 2. Base Company Settings
+  // 2. Base Company Settings (REALTY SMARTZ PVT LTD)
   console.log("Setting up Company Settings...");
   await prisma.companySettings.create({
     data: {
       id: "singleton",
-      officeName: "Realty Smartz Private Limited HQ, Gurugram",
-      officeLat: 28.4595,
-      officeLng: 77.0266,
+      officeName: "REALTY SMARTZ PVT LTD",
+      officeLat: 28.3997196,
+      officeLng: 77.0385682,
       geofenceRadiusM: 200,
       weeklyOffDay: 2, // Tuesday weekly off
     },
   });
 
-  // 3. Standard Leave Types
-  console.log("Creating standard leave types...");
+  // 3. Standard Leave Types (18 Leaves Total: 9 Casual + 9 Sick)
+  console.log("Creating standard leave types (18 leaves total)...");
   const casual = await prisma.leaveType.create({
     data: {
       name: "Casual Leave",
-      annualQuota: 12,
+      annualQuota: 9,
       carryForwardAllowed: false,
       requiresApproval: true,
     },
@@ -54,16 +54,8 @@ async function main() {
   const sick = await prisma.leaveType.create({
     data: {
       name: "Sick Leave",
-      annualQuota: 8,
+      annualQuota: 9,
       carryForwardAllowed: false,
-      requiresApproval: true,
-    },
-  });
-  const earned = await prisma.leaveType.create({
-    data: {
-      name: "Earned Leave",
-      annualQuota: 15,
-      carryForwardAllowed: true,
       requiresApproval: true,
     },
   });
@@ -138,14 +130,6 @@ async function main() {
         allotted: sick.annualQuota,
         used: 0,
         remaining: sick.annualQuota,
-      },
-      {
-        employeeId: admin.id,
-        leaveTypeId: earned.id,
-        year: currentYear,
-        allotted: earned.annualQuota,
-        used: 0,
-        remaining: earned.annualQuota,
       },
     ],
   });

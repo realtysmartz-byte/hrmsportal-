@@ -308,24 +308,78 @@ export const attendanceRouter = router({
         });
       }
 
-      const distanceM = haversineDistanceM(
+      const emp = await ctx.prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: {
+          id: true,
+          role: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          email: true,
+          workLocationLat: true,
+          workLocationLng: true,
+          workLocationName: true,
+          manager: { select: { email: true } },
+        },
+      });
+
+      const distanceOfficeM = haversineDistanceM(
         input.lat,
         input.lng,
         settings.officeLat,
         settings.officeLng
       );
-      const withinGeofence = distanceM <= settings.geofenceRadiusM;
+      const isAtOffice = distanceOfficeM <= settings.geofenceRadiusM;
+
+      let isAtAllocatedSite = false;
+      let distanceSiteM: number | null = null;
+      if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
+        distanceSiteM = haversineDistanceM(
+          input.lat,
+          input.lng,
+          emp.workLocationLat,
+          emp.workLocationLng
+        );
+        isAtAllocatedSite = distanceSiteM <= settings.geofenceRadiusM;
+      }
+
+      const withinGeofence = isAtOffice || isAtAllocatedSite;
+
+      // STRICT 200-METER GEOFENCE ENFORCEMENT:
+      // Employee must be within 200m of office or their allocated site, otherwise check-in is blocked.
+      if (!withinGeofence && emp?.role !== "ADMIN") {
+        if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Punch-in blocked: You are outside the 200-meter geofence perimeter. Office distance: ~${Math.round(distanceOfficeM)}m, Allocated site (${emp.workLocationName || "Site"}) distance: ~${Math.round(distanceSiteM!)}m. You must be within 200m to punch in.`,
+          });
+        } else {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Punch-in blocked: You are outside the 200-meter geofence of ${settings.officeName || "REALTY SMARTZ PVT LTD"} (~${Math.round(distanceOfficeM)}m away). If you are on field duty, please ask Admin to allocate your site location.`,
+          });
+        }
+      }
+
       const now = new Date();
       const status = attendanceStatusFromCheckIn(now);
 
-      // Resolve official address: inside geofence uses official office name; outside cleans any OSM artifacts
       let finalAddress = input.address;
-      if (withinGeofence) {
-        finalAddress = settings.officeName || "Realty Smartz Private Limited HQ, Gurugram";
-      } else if (finalAddress) {
-        finalAddress = finalAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      let logNotes: string | null = null;
+
+      if (isAtOffice) {
+        finalAddress = settings.officeName || "REALTY SMARTZ PVT LTD";
+        logNotes = "Office login (within 200m perimeter)";
+      } else if (isAtAllocatedSite) {
+        finalAddress = emp?.workLocationName || "Allocated Site Location";
+        logNotes = `Site login: ${emp?.workLocationName || "Site"} (within 200m perimeter)`;
       } else {
-        finalAddress = "Realty Smartz Private Limited";
+        // Admin override when outside 200m
+        finalAddress = input.address
+          ? input.address.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD")
+          : (settings.officeName || "REALTY SMARTZ PVT LTD");
+        logNotes = `Admin override (~${Math.round(distanceOfficeM)}m from office)`;
       }
 
       const locationData = {
@@ -335,9 +389,7 @@ export const attendanceRouter = router({
         checkInAddress: finalAddress,
         withinGeofence,
         status,
-        notes: withinGeofence
-          ? null
-          : `Outside geofence (~${Math.round(distanceM)}m from office)`,
+        notes: logNotes,
       };
 
       const log = existing
@@ -771,26 +823,50 @@ export const attendanceRouter = router({
     .input(locationPingSchema)
     .mutation(async ({ ctx, input }) => {
       const employeeId = await resolveEmployeeId(ctx);
-      const settings = await ctx.prisma.companySettings.findUnique({
-        where: { id: "singleton" },
-      });
+      const [settings, emp] = await Promise.all([
+        ctx.prisma.companySettings.findUnique({
+          where: { id: "singleton" },
+        }),
+        ctx.prisma.employee.findUnique({
+          where: { id: employeeId },
+          select: {
+            workLocationLat: true,
+            workLocationLng: true,
+            workLocationName: true,
+          },
+        }),
+      ]);
 
-      let withinGeofence = true;
+      let isAtOffice = false;
+      let isAtAllocatedSite = false;
       if (settings) {
-        const distanceM = haversineDistanceM(
+        const distanceOfficeM = haversineDistanceM(
           input.lat,
           input.lng,
           settings.officeLat,
           settings.officeLng
         );
-        withinGeofence = distanceM <= settings.geofenceRadiusM;
+        isAtOffice = distanceOfficeM <= settings.geofenceRadiusM;
+        if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
+          const distanceSiteM = haversineDistanceM(
+            input.lat,
+            input.lng,
+            emp.workLocationLat,
+            emp.workLocationLng
+          );
+          isAtAllocatedSite = distanceSiteM <= settings.geofenceRadiusM;
+        }
       }
 
+      const withinGeofence = isAtOffice || isAtAllocatedSite;
+
       let cleanAddress = input.address || null;
-      if (withinGeofence && settings?.officeName) {
+      if (isAtOffice && settings?.officeName) {
         cleanAddress = settings.officeName;
+      } else if (isAtAllocatedSite && emp?.workLocationName) {
+        cleanAddress = emp.workLocationName;
       } else if (cleanAddress) {
-        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD");
       }
 
       return ctx.prisma.locationPing.create({
@@ -896,6 +972,82 @@ export const attendanceRouter = router({
         },
         orderBy: { capturedAt: "desc" },
         take: input.limit,
+      });
+    }),
+
+  livePersonnelOverview: protectedProcedure
+    .input(z.object({ date: z.coerce.date().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const role = (ctx.session!.user.role ?? "EMPLOYEE") as Role;
+      if (!canViewTeamAttendance(role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Forbidden" });
+      }
+      const day = input?.date ? startOfDayUTC(input.date) : startOfDayUTC(new Date());
+      const next = new Date(day);
+      next.setUTCDate(next.getUTCDate() + 1);
+
+      const [employees, todayLogs, latestPings] = await Promise.all([
+        ctx.prisma.employee.findMany({
+          where: { status: "ACTIVE" },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            email: true,
+            role: true,
+            workLocationName: true,
+            workLocationLat: true,
+            workLocationLng: true,
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+          },
+          orderBy: { firstName: "asc" },
+        }),
+        ctx.prisma.attendanceLog.findMany({
+          where: { date: day },
+          select: {
+            employeeId: true,
+            status: true,
+            checkInTime: true,
+            checkInLat: true,
+            checkInLng: true,
+            checkInAddress: true,
+            checkOutTime: true,
+            checkOutLat: true,
+            checkOutLng: true,
+            checkOutAddress: true,
+            withinGeofence: true,
+          },
+        }),
+        ctx.prisma.locationPing.findMany({
+          where: { capturedAt: { gte: day, lt: next } },
+          orderBy: { capturedAt: "desc" },
+          distinct: ["employeeId"],
+          select: {
+            id: true,
+            employeeId: true,
+            lat: true,
+            lng: true,
+            address: true,
+            capturedAt: true,
+            withinGeofence: true,
+            accuracyM: true,
+          },
+        }),
+      ]);
+
+      const logMap = new Map(todayLogs.map((l) => [l.employeeId, l]));
+      const pingMap = new Map(latestPings.map((p) => [p.employeeId, p]));
+
+      return employees.map((emp) => {
+        const log = logMap.get(emp.id) || null;
+        const ping = pingMap.get(emp.id) || null;
+        return {
+          employee: emp,
+          todayAttendance: log,
+          latestPing: ping,
+        };
       });
     }),
 });

@@ -68,6 +68,8 @@ export default function EditEmployeePage() {
           profilePhotoUrl: emp.profilePhotoUrl ?? "",
           status: emp.status,
           workLocationName: emp.workLocationName ?? "",
+          workLocationLat: emp.workLocationLat != null ? String(emp.workLocationLat) : "",
+          workLocationLng: emp.workLocationLng != null ? String(emp.workLocationLng) : "",
         }}
       />
     </div>

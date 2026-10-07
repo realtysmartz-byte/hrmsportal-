@@ -23,6 +23,9 @@ import {
   Building,
   Check,
   X,
+  Clock,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -45,6 +48,7 @@ import { trpc } from "@/lib/trpc";
 import { cn, formatDate, fullName, initials } from "@/lib/utils";
 import { DOCUMENT_TYPES, isWeeklyOffDay } from "@realty-smartz/shared";
 import { LocationMap } from "@/components/LocationMap";
+import { AssignLocationCard } from "@/components/AssignLocationCard";
 
 type TabId =
   | "overview"
@@ -52,7 +56,8 @@ type TabId =
   | "attendance"
   | "leave"
   | "documents"
-  | "performance";
+  | "performance"
+  | "location";
 
 const DOC_LABELS: Record<string, string> = {
   PAN_CARD: "PAN Card",
@@ -125,7 +130,8 @@ export function EmployeeProfileHub({
     const all: { id: TabId; label: string; sensitive?: boolean }[] = [
       { id: "overview", label: "About" },
       { id: "job", label: "Job" },
-      { id: "attendance", label: "Attendance", sensitive: true },
+      { id: "attendance", label: "Attendance & Location", sensitive: true },
+      { id: "location", label: "Assign Site & GPS", sensitive: true },
       { id: "leave", label: "Leave", sensitive: true },
       { id: "documents", label: "Documents", sensitive: true },
       { id: "performance", label: "Performance" },
@@ -341,16 +347,16 @@ export function EmployeeProfileHub({
         <LimitedColleagueProfileView emp={emp} basePath={basePath} />
       ) : (
         <>
-          {/* Tabs */}
-          <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-2 md:px-4">
-            <div className="flex min-w-max gap-0 overflow-x-auto">
+          {/* Tabs - Mobile horizontal scrollable */}
+          <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md overflow-x-auto no-scrollbar scroll-smooth">
+            <div className="flex min-w-max gap-0 px-1 md:px-4">
               {tabs.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    "relative px-4 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150",
+                    "relative px-3.5 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150 shrink-0 whitespace-nowrap",
                     tab === t.id
                       ? "text-[#FF7A70] font-bold"
                       : "text-neutral-500 hover:text-neutral-800"
@@ -389,7 +395,11 @@ export function EmployeeProfileHub({
                   <JobTab emp={emp} jobHistory={jobHistory} basePath={basePath} />
                 )}
                 {tab === "attendance" && (
-                  <AttendanceTab employeeId={emp.id} />
+                  <AttendanceTab
+                    employeeId={emp.id}
+                    emp={emp}
+                    canManage={access.canManage}
+                  />
                 )}
                 {tab === "leave" && (
                   <LeaveTab
@@ -409,6 +419,9 @@ export function EmployeeProfileHub({
                 )}
                 {tab === "performance" && (
                   <PerformanceTab employeeId={emp.id} />
+                )}
+                {tab === "location" && (
+                  <GpsTrailTab emp={emp} canManage={access.canManage} />
                 )}
               </motion.div>
             </AnimatePresence>
@@ -1144,12 +1157,60 @@ function DetailField({
   );
 }
 
-function AttendanceTab({ employeeId }: { employeeId: string }) {
+function AttendanceTab({
+  employeeId,
+  emp,
+  canManage,
+}: {
+  employeeId: string;
+  emp: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    employeeCode: string;
+    workLocationName: string | null;
+    workLocationLat: number | null;
+    workLocationLng: number | null;
+  };
+  canManage: boolean;
+}) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [page, setPage] = useState(1);
   const [mapLogId, setMapLogId] = useState<string | null>(null);
+
+  // 30-minute GPS trace query state
+  const [gpsDate, setGpsDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedGpsPing, setSelectedGpsPing] = useState<{
+    lat: number;
+    lng: number;
+    label: string;
+  } | null>(null);
+
+  const {
+    data: pings,
+    isLoading: isLoadingGps,
+    refetch: refetchGps,
+    isFetching: isFetchingGps,
+  } = trpc.attendance.employeeLocationPings.useQuery({
+    employeeId: emp.id,
+    date: new Date(gpsDate),
+    limit: 60,
+  });
+
+  const activeGpsLat =
+    selectedGpsPing?.lat ?? pings?.[0]?.lat ?? emp.workLocationLat ?? 28.3997196;
+  const activeGpsLng =
+    selectedGpsPing?.lng ?? pings?.[0]?.lng ?? emp.workLocationLng ?? 77.0385682;
+  const activeGpsLabel =
+    selectedGpsPing?.label ??
+    (pings?.[0]
+      ? `Latest Recorded Ping: ${new Date(pings[0].capturedAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`
+      : emp.workLocationName || "Allocated Punch-In Location");
 
   const { data: monthData, isLoading: monthLoading } =
     trpc.attendance.forEmployeeMonth.useQuery({
@@ -1180,6 +1241,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="section-gap">
+      {/* 1. All-time Statistics */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Present (all time)" value={String(stats?.present ?? 0)} />
         <StatCard label="Absent (all time)" value={String(stats?.absent ?? 0)} />
@@ -1191,6 +1253,154 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
           label="Outside geofence"
           value={String(stats?.outsideGeofence ?? 0)}
         />
+      </div>
+
+      {/* 2. Assign Punch-In Location (200m Geofenced) with Auto-Suggest */}
+      <AssignLocationCard
+        employeeId={emp.id}
+        employeeName={fullName(emp.firstName, emp.lastName)}
+        currentLocationName={emp.workLocationName}
+        currentLat={emp.workLocationLat}
+        currentLng={emp.workLocationLng}
+        canManage={canManage}
+      />
+
+      {/* 3. Location Traced with Google Map & Half-Hour GPS Breadcrumbs */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-[#FF7A70]" />
+              <span>Location Traced & 30-Minute GPS Trail</span>
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Live automated location captures recorded in half-hour intervals for {emp.firstName}.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700">
+              <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+              <input
+                type="date"
+                value={gpsDate}
+                onChange={(e) => setGpsDate(e.target.value)}
+                className="bg-transparent font-medium focus:outline-none"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchGps()}
+              disabled={isFetchingGps}
+              className="h-8 text-xs gap-1.5 rounded-xl"
+            >
+              <RefreshCw className={`h-3 w-3 ${isFetchingGps ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Embedded Map */}
+        <div className="rounded-xl overflow-hidden border border-neutral-200">
+          <LocationMap
+            lat={activeGpsLat}
+            lng={activeGpsLng}
+            label={activeGpsLabel}
+            height={260}
+          />
+        </div>
+
+        {/* 30-Minute Timestamps & Coordinates List */}
+        <div className="rounded-xl border border-neutral-100 bg-neutral-50/50 overflow-hidden">
+          <div className="p-3 border-b border-neutral-200/60 flex items-center justify-between">
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-700">
+              Recorded Half-Hour Timestamps ({pings?.length ?? 0})
+            </h4>
+            <span className="text-[11px] text-neutral-400 font-medium">
+              30-min tracking interval
+            </span>
+          </div>
+
+          {isLoadingGps ? (
+            <div className="p-6 text-center text-xs text-neutral-400">
+              <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-1.5 text-neutral-300" />
+              Loading location traces...
+            </div>
+          ) : !pings || pings.length === 0 ? (
+            <div className="p-6 text-center text-xs text-neutral-400">
+              <MapPin className="h-6 w-6 text-neutral-300 mx-auto mb-1.5" />
+              <p className="font-semibold text-neutral-700">No GPS logs recorded for this date</p>
+              <p className="mt-0.5">
+                Staff location is automatically recorded every 30 minutes while they are signed in.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-200/60 max-h-80 overflow-y-auto">
+              {pings.map((p) => {
+                const timeStr = new Date(p.capturedAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                return (
+                  <div key={p.id} className="p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-neutral-100/60 transition-colors">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 font-bold text-xs text-neutral-900">
+                          <Clock className="h-3 w-3 text-neutral-400" />
+                          {timeStr}
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold border",
+                            p.withinGeofence
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          )}
+                        >
+                          <ShieldCheck className="h-2.5 w-2.5" />
+                          {p.withinGeofence ? "Within 200m" : "Outside Perimeter"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-700 truncate" title={p.address || ""}>
+                        {p.address || "Location coordinate recorded"}
+                      </p>
+                      <span className="font-mono text-[10px] text-neutral-500">
+                        {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setSelectedGpsPing({
+                            lat: p.lat,
+                            lng: p.lng,
+                            label: `${emp.firstName} at ${timeStr}`,
+                          })
+                        }
+                        className="h-7 text-xs text-teal-700 hover:bg-teal-50"
+                      >
+                        Pin Map
+                      </Button>
+                      <a
+                        href={`https://www.google.com/maps?q=${p.lat},${p.lng}&z=17`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                      >
+                        <span>Maps</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -1977,6 +2187,278 @@ function PerformanceTab({ employeeId }: { employeeId: string }) {
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+function GpsTrailTab({
+  emp,
+  canManage,
+}: {
+  emp: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    employeeCode: string;
+    workLocationName: string | null;
+    workLocationLat: number | null;
+    workLocationLng: number | null;
+  };
+  canManage: boolean;
+}) {
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedPing, setSelectedPing] = useState<{
+    lat: number;
+    lng: number;
+    label: string;
+  } | null>(null);
+
+  const {
+    data: pings,
+    isLoading,
+    refetch,
+    isFetching,
+  } = trpc.attendance.employeeLocationPings.useQuery({
+    employeeId: emp.id,
+    date: new Date(date),
+    limit: 60,
+  });
+
+  const activeLat =
+    selectedPing?.lat ?? pings?.[0]?.lat ?? emp.workLocationLat ?? 28.3997196;
+  const activeLng =
+    selectedPing?.lng ?? pings?.[0]?.lng ?? emp.workLocationLng ?? 77.0385682;
+  const activeLabel =
+    selectedPing?.label ??
+    (pings?.[0]
+      ? `Latest Ping: ${new Date(pings[0].capturedAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`
+      : emp.workLocationName || "Allocated Work Location");
+
+  return (
+    <div className="space-y-5">
+      {/* 1. Assigned Work Location & 200m Geofencing Card with Search & Auto-Suggest */}
+      <AssignLocationCard
+        employeeId={emp.id}
+        employeeName={fullName(emp.firstName, emp.lastName)}
+        currentLocationName={emp.workLocationName}
+        currentLat={emp.workLocationLat}
+        currentLng={emp.workLocationLng}
+        canManage={canManage}
+      />
+
+      {/* 2. Interactive Map & Date Selector */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-[#FF7A70]" />
+              <span>30-Minute GPS Breadcrumbs Trail</span>
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Live automated location captures recorded in half-hour intervals while signed in.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700">
+              <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="bg-transparent font-medium focus:outline-none"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-8 text-xs gap-1.5 rounded-xl"
+            >
+              <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Embedded Map */}
+        <div className="rounded-xl overflow-hidden border border-neutral-200">
+          <LocationMap
+            lat={activeLat}
+            lng={activeLng}
+            label={activeLabel}
+            height={280}
+          />
+        </div>
+      </div>
+
+      {/* 3. Timestamps & Coordinates List */}
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-2xs overflow-hidden">
+        <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
+            Recorded Half-Hour Timestamps ({pings?.length ?? 0})
+          </h4>
+          <span className="text-[11px] text-neutral-400 font-medium">
+            Interval: 30 minutes
+          </span>
+        </div>
+
+        {isLoading ? (
+          <div className="p-8 text-center text-xs text-neutral-400">
+            <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-neutral-300" />
+            Loading 30-minute GPS traces...
+          </div>
+        ) : !pings || pings.length === 0 ? (
+          <div className="p-8 text-center text-xs text-neutral-400">
+            <MapPin className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
+            <p className="font-semibold text-neutral-700">No GPS logs for this date</p>
+            <p className="mt-1">
+              Staff location is automatically recorded every 30 minutes while they are signed in.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-neutral-50/80">
+                  <TableRow>
+                    <TableHead className="text-xs font-bold text-neutral-700">Timestamp</TableHead>
+                    <TableHead className="text-xs font-bold text-neutral-700">Location Address</TableHead>
+                    <TableHead className="text-xs font-bold text-neutral-700">Coordinates</TableHead>
+                    <TableHead className="text-xs font-bold text-neutral-700">Geofence Status</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-neutral-700">Google Maps</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pings.map((p) => {
+                    const timeStr = new Date(p.capturedAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    });
+                    return (
+                      <TableRow key={p.id} className="hover:bg-neutral-50/70 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 font-semibold text-xs text-neutral-900">
+                            <Clock className="h-3.5 w-3.5 text-neutral-400" />
+                            <span>{timeStr}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          <p
+                            className="text-xs text-neutral-800 font-medium truncate"
+                            title={p.address || ""}
+                          >
+                            {p.address || "Location coordinate recorded"}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
+                            {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                              p.withinGeofence
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            )}
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            {p.withinGeofence ? "Within 200m" : "Outside Perimeter"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setSelectedPing({
+                                  lat: p.lat,
+                                  lng: p.lng,
+                                  label: `${emp.firstName} at ${timeStr}`,
+                                })
+                              }
+                              className="h-7 text-xs text-teal-700 hover:bg-teal-50"
+                            >
+                              Pin Map
+                            </Button>
+                            <a
+                              href={`https://www.google.com/maps?q=${p.lat},${p.lng}&z=17`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                            >
+                              <span>Google Maps</span>
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="sm:hidden divide-y divide-neutral-100 p-2 space-y-2">
+              {pings.map((p) => {
+                const timeStr = new Date(p.capturedAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                return (
+                  <div key={p.id} className="p-3 bg-neutral-50/50 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900">
+                        <Clock className="h-3.5 w-3.5 text-neutral-400" />
+                        <span>{timeStr}</span>
+                      </div>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                          p.withinGeofence
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        )}
+                      >
+                        {p.withinGeofence ? "Within 200m" : "Outside"}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-neutral-700 line-clamp-2">
+                      {p.address || "Location coordinate recorded"}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-1 text-[11px]">
+                      <span className="font-mono text-neutral-500">
+                        {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${p.lat},${p.lng}&z=17`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-bold text-[#FF7A70]"
+                      >
+                        Open Maps <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

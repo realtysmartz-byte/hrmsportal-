@@ -14,6 +14,9 @@ import {
   ShieldCheck,
   Building,
   CheckCircle2,
+  AlertCircle,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,12 +32,14 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { LocationMap } from "@/components/LocationMap";
+import { cn } from "@/lib/utils";
 
 export default function LocationTracingPage() {
   const { data: session } = useSession();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"overview" | "traces">("overview");
   const [activeMapPing, setActiveMapPing] = useState<{
     lat: number;
     lng: number;
@@ -42,24 +47,48 @@ export default function LocationTracingPage() {
     address: string;
   } | null>(null);
 
-  // Fetch employees for filter dropdown
-  const { data: employeesData } = trpc.employee.list.useQuery({
-    pageSize: 100,
+  // 1. Fetch live personnel overview (all employees with today's status & latest GPS)
+  const {
+    data: allStaff,
+    isLoading: isStaffLoading,
+    refetch: refetchStaff,
+    isFetching: isStaffFetching,
+  } = trpc.attendance.livePersonnelOverview.useQuery({
+    date: new Date(date),
   });
 
-  // Fetch location traces
+  // 2. Fetch detailed 30-minute location traces
   const {
     data: pings,
-    isLoading,
-    refetch,
-    isFetching,
+    isLoading: isPingsLoading,
+    refetch: refetchPings,
+    isFetching: isPingsFetching,
   } = trpc.attendance.allLocationPings.useQuery({
     date: new Date(date),
     employeeId: selectedEmployeeId || undefined,
     limit: 150,
   });
 
-  // Filtered by search query (employee name, code, or address)
+  const isRefreshing = isStaffFetching || isPingsFetching;
+
+  const handleRefresh = () => {
+    void refetchStaff();
+    void refetchPings();
+  };
+
+  // Filter staff by search query & selected employee
+  const filteredStaff = (allStaff ?? []).filter((item) => {
+    if (selectedEmployeeId && item.employee.id !== selectedEmployeeId) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const name = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase();
+    const code = (item.employee.employeeCode ?? "").toLowerCase();
+    const dept = (item.employee.department?.name ?? "").toLowerCase();
+    const site = (item.employee.workLocationName ?? "").toLowerCase();
+    return name.includes(q) || code.includes(q) || dept.includes(q) || site.includes(q);
+  });
+
+  // Filter traces by search query
   const filteredPings = (pings ?? []).filter((p) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
@@ -69,18 +98,14 @@ export default function LocationTracingPage() {
     return name.includes(query) || code.includes(query) || addr.includes(query);
   });
 
-  // Quick Stats
+  // KPI Calculations
+  const totalEmployees = allStaff?.length ?? 0;
+  const presentToday = (allStaff ?? []).filter((s) => Boolean(s.todayAttendance?.checkInTime)).length;
   const totalPings = pings?.length ?? 0;
-  const uniqueEmployees = new Set((pings ?? []).map((p) => p.employeeId)).size;
-  const latestPingTime = pings?.[0]?.capturedAt
-    ? new Date(pings[0].capturedAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "None today";
+  const activeGpsPinging = new Set((pings ?? []).map((p) => p.employeeId)).size;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto px-1 sm:px-0">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -89,14 +114,14 @@ export default function LocationTracingPage() {
               <MapPin className="h-4 w-4" />
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-[#FF7A70]">
-              Personnel GPS Monitoring
+              REALTY SMARTZ PVT LTD · Personnel GPS Monitoring
             </span>
           </div>
           <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
-            30-Minute Location Traces
+            Employee Location & GPS Tracking
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
-            Automated location logs captured every 30 minutes while staff members are active.
+            Real-time live location, assigned site geofencing (200m), and 30-minute interval breadcrumb traces.
           </p>
         </div>
 
@@ -104,96 +129,142 @@ export default function LocationTracingPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
             className="gap-2 rounded-xl text-xs h-9 font-medium"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            <span>{isFetching ? "Updating…" : "Refresh"}</span>
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span>{isRefreshing ? "Updating…" : "Refresh Data"}</span>
           </Button>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
-        <Card className="p-4 sm:p-5 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-            <Navigation className="h-6 w-6" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+            <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-              Total GPS Traces
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Total Employees
             </p>
-            <p className="text-2xl font-extrabold text-neutral-900">{totalPings}</p>
-            <p className="text-[11px] text-neutral-500">Every 30m automatic interval</p>
+            <p className="text-xl sm:text-2xl font-extrabold text-neutral-900">{totalEmployees}</p>
+            <p className="text-[10px] text-neutral-500">Active roster</p>
           </div>
         </Card>
 
-        <Card className="p-4 sm:p-5 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-            <Users className="h-6 w-6" />
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <LogIn className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-              Active Personnel
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Checked In Today
             </p>
-            <p className="text-2xl font-extrabold text-neutral-900">{uniqueEmployees}</p>
-            <p className="text-[11px] text-neutral-500">Employees reporting location</p>
+            <p className="text-xl sm:text-2xl font-extrabold text-emerald-800">{presentToday}</p>
+            <p className="text-[10px] text-neutral-500">Punch-in logged</p>
           </div>
         </Card>
 
-        <Card className="p-4 sm:p-5 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-            <Clock className="h-6 w-6" />
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+            <Navigation className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-              Latest Ping
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              30-Min GPS Traces
             </p>
-            <p className="text-2xl font-extrabold text-neutral-900">{latestPingTime}</p>
-            <p className="text-[11px] text-neutral-500">Most recent trace received</p>
+            <p className="text-xl sm:text-2xl font-extrabold text-neutral-900">{totalPings}</p>
+            <p className="text-[10px] text-neutral-500">Interval captures today</p>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+            <Building className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Assigned Geofence
+            </p>
+            <p className="text-xl sm:text-2xl font-extrabold text-neutral-900">200m</p>
+            <p className="text-[10px] text-neutral-500">Office & site perimeter</p>
           </div>
         </Card>
       </div>
 
-      {/* Filter Controls Bar */}
-      <div className="rounded-2xl border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs flex flex-wrap items-center gap-3">
-        {/* Date Filter */}
-        <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-1.5 text-xs text-neutral-700 min-w-0">
-          <Calendar className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-transparent font-medium text-xs focus:outline-none"
-          />
+      {/* View Switcher & Filter Controls */}
+      <div className="rounded-2xl border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* View Toggle Tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-neutral-100 rounded-xl max-w-fit">
+            <button
+              type="button"
+              onClick={() => setViewMode("overview")}
+              className={cn(
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
+                viewMode === "overview"
+                  ? "bg-white text-neutral-900 shadow-xs"
+                  : "text-neutral-500 hover:text-neutral-800"
+              )}
+            >
+              👥 All Employees Live Status ({filteredStaff.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("traces")}
+              className={cn(
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
+                viewMode === "traces"
+                  ? "bg-white text-neutral-900 shadow-xs"
+                  : "text-neutral-500 hover:text-neutral-800"
+              )}
+            >
+              📍 30-Minute GPS Trail Logs ({filteredPings.length})
+            </button>
+          </div>
+
+          {/* Date Selector */}
+          <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-1.5 text-xs text-neutral-700 min-w-0">
+            <Calendar className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-transparent font-medium text-xs focus:outline-none"
+            />
+          </div>
         </div>
 
-        {/* Employee Dropdown Filter */}
-        <div className="min-w-0 sm:min-w-[200px]">
-          <select
-            value={selectedEmployeeId}
-            onChange={(e) => setSelectedEmployeeId(e.target.value)}
-            className="w-full rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-2 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#FF7A70]/30"
-          >
-            <option value="">All Employees</option>
-            {(employeesData?.items ?? []).map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.firstName} {emp.lastName} ({emp.employeeCode})
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Filters Row */}
+        <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+          {/* Employee Filter */}
+          <div className="w-full sm:w-64">
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-2 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#FF7A70]/30"
+            >
+              <option value="">All Employees ({allStaff?.length ?? 0})</option>
+              {(allStaff ?? []).map((item) => (
+                <option key={item.employee.id} value={item.employee.id}>
+                  {item.employee.firstName} {item.employee.lastName} ({item.employee.employeeCode})
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Search Input */}
-        <div className="relative min-w-0 flex-1 sm:min-w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-          <Input
-            placeholder="Search by name, employee code or location address..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 text-xs h-9 rounded-xl border-neutral-200"
-          />
+          {/* Search Input */}
+          <div className="relative w-full sm:flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
+            <Input
+              placeholder="Search by employee name, code, department or site location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs h-9 rounded-xl border-neutral-200 w-full"
+            />
+          </div>
         </div>
       </div>
 
@@ -230,9 +301,11 @@ export default function LocationTracingPage() {
             </div>
 
             <div className="mt-4 flex justify-between items-center text-xs text-neutral-500">
-              <span>Coordinates: {activeMapPing.lat.toFixed(5)}, {activeMapPing.lng.toFixed(5)}</span>
+              <span>
+                Coordinates: {activeMapPing.lat.toFixed(5)}, {activeMapPing.lng.toFixed(5)}
+              </span>
               <a
-                href={`https://www.google.com/maps?q=${activeMapPing.lat},${activeMapPing.lng}&z=16`}
+                href={`https://www.google.com/maps?q=${activeMapPing.lat},${activeMapPing.lng}&z=17`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 font-semibold text-[#FF7A70] hover:underline"
@@ -244,124 +317,472 @@ export default function LocationTracingPage() {
         </div>
       )}
 
-      {/* Main Location Logs Table & Cards */}
-      <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
-        {isLoading ? (
-          <div className="py-16 text-center text-xs text-neutral-400">
-            <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
-            Loading location traces...
-          </div>
-        ) : filteredPings.length === 0 ? (
-          <div className="py-16 text-center text-xs text-neutral-400">
-            <MapPin className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
-            <p className="font-semibold text-neutral-700 text-sm">No Location Traces Found</p>
-            <p className="text-neutral-400 mt-1 max-w-sm mx-auto">
-              No GPS pings were recorded for this date and filter. Personnel pings are generated automatically every 30 minutes while signed in.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-neutral-50/80">
-                <TableRow>
-                  <TableHead className="text-xs font-bold text-neutral-700">Employee</TableHead>
-                  <TableHead className="text-xs font-bold text-neutral-700">Trace Time</TableHead>
-                  <TableHead className="text-xs font-bold text-neutral-700">Location Address</TableHead>
-                  <TableHead className="text-xs font-bold text-neutral-700">Coordinates</TableHead>
-                  <TableHead className="text-xs font-bold text-neutral-700">Accuracy</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-neutral-700">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPings.map((ping) => {
-                  const empName = ping.employee
-                    ? `${ping.employee.firstName} ${ping.employee.lastName}`
-                    : "Unknown";
-                  const initial = ping.employee?.firstName?.[0] ?? "U";
-                  const timeStr = new Date(ping.capturedAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  });
+      {/* VIEW 1: All Employees Live Status */}
+      {viewMode === "overview" && (
+        <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+          {isStaffLoading ? (
+            <div className="py-16 text-center text-xs text-neutral-400">
+              <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
+              Loading employee status and location data...
+            </div>
+          ) : filteredStaff.length === 0 ? (
+            <div className="py-16 text-center text-xs text-neutral-400">
+              <Users className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
+              <p className="font-semibold text-neutral-700 text-sm">No Employees Found</p>
+              <p className="text-neutral-400 mt-1">Try adjusting your search query or filters.</p>
+            </div>
+          ) : (
+            <div>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-neutral-50/80">
+                    <TableRow>
+                      <TableHead className="text-xs font-bold text-neutral-700">Employee</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Assigned Work Site (200m)</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Today's Punch Status</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Latest 30-Min GPS Ping</TableHead>
+                      <TableHead className="text-right text-xs font-bold text-neutral-700">Map Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStaff.map(({ employee: emp, todayAttendance: att, latestPing: ping }) => {
+                      const empName = `${emp.firstName} ${emp.lastName}`;
+                      const initial = emp.firstName?.[0] ?? "E";
+
+                      const siteName = emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)";
+                      const siteLat = emp.workLocationLat ?? 28.3997196;
+                      const siteLng = emp.workLocationLng ?? 77.0385682;
+
+                      // Preferred coordinates to show on map (latest ping or checkin or assigned site)
+                      const targetLat = ping?.lat ?? att?.checkInLat ?? siteLat;
+                      const targetLng = ping?.lng ?? att?.checkInLng ?? siteLng;
+                      const targetLabel = ping
+                        ? `30-Min Ping at ${new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                        : att?.checkInTime
+                          ? `Punch-in at ${new Date(att.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                          : siteName;
+
+                      return (
+                        <TableRow key={emp.id} className="hover:bg-neutral-50/60 transition-colors">
+                          {/* Employee */}
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-xs text-white shadow-2xs">
+                                {initial}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-xs text-neutral-900 leading-tight">
+                                  {empName}
+                                </p>
+                                <p className="text-[10px] text-neutral-400">
+                                  {emp.employeeCode} · {emp.department?.name ?? "General"}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* Assigned Site */}
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-medium text-neutral-800 flex items-center gap-1">
+                                <Building className="h-3 w-3 text-neutral-400" />
+                                <span>{siteName}</span>
+                              </p>
+                              <p className="text-[10px] font-mono text-neutral-400">
+                                {siteLat.toFixed(4)}, {siteLng.toFixed(4)} · 200m geofence
+                              </p>
+                            </div>
+                          </TableCell>
+
+                          {/* Today's Punch Status */}
+                          <TableCell>
+                            {att?.checkInTime ? (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                                      att.withinGeofence
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                    )}
+                                  >
+                                    <ShieldCheck className="h-3 w-3" />
+                                    {att.status} · {att.withinGeofence ? "Within 200m" : "Outside"}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-neutral-500">
+                                  In: {new Date(att.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  {att.checkOutTime
+                                    ? ` · Out: ${new Date(att.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                    : " · Active"}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">
+                                Not punched in
+                              </span>
+                            )}
+                          </TableCell>
+
+                          {/* Latest Ping */}
+                          <TableCell>
+                            {ping ? (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1 text-xs text-neutral-800 font-medium">
+                                  <Clock className="h-3 w-3 text-neutral-400" />
+                                  <span>
+                                    {new Date(ping.capturedAt).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      "h-1.5 w-1.5 rounded-full ml-1",
+                                      ping.withinGeofence ? "bg-emerald-500" : "bg-amber-500"
+                                    )}
+                                  />
+                                </div>
+                                <p className="text-[10px] text-neutral-400 truncate max-w-[200px]" title={ping.address || ""}>
+                                  {ping.address || `${ping.lat.toFixed(4)}, ${ping.lng.toFixed(4)}`}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-neutral-400 italic">
+                                No ping recorded today
+                              </span>
+                            )}
+                          </TableCell>
+
+                          {/* Map Action */}
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setActiveMapPing({
+                                    lat: targetLat,
+                                    lng: targetLng,
+                                    label: `${empName} (${targetLabel})`,
+                                    address: ping?.address || att?.checkInAddress || siteName,
+                                  })
+                                }
+                                className="h-7 text-xs text-teal-700 hover:bg-teal-50"
+                              >
+                                View Pin
+                              </Button>
+                              <a
+                                href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                              >
+                                <span>Google Maps</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="md:hidden divide-y divide-neutral-100 p-2 space-y-2.5">
+                {filteredStaff.map(({ employee: emp, todayAttendance: att, latestPing: ping }) => {
+                  const empName = `${emp.firstName} ${emp.lastName}`;
+                  const siteName = emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)";
+                  const siteLat = emp.workLocationLat ?? 28.3997196;
+                  const siteLng = emp.workLocationLng ?? 77.0385682;
+
+                  const targetLat = ping?.lat ?? att?.checkInLat ?? siteLat;
+                  const targetLng = ping?.lng ?? att?.checkInLng ?? siteLng;
+                  const targetLabel = ping
+                    ? `Ping at ${new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : att?.checkInTime
+                      ? `Punch at ${new Date(att.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                      : siteName;
 
                   return (
-                    <TableRow key={ping.id} className="hover:bg-neutral-50/60 transition-colors">
-                      {/* Employee Info */}
-                      <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-xs text-white shadow-2xs">
-                            {initial}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-xs text-neutral-900 leading-tight">
-                              {empName}
-                            </p>
-                            <p className="text-[10px] text-neutral-400">
-                              {ping.employee?.employeeCode ?? "RS-EMP"} · {ping.employee?.department?.name ?? "General"}
-                            </p>
-                          </div>
+                    <div key={emp.id} className="p-3 bg-neutral-50/60 rounded-xl space-y-2 border border-neutral-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-xs text-neutral-900">{empName}</p>
+                          <p className="text-[10px] text-neutral-400">
+                            {emp.employeeCode} · {emp.department?.name ?? "General"}
+                          </p>
                         </div>
-                      </TableCell>
+                        {att?.checkInTime ? (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                              att.withinGeofence
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            )}
+                          >
+                            {att.status}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500 font-medium">
+                            Not in
+                          </span>
+                        )}
+                      </div>
 
-                      {/* Time */}
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-xs text-neutral-700 font-medium">
-                          <Clock className="h-3 w-3 text-neutral-400" />
-                          <span>{timeStr}</span>
+                      <div className="text-[11px] text-neutral-700 space-y-1 bg-white p-2.5 rounded-lg border border-neutral-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-neutral-400">Assigned Site:</span>
+                          <span className="font-semibold text-neutral-800">{siteName}</span>
                         </div>
-                      </TableCell>
+                        {att?.checkInTime && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-neutral-400">Punch Time:</span>
+                            <span>
+                              {new Date(att.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {att.checkOutTime ? ` – ${new Date(att.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : " (Active)"}
+                            </span>
+                          </div>
+                        )}
+                        {ping && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-neutral-400">Latest 30m Ping:</span>
+                            <span className="font-medium text-teal-800">
+                              {new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
 
-                      {/* Address */}
-                      <TableCell className="max-w-[280px]">
-                        <p className="text-xs text-neutral-800 font-medium truncate" title={ping.address ?? "Location coordinate recorded"}>
-                          {ping.address || "Street location recorded"}
-                        </p>
-                      </TableCell>
-
-                      {/* Coordinates */}
-                      <TableCell>
-                        <span className="font-mono text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
-                          {ping.lat.toFixed(5)}, {ping.lng.toFixed(5)}
-                        </span>
-                      </TableCell>
-
-                      {/* Accuracy */}
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-semibold text-neutral-600 border-neutral-200"
-                        >
-                          {ping.accuracyM ? `±${Math.round(ping.accuracyM)}m` : "GPS standard"}
-                        </Badge>
-                      </TableCell>
-
-                      {/* Action */}
-                      <TableCell className="text-right">
+                      <div className="flex items-center justify-between pt-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() =>
                             setActiveMapPing({
-                              lat: ping.lat,
-                              lng: ping.lng,
-                              label: `${empName} at ${timeStr}`,
-                              address: ping.address || "Location coordinate",
+                              lat: targetLat,
+                              lng: targetLng,
+                              label: `${empName} (${targetLabel})`,
+                              address: ping?.address || att?.checkInAddress || siteName,
                             })
                           }
-                          className="h-8 gap-1.5 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10"
+                          className="h-7 text-xs text-teal-700 hover:bg-teal-50 px-2 font-semibold"
                         >
-                          <MapPin className="h-3.5 w-3.5" />
-                          <span>View Map</span>
+                          <MapPin className="h-3 w-3 mr-1" />
+                          Pin Map
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                        <a
+                          href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
+                        >
+                          Google Maps <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* VIEW 2: Detailed 30-Minute Location Traces */}
+      {viewMode === "traces" && (
+        <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+          {isPingsLoading ? (
+            <div className="py-16 text-center text-xs text-neutral-400">
+              <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
+              Loading 30-minute location traces...
+            </div>
+          ) : filteredPings.length === 0 ? (
+            <div className="py-16 text-center text-xs text-neutral-400">
+              <MapPin className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
+              <p className="font-semibold text-neutral-700 text-sm">No GPS Traces Found</p>
+              <p className="text-neutral-400 mt-1 max-w-sm mx-auto">
+                No GPS pings were recorded for this date and filter. Personnel pings are generated automatically every 30 minutes while signed in.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-neutral-50/80">
+                    <TableRow>
+                      <TableHead className="text-xs font-bold text-neutral-700">Employee</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Trace Time</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Location Address</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Coordinates</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Perimeter Status</TableHead>
+                      <TableHead className="text-right text-xs font-bold text-neutral-700">Google Maps</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPings.map((ping) => {
+                      const empName = ping.employee
+                        ? `${ping.employee.firstName} ${ping.employee.lastName}`
+                        : "Unknown";
+                      const initial = ping.employee?.firstName?.[0] ?? "U";
+                      const timeStr = new Date(ping.capturedAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      });
+
+                      return (
+                        <TableRow key={ping.id} className="hover:bg-neutral-50/60 transition-colors">
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-xs text-white shadow-2xs">
+                                {initial}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-xs text-neutral-900 leading-tight">
+                                  {empName}
+                                </p>
+                                <p className="text-[10px] text-neutral-400">
+                                  {ping.employee?.employeeCode ?? "RS-EMP"} · {ping.employee?.department?.name ?? "General"}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 text-xs text-neutral-700 font-medium">
+                              <Clock className="h-3 w-3 text-neutral-400" />
+                              <span>{timeStr}</span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="max-w-[280px]">
+                            <p
+                              className="text-xs text-neutral-800 font-medium truncate"
+                              title={ping.address ?? "Location coordinate recorded"}
+                            >
+                              {ping.address || "Street location recorded"}
+                            </p>
+                          </TableCell>
+
+                          <TableCell>
+                            <span className="font-mono text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
+                              {ping.lat.toFixed(5)}, {ping.lng.toFixed(5)}
+                            </span>
+                          </TableCell>
+
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                                ping.withinGeofence
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-amber-50 text-amber-700 border-amber-200"
+                              )}
+                            >
+                              <ShieldCheck className="h-3 w-3" />
+                              {ping.withinGeofence ? "Within 200m" : "Outside Perimeter"}
+                            </span>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setActiveMapPing({
+                                    lat: ping.lat,
+                                    lng: ping.lng,
+                                    label: `${empName} at ${timeStr}`,
+                                    address: ping.address || "Location coordinate",
+                                  })
+                                }
+                                className="h-7 text-xs text-teal-700 hover:bg-teal-50"
+                              >
+                                View Pin
+                              </Button>
+                              <a
+                                href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                              >
+                                <span>Google Maps</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="md:hidden divide-y divide-neutral-100 p-2 space-y-2">
+                {filteredPings.map((ping) => {
+                  const empName = ping.employee
+                    ? `${ping.employee.firstName} ${ping.employee.lastName}`
+                    : "Unknown";
+                  const timeStr = new Date(ping.capturedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
+                  return (
+                    <div key={ping.id} className="p-3 bg-neutral-50/50 rounded-xl space-y-2 border border-neutral-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-xs text-neutral-900">{empName}</p>
+                          <p className="text-[10px] text-neutral-400">{ping.employee?.employeeCode}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs font-semibold text-neutral-700">
+                          <Clock className="h-3.5 w-3.5 text-neutral-400" />
+                          <span>{timeStr}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-neutral-700 line-clamp-2">
+                        {ping.address || "Location coordinate recorded"}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                            ping.withinGeofence
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          )}
+                        >
+                          {ping.withinGeofence ? "Within 200m" : "Outside"}
+                        </span>
+
+                        <a
+                          href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
+                        >
+                          Open Maps <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

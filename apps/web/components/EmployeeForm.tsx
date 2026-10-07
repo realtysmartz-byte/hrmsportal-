@@ -30,6 +30,8 @@ type EmployeeFormValues = {
   profilePhotoUrl: string;
   status: (typeof EMPLOYEE_STATUSES)[number];
   workLocationName: string;
+  workLocationLat: string;
+  workLocationLng: string;
 };
 
 const emptyValues: EmployeeFormValues = {
@@ -50,7 +52,9 @@ const emptyValues: EmployeeFormValues = {
   address: "",
   profilePhotoUrl: "",
   status: "ACTIVE",
-  workLocationName: "Realty Smartz Private Limited HQ, Gurugram",
+  workLocationName: "REALTY SMARTZ PVT LTD",
+  workLocationLat: "28.3997196",
+  workLocationLng: "77.0385682",
 };
 
 function toDateInput(value?: Date | string | null) {
@@ -88,8 +92,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     managerId: initial?.managerId ?? "",
     address: initial?.address ?? "",
     profilePhotoUrl: initial?.profilePhotoUrl ?? "",
-    workLocationName:
-      initial?.workLocationName ?? "Realty Smartz Private Limited HQ, Gurugram",
+    workLocationName: initial?.workLocationName ?? "REALTY SMARTZ PVT LTD",
+    workLocationLat: (initial as any)?.workLocationLat != null ? String((initial as any).workLocationLat) : "28.3997196",
+    workLocationLng: (initial as any)?.workLocationLng != null ? String((initial as any).workLocationLng) : "77.0385682",
   });
 
   const { data: departments } = trpc.department.list.useQuery();
@@ -130,6 +135,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     e.preventDefault();
     setError("");
 
+    const parsedLat = values.workLocationLat.trim() ? parseFloat(values.workLocationLat) : null;
+    const parsedLng = values.workLocationLng.trim() ? parseFloat(values.workLocationLng) : null;
+
     const payload = {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -150,6 +158,8 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       profilePhotoUrl: values.profilePhotoUrl || null,
       status: values.status,
       workLocationName: values.workLocationName || null,
+      workLocationLat: Number.isFinite(parsedLat) ? parsedLat : null,
+      workLocationLng: Number.isFinite(parsedLng) ? parsedLng : null,
     };
 
     if (mode === "create") {
@@ -355,12 +365,101 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
               onChange={(e) => setField("dateOfJoining", e.target.value)}
             />
           </Field>
-          <Field label="Work Location">
-            <Input
-              value={values.workLocationName}
-              onChange={(e) => setField("workLocationName", e.target.value)}
-            />
-          </Field>
+          {/* Work Mode & Site / Geofenced Location Allocation */}
+          <div className="sm:col-span-2 rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <Label className="text-sm font-bold text-neutral-900 flex items-center gap-1.5">
+                  <span>📍 Site & Geofenced Punch-In Location</span>
+                  <span className="rounded-full bg-[#FF7A70]/10 px-2 py-0.5 text-[10px] font-bold text-[#FF7A70]">
+                    200m Radius
+                  </span>
+                </Label>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Staff can only punch in within 200m of this location. Leave as HQ office for registered office login, or enter remote site coordinates.
+                </p>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setField("workLocationName", "REALTY SMARTZ PVT LTD");
+                    setField("workLocationLat", "28.3997196");
+                    setField("workLocationLng", "77.0385682");
+                  }}
+                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100 shadow-2xs transition-colors"
+                >
+                  🏢 Set HQ Office
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          setField("workLocationLat", String(pos.coords.latitude));
+                          setField("workLocationLng", String(pos.coords.longitude));
+                          if (!values.workLocationName || values.workLocationName === "REALTY SMARTZ PVT LTD") {
+                            setField("workLocationName", "Allocated Remote Site");
+                          }
+                        },
+                        () => alert("Could not fetch device GPS coordinates.")
+                      );
+                    }
+                  }}
+                  className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 hover:bg-teal-100 shadow-2xs transition-colors"
+                >
+                  📍 Detect Device GPS
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1 sm:col-span-1">
+                <Label className="text-xs font-medium text-neutral-700">Location / Site Name</Label>
+                <Input
+                  placeholder="e.g. REALTY SMARTZ PVT LTD or Site A"
+                  value={values.workLocationName}
+                  onChange={(e) => setField("workLocationName", e.target.value)}
+                  className="text-xs h-9 bg-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-neutral-700">Latitude</Label>
+                <Input
+                  placeholder="28.3997196"
+                  value={values.workLocationLat}
+                  onChange={(e) => setField("workLocationLat", e.target.value)}
+                  className="text-xs h-9 font-mono bg-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-neutral-700">Longitude</Label>
+                <Input
+                  placeholder="77.0385682"
+                  value={values.workLocationLng}
+                  onChange={(e) => setField("workLocationLng", e.target.value)}
+                  className="text-xs h-9 font-mono bg-white"
+                />
+              </div>
+            </div>
+
+            {values.workLocationLat && values.workLocationLng && (
+              <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-200/60">
+                <span>Coordinates: {values.workLocationLat}, {values.workLocationLng}</span>
+                <a
+                  href={`https://www.google.com/maps?q=${values.workLocationLat},${values.workLocationLng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#FF7A70] font-semibold hover:underline"
+                >
+                  Verify on Google Maps →
+                </a>
+              </div>
+            )}
+          </div>
           <div className="sm:col-span-2 space-y-2">
             <Label>Manager</Label>
             <Input
