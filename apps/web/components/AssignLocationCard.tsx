@@ -56,6 +56,11 @@ export function AssignLocationCard({
   canManage,
   onUpdated,
 }: AssignLocationCardProps) {
+  // Only HR Admin can assign or change employee work locations. Never visible to regular employees!
+  if (!canManage) {
+    return null;
+  }
+
   const utils = trpc.useUtils();
 
   const [query, setQuery] = useState("");

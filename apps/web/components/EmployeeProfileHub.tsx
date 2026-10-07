@@ -127,11 +127,16 @@ export function EmployeeProfileHub({
   });
 
   const tabs = useMemo(() => {
+    const isAdmin = portal === "admin" && Boolean(data?.access.canManage);
     const all: { id: TabId; label: string; sensitive?: boolean }[] = [
       { id: "overview", label: "About" },
       { id: "job", label: "Job" },
-      { id: "attendance", label: "Attendance & Location", sensitive: true },
-      { id: "location", label: "Assign Site & GPS", sensitive: true },
+      { id: "attendance", label: "Attendance", sensitive: true },
+      {
+        id: "location",
+        label: isAdmin ? "Assign Site & GPS" : "30-Min GPS Trail",
+        sensitive: true,
+      },
       { id: "leave", label: "Leave", sensitive: true },
       { id: "documents", label: "Documents", sensitive: true },
       { id: "performance", label: "Performance" },
@@ -140,7 +145,7 @@ export function EmployeeProfileHub({
       return all.filter((t) => !t.sensitive);
     }
     return all;
-  }, [data?.access.canViewSensitive]);
+  }, [portal, data?.access.canManage, data?.access.canViewSensitive]);
 
   if (isLoading) return <PageSkeleton />;
 
@@ -398,7 +403,7 @@ export function EmployeeProfileHub({
                   <AttendanceTab
                     employeeId={emp.id}
                     emp={emp}
-                    canManage={access.canManage}
+                    canManage={portal === "admin" && access.canManage}
                   />
                 )}
                 {tab === "leave" && (
@@ -421,7 +426,10 @@ export function EmployeeProfileHub({
                   <PerformanceTab employeeId={emp.id} />
                 )}
                 {tab === "location" && (
-                  <GpsTrailTab emp={emp} canManage={access.canManage} />
+                  <GpsTrailTab
+                    emp={emp}
+                    canManage={portal === "admin" && access.canManage}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>
@@ -1255,15 +1263,17 @@ function AttendanceTab({
         />
       </div>
 
-      {/* 2. Assign Punch-In Location (200m Geofenced) with Auto-Suggest */}
-      <AssignLocationCard
-        employeeId={emp.id}
-        employeeName={fullName(emp.firstName, emp.lastName)}
-        currentLocationName={emp.workLocationName}
-        currentLat={emp.workLocationLat}
-        currentLng={emp.workLocationLng}
-        canManage={canManage}
-      />
+      {/* 2. Assign Punch-In Location (ONLY for HR Admin in Admin Console) */}
+      {canManage && (
+        <AssignLocationCard
+          employeeId={emp.id}
+          employeeName={fullName(emp.firstName, emp.lastName)}
+          currentLocationName={emp.workLocationName}
+          currentLat={emp.workLocationLat}
+          currentLng={emp.workLocationLng}
+          canManage={canManage}
+        />
+      )}
 
       {/* 3. Location Traced with Google Map & Half-Hour GPS Breadcrumbs */}
       <div className="rounded-2xl border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">
@@ -2239,15 +2249,47 @@ function GpsTrailTab({
 
   return (
     <div className="space-y-5">
-      {/* 1. Assigned Work Location & 200m Geofencing Card with Search & Auto-Suggest */}
-      <AssignLocationCard
-        employeeId={emp.id}
-        employeeName={fullName(emp.firstName, emp.lastName)}
-        currentLocationName={emp.workLocationName}
-        currentLat={emp.workLocationLat}
-        currentLng={emp.workLocationLng}
-        canManage={canManage}
-      />
+      {/* 1. If HR Admin: Assign Location Card. If Employee: Read-only workplace badge */}
+      {canManage ? (
+        <AssignLocationCard
+          employeeId={emp.id}
+          employeeName={fullName(emp.firstName, emp.lastName)}
+          currentLocationName={emp.workLocationName}
+          currentLat={emp.workLocationLat}
+          currentLng={emp.workLocationLng}
+          canManage={canManage}
+        />
+      ) : (
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+              <Building className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-neutral-900">
+                  {emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)"}
+                </h4>
+                <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                  200m Geofenced
+                </span>
+              </div>
+              <p className="text-xs text-neutral-500">
+                Official Assigned Workplace (Punch-in allowed within 200m)
+              </p>
+            </div>
+          </div>
+          <a
+            href={`https://www.google.com/maps?q=${emp.workLocationLat ?? 28.3997196},${emp.workLocationLng ?? 77.0385682}&z=17`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#FF7A70] hover:underline"
+          >
+            <span>View Map</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
 
       {/* 2. Interactive Map & Date Selector */}
       <div className="rounded-2xl border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">

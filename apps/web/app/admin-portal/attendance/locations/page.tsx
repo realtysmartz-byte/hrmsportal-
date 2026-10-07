@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { LocationMap } from "@/components/LocationMap";
+import { AssignLocationCard } from "@/components/AssignLocationCard";
 import { cn } from "@/lib/utils";
 
 export default function LocationTracingPage() {
@@ -45,6 +46,13 @@ export default function LocationTracingPage() {
     lng: number;
     label: string;
     address: string;
+  } | null>(null);
+  const [assignStaffTarget, setAssignStaffTarget] = useState<{
+    id: string;
+    name: string;
+    locationName: string | null;
+    lat: number | null;
+    lng: number | null;
   } | null>(null);
 
   // 1. Fetch live personnel overview (all employees with today's status & latest GPS)
@@ -317,6 +325,43 @@ export default function LocationTracingPage() {
         </div>
       )}
 
+      {/* Assign Location Modal for Admin */}
+      {assignStaffTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white p-5 sm:p-6 shadow-2xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-4">
+              <div>
+                <h3 className="font-bold text-base text-neutral-900">
+                  Admin Work Site Allocation
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  Assign official project or office location for {assignStaffTarget.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignStaffTarget(null)}
+                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <AssignLocationCard
+              employeeId={assignStaffTarget.id}
+              employeeName={assignStaffTarget.name}
+              currentLocationName={assignStaffTarget.locationName}
+              currentLat={assignStaffTarget.lat}
+              currentLng={assignStaffTarget.lng}
+              canManage={true}
+              onUpdated={() => {
+                void refetchStaff();
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* VIEW 1: All Employees Live Status */}
       {viewMode === "overview" && (
         <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
@@ -474,6 +519,22 @@ export default function LocationTracingPage() {
                               >
                                 View Pin
                               </Button>
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  setAssignStaffTarget({
+                                    id: emp.id,
+                                    name: empName,
+                                    locationName: emp.workLocationName,
+                                    lat: emp.workLocationLat,
+                                    lng: emp.workLocationLng,
+                                  })
+                                }
+                                className="h-7 text-xs gap-1 bg-[#FF7A70] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold"
+                              >
+                                <Navigation className="h-3 w-3" />
+                                <span>Assign Site</span>
+                              </Button>
                               <a
                                 href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
                                 target="_blank"
@@ -559,7 +620,7 @@ export default function LocationTracingPage() {
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center justify-between pt-1 gap-2 flex-wrap">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -576,13 +637,30 @@ export default function LocationTracingPage() {
                           <MapPin className="h-3 w-3 mr-1" />
                           Pin Map
                         </Button>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            setAssignStaffTarget({
+                              id: emp.id,
+                              name: empName,
+                              locationName: emp.workLocationName,
+                              lat: emp.workLocationLat,
+                              lng: emp.workLocationLng,
+                            })
+                          }
+                          className="h-7 text-xs gap-1 bg-[#FF7A70] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold px-2"
+                        >
+                          <Navigation className="h-3 w-3" />
+                          <span>Assign Site</span>
+                        </Button>
                         <a
                           href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
                         >
-                          Google Maps <ExternalLink className="h-3 w-3" />
+                          <span>Open Maps</span>
+                          <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
                     </div>
