@@ -69,7 +69,7 @@ export default function AdminPerformanceCyclesPage() {
   if (isLoading) return <PageSkeleton />;
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       {/* 1. TOP HEADER (Dashboards V3 Style) */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

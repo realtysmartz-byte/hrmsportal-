@@ -156,8 +156,8 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
         />
 
         {/* Dashboard Main Content */}
-        <main className="flex-1 w-full max-w-full overflow-x-hidden">
-          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-6 lg:p-8 overflow-hidden">
+        <main className="flex-1 w-full max-w-full min-w-0">
+          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>

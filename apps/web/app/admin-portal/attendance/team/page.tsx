@@ -222,7 +222,7 @@ export default function TeamAttendancePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       {/* 1. TOP HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

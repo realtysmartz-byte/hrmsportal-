@@ -96,7 +96,7 @@ export default function AdminCycleDetailPage() {
   const isClosed = cycle.status === "CLOSED";
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       <div>
         <Link
           href="/admin-portal/performance"

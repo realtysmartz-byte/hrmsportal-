@@ -89,7 +89,7 @@ export default function CompanySettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 overflow-hidden">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
           <span>Realty Smartz Private Limited</span>

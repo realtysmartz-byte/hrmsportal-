@@ -26,6 +26,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   MapPin,
+  Navigation,
   Download,
   FileSpreadsheet,
   Mail,
@@ -41,6 +42,7 @@ const coreNavItems = [
   { href: "/admin-portal/designations", label: "Designations", icon: Briefcase },
   { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock },
   { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin },
+  { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation },
   { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText },
   { href: "/admin-portal/performance", label: "Performance", icon: Award },
   { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness },
@@ -141,10 +143,10 @@ export function AdminSidebar({
       {/* Main Navigation Items */}
       <nav
         className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-none",
+          "flex-1 overflow-y-auto overflow-x-hidden py-3 overscroll-contain scrollbar-none",
           isCollapsed ? "px-2 space-y-3" : "px-3 space-y-6"
         )}
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
       >
         {/* Section: Core Operations */}
         <div className="space-y-1">
