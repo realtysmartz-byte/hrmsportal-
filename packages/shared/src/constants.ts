@@ -251,9 +251,28 @@ export function getISTDateParts(d: Date = new Date()) {
  * Returns UTC midnight Date corresponding to the IST calendar day.
  * Ensures consistent day-boundaries whether running on Vercel (UTC) or local.
  */
-export function startOfDayUTC(d: Date = new Date()): Date {
+export function startOfDayUTC(d?: Date | string | null): Date {
+  if (!d) d = new Date();
+  if (typeof d === "string") {
+    const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return new Date(
+        Date.UTC(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10))
+      );
+    }
+    d = new Date(d);
+  }
   const ist = getISTDateParts(d);
   return new Date(Date.UTC(ist.year, ist.month - 1, ist.day));
+}
+
+/** Returns YYYY-MM-DD date string representing the IST day */
+export function getISTDateString(d: Date = new Date()): string {
+  const ist = getISTDateParts(d);
+  const y = ist.year;
+  const m = String(ist.month).padStart(2, "0");
+  const day = String(ist.day).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /**
@@ -278,16 +297,36 @@ export function formatTimeIST(date?: Date | string | null): string {
   });
 }
 
-/** Format a date in IST format (e.g. "25 Sep 2026") */
+/** Format a date in IST format (e.g. "08 Oct 2026") */
 export function formatDateIST(date?: Date | string | null): string {
   if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-IN", {
     timeZone: TIMEZONE_IST,
-    day: "numeric",
+    day: "2-digit",
     month: "short",
     year: "numeric",
   });
+}
+
+/** Format both date and time in readable IST format (e.g. "08 Oct 2026, 09:32 AM") */
+export function formatDateTimeIST(date?: Date | string | null): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+  const dateStr = d.toLocaleDateString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const timeStr = d.toLocaleTimeString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${dateStr}, ${timeStr}`;
 }
 

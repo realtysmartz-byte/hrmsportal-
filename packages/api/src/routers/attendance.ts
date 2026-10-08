@@ -696,6 +696,7 @@ export const attendanceRouter = router({
           lastName: true,
           employeeCode: true,
           department: { select: { id: true, name: true } },
+          designation: { select: { id: true, title: true } },
         },
         orderBy: { firstName: "asc" },
       });
