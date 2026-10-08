@@ -174,7 +174,7 @@ export default function AllocateLocationsPage() {
       const lng = variables.workLocationLng ?? targetLng;
 
       setErrorMsg(null);
-      setSuccessMsg(`✓ Location successfully allocated for ${updatedName}! 200-meter geofence active.`);
+      setSuccessMsg(`✓ Location successfully allocated for ${updatedName}! Workplace verification active.`);
       setSavedPopup({
         employeeName: updatedName,
         employeeCode: code,
@@ -305,7 +305,7 @@ export default function AllocateLocationsPage() {
             Allocate Work Locations
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
-            Dynamically allocate project sites (M3M projects, DLF tech hubs) or HQ office. Employees can punch in only within 200m.
+            Dynamically allocate project sites (M3M projects, DLF tech hubs) or HQ office for authorized employee check-ins.
           </p>
         </div>
 
@@ -362,9 +362,9 @@ export default function AllocateLocationsPage() {
             <ShieldCheck className="h-4.5 w-4.5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Geofence Radius</p>
-            <p className="text-lg sm:text-2xl font-extrabold text-neutral-900 leading-tight">200m</p>
-            <p className="text-[10px] text-emerald-600 font-semibold truncate">Strict Verification</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Workplace Verification</p>
+            <p className="text-lg sm:text-2xl font-extrabold text-neutral-900 leading-tight">Active</p>
+            <p className="text-[10px] text-emerald-600 font-semibold truncate">Policy Enforced</p>
           </div>
         </Card>
       </div>
@@ -381,7 +381,7 @@ export default function AllocateLocationsPage() {
               <div className="min-w-0">
                 <h2 className="text-sm font-bold text-neutral-900 truncate">Interactive Allocation Studio</h2>
                 <p className="text-[11px] text-neutral-500 truncate">
-                  Select employee, search or paste Google Maps location, and save geofence
+                  Select employee, search or select work location, and save allocation
                 </p>
               </div>
             </div>
@@ -617,7 +617,7 @@ export default function AllocateLocationsPage() {
 
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 self-start sm:self-auto">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  <span>200m Perimeter Enforced</span>
+                  <span>Workplace Verification Enforced</span>
                 </div>
               </div>
 
@@ -689,18 +689,18 @@ export default function AllocateLocationsPage() {
                   ) : (
                     <>
                       <Check className="h-4 w-4 stroke-[3]" />
-                      <span>Save Allocation (200m Perimeter)</span>
+                      <span>Save Allocation</span>
                     </>
                   )}
                 </Button>
               </div>
             </div>
 
-            {/* Live Interactive Map Preview with 200m note */}
+            {/* Live Interactive Map Preview */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
-                  Live 200m Geofence Perimeter Map
+                  Live Workplace Location Map
                 </span>
                 <span className="text-[10px] text-neutral-400 font-mono">
                   {targetLat.toFixed(5)}, {targetLng.toFixed(5)}
@@ -710,7 +710,7 @@ export default function AllocateLocationsPage() {
                 <LocationMap
                   lat={targetLat}
                   lng={targetLng}
-                  label={`${targetName} · 200m Perimeter`}
+                  label={`${targetName} · Authorized Workplace`}
                   height={220}
                 />
               </div>
@@ -814,7 +814,7 @@ export default function AllocateLocationsPage() {
 
                       <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                         <ShieldCheck className="h-2.5 w-2.5" />
-                        200m
+                        Active
                       </span>
                     </div>
 
@@ -881,7 +881,7 @@ export default function AllocateLocationsPage() {
                     <TableHead className="text-xs font-bold text-neutral-700">Department</TableHead>
                     <TableHead className="text-xs font-bold text-neutral-700">Allocated Worksite</TableHead>
                     <TableHead className="text-xs font-bold text-neutral-700">Coordinates</TableHead>
-                    <TableHead className="text-xs font-bold text-neutral-700">Perimeter</TableHead>
+                    <TableHead className="text-xs font-bold text-neutral-700">Verification</TableHead>
                     <TableHead className="text-right text-xs font-bold text-neutral-700">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -945,7 +945,7 @@ export default function AllocateLocationsPage() {
                         <TableCell>
                           <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <ShieldCheck className="h-3 w-3" />
-                            200m Radius
+                            Active Location
                           </span>
                         </TableCell>
 
@@ -1002,7 +1002,7 @@ export default function AllocateLocationsPage() {
               Location Successfully Allocated!
             </h3>
             <p className="text-xs text-neutral-500 mt-1">
-              200-meter geofence perimeter is now active for this employee.
+              Workplace location verification is now active for this employee.
             </p>
 
             <div className="mt-4 rounded-2xl bg-neutral-50 p-4 border border-neutral-100 text-left space-y-2">
@@ -1020,7 +1020,7 @@ export default function AllocateLocationsPage() {
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg">
                 <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                <span>Strict 200m Perimeter Verification Active</span>
+                <span>Strict Workplace Verification Active</span>
               </div>
             </div>
 

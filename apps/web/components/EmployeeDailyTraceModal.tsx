@@ -110,7 +110,7 @@ export function EmployeeDailyTraceModal({
                 <span>•</span>
                 <span className="flex items-center gap-1 text-neutral-700 font-medium">
                   <Building className="h-3 w-3 text-neutral-400" />
-                  Assigned Site: {assignedSiteName} (200m geofence)
+                  Assigned Site: {assignedSiteName}
                 </span>
               </p>
             </div>
@@ -261,11 +261,11 @@ export function EmployeeDailyTraceModal({
                       >
                         {activeEvent.withinGeofence ? (
                           <>
-                            <ShieldCheck className="h-3 w-3" /> Within 200m Perimeter
+                            <ShieldCheck className="h-3 w-3" /> Workplace Location
                           </>
                         ) : (
                           <>
-                            <ShieldAlert className="h-3 w-3" /> Outside Geofence
+                            <ShieldAlert className="h-3 w-3" /> Outside Workplace
                           </>
                         )}
                       </span>
@@ -364,7 +364,7 @@ export function EmployeeDailyTraceModal({
                                 "h-2 w-2 rounded-full",
                                 event.withinGeofence ? "bg-emerald-500" : "bg-amber-500"
                               )}
-                              title={event.withinGeofence ? "Within 200m" : "Outside Geofence"}
+                              title={event.withinGeofence ? "Workplace Location" : "Outside Workplace"}
                             />
                           </div>
 
@@ -382,7 +382,7 @@ export function EmployeeDailyTraceModal({
                                 event.withinGeofence ? "text-emerald-600" : "text-amber-600"
                               )}
                             >
-                              {event.withinGeofence ? "Inside 200m" : "Outside"}
+                              {event.withinGeofence ? "Workplace" : "Outside"}
                             </span>
                           </div>
                         </div>

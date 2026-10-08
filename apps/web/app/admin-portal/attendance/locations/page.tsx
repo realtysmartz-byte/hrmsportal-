@@ -135,7 +135,7 @@ export default function LocationTracingPage() {
             Employee Location & GPS Tracking
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
-            Real-time live location, assigned site geofencing (200m), and 30-minute interval breadcrumb traces.
+            Real-time live location, assigned workplace verification, and 30-minute interval breadcrumb traces.
           </p>
         </div>
 
@@ -200,10 +200,10 @@ export default function LocationTracingPage() {
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-              Assigned Geofence
+              Workplace Verification
             </p>
-            <p className="text-xl sm:text-2xl font-extrabold text-neutral-900">200m</p>
-            <p className="text-[10px] text-neutral-500">Office & site perimeter</p>
+            <p className="text-xl sm:text-2xl font-extrabold text-neutral-900">Active</p>
+            <p className="text-[10px] text-neutral-500">Office & site policy</p>
           </div>
         </Card>
       </div>
@@ -400,7 +400,7 @@ export default function LocationTracingPage() {
                   <TableHeader className="bg-neutral-50/80">
                     <TableRow>
                       <TableHead className="text-xs font-bold text-neutral-700">Employee</TableHead>
-                      <TableHead className="text-xs font-bold text-neutral-700">Assigned Work Site (200m)</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Assigned Work Site</TableHead>
                       <TableHead className="text-xs font-bold text-neutral-700">Today's Punch Status</TableHead>
                       <TableHead className="text-xs font-bold text-neutral-700">Latest 30-Min GPS Ping</TableHead>
                       <TableHead className="text-right text-xs font-bold text-neutral-700">Map Action</TableHead>
@@ -451,7 +451,7 @@ export default function LocationTracingPage() {
                                 <span>{siteName}</span>
                               </p>
                               <p className="text-[10px] font-mono text-neutral-400">
-                                {siteLat.toFixed(4)}, {siteLng.toFixed(4)} · 200m geofence
+                                {siteLat.toFixed(4)}, {siteLng.toFixed(4)} · Assigned Workplace
                               </p>
                             </div>
                           </TableCell>
@@ -470,7 +470,7 @@ export default function LocationTracingPage() {
                                     )}
                                   >
                                     <ShieldCheck className="h-3 w-3" />
-                                    {att.status} · {att.withinGeofence ? "Within 200m" : "Outside"}
+                                    {att.status} · {att.withinGeofence ? "Workplace" : "Outside"}
                                   </span>
                                 </div>
                                 <p className="text-[10px] text-neutral-500">
@@ -797,7 +797,7 @@ export default function LocationTracingPage() {
                               )}
                             >
                               <ShieldCheck className="h-3 w-3" />
-                              {ping.withinGeofence ? "Within 200m" : "Outside Perimeter"}
+                              {ping.withinGeofence ? "Workplace Location" : "Outside Workplace"}
                             </span>
                           </TableCell>
 
@@ -881,7 +881,7 @@ export default function LocationTracingPage() {
                               : "bg-amber-50 text-amber-700 border-amber-200"
                           )}
                         >
-                          {ping.withinGeofence ? "Within 200m" : "Outside"}
+                          {ping.withinGeofence ? "Workplace" : "Outside"}
                         </span>
 
                         <div className="flex items-center gap-2">

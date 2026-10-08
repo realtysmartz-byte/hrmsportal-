@@ -1258,7 +1258,7 @@ function AttendanceTab({
           value={stats?.averageCheckIn ?? "—"}
         />
         <StatCard
-          label="Outside geofence"
+          label="Outside workplace"
           value={String(stats?.outsideGeofence ?? 0)}
         />
       </div>
@@ -1369,7 +1369,7 @@ function AttendanceTab({
                           )}
                         >
                           <ShieldCheck className="h-2.5 w-2.5" />
-                          {p.withinGeofence ? "Within 200m" : "Outside Perimeter"}
+                          {p.withinGeofence ? "Workplace Location" : "Outside Workplace"}
                         </span>
                       </div>
                       <p className="text-xs text-neutral-700 truncate" title={p.address || ""}>
@@ -1517,7 +1517,7 @@ function AttendanceTab({
                     <TableHead>Check-in</TableHead>
                     <TableHead>Check-out</TableHead>
                     <TableHead>Hours</TableHead>
-                    <TableHead>Geofence</TableHead>
+                    <TableHead>Workplace</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Map</TableHead>
                   </TableRow>
@@ -2271,11 +2271,11 @@ function GpsTrailTab({
                   {emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)"}
                 </h4>
                 <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                  200m Geofenced
+                  Assigned Workplace
                 </span>
               </div>
               <p className="text-xs text-neutral-500">
-                Official Assigned Workplace (Punch-in allowed within 200m)
+                Official Assigned Workplace (Authorized punch-in location)
               </p>
             </div>
           </div>
@@ -2372,7 +2372,7 @@ function GpsTrailTab({
                     <TableHead className="text-xs font-bold text-neutral-700">Timestamp</TableHead>
                     <TableHead className="text-xs font-bold text-neutral-700">Location Address</TableHead>
                     <TableHead className="text-xs font-bold text-neutral-700">Coordinates</TableHead>
-                    <TableHead className="text-xs font-bold text-neutral-700">Geofence Status</TableHead>
+                    <TableHead className="text-xs font-bold text-neutral-700">Location Status</TableHead>
                     <TableHead className="text-right text-xs font-bold text-neutral-700">Google Maps</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -2414,7 +2414,7 @@ function GpsTrailTab({
                             )}
                           >
                             <ShieldCheck className="h-3 w-3" />
-                            {p.withinGeofence ? "Within 200m" : "Outside Perimeter"}
+                            {p.withinGeofence ? "Workplace Location" : "Outside Workplace"}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
@@ -2473,7 +2473,7 @@ function GpsTrailTab({
                             : "bg-amber-50 text-amber-700 border-amber-200"
                         )}
                       >
-                        {p.withinGeofence ? "Within 200m" : "Outside"}
+                        {p.withinGeofence ? "Workplace" : "Outside"}
                       </span>
                     </div>
 

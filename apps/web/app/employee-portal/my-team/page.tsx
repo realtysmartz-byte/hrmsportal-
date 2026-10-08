@@ -53,7 +53,7 @@ export default function MyTeamPage() {
               <TableHead>Employee</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Check-in</TableHead>
-              <TableHead>Geofence</TableHead>
+              <TableHead>Workplace</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,7 +84,7 @@ export default function MyTeamPage() {
                     <Badge
                       variant={r.log.withinGeofence ? "success" : "warning"}
                     >
-                      {r.log.withinGeofence ? "Inside" : "Outside"}
+                      {r.log.withinGeofence ? "Workplace" : "Outside"}
                     </Badge>
                   )}
                 </TableCell>

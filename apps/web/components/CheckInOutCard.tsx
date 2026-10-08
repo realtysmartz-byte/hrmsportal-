@@ -209,10 +209,8 @@ export function CheckInOutCard() {
         session?.user?.role === "ADMIN";
 
       if (mode === "in" && !withinAllowed) {
-        const distSiteStr = curDistSite != null ? `~${Math.round(curDistSite)}m from ${assignedSiteName}` : "";
-        const distOfficeStr = `~${Math.round(curDistOffice)}m from ${officeName}`;
         setError(
-          `Punch-in strictly blocked: You are outside your allocated work perimeter (${distSiteStr ? `${distSiteStr}, ` : ""}${distOfficeStr}). Company policy requires you to be within 200m of your assigned site or office.`
+          `Punch-in blocked: You are outside your assigned workplace. Please reach your designated site or registered office to mark attendance.`
         );
         return;
       }
@@ -265,7 +263,7 @@ export function CheckInOutCard() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF7A70]/20 opacity-75" />
             <div className="h-10 w-10 animate-spin rounded-full border-3 border-white/10 border-t-[#FF7A70]" />
           </div>
-          <p className="mt-4 text-xs font-semibold text-neutral-400">Verifying attendance & geofence...</p>
+          <p className="mt-4 text-xs font-semibold text-neutral-400">Verifying attendance...</p>
         </CardContent>
       </Card>
     );
@@ -287,7 +285,7 @@ export function CheckInOutCard() {
           <Building className="h-3 w-3 text-[#FF7A70]" />
           <span>Realty Smartz Private Limited</span>
           <span className="text-neutral-300">·</span>
-          <span className="text-[#FF7A70] font-extrabold">200m Geofence</span>
+          <span className="text-[#FF7A70] font-extrabold">Attendance Portal</span>
         </div>
 
         {/* Welcome Greeting */}
@@ -313,13 +311,13 @@ export function CheckInOutCard() {
           </div>
         </div>
 
-        {/* AUTHORIZED WORK LOCATIONS & GEOFENCE STATUS (Shown before punch-in) */}
+        {/* AUTHORIZED WORK LOCATIONS (Shown before punch-in) */}
         {!checkedIn && (
           <div className="my-3 w-full max-w-md rounded-2xl border border-neutral-200/80 bg-white p-3.5 text-left shadow-2xs space-y-2">
             <div className="flex items-center justify-between pb-1.5 border-b border-neutral-100">
               <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
                 <Navigation className="h-3 w-3 text-[#FF7A70]" />
-                Authorized Punch Locations (200m)
+                Authorized Punch Locations
               </span>
               <button
                 type="button"
@@ -371,7 +369,7 @@ export function CheckInOutCard() {
                   🏢 Registered Office: {officeName}
                 </span>
                 <span className="text-[10px] text-neutral-500 block">
-                  Sector 66, Gurugram (200m Perimeter)
+                  Sector 66, Gurugram (Headquarters)
                 </span>
               </div>
               <div className="shrink-0 text-right">
@@ -403,7 +401,7 @@ export function CheckInOutCard() {
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50/90 border border-rose-200/90 p-2 rounded-xl">
                   <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
                   <span>
-                    Outside 200m Perimeter. You must be at your assigned site or office to punch in.
+                    Outside Assigned Work Location. You must be at your assigned site or office to punch in.
                   </span>
                 </div>
               ) : null}
@@ -421,7 +419,7 @@ export function CheckInOutCard() {
               <div className="flex flex-col items-center text-[#FF7A70]">
                 <Navigation className="h-10 w-10 animate-bounce" />
                 <span className="mt-1.5 text-xs font-bold uppercase tracking-wider">Locating</span>
-                <span className="text-[10px] text-neutral-500 font-mono">200m Radar</span>
+                <span className="text-[10px] text-neutral-500 font-mono">GPS Verification</span>
               </div>
             </div>
           ) : checkedOut ? (
@@ -464,7 +462,7 @@ export function CheckInOutCard() {
               onClick={() => {
                 if (liveCoords && !isAuthorizedLocation) {
                   setError(
-                    `Punch-in blocked: You are outside your allocated work perimeter. You must be physically present within 200m of your assigned site (${assignedSiteName}) or office (${officeName}) to punch in.`
+                    `Punch-in blocked: You are outside your assigned workplace. You must be physically present at your assigned site (${assignedSiteName}) or office (${officeName}) to punch in.`
                   );
                   return;
                 }
@@ -490,7 +488,7 @@ export function CheckInOutCard() {
                       Punch Locked
                     </span>
                     <span className="text-[10px] font-medium text-rose-600">
-                      Outside 200m
+                      Outside Workplace
                     </span>
                   </>
                 ) : (
@@ -502,7 +500,7 @@ export function CheckInOutCard() {
                       Tap to Punch In
                     </span>
                     <span className="text-[10px] font-medium text-neutral-400">
-                      200m GPS Verified
+                      Location Verified
                     </span>
                   </>
                 )}
@@ -541,8 +539,8 @@ export function CheckInOutCard() {
               />
               <span className={today?.withinGeofence ? "text-emerald-700" : "text-amber-800"}>
                 {today?.withinGeofence
-                  ? "✓ Within 200m Authorized Perimeter"
-                  : "▲ Outside usual perimeter (Location recorded)"}
+                  ? "✓ Verified at Authorized Workplace"
+                  : "▲ Recorded at Alternative Location"}
               </span>
             </div>
 
@@ -645,12 +643,12 @@ export function CheckInOutCard() {
                 {liveCoords && !isAuthorizedLocation ? (
                   <>
                     <Lock className="h-5 w-5 text-rose-400" />
-                    <span>Locked (Outside 200m)</span>
+                    <span>Locked (Outside Workplace)</span>
                   </>
                 ) : (
                   <>
                     <LogIn className="h-5 w-5" />
-                    <span>{busy ? "Verifying 200m Location…" : "Punch In Now"}</span>
+                    <span>{busy ? "Verifying Location…" : "Punch In Now"}</span>
                   </>
                 )}
               </Button>
@@ -661,7 +659,7 @@ export function CheckInOutCard() {
                 onClick={() => captureAndSubmit("out")}
               >
                 <LogOut className="h-5 w-5" />
-                {busy ? "Verifying 200m Location…" : "Punch Out (End Shift)"}
+                {busy ? "Verifying Location…" : "Punch Out (End Shift)"}
               </Button>
             )}
           </div>
@@ -675,7 +673,7 @@ export function CheckInOutCard() {
               onClick={() => setShowMap(!showMap)}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-900 transition-colors"
             >
-              <span>{showMap ? "Hide Verification Map" : "View Geofence Map"}</span>
+              <span>{showMap ? "Hide Location Map" : "View Location Map"}</span>
               {showMap ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
 

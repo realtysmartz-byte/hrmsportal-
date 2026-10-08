@@ -40,7 +40,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
 const TESTIMONIALS = [
   {
     quote:
-      "Automated attendance, geofence compliance, and instant leave requests are now faster and more transparent than ever.",
+      "Automated attendance, punctuality verification, and instant leave requests are now faster and more transparent than ever.",
     author: "Realty Smartz Core Team",
     role: "Gurugram Headquarters",
   },
@@ -172,49 +172,49 @@ function LoginForm() {
   return (
     <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[36px] bg-[#181926]/95 backdrop-blur-2xl border border-white/10 shadow-[0_25px_80px_rgba(0,0,0,0.45)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white">
       {/* LEFT COLUMN: Modern Login Form (~6.5/12 cols) */}
-      <div className="p-5 sm:p-8 lg:p-12 lg:col-span-7 flex flex-col justify-between">
+      <div className="p-7 sm:p-10 lg:p-12 lg:col-span-7 flex flex-col justify-between">
         <div>
           {/* Top Brand Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF7A70] to-[#FFA07A] p-2 shadow-md">
-              <img
-                src="/logo.png"
-                alt="Realty Smartz"
-                className="h-full w-full object-contain brightness-0 invert"
-              />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Realty Smartz Private Limited"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-contain drop-shadow-md"
+            />
             <div>
-              <span className="font-display text-sm sm:text-base font-extrabold tracking-wider uppercase text-white block">
+              <span className="font-display text-sm font-bold tracking-wider uppercase text-white block">
                 Realty Smartz
               </span>
-              <span className="text-[11px] text-[#FF7A70] font-semibold tracking-wide block -mt-0.5">
-                HR & Attendance Portal
+              <span className="text-[10px] text-neutral-400 font-medium tracking-wide block -mt-0.5">
+                Private Limited · HRMS
               </span>
             </div>
           </div>
 
           {/* Heading */}
-          <div className="mt-6 sm:mt-8">
+          <div className="mt-8">
             <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Sign In to Workspace
+              Welcome back
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">
-              Access your daily attendance, assigned site perimeter, and employee services
+              Please enter your account details to access your workspace
             </p>
           </div>
 
           {/* Universal Single Sign-In Capsule */}
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#11121A] px-3 py-1.5 border border-white/10 shadow-inner">
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#11121A] px-3.5 py-1.5 border border-white/10 shadow-inner">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-semibold text-neutral-300">
-              🔒 200m Geofenced · Enterprise HRMS Portal
+            <span className="text-xs font-medium text-neutral-300">
+              Universal Sign-In · Employee, Candidate & Admin
             </span>
           </div>
 
           {/* Error Banner */}
           {error && (
-            <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-950/60 p-3 text-xs text-rose-200 flex items-start gap-2.5 transition-all">
-              <div className="h-4 w-4 shrink-0 rounded-full bg-rose-500/30 text-rose-300 flex items-center justify-center font-bold text-[10px]">
+            <div className="mt-5 rounded-xl border border-rose-500/30 bg-rose-950/40 p-3 text-xs text-rose-300 flex items-start gap-2.5 transition-all">
+              <div className="h-4 w-4 shrink-0 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">
                 !
               </div>
               <p className="leading-tight">{error}</p>
@@ -222,26 +222,25 @@ function LoginForm() {
           )}
 
           {/* Form */}
-          <form onSubmit={onSubmit} className="mt-5 space-y-4">
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
             {/* Email Field */}
             <div className="space-y-1.5">
               <label
                 htmlFor="email"
-                className="block text-xs font-semibold text-neutral-300"
+                className="block text-xs font-medium text-neutral-300"
               >
-                Official Email / Username
+                Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <input
                   id="email"
                   type="email"
                   autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. employee@realtysmartz.in"
+                  placeholder="you@realtysmartz.com"
                   required
-                  className="w-full rounded-xl border border-white/15 bg-[#11121A] pl-10 pr-4 h-12 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-2 focus:ring-[#FF7A70]/20"
+                  className="w-full rounded-2xl border border-white/10 bg-[#11121A] px-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-1 focus:ring-[#FF7A70]"
                 />
               </div>
             </div>
@@ -250,21 +249,20 @@ function LoginForm() {
             <div className="space-y-1.5">
               <label
                 htmlFor="password"
-                className="block text-xs font-semibold text-neutral-300"
+                className="block text-xs font-medium text-neutral-300"
               >
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="••••••••"
                   required
-                  className="w-full rounded-xl border border-white/15 bg-[#11121A] pl-10 pr-11 h-12 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-2 focus:ring-[#FF7A70]/20"
+                  className="w-full rounded-2xl border border-white/10 bg-[#11121A] px-4 py-3 pr-11 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-1 focus:ring-[#FF7A70]"
                 />
                 <button
                   type="button"
@@ -282,70 +280,71 @@ function LoginForm() {
             </div>
 
             {/* Remember Me & Assistance Row */}
-            <div className="flex items-center justify-between pt-0.5 text-xs text-neutral-400">
+            <div className="flex items-center justify-between pt-1 text-xs text-neutral-400">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-neutral-700 bg-[#11121A] text-[#FF7A70] accent-[#FF7A70] focus:ring-0"
+                  className="h-3.5 w-3.5 rounded border-neutral-700 bg-[#11121A] text-[#FF7A70] accent-[#FF7A70] focus:ring-0"
                 />
-                <span className="text-[11px] sm:text-xs">Remember on this device</span>
+                <span>Keep me logged in</span>
               </label>
-              <span className="text-[#FF7A70] hover:underline transition-colors cursor-pointer text-[11px] font-medium">
-                Need Help Signing In?
+              <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer underline text-[11px]">
+                Forgot Password?
               </span>
             </div>
 
-            {/* Radiant Coral Gradient Submit Button (Keka Style) */}
-            <div className="pt-1.5">
+            {/* Radiant Coral Gradient Submit Button (Image 3 Style) */}
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-[#FF7A70] via-[#FF8B7D] to-[#FFA07A] text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-[#FF7A70]/25 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full rounded-full bg-gradient-to-r from-[#FF7A70] via-[#FF8B7D] to-[#FFA07A] py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_8px_24px_rgba(255,122,112,0.35)] transition-all hover:opacity-95 active:scale-[0.99] disabled:opacity-50"
               >
-                <span>{loading ? "Authenticating Session..." : "Sign In to Workspace"}</span>
-                <ArrowRight className="h-4 w-4" />
+                {loading ? "Authenticating..." : "Sign in"}
               </button>
             </div>
           </form>
 
           {/* Social Sign-in (Google OAuth) */}
-          <div className="mt-5 pt-4 border-t border-white/10 text-center">
-            <p className="text-[11px] text-neutral-400 mb-2.5">
-              Enterprise Single Sign-On
+          <div className="mt-6 pt-5 border-t border-white/10 text-center">
+            <p className="text-[11px] text-neutral-400 mb-3">
+              Or continue with enterprise sign-in
             </p>
-            <button
-              type="button"
-              disabled={googleLoading}
-              onClick={onGoogleSignIn}
-              className="w-full h-11 rounded-xl bg-white hover:bg-neutral-100 text-neutral-800 text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2.5 active:scale-[0.98]"
-            >
-              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.88c2.27-2.09 3.66-5.17 3.66-9.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.09C3.26 21.36 7.37 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.32c-.25-.72-.38-1.49-.38-2.32s.13-1.6.38-2.32V6.59H1.26C.46 8.18 0 9.99 0 12s.46 3.82 1.26 5.41l4.02-3.09z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.64 1.26 6.59l4.02 3.09c.95-2.83 3.6-4.93 6.72-4.93z"
-                />
-              </svg>
-              <span>{googleLoading ? "Connecting to Google..." : "Continue with Google Workspace"}</span>
-            </button>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={googleLoading}
+                onClick={onGoogleSignIn}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-900 shadow-md hover:scale-105 active:scale-95 transition-transform"
+                title="Sign in with Google"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.88c2.27-2.09 3.66-5.17 3.66-9.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.09C3.26 21.36 7.37 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.32c-.25-.72-.38-1.49-.38-2.32s.13-1.6.38-2.32V6.59H1.26C.46 8.18 0 9.99 0 12s.46 3.82 1.26 5.41l4.02-3.09z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.64 1.26 6.59l4.02 3.09c.95-2.83 3.6-4.93 6.72-4.93z"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Footer Note */}
-        <div className="mt-6 text-center lg:text-left text-[11px] text-neutral-500">
+        <div className="mt-8 text-center lg:text-left text-[11px] text-neutral-500">
           Realty Smartz Private Limited · Corporate Attendance & HRMS
         </div>
       </div>
@@ -428,7 +427,7 @@ function LoginForm() {
           </h3>
 
           <p className="text-[11px] text-neutral-600 leading-relaxed">
-            Experience precise geofence validation, automated leave quotas, and seamless employee operations.
+            Experience automated attendance verification, leave quotas, and seamless employee operations.
           </p>
 
           <div className="flex items-center justify-between pt-2 border-t border-neutral-100">

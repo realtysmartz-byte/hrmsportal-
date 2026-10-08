@@ -392,12 +392,12 @@ export const attendanceRouter = router({
         if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Punch-in blocked: You are outside the 200-meter geofence perimeter. Office distance: ~${Math.round(distanceOfficeM)}m, Allocated site (${emp.workLocationName || "Site"}) distance: ~${Math.round(distanceSiteM!)}m. You must be within 200m to punch in.`,
+            message: `Punch-in blocked: You are outside your assigned workplace. You must be physically present at your assigned site (${emp.workLocationName || "Site"}) or registered office to punch in.`,
           });
         } else {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Punch-in blocked: You are outside the 200-meter geofence of ${settings.officeName || "REALTY SMARTZ PVT LTD"} (~${Math.round(distanceOfficeM)}m away). If you are on field duty, please ask Admin to allocate your site location.`,
+            message: `Punch-in blocked: You are outside the registered office of ${settings.officeName || "REALTY SMARTZ PVT LTD"}. If you are assigned to a site, please ask HR/Admin to assign your work location.`,
           });
         }
       }
@@ -410,16 +410,17 @@ export const attendanceRouter = router({
 
       if (isAtOffice) {
         finalAddress = settings.officeName || "REALTY SMARTZ PVT LTD";
-        logNotes = "Office login (within 200m perimeter)";
+        logNotes = "Office login (verified workplace)";
       } else if (isAtAllocatedSite) {
         finalAddress = emp?.workLocationName || "Allocated Site Location";
-        logNotes = `Site login: ${emp?.workLocationName || "Site"} (within 200m perimeter)`;
+        logNotes = `Site login: ${emp?.workLocationName || "Site"} (verified workplace)`;
       } else {
-        // Admin override when outside 200m
+        // Admin override when outside authorized area
         finalAddress = input.address
           ? input.address.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD")
           : (settings.officeName || "REALTY SMARTZ PVT LTD");
-        logNotes = `Admin override (~${Math.round(distanceOfficeM)}m from office)`;
+        const adminName = emp ? `${emp.firstName} ${emp.lastName}` : "Admin";
+        logNotes = `Admin override (${adminName})`;
       }
 
       const locationData = {

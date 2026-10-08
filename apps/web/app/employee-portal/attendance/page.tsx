@@ -208,7 +208,7 @@ export default function EmployeeAttendancePage() {
                         ) : (
                           <AlertTriangle className="h-3 w-3 text-amber-600" />
                         )}
-                        <span>{log!.withinGeofence ? "Inside Office (Gurugram HQ)" : "Outside Geofence"}</span>
+                        <span>{log!.withinGeofence ? "Inside Office (Gurugram HQ)" : "Outside Workplace"}</span>
                       </span>
 
                       {log!.isAutoCheckedOut && (
@@ -233,7 +233,7 @@ export default function EmployeeAttendancePage() {
                   <th className="px-4 py-3">Punch In</th>
                   <th className="px-4 py-3">Punch Out</th>
                   <th className="px-4 py-3">Total Hours</th>
-                  <th className="px-4 py-3">Geofence / Location</th>
+                  <th className="px-4 py-3">Workplace Location</th>
                   <th className="px-4 py-3">Notes / Audit</th>
                 </tr>
               </thead>
@@ -380,7 +380,7 @@ export default function EmployeeAttendancePage() {
                               ) : (
                                 <AlertTriangle className="h-3 w-3 text-amber-600" />
                               )}
-                              <span>{log!.withinGeofence ? "Inside Office" : "Outside Geofence"}</span>
+                              <span>{log!.withinGeofence ? "Inside Office" : "Outside Workplace"}</span>
                             </span>
                             {log?.checkInAddress && (
                               <p className="text-[10px] text-neutral-400 truncate max-w-[180px]" title={log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")}>
@@ -418,7 +418,7 @@ export default function EmployeeAttendancePage() {
         <MiniStat label="Days Present" value={data?.summary.present ?? 0} color="text-emerald-700" />
         <MiniStat label="Days Absent" value={data?.summary.absent ?? 0} color="text-maroon" />
         <MiniStat label="Avg Check-in" value={data?.summary.averageCheckIn ?? "—"} color="text-primary" />
-        <MiniStat label="Outside Geofence" value={data?.summary.outsideGeofence ?? 0} color="text-amber-700" />
+        <MiniStat label="Outside Workplace" value={data?.summary.outsideGeofence ?? 0} color="text-amber-700" />
       </div>
 
       {/* Calendar Card */}
@@ -594,7 +594,7 @@ export default function EmployeeAttendancePage() {
                   </Badge>
                   {selectedLog.checkInTime && (
                     <Badge variant={selectedLog.withinGeofence ? "success" : "warning"}>
-                      {selectedLog.withinGeofence ? "Within Office Geofence" : "Outside Usual Location"}
+                      {selectedLog.withinGeofence ? "Verified at Workplace" : "Outside Usual Location"}
                     </Badge>
                   )}
                   {selectedLog.totalHours != null && (

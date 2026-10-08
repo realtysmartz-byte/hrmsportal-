@@ -305,7 +305,7 @@ export default function EmployeeDashboardPage() {
               </div>
             </div>
             <span className="text-[11px] font-semibold text-amber-900 bg-amber-100/90 rounded-full px-2.5 py-0.5">
-              {today?.withinGeofence ? "In Geofence" : "Location Active"}
+              {today?.withinGeofence ? "Workplace Verified" : "Location Active"}
             </span>
           </div>
         </motion.div>
@@ -534,13 +534,13 @@ export default function EmployeeDashboardPage() {
                 </div>
 
                 <div className="flex items-center justify-between p-2.5">
-                  <span className="text-neutral-500 font-medium">Geofence Status</span>
+                  <span className="text-neutral-500 font-medium">Location Status</span>
                   <span
                     className={`font-semibold ${
                       today?.withinGeofence ? "text-emerald-700" : "text-amber-800"
                     }`}
                   >
-                    {today?.withinGeofence ? "Verified Inside" : "Pending Check"}
+                    {today?.withinGeofence ? "Verified Location" : "Pending Check"}
                   </span>
                 </div>
               </div>
@@ -785,7 +785,7 @@ export default function EmployeeDashboardPage() {
                   Realty Smartz HR Notice
                 </p>
                 <p className="text-[11px] text-neutral-300 mt-0.5 line-clamp-2">
-                  "Please ensure all geofence punches are submitted by 9:30 AM for on-time marking."
+                  "Please ensure all attendance punches are submitted by 9:30 AM for on-time marking."
                 </p>
               </div>
             </div>

@@ -150,7 +150,7 @@ export default function TeamAttendancePage() {
       "Punch In",
       "Punch Out",
       "Total Hours",
-      "Geofence Status",
+      "Location Status",
       "Address",
       "Notes",
     ];
@@ -170,8 +170,8 @@ export default function TeamAttendancePage() {
         entry.totalHours != null ? `${entry.totalHours} hrs` : "—",
         entry.checkInTime
           ? entry.withinGeofence
-            ? "Inside Office"
-            : "Outside Geofence"
+            ? "Inside Workplace"
+            : "Outside Workplace"
           : "—",
         ((entry.checkInAddress ?? entry.checkOutAddress) || "—").replace(/sunbreeze/gi, "Realty Smartz Private Limited"),
         entry.notes ?? "—",
@@ -235,7 +235,7 @@ export default function TeamAttendancePage() {
             Attendance Administration
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
-            View all attendance logs, 7-day shifts, 7:00 PM auto punch-out records, and geofence verification
+            View all attendance logs, 7-day shifts, 7:00 PM auto punch-out records, and location verification
           </p>
         </div>
 
@@ -440,7 +440,7 @@ export default function TeamAttendancePage() {
               )}
             >
               <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-              <span>Flagged Outside Geofence</span>
+              <span>Flagged Outside Workplace</span>
             </button>
           </div>
 
@@ -581,7 +581,7 @@ export default function TeamAttendancePage() {
                           ) : (
                             <AlertTriangle className="h-3 w-3 text-amber-600" />
                           )}
-                          <span>{entry.withinGeofence ? "In Premises" : "Outside Geofence"}</span>
+                          <span>{entry.withinGeofence ? "In Premises" : "Outside Workplace"}</span>
                         </span>
                       ) : <span />}
 
@@ -619,7 +619,7 @@ export default function TeamAttendancePage() {
                     <TableHead>Punch In (IST)</TableHead>
                     <TableHead>Punch Out (IST)</TableHead>
                     <TableHead>Hours</TableHead>
-                    <TableHead>Geofence Status</TableHead>
+                    <TableHead>Location Status</TableHead>
                     <TableHead>Location / Pin</TableHead>
                     <TableHead>Notes / Shift Audit</TableHead>
                   </TableRow>
@@ -752,7 +752,7 @@ export default function TeamAttendancePage() {
                           ) : (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-300">
                               <AlertTriangle className="h-3 w-3 text-amber-600" />
-                              <span>Outside Geofence</span>
+                              <span>Outside Workplace</span>
                             </span>
                           )}
                         </TableCell>
@@ -1029,7 +1029,7 @@ export default function TeamAttendancePage() {
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-300">
                           <AlertTriangle className="h-3 w-3 text-amber-600" />
-                          <span>Outside Geofence</span>
+                          <span>Outside Workplace</span>
                         </span>
                       )}
 
@@ -1076,7 +1076,7 @@ export default function TeamAttendancePage() {
                     <TableHead>Punch In (IST)</TableHead>
                     <TableHead>Punch Out (IST)</TableHead>
                     <TableHead>Hours</TableHead>
-                    <TableHead>Geofence Status</TableHead>
+                    <TableHead>Location Status</TableHead>
                     <TableHead>Location / Pin</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1198,7 +1198,7 @@ export default function TeamAttendancePage() {
                         ) : (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-300">
                             <AlertTriangle className="h-3 w-3 text-amber-600" />
-                            <span>Outside Geofence</span>
+                            <span>Outside Workplace</span>
                           </span>
                         )}
                       </TableCell>

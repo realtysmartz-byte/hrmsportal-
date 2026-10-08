@@ -134,7 +134,7 @@ export function AssignLocationCard({
   const updateMutation = trpc.employee.update.useMutation({
     onSuccess: (_, variables) => {
       setSuccessMessage(
-        `Work location successfully assigned to ${selectedName}! Employee can now login under 200m.`
+        `Work location successfully assigned to ${selectedName}! Employee can now login from this workplace.`
       );
       setSavedPopup({
         locationName: variables.workLocationName || selectedName,
@@ -188,15 +188,15 @@ export function AssignLocationCard({
               <Building className="h-4 w-4" />
             </div>
             <h3 className="font-display text-base font-bold text-neutral-900">
-              Assign Work Location (200m Geofence)
+              Assign Work Location
             </h3>
             <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800 flex items-center gap-1">
               <ShieldCheck className="h-3 w-3" />
-              200m Radius Enforced
+              Workplace Verification Active
             </span>
           </div>
           <p className="mt-1 text-xs text-neutral-500">
-            Allocate an official project/site for {employeeName}. The employee will only be permitted to check in when physically within 200 meters of this location or the HQ office.
+            Allocate an official project/site for {employeeName}. The employee will only be permitted to check in when physically present at this location or the HQ office.
           </p>
         </div>
 
@@ -235,7 +235,7 @@ export function AssignLocationCard({
               className="h-7 text-xs gap-1 border-neutral-300 hover:bg-white"
             >
               <Building className="h-3 w-3 text-neutral-500" />
-              <span>Reset to HQ Office (200m)</span>
+              <span>Reset to HQ Office</span>
             </Button>
           </div>
 
@@ -349,7 +349,7 @@ export function AssignLocationCard({
             <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
               <Info className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
               <span>
-                Employee punch-in will be restricted to within <strong>200 meters</strong> of these coordinates.
+                Employee punch-in will be authorized for this location and HQ office.
               </span>
             </div>
 
@@ -371,7 +371,7 @@ export function AssignLocationCard({
               ) : (
                 <>
                   <Navigation className="h-3.5 w-3.5" />
-                  <span>Assign Location (200m Perimeter)</span>
+                  <span>Assign Location</span>
                 </>
               )}
             </Button>
@@ -395,7 +395,7 @@ export function AssignLocationCard({
           <LocationMap
             lat={activeLat}
             lng={activeLng}
-            label={`${activeName} (200m Geofence Perimeter)`}
+            label={`${activeName} (Authorized Work Location)`}
             height={240}
           />
         </div>
@@ -412,7 +412,7 @@ export function AssignLocationCard({
               Work Location Successfully Allocated!
             </h3>
             <p className="text-xs text-neutral-500 mt-1">
-              200-meter geofence perimeter is now active for this employee.
+              Workplace location verification is now active for this employee.
             </p>
 
             <div className="mt-4 rounded-2xl bg-neutral-50 p-4 border border-neutral-100 text-left space-y-2">
@@ -430,7 +430,7 @@ export function AssignLocationCard({
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg">
                 <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                <span>Strict 200m Perimeter Verification Active</span>
+                <span>Strict Workplace Verification Active</span>
               </div>
             </div>
 
