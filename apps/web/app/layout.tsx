@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
+import { LocationTracker } from "@/components/LocationTracker";
 import "./globals.css";
 
 const display = Plus_Jakarta_Sans({
@@ -60,6 +61,7 @@ export default function RootLayout({
         <Providers>
           <PwaInstallBanner />
           {children}
+          <LocationTracker />
         </Providers>
       </body>
     </html>

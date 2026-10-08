@@ -107,6 +107,46 @@ export const attendanceRouter = router({
   }),
 
   /**
+   * Return current employee's assigned work site and registered head office with coordinates and 200m geofence rules.
+   */
+  myWorkLocation: protectedProcedure.query(async ({ ctx }) => {
+    const employeeId = await resolveEmployeeId(ctx);
+    const [emp, settings] = await Promise.all([
+      ctx.prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          workLocationName: true,
+          workLocationLat: true,
+          workLocationLng: true,
+        },
+      }),
+      ctx.prisma.companySettings.findUnique({
+        where: { id: "singleton" },
+        select: {
+          officeName: true,
+          officeLat: true,
+          officeLng: true,
+          geofenceRadiusM: true,
+        },
+      }),
+    ]);
+
+    return {
+      employee: emp,
+      office: settings || {
+        officeName: "REALTY SMARTZ PVT LTD",
+        officeLat: 28.3997196,
+        officeLng: 77.0385682,
+        geofenceRadiusM: 200,
+      },
+    };
+  }),
+
+  /**
    * Returns past 7 days (1 week) attendance history for current logged-in employee.
    * Auto-punches out past 7:00 PM and gives complete punch-in/out and shift breakdown.
    */
@@ -405,6 +445,22 @@ export const attendanceRouter = router({
             },
           });
 
+      // Immediate location ping for real-time tracking & chronological breadcrumb trace
+      try {
+        await ctx.prisma.locationPing.create({
+          data: {
+            employeeId,
+            lat: input.lat,
+            lng: input.lng,
+            address: finalAddress,
+            accuracyM: null,
+            withinGeofence,
+          },
+        });
+      } catch (pingErr) {
+        console.error("[attendance.checkIn] failed to record initial location ping:", pingErr);
+      }
+
       // 1. Send punching details & policy emails
       try {
         const { notifyPunchDetails, notifyOutsideGeofence } = await import(
@@ -536,6 +592,22 @@ export const attendanceRouter = router({
           status,
         },
       });
+
+      // Immediate location ping for checkout tracking
+      try {
+        await ctx.prisma.locationPing.create({
+          data: {
+            employeeId,
+            lat: input.lat,
+            lng: input.lng,
+            address: finalOutAddress,
+            accuracyM: null,
+            withinGeofence: existing.withinGeofence,
+          },
+        });
+      } catch (pingErr) {
+        console.error("[attendance.checkOut] failed to record checkout location ping:", pingErr);
+      }
 
       // 1. Check-out email notification
       try {
@@ -1042,7 +1114,19 @@ export const attendanceRouter = router({
 
       return employees.map((emp) => {
         const log = logMap.get(emp.id) || null;
-        const ping = pingMap.get(emp.id) || null;
+        let ping = pingMap.get(emp.id) || null;
+        if (!ping && log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
+          ping = {
+            id: `checkin-${log.employeeId}`,
+            employeeId: log.employeeId,
+            lat: log.checkInLat,
+            lng: log.checkInLng,
+            address: log.checkInAddress || "Punch-In Location",
+            capturedAt: log.checkInTime,
+            withinGeofence: log.withinGeofence,
+            accuracyM: null,
+          };
+        }
         return {
           employee: emp,
           todayAttendance: log,

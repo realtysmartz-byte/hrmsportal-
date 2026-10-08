@@ -13,11 +13,13 @@ import {
   Navigation,
   Building,
   ShieldCheck,
+  ShieldAlert,
   ChevronDown,
   ChevronUp,
   Sparkles,
   Timer,
   Check,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,13 +31,20 @@ import {
   type GeoPlace,
 } from "@/lib/geolocation";
 import { LocationMap } from "@/components/LocationMap";
-import { formatTimeIST, TIMEZONE_IST, getISTDateParts } from "@realty-smartz/shared";
+import {
+  formatTimeIST,
+  TIMEZONE_IST,
+  getISTDateParts,
+  haversineDistanceM,
+} from "@realty-smartz/shared";
+import { cn } from "@/lib/utils";
 
 export function CheckInOutCard() {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
   const { data: today, isLoading } = trpc.attendance.today.useQuery();
   const { data: settings } = trpc.companySettings.get.useQuery();
+  const { data: workLoc } = trpc.attendance.myWorkLocation.useQuery();
 
   const [currentTime, setCurrentTime] = useState<string>("");
   const [currentDate, setCurrentDate] = useState<string>("");
@@ -44,6 +53,28 @@ export function CheckInOutCard() {
   const [busy, setBusy] = useState(false);
   const [captured, setCaptured] = useState<GeoPlace | null>(null);
   const [showMap, setShowMap] = useState(false);
+
+  // Live device GPS coordinates for real-time pre-check
+  const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isGpsReady, setIsGpsReady] = useState(false);
+
+  // Pre-fetch live location on mount
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setIsGpsReady(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLiveCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setIsGpsReady(true);
+      },
+      () => {
+        setIsGpsReady(true);
+      },
+      { enableHighAccuracy: true, timeout: 10_000 }
+    );
+  }, []);
 
   // Live clock in Indian Standard Time (IST)
   useEffect(() => {
@@ -128,6 +159,32 @@ export function CheckInOutCard() {
     },
   });
 
+  // Calculate authorized workplace & geofence distance
+  const empData = workLoc?.employee;
+  const officeData = workLoc?.office;
+  const assignedSiteName = empData?.workLocationName || "Realty Smartz HQ Office";
+  const assignedSiteLat = empData?.workLocationLat ?? null;
+  const assignedSiteLng = empData?.workLocationLng ?? null;
+  const officeName = officeData?.officeName || "REALTY SMARTZ PVT LTD";
+  const officeLat = officeData?.officeLat ?? 28.3997196;
+  const officeLng = officeData?.officeLng ?? 77.0385682;
+  const geofenceRadius = officeData?.geofenceRadiusM ?? 200;
+
+  const distanceOfficeM = useMemo(() => {
+    if (!liveCoords) return null;
+    return haversineDistanceM(liveCoords.lat, liveCoords.lng, officeLat, officeLng);
+  }, [liveCoords, officeLat, officeLng]);
+
+  const distanceSiteM = useMemo(() => {
+    if (!liveCoords || assignedSiteLat == null || assignedSiteLng == null) return null;
+    return haversineDistanceM(liveCoords.lat, liveCoords.lng, assignedSiteLat, assignedSiteLng);
+  }, [liveCoords, assignedSiteLat, assignedSiteLng]);
+
+  const isAtOffice = distanceOfficeM != null && distanceOfficeM <= geofenceRadius;
+  const isAtSite = distanceSiteM != null && distanceSiteM <= geofenceRadius;
+  const isAuthorizedLocation =
+    isAtOffice || isAtSite || session?.user?.role === "ADMIN";
+
   async function captureAndSubmit(mode: "in" | "out") {
     setError("");
     setIsPermissionDenied(false);
@@ -137,6 +194,29 @@ export function CheckInOutCard() {
       const pos = await getCurrentPosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
+      setLiveCoords({ lat, lng });
+
+      // Immediate client-side verification
+      const curDistOffice = haversineDistanceM(lat, lng, officeLat, officeLng);
+      const curDistSite =
+        assignedSiteLat != null && assignedSiteLng != null
+          ? haversineDistanceM(lat, lng, assignedSiteLat, assignedSiteLng)
+          : null;
+
+      const withinAllowed =
+        curDistOffice <= geofenceRadius ||
+        (curDistSite != null && curDistSite <= geofenceRadius) ||
+        session?.user?.role === "ADMIN";
+
+      if (mode === "in" && !withinAllowed) {
+        const distSiteStr = curDistSite != null ? `~${Math.round(curDistSite)}m from ${assignedSiteName}` : "";
+        const distOfficeStr = `~${Math.round(curDistOffice)}m from ${officeName}`;
+        setError(
+          `Punch-in strictly blocked: You are outside your allocated work perimeter (${distSiteStr ? `${distSiteStr}, ` : ""}${distOfficeStr}). Company policy requires you to be within 200m of your assigned site or office.`
+        );
+        return;
+      }
+
       const place = await reverseGeocodePlace(lat, lng);
       setCaptured(place);
 
@@ -166,7 +246,6 @@ export function CheckInOutCard() {
       );
       if (isDenied) {
         setIsPermissionDenied(true);
-        // Dispatch email notification to HR Admin that employee disabled location
         reportLocationDisabled.mutate({
           reason: errObj.message || "Device GPS Location Disabled / Permission Denied during punch attempt",
           deviceInfo: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
@@ -234,6 +313,104 @@ export function CheckInOutCard() {
           </div>
         </div>
 
+        {/* AUTHORIZED WORK LOCATIONS & GEOFENCE STATUS (Shown before punch-in) */}
+        {!checkedIn && (
+          <div className="my-3 w-full max-w-md rounded-2xl border border-neutral-200/80 bg-white p-3.5 text-left shadow-2xs space-y-2">
+            <div className="flex items-center justify-between pb-1.5 border-b border-neutral-100">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+                <Navigation className="h-3 w-3 text-[#FF7A70]" />
+                Authorized Punch Locations (200m)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.geolocation.getCurrentPosition((pos) => {
+                    setLiveCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                  });
+                }}
+                className="text-[10px] font-semibold text-[#FF7A70] hover:underline flex items-center gap-1"
+              >
+                <RotateCw className="h-2.5 w-2.5" /> Re-check GPS
+              </button>
+            </div>
+
+            {/* 1. Assigned Project Site */}
+            <div className="flex items-start justify-between gap-2 text-xs">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <span className="font-bold text-neutral-800 block truncate">
+                  🏢 Allocated Site: {assignedSiteName}
+                </span>
+                <span className="text-[10px] text-neutral-500 block">
+                  {assignedSiteLat != null && assignedSiteLng != null
+                    ? `${assignedSiteLat.toFixed(4)}, ${assignedSiteLng.toFixed(4)}`
+                    : "No specific site allocated by admin"}
+                </span>
+              </div>
+              <div className="shrink-0 text-right">
+                {distanceSiteM != null ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                      isAtSite
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-neutral-100 text-neutral-600 border-neutral-200"
+                    )}
+                  >
+                    {isAtSite ? `~${Math.round(distanceSiteM)}m · Inside ✓` : `~${Math.round(distanceSiteM)}m`}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-neutral-400">HQ Only</span>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Registered Head Office */}
+            <div className="flex items-start justify-between gap-2 text-xs pt-1 border-t border-neutral-50">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <span className="font-bold text-neutral-800 block truncate">
+                  🏢 Registered Office: {officeName}
+                </span>
+                <span className="text-[10px] text-neutral-500 block">
+                  Sector 66, Gurugram (200m Perimeter)
+                </span>
+              </div>
+              <div className="shrink-0 text-right">
+                {distanceOfficeM != null ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                      isAtOffice
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-neutral-100 text-neutral-600 border-neutral-200"
+                    )}
+                  >
+                    {isAtOffice ? `~${Math.round(distanceOfficeM)}m · Inside ✓` : `~${Math.round(distanceOfficeM)}m`}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-neutral-400 animate-pulse">Detecting…</span>
+                )}
+              </div>
+            </div>
+
+            {/* Perimeter Compliance Warning / Success */}
+            <div className="pt-1.5">
+              {liveCoords && isAuthorizedLocation ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50/80 border border-emerald-200/80 p-2 rounded-xl">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>Authorized Work Zone Detected. Punch-in unlocked.</span>
+                </div>
+              ) : liveCoords && !isAuthorizedLocation ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50/90 border border-rose-200/90 p-2 rounded-xl">
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>
+                    Outside 200m Perimeter. You must be at your assigned site or office to punch in.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         {/* Luminous Interactive Radial Dial */}
         <div className="relative my-4 flex h-44 w-44 sm:h-48 sm:w-48 items-center justify-center">
           {busy ? (
@@ -280,24 +457,55 @@ export function CheckInOutCard() {
               </div>
             </div>
           ) : (
-            // Ready State: Pulsing Sunset Beacon
+            // Ready State: Sunset Beacon or Locked State
             <button
               type="button"
               disabled={busy}
-              onClick={() => captureAndSubmit("in")}
-              className="group relative flex h-40 w-40 sm:h-44 sm:w-44 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70]/10 via-[#FFA07A]/15 to-[#FF7A70]/10 border-2 border-[#FF7A70]/40 shadow-[0_10px_35px_rgba(255,122,112,0.2)] hover:scale-105 active:scale-95 transition-all duration-300"
+              onClick={() => {
+                if (liveCoords && !isAuthorizedLocation) {
+                  setError(
+                    `Punch-in blocked: You are outside your allocated work perimeter. You must be physically present within 200m of your assigned site (${assignedSiteName}) or office (${officeName}) to punch in.`
+                  );
+                  return;
+                }
+                captureAndSubmit("in");
+              }}
+              className={cn(
+                "group relative flex h-40 w-40 sm:h-44 sm:w-44 items-center justify-center rounded-full transition-all duration-300",
+                liveCoords && !isAuthorizedLocation
+                  ? "bg-neutral-100 border-2 border-neutral-300 cursor-not-allowed"
+                  : "bg-gradient-to-tr from-[#FF7A70]/10 via-[#FFA07A]/15 to-[#FF7A70]/10 border-2 border-[#FF7A70]/40 shadow-[0_10px_35px_rgba(255,122,112,0.2)] hover:scale-105 active:scale-95"
+              )}
             >
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF7A70]/20 opacity-70 group-hover:opacity-100" />
-              <div className="flex flex-col items-center text-[#FF7A70]">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white shadow-md group-hover:shadow-lg transition-all">
-                  <LogIn className="h-6 w-6 ml-0.5" />
-                </div>
-                <span className="mt-2 text-xs font-extrabold uppercase tracking-wider text-neutral-900 group-hover:text-[#FF7A70] transition-colors">
-                  Tap to Punch In
-                </span>
-                <span className="text-[10px] font-medium text-neutral-400">
-                  200m GPS Verified
-                </span>
+              {isAuthorizedLocation && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF7A70]/20 opacity-70 group-hover:opacity-100" />
+              )}
+              <div className="flex flex-col items-center">
+                {liveCoords && !isAuthorizedLocation ? (
+                  <>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-200 text-neutral-600 shadow-xs">
+                      <Lock className="h-6 w-6" />
+                    </div>
+                    <span className="mt-2 text-xs font-bold uppercase tracking-wider text-neutral-700">
+                      Punch Locked
+                    </span>
+                    <span className="text-[10px] font-medium text-rose-600">
+                      Outside 200m
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white shadow-md group-hover:shadow-lg transition-all">
+                      <LogIn className="h-6 w-6 ml-0.5" />
+                    </div>
+                    <span className="mt-2 text-xs font-extrabold uppercase tracking-wider text-neutral-900 group-hover:text-[#FF7A70] transition-colors">
+                      Tap to Punch In
+                    </span>
+                    <span className="text-[10px] font-medium text-neutral-400">
+                      200m GPS Verified
+                    </span>
+                  </>
+                )}
               </div>
             </button>
           )}
@@ -333,7 +541,7 @@ export function CheckInOutCard() {
               />
               <span className={today?.withinGeofence ? "text-emerald-700" : "text-amber-800"}>
                 {today?.withinGeofence
-                  ? "✓ Within 200m Office Perimeter"
+                  ? "✓ Within 200m Authorized Perimeter"
                   : "▲ Outside usual perimeter (Location recorded)"}
               </span>
             </div>
@@ -394,12 +602,12 @@ export function CheckInOutCard() {
 
         {/* Generic Error Warning */}
         {error && !isPermissionDenied && (
-          <div className="my-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700">
+          <div className="my-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 text-left max-w-md">
             {error}
           </div>
         )}
 
-        {/* Primary Tactile Action Buttons */}
+        {/* Primary Action Buttons */}
         {!isPermissionDenied && (
           <div className="mt-3 w-full max-w-xs">
             {checkedOut ? (
@@ -417,12 +625,34 @@ export function CheckInOutCard() {
               </div>
             ) : !checkedIn ? (
               <Button
-                className="h-13 w-full gap-2 text-base font-bold shadow-[0_8px_25px_rgba(255,122,112,0.35)] bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] hover:opacity-95 text-white active:scale-98 transition-all rounded-2xl"
+                className={cn(
+                  "h-13 w-full gap-2 text-base font-bold shadow-[0_8px_25px_rgba(255,122,112,0.35)] rounded-2xl transition-all",
+                  liveCoords && !isAuthorizedLocation
+                    ? "bg-neutral-800 hover:bg-neutral-900 text-white/90"
+                    : "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] hover:opacity-95 text-white active:scale-98"
+                )}
                 disabled={busy}
-                onClick={() => captureAndSubmit("in")}
+                onClick={() => {
+                  if (liveCoords && !isAuthorizedLocation) {
+                    setError(
+                      `Punch-in blocked: You are outside the 200-meter company perimeter. You must be physically present at your assigned site (${assignedSiteName}) or office (${officeName}) to punch in.`
+                    );
+                    return;
+                  }
+                  captureAndSubmit("in");
+                }}
               >
-                <LogIn className="h-5 w-5" />
-                {busy ? "Verifying 200m Location…" : "Punch In Now"}
+                {liveCoords && !isAuthorizedLocation ? (
+                  <>
+                    <Lock className="h-5 w-5 text-rose-400" />
+                    <span>Locked (Outside 200m)</span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-5 w-5" />
+                    <span>{busy ? "Verifying 200m Location…" : "Punch In Now"}</span>
+                  </>
+                )}
               </Button>
             ) : (
               <Button
@@ -438,7 +668,7 @@ export function CheckInOutCard() {
         )}
 
         {/* Verification Map Drawer Toggle */}
-        {(today?.checkInLat != null || captured?.lat != null) && (
+        {(today?.checkInLat != null || captured?.lat != null || liveCoords?.lat != null) && (
           <div className="mt-4 w-full max-w-md pt-2">
             <button
               type="button"
@@ -450,25 +680,23 @@ export function CheckInOutCard() {
             </button>
 
             {showMap && (
-              <div className="mt-3 overflow-hidden rounded-2xl border border-neutral-200 shadow-sm animate-in fade-in">
+              <div className="mt-3">
                 <LocationMap
-                  lat={today?.checkInLat ?? captured?.lat ?? 0}
-                  lng={today?.checkInLng ?? captured?.lng ?? 0}
-                  label={(today?.checkInAddress ?? captured?.name ?? "Realty Smartz Private Limited HQ").replace(/sunbreeze/gi, "Realty Smartz Private Limited")}
-                  height={190}
+                  lat={today?.checkInLat ?? captured?.lat ?? liveCoords?.lat ?? officeLat}
+                  lng={today?.checkInLng ?? captured?.lng ?? liveCoords?.lng ?? officeLng}
+                  label={
+                    checkedIn
+                      ? `Punch In: ${today?.checkInAddress || "Office"}`
+                      : isAuthorizedLocation
+                      ? `Permitted Zone: ${assignedSiteName}`
+                      : `Live GPS Position (~${Math.round(distanceOfficeM || 0)}m from office)`
+                  }
+                  height={220}
                 />
               </div>
             )}
           </div>
         )}
-
-        {/* Workplace & Geofence Footnote */}
-        <div className="mt-5 flex items-center gap-1.5 text-[11px] text-neutral-400">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-          <span>
-            Office Perimeter: {settings?.officeName || "Realty Smartz HQ"} (200m Radius Enforced)
-          </span>
-        </div>
       </div>
     </div>
   );
