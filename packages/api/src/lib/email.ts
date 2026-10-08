@@ -641,7 +641,97 @@ export async function notifyPolicyUpdate(args: {
 }
 
 /**
- * 6. Test SMTP connection & send test email
+ * 6. Location Disabled / Denied Alert
+ * Triggered when an employee attempts to check in or is active but device GPS / location is turned off or denied.
+ */
+export async function notifyLocationDisabledAlert(args: {
+  employeeName: string;
+  employeeEmail: string;
+  employeeCode: string;
+  departmentName?: string | null;
+  attemptTime: Date;
+  reason?: string;
+  deviceInfo?: string | null;
+  managerEmail?: string | null;
+}) {
+  const timeFormatted = args.attemptTime.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  const dateFormatted = args.attemptTime.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+  const body = `
+    <p>Dear HR Operations & Management,</p>
+    <p>A mandatory attendance security violation occurred on the Realty Smartz HRMS Portal:</p>
+
+    <div style="background:#FEF2F2;border:1px solid #FECACA;border-left:4px solid #EF4444;border-radius:10px;padding:16px 20px;margin:20px 0;">
+      <h3 style="margin:0 0 12px 0;font-size:13px;color:#991B1B;text-transform:uppercase;letter-spacing:0.5px;">Location Tracking Disabled Notice</h3>
+      <table width="100%" border="0" cellspacing="0" cellpadding="6" style="font-size:13px;">
+        <tr>
+          <td width="35%" style="color:#7F1D1D;">Employee:</td>
+          <td style="font-weight:700;color:#991B1B;">${args.employeeName} (${args.employeeCode})</td>
+        </tr>
+        <tr>
+          <td style="color:#7F1D1D;">Official Email:</td>
+          <td style="color:#1E293B;">${args.employeeEmail}</td>
+        </tr>
+        <tr>
+          <td style="color:#7F1D1D;">Department:</td>
+          <td style="color:#1E293B;">${args.departmentName || "General Operations"}</td>
+        </tr>
+        <tr>
+          <td style="color:#7F1D1D;">Incident Timestamp:</td>
+          <td style="font-weight:700;color:#0F172A;">${dateFormatted} at ${timeFormatted} (IST)</td>
+        </tr>
+        <tr>
+          <td style="color:#7F1D1D;">Reason / Event:</td>
+          <td style="font-weight:600;color:#B91C1C;">${args.reason || "Device GPS Location Disabled / Permission Denied"}</td>
+        </tr>
+        ${
+          args.deviceInfo
+            ? `<tr>
+                <td style="color:#7F1D1D;">Device / Browser:</td>
+                <td style="color:#64748B;font-size:11px;">${args.deviceInfo}</td>
+              </tr>`
+            : ""
+        }
+      </table>
+    </div>
+
+    <p style="font-size:13px;color:#334155;line-height:1.5;">
+      Under Realty Smartz HR Attendance Policy, all employees are required to keep GPS Location Services enabled during attendance punching and duty hours for 200m geofence verification.
+      The employee has been blocked from punching until GPS location is turned back on.
+    </p>
+  `;
+
+  const html = layout({
+    title: "Location Tracking Disabled Alert",
+    badge: "GPS SERVICE DISABLED",
+    badgeColor: "#EF4444",
+    body,
+  });
+
+  const recipients = [...getHrNotifyEmails(), args.employeeEmail];
+  if (args.managerEmail) recipients.push(args.managerEmail);
+
+  return sendMail({
+    to: [...new Set(recipients)],
+    subject: `🚨 [HRMS Alert] Location Services Disabled — ${args.employeeName} (${args.employeeCode})`,
+    html,
+  });
+}
+
+/**
+ * 7. Test SMTP connection & send test email
  */
 export async function testSmtpConnection(
   targetEmail: string

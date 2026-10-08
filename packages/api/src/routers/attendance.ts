@@ -1050,4 +1050,175 @@ export const attendanceRouter = router({
         };
       });
     }),
+
+  /**
+   * Report that employee disabled GPS location services / denied permission.
+   * Sends immediate alert email to HR Admin and Manager.
+   */
+  reportLocationDisabled: protectedProcedure
+    .input(
+      z.object({
+        reason: z.string().nullable().optional(),
+        deviceInfo: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const employeeId = await resolveEmployeeId(ctx);
+      const emp = await ctx.prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          email: true,
+          department: { select: { name: true } },
+          manager: { select: { email: true } },
+        },
+      });
+
+      if (!emp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+      }
+
+      try {
+        const { notifyLocationDisabledAlert } = await import("../lib/email");
+        await notifyLocationDisabledAlert({
+          employeeName: `${emp.firstName} ${emp.lastName}`,
+          employeeEmail: emp.email,
+          employeeCode: emp.employeeCode,
+          departmentName: emp.department?.name,
+          attemptTime: new Date(),
+          reason: input.reason || "Device GPS Location Disabled / Permission Denied",
+          deviceInfo: input.deviceInfo || null,
+          managerEmail: emp.manager?.email,
+        });
+      } catch (err) {
+        console.error("[attendance.reportLocationDisabled] email send error:", err);
+      }
+
+      return { success: true, notified: true };
+    }),
+
+  /**
+   * Complete daily location and timestamp breadcrumb trace for an employee.
+   * Bundles check-in, check-out, interval pings, and assigned site for full map replay.
+   */
+  employeeDailyMapTrace: protectedProcedure
+    .input(
+      z.object({
+        employeeId: z.string(),
+        date: z.coerce.date().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const role = (ctx.session!.user.role ?? "EMPLOYEE") as Role;
+      if (!canViewTeamAttendance(role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Forbidden" });
+      }
+
+      const day = input.date ? startOfDayUTC(input.date) : startOfDayUTC(new Date());
+      const next = new Date(day);
+      next.setUTCDate(next.getUTCDate() + 1);
+
+      const [emp, settings, log, pings] = await Promise.all([
+        ctx.prisma.employee.findUnique({
+          where: { id: input.employeeId },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            email: true,
+            workLocationName: true,
+            workLocationLat: true,
+            workLocationLng: true,
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+          },
+        }),
+        ctx.prisma.companySettings.findUnique({
+          where: { id: "singleton" },
+        }),
+        ctx.prisma.attendanceLog.findUnique({
+          where: {
+            employeeId_date: {
+              employeeId: input.employeeId,
+              date: day,
+            },
+          },
+        }),
+        ctx.prisma.locationPing.findMany({
+          where: {
+            employeeId: input.employeeId,
+            capturedAt: { gte: day, lt: next },
+          },
+          orderBy: { capturedAt: "asc" },
+        }),
+      ]);
+
+      if (!emp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+      }
+
+      type TraceEvent = {
+        id: string;
+        type: "CHECK_IN" | "PING" | "CHECK_OUT";
+        time: Date;
+        lat: number;
+        lng: number;
+        address: string;
+        withinGeofence: boolean;
+        notes?: string | null;
+      };
+
+      const events: TraceEvent[] = [];
+
+      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
+        events.push({
+          id: `in-${log.id}`,
+          type: "CHECK_IN",
+          time: log.checkInTime,
+          lat: log.checkInLat,
+          lng: log.checkInLng,
+          address: log.checkInAddress || "Office Premise",
+          withinGeofence: log.withinGeofence,
+          notes: log.notes,
+        });
+      }
+
+      for (const p of pings) {
+        events.push({
+          id: `ping-${p.id}`,
+          type: "PING",
+          time: p.capturedAt,
+          lat: p.lat,
+          lng: p.lng,
+          address: p.address || `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`,
+          withinGeofence: p.withinGeofence,
+        });
+      }
+
+      if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
+        events.push({
+          id: `out-${log.id}`,
+          type: "CHECK_OUT",
+          time: log.checkOutTime,
+          lat: log.checkOutLat,
+          lng: log.checkOutLng,
+          address: log.checkOutAddress || "Office Premise",
+          withinGeofence: log.withinGeofence,
+          notes: log.notes,
+        });
+      }
+
+      events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+      return {
+        employee: emp,
+        settings,
+        log,
+        events,
+      };
+    }),
 });

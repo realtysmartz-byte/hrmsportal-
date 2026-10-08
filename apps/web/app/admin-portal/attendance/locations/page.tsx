@@ -17,6 +17,7 @@ import {
   AlertCircle,
   LogIn,
   LogOut,
+  Route,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { LocationMap } from "@/components/LocationMap";
 import { AssignLocationCard } from "@/components/AssignLocationCard";
+import { EmployeeDailyTraceModal } from "@/components/EmployeeDailyTraceModal";
 import { cn } from "@/lib/utils";
 
 export default function LocationTracingPage() {
@@ -53,6 +55,10 @@ export default function LocationTracingPage() {
     locationName: string | null;
     lat: number | null;
     lng: number | null;
+  } | null>(null);
+  const [traceModalEmployee, setTraceModalEmployee] = useState<{
+    id: string;
+    name: string;
   } | null>(null);
 
   // 1. Fetch live personnel overview (all employees with today's status & latest GPS)
@@ -362,6 +368,16 @@ export default function LocationTracingPage() {
         </div>
       )}
 
+      {/* Full Day GPS Trace & Timestamps Modal */}
+      {traceModalEmployee && (
+        <EmployeeDailyTraceModal
+          employeeId={traceModalEmployee.id}
+          employeeName={traceModalEmployee.name}
+          date={date}
+          onClose={() => setTraceModalEmployee(null)}
+        />
+      )}
+
       {/* VIEW 1: All Employees Live Status */}
       {viewMode === "overview" && (
         <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
@@ -521,6 +537,14 @@ export default function LocationTracingPage() {
                               </Button>
                               <Button
                                 size="sm"
+                                onClick={() => setTraceModalEmployee({ id: emp.id, name: empName })}
+                                className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                              >
+                                <Route className="h-3 w-3" />
+                                <span>Day Trace</span>
+                              </Button>
+                              <Button
+                                size="sm"
                                 onClick={() =>
                                   setAssignStaffTarget({
                                     id: emp.id,
@@ -636,6 +660,14 @@ export default function LocationTracingPage() {
                         >
                           <MapPin className="h-3 w-3 mr-1" />
                           Pin Map
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setTraceModalEmployee({ id: emp.id, name: empName })}
+                          className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold px-2"
+                        >
+                          <Route className="h-3 w-3" />
+                          <span>Day Trace</span>
                         </Button>
                         <Button
                           size="sm"
@@ -786,6 +818,14 @@ export default function LocationTracingPage() {
                               >
                                 View Pin
                               </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => setTraceModalEmployee({ id: ping.employeeId, name: empName })}
+                                className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                              >
+                                <Route className="h-3 w-3" />
+                                <span>Day Trace</span>
+                              </Button>
                               <a
                                 href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
                                 target="_blank"
@@ -832,7 +872,7 @@ export default function LocationTracingPage() {
                         {ping.address || "Location coordinate recorded"}
                       </p>
 
-                      <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
@@ -844,14 +884,24 @@ export default function LocationTracingPage() {
                           {ping.withinGeofence ? "Within 200m" : "Outside"}
                         </span>
 
-                        <a
-                          href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
-                        >
-                          Open Maps <ExternalLink className="h-3 w-3" />
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => setTraceModalEmployee({ id: ping.employeeId, name: empName })}
+                            className="h-6 text-[11px] gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold px-2"
+                          >
+                            <Route className="h-2.5 w-2.5" />
+                            <span>Day Trace</span>
+                          </Button>
+                          <a
+                            href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
+                          >
+                            Open Maps <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
                       </div>
                     </div>
                   );

@@ -34,6 +34,9 @@ export function LocationTracker() {
   const pingRef = useRef(pingMutation.mutateAsync);
   pingRef.current = pingMutation.mutateAsync;
 
+  const reportDisabledMutation = trpc.attendance.reportLocationDisabled.useMutation();
+  const hasReportedRef = useRef(false);
+
   useEffect(() => {
     if (authStatus !== "authenticated") return;
     if (typeof window === "undefined" || !navigator.geolocation) {
@@ -89,7 +92,16 @@ export function LocationTracker() {
       },
       (err) => {
         if (cancelled) return;
-        setStatus(err.code === err.PERMISSION_DENIED ? "denied" : "error");
+        const isDenied = err.code === err.PERMISSION_DENIED;
+        setStatus(isDenied ? "denied" : "error");
+
+        if (isDenied && !hasReportedRef.current) {
+          hasReportedRef.current = true;
+          reportDisabledMutation.mutate({
+            reason: "Employee turned off device location / denied permission during active session",
+            deviceInfo: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+          });
+        }
       },
       {
         enableHighAccuracy: true,

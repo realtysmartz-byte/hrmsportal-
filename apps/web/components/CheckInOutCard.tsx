@@ -104,6 +104,8 @@ export function CheckInOutCard() {
     return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
   }, [elapsedSeconds]);
 
+  const reportLocationDisabled = trpc.attendance.reportLocationDisabled.useMutation();
+
   const checkIn = trpc.attendance.checkIn.useMutation({
     onSuccess: async () => {
       await utils.attendance.today.invalidate();
@@ -159,8 +161,16 @@ export function CheckInOutCard() {
       }
     } catch (err: unknown) {
       const errObj = err as { code?: number; message?: string };
-      if (errObj && (errObj.code === 1 || errObj.message?.toLowerCase().includes("denied"))) {
+      const isDenied = Boolean(
+        errObj && (errObj.code === 1 || errObj.code === 2 || errObj.message?.toLowerCase().includes("denied") || errObj.message?.toLowerCase().includes("permission"))
+      );
+      if (isDenied) {
         setIsPermissionDenied(true);
+        // Dispatch email notification to HR Admin that employee disabled location
+        reportLocationDisabled.mutate({
+          reason: errObj.message || "Device GPS Location Disabled / Permission Denied during punch attempt",
+          deviceInfo: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+        });
       }
       setError(geolocationErrorMessage(err));
     } finally {

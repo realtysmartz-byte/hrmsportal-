@@ -125,15 +125,26 @@ export function AssignLocationCard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const [savedPopup, setSavedPopup] = useState<{
+    locationName: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
+
   const updateMutation = trpc.employee.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       setSuccessMessage(
         `Work location successfully assigned to ${selectedName}! Employee can now login under 200m.`
       );
+      setSavedPopup({
+        locationName: variables.workLocationName || selectedName,
+        lat: variables.workLocationLat ?? (selectedLat || HQ_OFFICE.lat),
+        lng: variables.workLocationLng ?? (selectedLng || HQ_OFFICE.lng),
+      });
       utils.employee.profileHub.invalidate({ id: employeeId });
       utils.employee.byId.invalidate({ id: employeeId });
       onUpdated?.();
-      setTimeout(() => setSuccessMessage(null), 5000);
+      setTimeout(() => setSuccessMessage(null), 8000);
     },
   });
 
@@ -389,6 +400,60 @@ export function AssignLocationCard({
           />
         </div>
       </div>
+
+      {/* Location Saved Confirmation Popup Modal */}
+      {savedPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-neutral-100 text-center animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4 ring-8 ring-emerald-50/50">
+              <CheckCircle2 className="h-9 w-9" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900">
+              Work Location Successfully Allocated!
+            </h3>
+            <p className="text-xs text-neutral-500 mt-1">
+              200-meter geofence perimeter is now active for this employee.
+            </p>
+
+            <div className="mt-4 rounded-2xl bg-neutral-50 p-4 border border-neutral-100 text-left space-y-2">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-neutral-400 block">Target Employee</span>
+                <span className="text-xs font-bold text-neutral-900">{employeeName}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-neutral-400 block">Allocated Worksite</span>
+                <span className="text-xs font-semibold text-neutral-800">{savedPopup.locationName}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-neutral-200/60 font-mono text-neutral-500">
+                <span>GPS Coordinates</span>
+                <span>{savedPopup.lat.toFixed(5)}, {savedPopup.lng.toFixed(5)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                <span>Strict 200m Perimeter Verification Active</span>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-2.5">
+              <a
+                href={`https://www.google.com/maps?q=${savedPopup.lat},${savedPopup.lng}&z=17`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 h-11 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+              >
+                <span>Verify in Maps</span>
+                <ExternalLink className="h-3.5 w-3.5 text-neutral-400" />
+              </a>
+              <Button
+                onClick={() => setSavedPopup(null)}
+                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white text-xs font-bold shadow-md hover:opacity-95"
+              >
+                Got It, Continue
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
