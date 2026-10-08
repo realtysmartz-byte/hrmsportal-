@@ -441,34 +441,49 @@ export default function AllocateLocationsPage() {
 
                 {/* Auto-suggest dropdown */}
                 {isOpen && suggestions.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto">
-                    <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center justify-between">
-                      <span>Matching Places & GPS Pins</span>
-                      <span>200m Geofenced</span>
+                  <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
+                    <div className="px-3.5 py-1.5 bg-neutral-50 border-b border-neutral-100 text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center justify-between sticky top-0 z-10">
+                      <span>Matching Places & Micro-Sites ({suggestions.length})</span>
+                      <span>200m Perimeter</span>
                     </div>
                     {suggestions.map((item, idx) => (
                       <button
-                        key={`${item.name}-${idx}`}
+                        key={`${item.lat}-${item.lng}-${idx}`}
                         type="button"
                         onClick={() => handleSelectSuggestion(item)}
-                        className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 flex items-start gap-2.5 border-b border-neutral-100 last:border-0 transition-colors"
+                        className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 flex items-start gap-2.5 border-b border-neutral-100 last:border-0 transition-colors group"
                       >
-                        <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5" />
+                        <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-neutral-900 truncate">
-                            {item.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-neutral-900 truncate">
+                              {item.name}
+                            </p>
+                            {item.tag && (
+                              <Badge variant="secondary" className="text-[9px] uppercase px-1.5 py-0 shrink-0 font-medium bg-neutral-100 text-neutral-600">
+                                {item.tag}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-[11px] text-neutral-500 truncate mt-0.5">
                             {item.displayName || item.address}
                           </p>
+                          <p className="font-mono text-[10px] text-neutral-400 mt-0.5">
+                            {item.lat.toFixed(5)}, {item.lng.toFixed(5)}
+                          </p>
                         </div>
-                        {item.tag && (
-                          <Badge variant="secondary" className="text-[9px] uppercase px-1.5 py-0 shrink-0">
-                            {item.tag}
-                          </Badge>
-                        )}
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {/* Empty State when search returns 0 results */}
+                {isOpen && !isSearching && query.trim().length >= 2 && suggestions.length === 0 && (
+                  <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl p-3.5 text-center">
+                    <p className="text-xs font-semibold text-neutral-700">No matching site found</p>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">
+                      Tip: Paste a Google Maps URL or enter GPS coordinates (e.g. 28.3997, 77.0385) directly.
+                    </p>
                   </div>
                 )}
 
