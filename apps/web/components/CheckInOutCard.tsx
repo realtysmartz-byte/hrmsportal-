@@ -202,17 +202,30 @@ export function CheckInOutCard() {
         return;
       }
 
-      const place = await reverseGeocodePlace(lat, lng);
-      setCaptured(place);
+      let cleanName = officeName || "Realty Smartz Private Limited";
+      let cleanAddress = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-      let cleanName = place.name;
-      let cleanAddress = place.address;
+      // Instant address resolution: when verified within office or site geofence, use registered workplace name
+      if (curDistOffice <= geofenceRadius) {
+        cleanName = officeName || "Realty Smartz Private Limited";
+        cleanAddress = `${cleanName} (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+        setCaptured({ name: cleanName, address: cleanAddress, lat, lng });
+      } else if (curDistSite != null && curDistSite <= geofenceRadius) {
+        cleanName = assignedSiteName || "Assigned Project Site";
+        cleanAddress = `${cleanName} (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+        setCaptured({ name: cleanName, address: cleanAddress, lat, lng });
+      } else {
+        const place = await reverseGeocodePlace(lat, lng);
+        setCaptured(place);
+        cleanName = place.name;
+        cleanAddress = place.address;
 
-      if (!cleanName || /sunbreeze/i.test(cleanName) || cleanName === "Current location") {
-        cleanName = "Realty Smartz Private Limited";
-      }
-      if (cleanAddress && /sunbreeze/i.test(cleanAddress)) {
-        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+        if (!cleanName || /sunbreeze/i.test(cleanName) || cleanName === "Current location") {
+          cleanName = "Realty Smartz Private Limited";
+        }
+        if (cleanAddress && /sunbreeze/i.test(cleanAddress)) {
+          cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+        }
       }
 
       const addressLabel = cleanAddress

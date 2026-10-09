@@ -475,74 +475,77 @@ export const attendanceRouter = router({
         console.error("[attendance.checkIn] failed to record initial location ping:", pingErr);
       }
 
-      // 1. Send punching details & policy emails
-      try {
-        const { notifyPunchDetails, notifyOutsideGeofence } = await import(
-          "../lib/email"
-        );
-        const emp = await ctx.prisma.employee.findUnique({
-          where: { id: employeeId },
-          select: {
-            email: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            manager: { select: { email: true } },
-          },
-        });
-        if (emp) {
-          const name = `${emp.firstName} ${emp.lastName}`;
-
-          // Always send punching details email to employee (and manager/HR if late)
-          await notifyPunchDetails({
-            employeeName: name,
-            employeeEmail: emp.email,
-            employeeCode: emp.employeeCode,
-            checkInTime: now,
-            status,
-            address: finalAddress,
-            withinGeofence,
-            managerEmail: emp.manager?.email,
+      // Non-blocking background tasks: Send emails & sync Google Sheets without slowing down punch-in
+      void (async () => {
+        // 1. Send punching details & policy emails
+        try {
+          const { notifyPunchDetails, notifyOutsideGeofence } = await import(
+            "../lib/email"
+          );
+          const emp = await ctx.prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              manager: { select: { email: true } },
+            },
           });
+          if (emp) {
+            const name = `${emp.firstName} ${emp.lastName}`;
 
-          if (!withinGeofence) {
-            await notifyOutsideGeofence({
+            // Always send punching details email to employee (and manager/HR if late)
+            await notifyPunchDetails({
               employeeName: name,
               employeeEmail: emp.email,
               employeeCode: emp.employeeCode,
               checkInTime: now,
+              status,
               address: finalAddress,
+              withinGeofence,
               managerEmail: emp.manager?.email,
             });
-          }
-        }
-      } catch (err) {
-        console.error("[attendance.checkIn] email notify failed:", err);
-      }
 
-      // 2. Real-time Google Sheet sync (awaited so serverless execution context does not freeze prematurely)
-      try {
-        const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
-          "./googleSheets"
-        );
-        const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
-          "../lib/google-sheets"
-        );
-        const sheetConfig = getActiveGoogleSheetConfig();
-        if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
-          const reportData = await generateDailyAttendanceData(ctx.prisma, today);
-          const res = await syncReportToGoogleSheet(sheetConfig, reportData);
-          setLastSyncMetadata({
-            date: reportData.dateStr,
-            sheetTitle: res.sheetTitle,
-            rowCount: res.rowCount,
-            syncedAt: new Date().toISOString(),
-          });
-          console.info("[attendance.checkIn] Real-time Google Sheet sync succeeded:", res.sheetTitle);
+            if (!withinGeofence) {
+              await notifyOutsideGeofence({
+                employeeName: name,
+                employeeEmail: emp.email,
+                employeeCode: emp.employeeCode,
+                checkInTime: now,
+                address: finalAddress,
+                managerEmail: emp.manager?.email,
+              });
+            }
+          }
+        } catch (err) {
+          console.error("[attendance.checkIn] email notify failed:", err);
         }
-      } catch (err) {
-        console.error("[attendance.checkIn] Real-time Google Sheet sync error:", err);
-      }
+
+        // 2. Real-time Google Sheet sync
+        try {
+          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
+            "./googleSheets"
+          );
+          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+            "../lib/google-sheets"
+          );
+          const sheetConfig = getActiveGoogleSheetConfig();
+          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
+            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+            setLastSyncMetadata({
+              date: reportData.dateStr,
+              sheetTitle: res.sheetTitle,
+              rowCount: res.rowCount,
+              syncedAt: new Date().toISOString(),
+            });
+            console.info("[attendance.checkIn] Background Google Sheet sync succeeded:", res.sheetTitle);
+          }
+        } catch (err) {
+          console.error("[attendance.checkIn] Background Google Sheet sync error:", err);
+        }
+      })();
 
       return log;
     }),
@@ -650,48 +653,51 @@ export const attendanceRouter = router({
         console.error("[attendance.checkOut] failed to record checkout location ping:", pingErr);
       }
 
-      // 1. Check-out email notification
-      try {
-        const { notifyCheckOutDetails } = await import("../lib/email");
-        if (emp) {
-          const name = `${emp.firstName} ${emp.lastName}`;
-          await notifyCheckOutDetails({
-            employeeName: name,
-            employeeEmail: emp.email,
-            employeeCode: emp.employeeCode,
-            checkOutTime: now,
-            totalHours: roundedHours,
-            address: finalOutAddress,
-            managerEmail: emp.manager?.email,
-          });
+      // Non-blocking background tasks: Send emails & sync Google Sheets without slowing down punch-out
+      void (async () => {
+        // 1. Check-out email notification
+        try {
+          const { notifyCheckOutDetails } = await import("../lib/email");
+          if (emp) {
+            const name = `${emp.firstName} ${emp.lastName}`;
+            await notifyCheckOutDetails({
+              employeeName: name,
+              employeeEmail: emp.email,
+              employeeCode: emp.employeeCode,
+              checkOutTime: now,
+              totalHours: roundedHours,
+              address: finalOutAddress,
+              managerEmail: emp.manager?.email,
+            });
+          }
+        } catch (err) {
+          console.error("[attendance.checkOut] email notify failed:", err);
         }
-      } catch (err) {
-        console.error("[attendance.checkOut] email notify failed:", err);
-      }
 
-      // 2. Real-time Google Sheet sync on checkout (awaited so serverless execution context does not freeze prematurely)
-      try {
-        const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
-          "./googleSheets"
-        );
-        const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
-          "../lib/google-sheets"
-        );
-        const sheetConfig = getActiveGoogleSheetConfig();
-        if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
-          const reportData = await generateDailyAttendanceData(ctx.prisma, today);
-          const res = await syncReportToGoogleSheet(sheetConfig, reportData);
-          setLastSyncMetadata({
-            date: reportData.dateStr,
-            sheetTitle: res.sheetTitle,
-            rowCount: res.rowCount,
-            syncedAt: new Date().toISOString(),
-          });
-          console.info("[attendance.checkOut] Real-time Google Sheet sync succeeded:", res.sheetTitle);
+        // 2. Real-time Google Sheet sync on checkout
+        try {
+          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
+            "./googleSheets"
+          );
+          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+            "../lib/google-sheets"
+          );
+          const sheetConfig = getActiveGoogleSheetConfig();
+          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
+            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+            setLastSyncMetadata({
+              date: reportData.dateStr,
+              sheetTitle: res.sheetTitle,
+              rowCount: res.rowCount,
+              syncedAt: new Date().toISOString(),
+            });
+            console.info("[attendance.checkOut] Background Google Sheet sync succeeded:", res.sheetTitle);
+          }
+        } catch (err) {
+          console.error("[attendance.checkOut] Background Google Sheet sync error:", err);
         }
-      } catch (err) {
-        console.error("[attendance.checkOut] Real-time Google Sheet sync error:", err);
-      }
+      })();
 
       return updated;
     }),
@@ -706,6 +712,7 @@ export const attendanceRouter = router({
 
       await ensureAutoPunchOut(ctx.prisma);
 
+      const isRange = Boolean(input.startDate && input.endDate);
       const targetDate = startOfDayUTC(input.date ?? new Date());
       const employeeWhere: Record<string, unknown> = {
         status: { in: ["ACTIVE", "ON_LEAVE"] },
@@ -731,6 +738,41 @@ export const attendanceRouter = router({
         orderBy: { firstName: "asc" },
       });
 
+      // If a date range (e.g. 1 month) is requested, return all attendance logs for that period
+      if (isRange) {
+        const start = startOfDayUTC(input.startDate!);
+        const end = startOfDayUTC(input.endDate!);
+
+        const logs = await ctx.prisma.attendanceLog.findMany({
+          where: {
+            employeeId: { in: employees.map((e) => e.id) },
+            date: { gte: start, lte: end },
+            ...(input.outsideGeofenceOnly ? { withinGeofence: false } : {}),
+          },
+          orderBy: [{ date: "desc" }, { checkInTime: "desc" }],
+        });
+
+        const empMap = new Map(employees.map((e) => [e.id, e]));
+        const rows = logs
+          .map((log) => {
+            const employee = empMap.get(log.employeeId);
+            if (!employee) return null;
+            return {
+              employee,
+              log,
+            };
+          })
+          .filter((r): r is { employee: (typeof employees)[number]; log: (typeof logs)[number] } => Boolean(r));
+
+        return {
+          date: start,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          isRange: true,
+          rows,
+        };
+      }
+
       const logs = await ctx.prisma.attendanceLog.findMany({
         where: {
           employeeId: { in: employees.map((e) => e.id) },
@@ -750,7 +792,7 @@ export const attendanceRouter = router({
         rows = rows.filter((r) => r.log && !r.log.withinGeofence);
       }
 
-      return { date: targetDate, rows };
+      return { date: targetDate, isRange: false, rows };
     }),
 
   /**
