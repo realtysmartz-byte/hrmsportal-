@@ -148,9 +148,9 @@ export function EmployeeDailyTraceModal({
             Failed to load trace information. Please try again.
           </div>
         ) : (
-          <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex flex-col flex-1 overflow-y-auto lg:overflow-hidden">
             {/* Day KPI Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 py-3 bg-white border-b border-neutral-100 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 sm:px-5 py-3 bg-white border-b border-neutral-100 text-xs shrink-0">
               <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
                 <span className="text-neutral-400 block text-[10px] uppercase font-bold tracking-wider">
                   Punch-In Time
@@ -199,9 +199,9 @@ export function EmployeeDailyTraceModal({
             </div>
 
             {/* Split View: Map + Chronological Timeline */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden min-h-[380px]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 min-h-0 lg:overflow-hidden">
               {/* Map Column (7 cols) */}
-              <div className="lg:col-span-7 flex flex-col p-4 bg-neutral-50/50 border-b lg:border-b-0 lg:border-r border-neutral-100 overflow-y-auto">
+              <div className="lg:col-span-7 flex flex-col p-3.5 sm:p-4 bg-neutral-50/50 border-b lg:border-b-0 lg:border-r border-neutral-100 lg:overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
                     <MapPin className="h-4 w-4 text-[#FF7A70]" />
@@ -234,7 +234,8 @@ export function EmployeeDailyTraceModal({
                         ? `${employeeName} - ${activeEvent.type} at ${new Date(activeEvent.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                         : assignedSiteName
                     }
-                    height={340}
+                    showCard={false}
+                    height={280}
                   />
                 </div>
 
@@ -296,7 +297,7 @@ export function EmployeeDailyTraceModal({
               </div>
 
               {/* Timeline Column (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col p-4 overflow-hidden bg-white">
+              <div className="lg:col-span-5 flex flex-col p-3.5 sm:p-4 bg-white lg:overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                     Chronological Timeline & Pings
@@ -306,7 +307,7 @@ export function EmployeeDailyTraceModal({
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[380px] lg:max-h-[460px]">
+                <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[220px] max-h-[380px] lg:max-h-[500px]">
                   {events.length === 0 ? (
                     <div className="py-12 text-center text-xs text-neutral-400 space-y-2">
                       <Clock className="h-7 w-7 mx-auto text-neutral-300" />

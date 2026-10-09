@@ -632,14 +632,12 @@ export default function EmployeeAttendancePage() {
                 </div>
 
                 {selectedLog.checkInLat != null && selectedLog.checkInLng != null && (
-                  <div className="overflow-hidden rounded-xl border border-neutral-200">
-                    <LocationMap
-                      lat={selectedLog.checkInLat}
-                      lng={selectedLog.checkInLng}
-                      label={selectedLog.checkInAddress || "Check-in point"}
-                      height={180}
-                    />
-                  </div>
+                  <LocationMap
+                    lat={selectedLog.checkInLat}
+                    lng={selectedLog.checkInLng}
+                    label={selectedLog.checkInAddress || "Check-in point"}
+                    height={200}
+                  />
                 )}
               </div>
             )}

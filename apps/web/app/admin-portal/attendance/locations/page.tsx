@@ -212,30 +212,30 @@ export default function LocationTracingPage() {
       <div className="rounded-2xl border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* View Toggle Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-neutral-100 rounded-xl max-w-fit">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setViewMode("overview")}
               className={cn(
-                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center",
                 viewMode === "overview"
                   ? "bg-white text-neutral-900 shadow-xs"
                   : "text-neutral-500 hover:text-neutral-800"
               )}
             >
-              👥 All Employees Live Status ({filteredStaff.length})
+              👥 All Employees ({filteredStaff.length})
             </button>
             <button
               type="button"
               onClick={() => setViewMode("traces")}
               className={cn(
-                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center",
                 viewMode === "traces"
                   ? "bg-white text-neutral-900 shadow-xs"
                   : "text-neutral-500 hover:text-neutral-800"
               )}
             >
-              📍 30-Minute GPS Trail Logs ({filteredPings.length})
+              📍 30-Min GPS Traces ({filteredPings.length})
             </button>
           </div>
 
@@ -305,11 +305,12 @@ export default function LocationTracingPage() {
               </button>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 rounded-2xl overflow-hidden border border-neutral-200">
               <LocationMap
                 lat={activeMapPing.lat}
                 lng={activeMapPing.lng}
                 label={activeMapPing.label}
+                showCard={false}
                 height={300}
               />
             </div>
@@ -518,10 +519,10 @@ export default function LocationTracingPage() {
                           </TableCell>
 
                           {/* Map Action */}
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <TableCell className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() =>
                                   setActiveMapPing({
@@ -531,17 +532,20 @@ export default function LocationTracingPage() {
                                     address: ping?.address || att?.checkInAddress || siteName,
                                   })
                                 }
-                                className="h-7 text-xs text-teal-700 hover:bg-teal-50"
+                                className="h-7 px-2 text-xs text-neutral-700 hover:bg-neutral-50 rounded-lg border-neutral-200"
+                                title="View Map Pin"
                               >
-                                View Pin
+                                <MapPin className="h-3 w-3 text-[#FF7A70] mr-1" />
+                                Pin
                               </Button>
                               <Button
                                 size="sm"
                                 onClick={() => setTraceModalEmployee({ id: emp.id, name: empName })}
-                                className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                                title="View Full Day Trace"
                               >
                                 <Route className="h-3 w-3" />
-                                <span>Day Trace</span>
+                                <span>Trace</span>
                               </Button>
                               <Button
                                 size="sm"
@@ -554,18 +558,19 @@ export default function LocationTracingPage() {
                                     lng: emp.workLocationLng,
                                   })
                                 }
-                                className="h-7 text-xs gap-1 bg-[#FF7A70] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-[#FF7A70] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold"
+                                title="Assign Official Workplace"
                               >
                                 <Navigation className="h-3 w-3" />
-                                <span>Assign Site</span>
+                                <span>Assign</span>
                               </Button>
                               <a
                                 href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                                className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                                title="Open in Google Maps"
                               >
-                                <span>Google Maps</span>
                                 <ExternalLink className="h-3 w-3" />
                               </a>
                             </div>
@@ -644,9 +649,9 @@ export default function LocationTracingPage() {
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 gap-2 flex-wrap">
+                      <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-1.5 pt-1">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() =>
                             setActiveMapPing({
@@ -656,9 +661,9 @@ export default function LocationTracingPage() {
                               address: ping?.address || att?.checkInAddress || siteName,
                             })
                           }
-                          className="h-7 text-xs text-teal-700 hover:bg-teal-50 px-2 font-semibold"
+                          className="h-7 text-xs text-neutral-700 border-neutral-200 px-2 font-semibold"
                         >
-                          <MapPin className="h-3 w-3 mr-1" />
+                          <MapPin className="h-3 w-3 mr-1 text-[#FF7A70]" />
                           Pin Map
                         </Button>
                         <Button
@@ -689,9 +694,9 @@ export default function LocationTracingPage() {
                           href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
+                          className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
                         >
-                          <span>Open Maps</span>
+                          <span>Google Maps</span>
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
@@ -801,10 +806,10 @@ export default function LocationTracingPage() {
                             </span>
                           </TableCell>
 
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <TableCell className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() =>
                                   setActiveMapPing({
@@ -814,25 +819,28 @@ export default function LocationTracingPage() {
                                     address: ping.address || "Location coordinate",
                                   })
                                 }
-                                className="h-7 text-xs text-teal-700 hover:bg-teal-50"
+                                className="h-7 px-2 text-xs text-neutral-700 hover:bg-neutral-50 rounded-lg border-neutral-200"
+                                title="View Map Pin"
                               >
-                                View Pin
+                                <MapPin className="h-3 w-3 text-[#FF7A70] mr-1" />
+                                Pin
                               </Button>
                               <Button
                                 size="sm"
                                 onClick={() => setTraceModalEmployee({ id: ping.employeeId, name: empName })}
-                                className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                                title="View Full Day Trace"
                               >
                                 <Route className="h-3 w-3" />
-                                <span>Day Trace</span>
+                                <span>Trace</span>
                               </Button>
                               <a
                                 href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                                className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                                title="Open in Google Maps"
                               >
-                                <span>Google Maps</span>
                                 <ExternalLink className="h-3 w-3" />
                               </a>
                             </div>
@@ -884,22 +892,38 @@ export default function LocationTracingPage() {
                           {ping.withinGeofence ? "Workplace" : "Outside"}
                         </span>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setActiveMapPing({
+                                lat: ping.lat,
+                                lng: ping.lng,
+                                label: `${empName} at ${timeStr}`,
+                                address: ping.address || "Location coordinate",
+                              })
+                            }
+                            className="h-7 text-xs text-neutral-700 border-neutral-200 px-2 font-semibold"
+                          >
+                            <MapPin className="h-3 w-3 mr-1 text-[#FF7A70]" />
+                            Pin
+                          </Button>
                           <Button
                             size="sm"
                             onClick={() => setTraceModalEmployee({ id: ping.employeeId, name: empName })}
-                            className="h-6 text-[11px] gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold px-2"
+                            className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold px-2"
                           >
-                            <Route className="h-2.5 w-2.5" />
-                            <span>Day Trace</span>
+                            <Route className="h-3 w-3" />
+                            <span>Trace</span>
                           </Button>
                           <a
                             href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 font-bold text-xs text-[#FF7A70]"
+                            className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
                           >
-                            Open Maps <ExternalLink className="h-3 w-3" />
+                            <ExternalLink className="h-3 w-3" />
                           </a>
                         </div>
                       </div>
