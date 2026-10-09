@@ -127,9 +127,19 @@ export async function generateDailyAttendanceData(
 
     let checkOutLoc = "—";
     if (log?.checkOutAddress) {
-      checkOutLoc = log.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      checkOutLoc = log.checkOutAddress.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD");
     } else if (log?.checkOutLat && log?.checkOutLng) {
       checkOutLoc = `${log.checkOutLat.toFixed(5)}, ${log.checkOutLng.toFixed(5)}`;
+    } else if (log?.checkOutTime && checkInLoc !== "—") {
+      checkOutLoc = checkInLoc;
+    }
+
+    // Clean up any legacy auto text so "auto fetch" or "Auto checkout" never appears in Google Sheet
+    if (
+      checkOutLoc.toLowerCase().includes("auto checkout") ||
+      checkOutLoc.toLowerCase().includes("auto fetch")
+    ) {
+      checkOutLoc = checkInLoc !== "—" ? checkInLoc : "REALTY SMARTZ PVT LTD";
     }
 
     const geofenceStatus = log?.checkInTime
@@ -139,7 +149,15 @@ export async function generateDailyAttendanceData(
       : "—";
 
     const totalHours = log?.totalHours ? `${log.totalHours} hrs` : "—";
-    const notes = log?.notes || "";
+    let notes = log?.notes || "";
+    notes = notes
+      .replace(/Auto checked out at 07:00 PM IST \(Shift End\)/gi, "")
+      .replace(/Auto checkout[^\s·]*/gi, "")
+      .replace(/Auto fetch[^\s·]*/gi, "")
+      .replace(/·\s*·/g, "·")
+      .trim();
+    if (notes.startsWith("·")) notes = notes.replace(/^·\s*/, "");
+    if (notes.endsWith("·")) notes = notes.replace(/\s*·$/, "");
 
     return {
       srNo: index + 1,

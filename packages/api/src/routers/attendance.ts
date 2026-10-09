@@ -14,6 +14,7 @@ import {
   LATE_CHECK_IN_HOUR,
   canViewTeamAttendance,
   isWorkingDay,
+  formatTimeIST,
 } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
@@ -335,10 +336,11 @@ export const attendanceRouter = router({
         },
       });
 
-      if (existing?.checkInTime) {
+      // Block only if employee is CURRENTLY punched in (active on duty without checkout)
+      if (existing?.checkInTime && !existing.checkOutTime) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Already checked in today",
+          message: "You are already punched in. Please punch out first before punching in again.",
         });
       }
       if (existing?.status === "ON_LEAVE") {
@@ -386,24 +388,28 @@ export const attendanceRouter = router({
 
       const withinGeofence = isAtOffice || isAtAllocatedSite;
 
-      // STRICT 200-METER GEOFENCE ENFORCEMENT:
-      // Employee must be within 200m of office or their allocated site, otherwise check-in is blocked.
-      if (!withinGeofence && emp?.role !== "ADMIN") {
+      // STRICT GEOFENCE ENFORCEMENT - APPLIES EQUALLY TO ALL EMPLOYEES & ADMINS:
+      // Punch-in is strictly blocked if outside the 200m perimeter of registered office or assigned site.
+      if (!withinGeofence) {
+        const minDist = Math.round(
+          Math.min(distanceOfficeM, distanceSiteM ?? distanceOfficeM)
+        );
         if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Punch-in blocked: You are outside your assigned workplace. You must be physically present at your assigned site (${emp.workLocationName || "Site"}) or registered office to punch in.`,
+            message: `Punch-in blocked: You are outside your assigned workplace (~${minDist}m away). You must be physically present within ${settings.geofenceRadiusM}m of your assigned site (${emp.workLocationName || "Site"}) or registered office to punch in.`,
           });
         } else {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Punch-in blocked: You are outside the registered office of ${settings.officeName || "REALTY SMARTZ PVT LTD"}. If you are assigned to a site, please ask HR/Admin to assign your work location.`,
+            message: `Punch-in blocked: You are outside the registered office of ${settings.officeName || "REALTY SMARTZ PVT LTD"} (~${minDist}m away). You must be physically present within ${settings.geofenceRadiusM}m to punch in.`,
           });
         }
       }
 
       const now = new Date();
-      const status = attendanceStatusFromCheckIn(now);
+      // On initial punch of the day calculate late status; on re-punch keep existing status
+      const status = existing?.status || attendanceStatusFromCheckIn(now);
 
       let finalAddress = input.address;
       let logNotes: string | null = null;
@@ -415,12 +421,15 @@ export const attendanceRouter = router({
         finalAddress = emp?.workLocationName || "Allocated Site Location";
         logNotes = `Site login: ${emp?.workLocationName || "Site"} (verified workplace)`;
       } else {
-        // Admin override when outside authorized area
         finalAddress = input.address
           ? input.address.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD")
           : (settings.officeName || "REALTY SMARTZ PVT LTD");
-        const adminName = emp ? `${emp.firstName} ${emp.lastName}` : "Admin";
-        logNotes = `Admin override (${adminName})`;
+        logNotes = "Verified workplace";
+      }
+
+      if (existing?.checkOutTime) {
+        const reNote = `Re-punch in at ${formatTimeIST(now)}`;
+        logNotes = existing.notes ? `${existing.notes} · ${reNote}` : reNote;
       }
 
       const locationData = {
@@ -428,6 +437,10 @@ export const attendanceRouter = router({
         checkInLat: input.lat,
         checkInLng: input.lng,
         checkInAddress: finalAddress,
+        checkOutTime: null,
+        checkOutLat: null,
+        checkOutLng: null,
+        checkOutAddress: null,
         withinGeofence,
         status,
         notes: logNotes,
@@ -554,33 +567,59 @@ export const attendanceRouter = router({
       if (existing.checkOutTime) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Already checked out today",
+          message: "You are currently punched out. Please punch in first before checking out again.",
         });
       }
 
       const now = new Date();
-      const totalHours =
+      const sessionHours =
         (now.getTime() - existing.checkInTime.getTime()) / (1000 * 60 * 60);
+      const cumulativeHours = (existing.totalHours || 0) + sessionHours;
 
       let status = existing.status;
-      if (totalHours < 4 && status !== "ON_LEAVE") {
+      if (cumulativeHours < 4 && status !== "ON_LEAVE") {
         status = "HALF_DAY";
+      } else if (cumulativeHours >= 8 && status === "HALF_DAY") {
+        status = "PRESENT";
       }
 
-      const roundedHours = Math.round(totalHours * 100) / 100;
+      const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
-      const settings = await ctx.prisma.companySettings.findUnique({
-        where: { id: "singleton" },
-      });
+      const [settings, emp] = await Promise.all([
+        ctx.prisma.companySettings.findUnique({
+          where: { id: "singleton" },
+        }),
+        ctx.prisma.employee.findUnique({
+          where: { id: employeeId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            workLocationName: true,
+            manager: { select: { email: true } },
+          },
+        }),
+      ]);
 
       let finalOutAddress = input.address;
-      if (existing.withinGeofence && settings?.officeName) {
-        finalOutAddress = settings.officeName;
-      } else if (finalOutAddress) {
-        finalOutAddress = finalOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      if (!finalOutAddress || finalOutAddress === "Current location" || finalOutAddress.trim() === "") {
+        if (emp?.workLocationName) {
+          finalOutAddress = emp.workLocationName;
+        } else if (settings?.officeName) {
+          finalOutAddress = settings.officeName;
+        } else {
+          finalOutAddress = "REALTY SMARTZ PVT LTD";
+        }
       } else {
-        finalOutAddress = "Realty Smartz Private Limited";
+        finalOutAddress = finalOutAddress.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD");
       }
+
+      const outNote = `Punch out at ${formatTimeIST(now)}`;
+      const logNotes = existing.notes
+        ? `${existing.notes} · ${outNote}`
+        : outNote;
 
       const updated = await ctx.prisma.attendanceLog.update({
         where: { id: existing.id },
@@ -591,6 +630,7 @@ export const attendanceRouter = router({
           checkOutAddress: finalOutAddress,
           totalHours: roundedHours,
           status,
+          notes: logNotes,
         },
       });
 
@@ -613,16 +653,6 @@ export const attendanceRouter = router({
       // 1. Check-out email notification
       try {
         const { notifyCheckOutDetails } = await import("../lib/email");
-        const emp = await ctx.prisma.employee.findUnique({
-          where: { id: employeeId },
-          select: {
-            email: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            manager: { select: { email: true } },
-          },
-        });
         if (emp) {
           const name = `${emp.firstName} ${emp.lastName}`;
           await notifyCheckOutDetails({

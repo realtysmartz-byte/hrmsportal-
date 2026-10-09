@@ -139,7 +139,7 @@ export default function TeamAttendancePage() {
       const dateStr = formatDateIST(log?.date || selectedDate);
       const punchIn = log?.checkInTime ? formatTimeIST(log.checkInTime) : "—";
       const punchOut = log?.checkOutTime
-        ? `${formatTimeIST(log.checkOutTime)}${log.notes?.includes("Auto checked out") ? " (Auto 7 PM)" : ""}`
+        ? formatTimeIST(log.checkOutTime)
         : log?.checkInTime
           ? "On Duty"
           : "—";

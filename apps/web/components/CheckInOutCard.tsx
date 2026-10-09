@@ -6,23 +6,17 @@ import {
   MapPin,
   LogIn,
   LogOut,
-  CheckCircle2,
-  AlertCircle,
   Clock,
   RotateCw,
   Navigation,
-  Building,
-  ShieldCheck,
-  ShieldAlert,
   ChevronDown,
   ChevronUp,
-  Sparkles,
-  Timer,
-  Check,
-  Lock,
+  ShieldAlert,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Logo } from "@/components/Logo";
 import { trpc } from "@/lib/trpc";
 import {
   geolocationErrorMessage,
@@ -56,23 +50,18 @@ export function CheckInOutCard() {
 
   // Live device GPS coordinates for real-time pre-check
   const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isGpsReady, setIsGpsReady] = useState(false);
 
   // Pre-fetch live location on mount
   useEffect(() => {
     if (typeof window === "undefined" || !navigator.geolocation) {
-      setIsGpsReady(true);
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLiveCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setIsGpsReady(true);
       },
-      () => {
-        setIsGpsReady(true);
-      },
-      { enableHighAccuracy: true, timeout: 10_000 }
+      () => {},
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 }
     );
   }, []);
 
@@ -99,7 +88,7 @@ export function CheckInOutCard() {
         })
       );
 
-      // Check if 7:00 PM IST is reached while user is on duty
+      // Invalidate if 7:00 PM IST is reached while user is on duty
       const ist = getISTDateParts(now);
       if (ist.hour >= 19 && today?.checkInTime && !today?.checkOutTime) {
         void utils.attendance.today.invalidate();
@@ -159,10 +148,10 @@ export function CheckInOutCard() {
     },
   });
 
-  // Calculate authorized workplace & geofence distance
+  // Workplace details & geofence resolution
   const empData = workLoc?.employee;
   const officeData = workLoc?.office;
-  const assignedSiteName = empData?.workLocationName || "Realty Smartz HQ Office";
+  const assignedSiteName = empData?.workLocationName || "Registered Office";
   const assignedSiteLat = empData?.workLocationLat ?? null;
   const assignedSiteLng = empData?.workLocationLng ?? null;
   const officeName = officeData?.officeName || "REALTY SMARTZ PVT LTD";
@@ -182,8 +171,7 @@ export function CheckInOutCard() {
 
   const isAtOffice = distanceOfficeM != null && distanceOfficeM <= geofenceRadius;
   const isAtSite = distanceSiteM != null && distanceSiteM <= geofenceRadius;
-  const isAuthorizedLocation =
-    isAtOffice || isAtSite || session?.user?.role === "ADMIN";
+  const isAuthorizedLocation = isAtOffice || isAtSite;
 
   async function captureAndSubmit(mode: "in" | "out") {
     setError("");
@@ -196,7 +184,7 @@ export function CheckInOutCard() {
       const lng = pos.coords.longitude;
       setLiveCoords({ lat, lng });
 
-      // Immediate client-side verification
+      // Immediate client-side verification - Strict workplace location check
       const curDistOffice = haversineDistanceM(lat, lng, officeLat, officeLng);
       const curDistSite =
         assignedSiteLat != null && assignedSiteLng != null
@@ -205,12 +193,11 @@ export function CheckInOutCard() {
 
       const withinAllowed =
         curDistOffice <= geofenceRadius ||
-        (curDistSite != null && curDistSite <= geofenceRadius) ||
-        session?.user?.role === "ADMIN";
+        (curDistSite != null && curDistSite <= geofenceRadius);
 
       if (mode === "in" && !withinAllowed) {
         setError(
-          `Punch-in blocked: You are outside your assigned workplace. Please reach your designated site or registered office to mark attendance.`
+          `Punch-in blocked: You are outside your assigned workplace. Please punch in from your registered office (${officeName}) or assigned site.`
         );
         return;
       }
@@ -255,447 +242,209 @@ export function CheckInOutCard() {
     }
   }
 
+  const isOnDuty = Boolean(today?.checkInTime && !today?.checkOutTime);
+  const hasCompletedSession = Boolean(today?.checkInTime && today?.checkOutTime);
+  const employeeName = session?.user?.name ?? "Team Member";
+
   if (isLoading) {
     return (
-      <Card className="rounded-[28px] border border-white/10 bg-[#11121A] text-white shadow-xl overflow-hidden">
-        <CardContent className="flex flex-col items-center justify-center py-20">
-          <div className="relative flex h-16 w-16 items-center justify-center">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF7A70]/20 opacity-75" />
-            <div className="h-10 w-10 animate-spin rounded-full border-3 border-white/10 border-t-[#FF7A70]" />
-          </div>
-          <p className="mt-4 text-xs font-semibold text-neutral-400">Verifying attendance...</p>
-        </CardContent>
-      </Card>
+      <div className="w-full rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-300 border-t-[#FF7A70]" />
+          <p className="mt-3 text-xs font-medium text-neutral-500">Loading attendance status...</p>
+        </div>
+      </div>
     );
   }
 
-  const checkedIn = Boolean(today?.checkInTime);
-  const checkedOut = Boolean(today?.checkOutTime);
-  const employeeName = session?.user?.name ?? "Team Member";
-
   return (
-    <div className="relative w-full rounded-[28px] sm:rounded-[32px] border border-neutral-200/80 bg-gradient-to-b from-white via-white to-neutral-50/70 p-5 sm:p-7 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.06)] overflow-hidden">
-      {/* Subtle Top Ambient Sunset Accent */}
-      <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#FF7A70] via-[#FFA07A] to-[#FF7A70]" />
-      <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-40 bg-gradient-to-b from-[#FF7A70]/10 to-transparent blur-2xl pointer-events-none" />
+    <div className="relative w-full rounded-2xl border border-neutral-200/90 bg-white p-5 sm:p-6 shadow-sm">
+      {/* Top Header: Company Logo & Greeting */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-4 border-b border-neutral-100">
+        <Logo size={34} />
+        <div className="text-center sm:text-right">
+          <span className="text-[11px] font-medium text-neutral-500 block">Welcome,</span>
+          <span className="text-sm font-semibold text-neutral-900 truncate block max-w-[200px]">
+            {employeeName}
+          </span>
+        </div>
+      </div>
 
-      <div className="relative z-10 flex flex-col items-center text-center">
-        {/* Brand & Organization Tagline */}
-        <div className="flex items-center gap-2 rounded-full bg-neutral-100/80 border border-neutral-200/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-700 shadow-2xs">
-          <Building className="h-3 w-3 text-[#FF7A70]" />
-          <span>Realty Smartz Private Limited</span>
-          <span className="text-neutral-300">·</span>
-          <span className="text-[#FF7A70] font-extrabold">Attendance Portal</span>
+      {/* Main Clock & Status Section */}
+      <div className="py-5 flex flex-col items-center text-center">
+        {/* Live IST Time */}
+        <div className="font-mono text-4xl sm:text-5xl font-bold tracking-tight text-neutral-900">
+          {currentTime || "10:00:00 AM"}
+        </div>
+        <div className="mt-1 text-xs font-medium text-neutral-500">
+          {currentDate || "Today"} (IST)
         </div>
 
-        {/* Welcome Greeting */}
-        <p className="mt-3 text-xs sm:text-sm text-neutral-500 font-medium">
-          Welcome back, <strong className="text-neutral-900 font-semibold">{employeeName}</strong>
-        </p>
-
-        {/* Live IST Digital Clock */}
-        <div className="my-4 flex flex-col items-center">
-          <div className="flex items-baseline justify-center gap-2">
-            <span className="font-mono text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-neutral-900 drop-shadow-2xs">
-              {currentTime || "10:00:00 AM"}
-            </span>
-          </div>
-
-          <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-neutral-500">
-            <span>{currentDate || "Today"}</span>
-            <span>·</span>
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-[#FF7A70] bg-[#FF7A70]/10 px-2 py-0.5 rounded-md">
-              <Clock className="h-2.5 w-2.5" />
-              IST Sync
-            </span>
-          </div>
-        </div>
-
-        {/* AUTHORIZED WORK LOCATIONS (Shown before punch-in) */}
-        {!checkedIn && (
-          <div className="my-3 w-full max-w-md rounded-2xl border border-neutral-200/80 bg-white p-3.5 text-left shadow-2xs space-y-2">
-            <div className="flex items-center justify-between pb-1.5 border-b border-neutral-100">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
-                <Navigation className="h-3 w-3 text-[#FF7A70]" />
-                Authorized Punch Locations
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.geolocation.getCurrentPosition((pos) => {
-                    setLiveCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                  });
-                }}
-                className="text-[10px] font-semibold text-[#FF7A70] hover:underline flex items-center gap-1"
-              >
-                <RotateCw className="h-2.5 w-2.5" /> Re-check GPS
-              </button>
+        {/* Status Badge */}
+        <div className="mt-3">
+          {isOnDuty ? (
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-semibold text-emerald-700">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>On Duty · {formattedElapsed}</span>
             </div>
-
-            {/* 1. Assigned Project Site */}
-            <div className="flex items-start justify-between gap-2 text-xs">
-              <div className="space-y-0.5 flex-1 min-w-0">
-                <span className="font-bold text-neutral-800 block truncate">
-                  🏢 Allocated Site: {assignedSiteName}
-                </span>
-                <span className="text-[10px] text-neutral-500 block">
-                  {assignedSiteLat != null && assignedSiteLng != null
-                    ? `${assignedSiteLat.toFixed(4)}, ${assignedSiteLng.toFixed(4)}`
-                    : "No specific site allocated by admin"}
-                </span>
-              </div>
-              <div className="shrink-0 text-right">
-                {distanceSiteM != null ? (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
-                      isAtSite
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-neutral-100 text-neutral-600 border-neutral-200"
-                    )}
-                  >
-                    {isAtSite ? `~${Math.round(distanceSiteM)}m · Inside ✓` : `~${Math.round(distanceSiteM)}m`}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-neutral-400">HQ Only</span>
-                )}
-              </div>
-            </div>
-
-            {/* 2. Registered Head Office */}
-            <div className="flex items-start justify-between gap-2 text-xs pt-1 border-t border-neutral-50">
-              <div className="space-y-0.5 flex-1 min-w-0">
-                <span className="font-bold text-neutral-800 block truncate">
-                  🏢 Registered Office: {officeName}
-                </span>
-                <span className="text-[10px] text-neutral-500 block">
-                  Sector 66, Gurugram (Headquarters)
-                </span>
-              </div>
-              <div className="shrink-0 text-right">
-                {distanceOfficeM != null ? (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
-                      isAtOffice
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-neutral-100 text-neutral-600 border-neutral-200"
-                    )}
-                  >
-                    {isAtOffice ? `~${Math.round(distanceOfficeM)}m · Inside ✓` : `~${Math.round(distanceOfficeM)}m`}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-neutral-400 animate-pulse">Detecting…</span>
-                )}
-              </div>
-            </div>
-
-            {/* Perimeter Compliance Warning / Success */}
-            <div className="pt-1.5">
-              {liveCoords && isAuthorizedLocation ? (
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50/80 border border-emerald-200/80 p-2 rounded-xl">
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>Authorized Work Zone Detected. Punch-in unlocked.</span>
-                </div>
-              ) : liveCoords && !isAuthorizedLocation ? (
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50/90 border border-rose-200/90 p-2 rounded-xl">
-                  <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
-                  <span>
-                    Outside Assigned Work Location. You must be at your assigned site or office to punch in.
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {/* Luminous Interactive Radial Dial */}
-        <div className="relative my-4 flex h-44 w-44 sm:h-48 sm:w-48 items-center justify-center">
-          {busy ? (
-            // Locating State: High-Tech Radar Scanner
-            <div className="relative flex h-40 w-40 sm:h-44 sm:w-44 items-center justify-center rounded-full bg-indigo-50/70 border-2 border-primary/30 shadow-inner">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF7A70]/20 opacity-70" />
-              <div className="absolute inset-2 rounded-full border-2 border-dashed border-[#FF7A70]/40 animate-spin" />
-              <div className="flex flex-col items-center text-[#FF7A70]">
-                <Navigation className="h-10 w-10 animate-bounce" />
-                <span className="mt-1.5 text-xs font-bold uppercase tracking-wider">Locating</span>
-                <span className="text-[10px] text-neutral-500 font-mono">GPS Verification</span>
-              </div>
-            </div>
-          ) : checkedOut ? (
-            // Completed State: Polished Emerald Seal
-            <div className="relative flex h-40 w-40 sm:h-44 sm:w-44 items-center justify-center rounded-full bg-emerald-50/80 border-3 border-emerald-400/50 shadow-[0_8px_30px_rgba(16,185,129,0.15)]">
-              <div className="flex flex-col items-center text-emerald-700">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md">
-                  <Check className="h-6 w-6 stroke-[3]" />
-                </div>
-                <span className="mt-2 text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-                  Shift Complete
-                </span>
-                <span className="text-[11px] text-emerald-600 font-medium">
-                  {today?.totalHours != null ? `${today.totalHours} hrs worked` : "All logged"}
-                </span>
-              </div>
-            </div>
-          ) : checkedIn ? (
-            // On Duty State: Live Glowing Radial Ring with Live Elapsed Counter
-            <div className="relative flex h-40 w-40 sm:h-44 sm:w-44 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-50 via-teal-50 to-emerald-50 border-3 border-emerald-400/60 shadow-[0_8px_30px_rgba(16,185,129,0.2)]">
-              <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-emerald-400/20" />
-              <div className="flex flex-col items-center text-neutral-900 z-10">
-                <div className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
-                  <span>On Duty</span>
-                </div>
-                <span className="mt-2 font-mono text-base sm:text-lg font-black tracking-tight text-emerald-800">
-                  {formattedElapsed}
-                </span>
-                <span className="text-[10px] font-semibold text-neutral-500 mt-0.5">
-                  Started {today?.checkInTime ? formatTimeIST(today.checkInTime) : ""}
-                </span>
-              </div>
+          ) : hasCompletedSession ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Punched Out · Session Recorded</span>
             </div>
           ) : (
-            // Ready State: Sunset Beacon or Locked State
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                if (liveCoords && !isAuthorizedLocation) {
-                  setError(
-                    `Punch-in blocked: You are outside your assigned workplace. You must be physically present at your assigned site (${assignedSiteName}) or office (${officeName}) to punch in.`
-                  );
-                  return;
-                }
-                captureAndSubmit("in");
-              }}
-              className={cn(
-                "group relative flex h-40 w-40 sm:h-44 sm:w-44 items-center justify-center rounded-full transition-all duration-300",
-                liveCoords && !isAuthorizedLocation
-                  ? "bg-neutral-100 border-2 border-neutral-300 cursor-not-allowed"
-                  : "bg-gradient-to-tr from-[#FF7A70]/10 via-[#FFA07A]/15 to-[#FF7A70]/10 border-2 border-[#FF7A70]/40 shadow-[0_10px_35px_rgba(255,122,112,0.2)] hover:scale-105 active:scale-95"
-              )}
-            >
-              {isAuthorizedLocation && (
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF7A70]/20 opacity-70 group-hover:opacity-100" />
-              )}
-              <div className="flex flex-col items-center">
-                {liveCoords && !isAuthorizedLocation ? (
-                  <>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-200 text-neutral-600 shadow-xs">
-                      <Lock className="h-6 w-6" />
-                    </div>
-                    <span className="mt-2 text-xs font-bold uppercase tracking-wider text-neutral-700">
-                      Punch Locked
-                    </span>
-                    <span className="text-[10px] font-medium text-rose-600">
-                      Outside Workplace
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white shadow-md group-hover:shadow-lg transition-all">
-                      <LogIn className="h-6 w-6 ml-0.5" />
-                    </div>
-                    <span className="mt-2 text-xs font-extrabold uppercase tracking-wider text-neutral-900 group-hover:text-[#FF7A70] transition-colors">
-                      Tap to Punch In
-                    </span>
-                    <span className="text-[10px] font-medium text-neutral-400">
-                      Location Verified
-                    </span>
-                  </>
-                )}
-              </div>
-            </button>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-600">
+              <Clock className="h-3.5 w-3.5 text-neutral-400" />
+              <span>Off Duty · Ready to Punch In</span>
+            </div>
           )}
         </div>
 
-        {/* Live Loading Feedback */}
-        {busy && (
-          <div className="my-2 inline-flex items-center gap-2 rounded-full bg-[#FF7A70]/10 px-4 py-1.5 text-xs font-bold text-[#FF7A70] animate-pulse">
-            <Navigation className="h-3.5 w-3.5 animate-spin" />
-            <span>Pinpointing high-precision location…</span>
-          </div>
-        )}
+        {/* Assigned Workplace Location Pill */}
+        <div className="mt-3 flex items-center gap-1.5 rounded-full bg-neutral-50 border border-neutral-200/70 px-3 py-1 text-xs text-neutral-600 max-w-full">
+          <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0" />
+          <span className="truncate font-medium">
+            {assignedSiteName && assignedSiteName !== "Registered Office"
+              ? assignedSiteName
+              : officeName}
+          </span>
+        </div>
 
-        {/* Verified Location & Geofence Badge */}
-        {checkedIn && (
-          <div className="my-3 flex flex-col items-center gap-2 w-full max-w-md">
-            {/* Address Pill */}
-            <div className="flex items-center gap-2 rounded-full border border-neutral-200/90 bg-neutral-50 px-3.5 py-1.5 text-xs text-neutral-700 shadow-2xs max-w-full">
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#FF7A70]" />
-              <span className="truncate font-medium">
-                {today?.checkInAddress
-                  ? today.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
-                  : (settings?.officeName || "Realty Smartz Private Limited HQ, Gurugram")}
-              </span>
-            </div>
-
-            {/* Geofence Rule Indicator */}
-            <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border border-neutral-200 bg-white shadow-2xs">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  today?.withinGeofence ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
-                }`}
-              />
-              <span className={today?.withinGeofence ? "text-emerald-700" : "text-amber-800"}>
-                {today?.withinGeofence
-                  ? "✓ Verified at Authorized Workplace"
-                  : "▲ Recorded at Alternative Location"}
-              </span>
-            </div>
-
-            {/* Shift Checkout Summary if Checked Out */}
-            {checkedOut && today?.checkOutTime && (
-              <div className="mt-2 w-full rounded-2xl bg-emerald-50/90 border border-emerald-200/90 p-3.5 text-xs text-emerald-900 shadow-2xs">
-                <div className="flex items-center justify-between font-semibold text-emerald-900">
-                  <span>Punched Out: {formatTimeIST(today.checkOutTime)}</span>
-                  {today.totalHours != null && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 font-bold">
-                      {today.totalHours} hrs worked
-                    </span>
-                  )}
-                </div>
-                {today.notes?.includes("Auto checked out") && (
-                  <p className="mt-1 text-[11px] font-bold text-emerald-700">
-                    ⚡ Shift End Auto Punch-Out Triggered (7:00 PM IST)
-                  </p>
-                )}
-                {today.checkInTime && (
-                  <p className="mt-0.5 text-[11px] text-emerald-600">
-                    Punch In recorded at {formatTimeIST(today.checkInTime)}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Permission Denied Advisory Card */}
-        {isPermissionDenied && (
-          <div className="my-4 w-full max-w-md rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-left shadow-2xs">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-amber-900">
-                  Location Permission Required
-                </h4>
-                <p className="text-xs text-amber-800 leading-relaxed">
-                  Realty Smartz requires geolocation verification within the 200-meter company perimeter. Please allow location access in your device settings.
-                </p>
-                <div className="pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-amber-300 bg-white text-xs font-semibold text-amber-900 hover:bg-amber-100 rounded-xl"
-                    onClick={() => captureAndSubmit(checkedIn ? "out" : "in")}
-                  >
-                    <RotateCw className="mr-1.5 h-3.5 w-3.5" />
-                    Retry Permission
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Generic Error Warning */}
+        {/* Error / Alert Notice */}
         {error && !isPermissionDenied && (
-          <div className="my-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 text-left max-w-md">
-            {error}
+          <div className="mt-4 w-full max-w-md rounded-xl border border-rose-200 bg-rose-50/90 px-3.5 py-2.5 text-left text-xs text-rose-700 flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <span className="font-medium leading-relaxed">{error}</span>
           </div>
         )}
 
-        {/* Primary Action Buttons */}
-        {!isPermissionDenied && (
-          <div className="mt-3 w-full max-w-xs">
-            {checkedOut ? (
-              <div className="flex flex-col items-center gap-1.5">
-                <Button
-                  disabled
-                  className="h-12 w-full gap-2 text-sm font-bold bg-emerald-50 text-emerald-800 border-2 border-emerald-400/30 opacity-100 rounded-2xl cursor-default shadow-xs"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Attendance Completed</span>
-                </Button>
-                <p className="text-[11px] text-neutral-400">
-                  Attendance is complete for today. Resets automatically tomorrow morning.
+        {/* Permission Denied Banner */}
+        {isPermissionDenied && (
+          <div className="mt-4 w-full max-w-md rounded-xl border border-amber-200 bg-amber-50/90 p-3.5 text-left text-xs text-amber-800">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1.5 flex-1">
+                <p className="font-semibold text-amber-900">Location Access Required</p>
+                <p className="text-amber-700 leading-relaxed">
+                  Please enable GPS location permissions in your browser or device settings to punch in/out.
                 </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-amber-300 bg-white hover:bg-amber-100"
+                  onClick={() => captureAndSubmit(isOnDuty ? "out" : "in")}
+                >
+                  <RotateCw className="mr-1 h-3 w-3" />
+                  Retry Location
+                </Button>
               </div>
-            ) : !checkedIn ? (
-              <Button
-                className={cn(
-                  "h-13 w-full gap-2 text-base font-bold shadow-[0_8px_25px_rgba(255,122,112,0.35)] rounded-2xl transition-all",
-                  liveCoords && !isAuthorizedLocation
-                    ? "bg-neutral-800 hover:bg-neutral-900 text-white/90"
-                    : "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] hover:opacity-95 text-white active:scale-98"
-                )}
-                disabled={busy}
-                onClick={() => {
-                  if (liveCoords && !isAuthorizedLocation) {
-                    setError(
-                      `Punch-in blocked: You are outside the 200-meter company perimeter. You must be physically present at your assigned site (${assignedSiteName}) or office (${officeName}) to punch in.`
-                    );
-                    return;
-                  }
-                  captureAndSubmit("in");
-                }}
-              >
-                {liveCoords && !isAuthorizedLocation ? (
-                  <>
-                    <Lock className="h-5 w-5 text-rose-400" />
-                    <span>Locked (Outside Workplace)</span>
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="h-5 w-5" />
-                    <span>{busy ? "Verifying Location…" : "Punch In Now"}</span>
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                className="h-13 w-full gap-2 text-base font-bold shadow-md bg-neutral-900 hover:bg-black text-white active:scale-98 transition-all rounded-2xl"
-                disabled={busy}
-                onClick={() => captureAndSubmit("out")}
-              >
-                <LogOut className="h-5 w-5" />
-                {busy ? "Verifying Location…" : "Punch Out (End Shift)"}
-              </Button>
-            )}
+            </div>
           </div>
         )}
 
-        {/* Verification Map Drawer Toggle */}
-        {(today?.checkInLat != null || captured?.lat != null || liveCoords?.lat != null) && (
-          <div className="mt-4 w-full max-w-md pt-2">
-            <button
-              type="button"
-              onClick={() => setShowMap(!showMap)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-900 transition-colors"
+        {/* SINGLE ACTION BUTTON: Punch In / Punch Out */}
+        <div className="mt-5 w-full max-w-xs">
+          {isOnDuty ? (
+            <Button
+              className="h-12 w-full gap-2 text-sm font-semibold shadow-sm bg-neutral-900 hover:bg-black text-white active:scale-98 transition-all rounded-xl"
+              disabled={busy}
+              onClick={() => captureAndSubmit("out")}
             >
-              <span>{showMap ? "Hide Location Map" : "View Location Map"}</span>
-              {showMap ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-
-            {showMap && (
-              <div className="mt-3">
-                <LocationMap
-                  lat={today?.checkInLat ?? captured?.lat ?? liveCoords?.lat ?? officeLat}
-                  lng={today?.checkInLng ?? captured?.lng ?? liveCoords?.lng ?? officeLng}
-                  label={
-                    checkedIn
-                      ? `Punch In: ${today?.checkInAddress || "Office"}`
-                      : isAuthorizedLocation
-                      ? `Permitted Zone: ${assignedSiteName}`
-                      : `Live GPS Position (~${Math.round(distanceOfficeM || 0)}m from office)`
-                  }
-                  height={220}
-                />
-              </div>
-            )}
-          </div>
-        )}
+              <LogOut className="h-4 w-4" />
+              <span>{busy ? "Verifying Location…" : "Punch Out"}</span>
+            </Button>
+          ) : (
+            <Button
+              className={cn(
+                "h-12 w-full gap-2 text-sm font-semibold shadow-sm rounded-xl transition-all active:scale-98",
+                "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white hover:opacity-95 shadow-[0_4px_16px_rgba(255,122,112,0.3)]"
+              )}
+              disabled={busy}
+              onClick={() => captureAndSubmit("in")}
+            >
+              {busy ? (
+                <>
+                  <Navigation className="h-4 w-4 animate-spin" />
+                  <span>Verifying Location…</span>
+                </>
+              ) : hasCompletedSession ? (
+                <>
+                  <RotateCw className="h-4 w-4" />
+                  <span>Punch In Again</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" />
+                  <span>Punch In</span>
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Today's Workday Summary (3 Simple Stat Boxes) */}
+      <div className="mt-4 pt-4 border-t border-neutral-100 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-neutral-50/80 border border-neutral-100 p-2.5">
+          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider block">
+            Punch In
+          </span>
+          <span className="text-xs sm:text-sm font-semibold text-neutral-800 mt-0.5 block truncate">
+            {today?.checkInTime ? formatTimeIST(today.checkInTime) : "—"}
+          </span>
+        </div>
+
+        <div className="rounded-xl bg-neutral-50/80 border border-neutral-100 p-2.5">
+          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider block">
+            Punch Out
+          </span>
+          <span className="text-xs sm:text-sm font-semibold text-neutral-800 mt-0.5 block truncate">
+            {today?.checkOutTime ? formatTimeIST(today.checkOutTime) : "—"}
+          </span>
+        </div>
+
+        <div className="rounded-xl bg-neutral-50/80 border border-neutral-100 p-2.5">
+          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider block">
+            Total Hours
+          </span>
+          <span className="text-xs sm:text-sm font-semibold text-neutral-800 mt-0.5 block truncate">
+            {today?.totalHours != null && today.totalHours > 0
+              ? `${today.totalHours} hrs`
+              : isOnDuty
+              ? "Running"
+              : "—"}
+          </span>
+        </div>
+      </div>
+
+      {/* Expandable Location Map */}
+      {(today?.checkInLat != null || captured?.lat != null || liveCoords?.lat != null) && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => setShowMap(!showMap)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 transition-colors"
+          >
+            <span>{showMap ? "Hide Map" : "View Map"}</span>
+            {showMap ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+
+          {showMap && (
+            <div className="mt-2.5">
+              <LocationMap
+                lat={today?.checkInLat ?? captured?.lat ?? liveCoords?.lat ?? officeLat}
+                lng={today?.checkInLng ?? captured?.lng ?? liveCoords?.lng ?? officeLng}
+                label={
+                  today?.checkInTime
+                    ? `Punched In Location`
+                    : `Registered Location`
+                }
+                height={180}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -53,21 +53,17 @@ export async function ensureAutoPunchOut(
         finalOutTime = new Date(log.checkInTime.getTime() + 30 * 60 * 1000);
       }
 
-      const totalHours =
+      const sessionHours =
         (finalOutTime.getTime() - log.checkInTime.getTime()) / (1000 * 60 * 60);
-      const roundedHours = Math.max(0.25, Math.round(totalHours * 100) / 100);
+      const cumulativeHours = (log.totalHours || 0) + sessionHours;
+      const roundedHours = Math.max(0.25, Math.round(cumulativeHours * 100) / 100);
 
       let status = log.status;
       if (roundedHours < 4 && status !== "ON_LEAVE") {
         status = "HALF_DAY";
+      } else if (roundedHours >= 8 && status === "HALF_DAY") {
+        status = "PRESENT";
       }
-
-      const autoNote = "Auto checked out at 07:00 PM IST (Shift End)";
-      const combinedNotes = log.notes
-        ? log.notes.includes("Auto checked out")
-          ? log.notes
-          : `${log.notes} · ${autoNote}`
-        : autoNote;
 
       await prisma.attendanceLog.update({
         where: { id: log.id },
@@ -75,9 +71,9 @@ export async function ensureAutoPunchOut(
           checkOutTime: finalOutTime,
           totalHours: roundedHours,
           status,
-          notes: combinedNotes,
+          notes: log.notes || null,
           checkOutAddress:
-            log.checkOutAddress || "Auto checkout (07:00 PM IST Shift End)",
+            log.checkOutAddress || log.checkInAddress || "REALTY SMARTZ PVT LTD",
         },
       });
 

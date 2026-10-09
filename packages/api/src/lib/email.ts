@@ -346,7 +346,7 @@ export async function notifyPunchDetails(args: {
   employeeEmail: string;
   employeeCode: string;
   checkInTime: Date;
-  status: "PRESENT" | "LATE";
+  status: "PRESENT" | "LATE" | "HALF_DAY" | string;
   address?: string | null;
   withinGeofence: boolean;
   managerEmail?: string | null;
@@ -480,8 +480,11 @@ export async function notifyCheckOutDetails(args: {
     body,
   });
 
+  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
+  if (args.managerEmail) recipients.push(args.managerEmail);
+
   return sendMail({
-    to: args.employeeEmail,
+    to: [...new Set(recipients)],
     subject: `[Attendance] Check-Out Recorded — ${args.employeeName} (${timeFormatted})`,
     html,
   });
