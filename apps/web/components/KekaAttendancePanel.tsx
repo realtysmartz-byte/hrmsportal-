@@ -37,6 +37,10 @@ interface KekaAttendancePanelProps {
   designation?: string;
   department?: string;
   employeeCode?: string;
+  workLocationName?: string | null;
+  workLocationLat?: number | null;
+  workLocationLng?: number | null;
+  hideHeaderBanner?: boolean;
 }
 
 export function KekaAttendancePanel({
@@ -45,6 +49,10 @@ export function KekaAttendancePanel({
   designation: propDesignation,
   department: propDepartment,
   employeeCode: propCode,
+  workLocationName: propSiteName,
+  workLocationLat: propSiteLat,
+  workLocationLng: propSiteLng,
+  hideHeaderBanner = false,
 }: KekaAttendancePanelProps) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
@@ -65,14 +73,53 @@ export function KekaAttendancePanel({
   // State for Keka Map View Modal
   const [mapModalDate, setMapModalDate] = useState<string | null>(null);
 
+  const isTargetMode = Boolean(
+    targetEmployeeId && targetEmployeeId !== session?.user?.id
+  );
+
   // Queries
   const { data: currentUserWorkLoc } = trpc.attendance.myWorkLocation.useQuery();
-  const { data: todayAttendance, isLoading: isTodayLoading } = trpc.attendance.today.useQuery();
-  const { data: monthData, isLoading: isMonthLoading } = trpc.attendance.myMonth.useQuery({
-    year: selectedYear,
-    month: selectedMonth,
-  });
-  const { data: recentWeek } = trpc.attendance.myRecentWeek.useQuery();
+
+  const { data: targetMonthData, isLoading: isTargetMonthLoading } =
+    trpc.attendance.forEmployeeMonth.useQuery(
+      {
+        employeeId: targetEmployeeId ?? "",
+        year: selectedYear,
+        month: selectedMonth,
+      },
+      { enabled: isTargetMode }
+    );
+
+  const { data: selfMonthData, isLoading: isSelfMonthLoading } =
+    trpc.attendance.myMonth.useQuery(
+      {
+        year: selectedYear,
+        month: selectedMonth,
+      },
+      { enabled: !isTargetMode }
+    );
+
+  const monthData = isTargetMode ? targetMonthData : selfMonthData;
+  const isMonthLoading = isTargetMode ? isTargetMonthLoading : isSelfMonthLoading;
+
+  const { data: selfTodayAttendance, isLoading: isSelfTodayLoading } =
+    trpc.attendance.today.useQuery(undefined, { enabled: !isTargetMode });
+
+  const targetTodayAttendance = useMemo(() => {
+    if (!isTargetMode || !targetMonthData?.logs) return null;
+    return (
+      targetMonthData.logs.find((l) => {
+        const dStr =
+          l.date instanceof Date
+            ? l.date.toISOString().slice(0, 10)
+            : String(l.date).slice(0, 10);
+        return dStr === todayISTStr;
+      }) ?? null
+    );
+  }, [isTargetMode, targetMonthData?.logs, todayISTStr]);
+
+  const todayAttendance = isTargetMode ? targetTodayAttendance : selfTodayAttendance;
+  const isTodayLoading = isTargetMode ? isTargetMonthLoading : isSelfTodayLoading;
 
   // If admin viewing specific employee:
   const empId = targetEmployeeId ?? session?.user?.id ?? "";
@@ -90,6 +137,9 @@ export function KekaAttendancePanel({
       await utils.attendance.today.invalidate();
       await utils.attendance.myMonth.invalidate();
       await utils.attendance.myRecentWeek.invalidate();
+      if (targetEmployeeId) {
+        await utils.attendance.forEmployeeMonth.invalidate({ employeeId: targetEmployeeId });
+      }
       setPunchError("");
     },
     onError: (err) => {
@@ -102,6 +152,9 @@ export function KekaAttendancePanel({
       await utils.attendance.today.invalidate();
       await utils.attendance.myMonth.invalidate();
       await utils.attendance.myRecentWeek.invalidate();
+      if (targetEmployeeId) {
+        await utils.attendance.forEmployeeMonth.invalidate({ employeeId: targetEmployeeId });
+      }
       setPunchError("");
     },
     onError: (err) => {
@@ -124,9 +177,9 @@ export function KekaAttendancePanel({
   const officeName = officeData?.officeName ?? "REALTY SMARTZ PVT LTD";
   const geofenceRadius = officeData?.geofenceRadiusM ?? 200;
 
-  const assignedSiteLat = empWorkData?.workLocationLat ?? null;
-  const assignedSiteLng = empWorkData?.workLocationLng ?? null;
-  const assignedSiteName = empWorkData?.workLocationName ?? null;
+  const assignedSiteLat = propSiteLat ?? empWorkData?.workLocationLat ?? null;
+  const assignedSiteLng = propSiteLng ?? empWorkData?.workLocationLng ?? null;
+  const assignedSiteName = propSiteName ?? empWorkData?.workLocationName ?? null;
 
   // Handle Punch In / Punch Out with STRICT LOCATION GEOFENCE ENFORCEMENT
   async function handlePunch(mode: "in" | "out") {
@@ -241,43 +294,45 @@ export function KekaAttendancePanel({
   return (
     <div className="w-full max-w-full space-y-6">
       {/* 1. TOP EMPLOYEE HEADER BANNER (Keka Style) */}
-      <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            {/* Avatar Badge */}
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold shadow-sm">
-              {initials}
+      {!hideHeaderBanner && (
+        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              {/* Avatar Badge */}
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold shadow-sm">
+                {initials}
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="font-display text-lg sm:text-xl font-extrabold text-neutral-900 truncate">
+                    {displayName}
+                  </h1>
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                    Full Time
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-500 font-medium mt-0.5">
+                  {displayRole} · {displayDept} · {displayCode}
+                </p>
+              </div>
             </div>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-display text-lg sm:text-xl font-extrabold text-neutral-900 truncate">
-                  {displayName}
-                </h1>
-                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                  Full Time
+            {/* Location Verification Pill */}
+            <div className="flex items-center gap-2 text-xs text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200/70">
+              <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0" />
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold text-neutral-400 block">
+                  Workplace Allocation
+                </span>
+                <span className="font-semibold text-neutral-800 truncate block max-w-[220px]">
+                  {assignedSiteName ? assignedSiteName : officeName}
                 </span>
               </div>
-              <p className="text-xs text-neutral-500 font-medium mt-0.5">
-                {displayRole} · {displayDept} · {displayCode}
-              </p>
-            </div>
-          </div>
-
-          {/* Location Verification Pill */}
-          <div className="flex items-center gap-2 text-xs text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200/70">
-            <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0" />
-            <div className="min-w-0">
-              <span className="text-[10px] uppercase font-bold text-neutral-400 block">
-                Workplace Allocation
-              </span>
-              <span className="font-semibold text-neutral-800 truncate block max-w-[220px]">
-                {assignedSiteName ? assignedSiteName : officeName}
-              </span>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 2. THREE STATS & ACTION WIDGETS (Keka Style) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -370,7 +425,47 @@ export function KekaAttendancePanel({
           </div>
 
           <div>
-            {isOnDuty ? (
+            {isTargetMode ? (
+              <div className="space-y-2">
+                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 block">
+                    Today's Attendance Status
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-neutral-900">
+                      {isOnDuty
+                        ? "Currently On Duty"
+                        : hasCompletedSession
+                        ? "Shift Completed"
+                        : "Not Checked In Today"}
+                    </span>
+                    <span
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                        isOnDuty
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : hasCompletedSession
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                      )}
+                    >
+                      {isOnDuty ? "Active" : hasCompletedSession ? "Done" : "Off"}
+                    </span>
+                  </div>
+                  {todayAttendance?.checkInTime && (
+                    <div className="text-[11px] text-neutral-600 pt-1 border-t border-neutral-200/60 flex items-center justify-between flex-wrap gap-1">
+                      <span>In: <b className="text-neutral-900">{formatTimeIST(todayAttendance.checkInTime)}</b></span>
+                      {todayAttendance?.checkOutTime && (
+                        <span>Out: <b className="text-neutral-900">{formatTimeIST(todayAttendance.checkOutTime)}</b></span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-neutral-400 italic text-center">
+                  Staff punch in directly via employee portal
+                </p>
+              </div>
+            ) : isOnDuty ? (
               <Button
                 onClick={() => handlePunch("out")}
                 disabled={busy}
