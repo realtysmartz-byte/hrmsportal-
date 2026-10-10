@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { fullName, cn } from "@/lib/utils";
+import { KekaMapViewModal } from "@/components/KekaMapViewModal";
 import {
   canViewTeamAttendance,
   formatTimeIST,
@@ -55,6 +56,12 @@ function formatMonthTitle(monthStr: string): string {
   }
 }
 
+function parseDateParam(d: unknown, fallback: string): string {
+  if (!d) return fallback;
+  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  return String(d).slice(0, 10);
+}
+
 export default function TeamAttendancePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -76,6 +83,11 @@ export default function TeamAttendancePage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
   const [googleSheetResult, setGoogleSheetResult] = useState<string | null>(null);
+  const [mapModalTarget, setMapModalTarget] = useState<{
+    employeeId: string;
+    employeeName: string;
+    date: string;
+  } | null>(null);
 
   // Build query input based on active view mode
   const queryInput = useMemo(() => {
@@ -741,15 +753,31 @@ export default function TeamAttendancePage() {
                     </div>
 
                     {hasGps && (
-                      <a
-                        href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF7A70] bg-[#FF7A70]/10 hover:bg-[#FF7A70]/20 px-2.5 py-1 rounded-md shrink-0 transition-colors"
-                      >
-                        <span>View on Map</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMapModalTarget({
+                              employeeId: row.employee.id,
+                              employeeName: empName,
+                              date: parseDateParam(log?.date, selectedDate),
+                            });
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-neutral-900 hover:bg-black px-2.5 py-1 rounded-md shrink-0 transition-colors shadow-2xs"
+                        >
+                          <MapPin className="h-3 w-3 text-[#1AB3B6]" />
+                          <span>Map View</span>
+                        </button>
+                        <a
+                          href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF7A70] bg-[#FF7A70]/10 hover:bg-[#FF7A70]/20 p-1.5 rounded-md shrink-0 transition-colors"
+                          title="Open Google Maps"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
                     )}
                   </div>
 
@@ -895,16 +923,31 @@ export default function TeamAttendancePage() {
                           {addressText}
                         </p>
                         {hasGps ? (
-                          <a
-                            href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF7A70] hover:underline"
-                          >
-                            <MapPin className="h-3 w-3" />
-                            <span>View on Map</span>
-                            <ExternalLink className="h-2.5 w-2.5" />
-                          </a>
+                          <div className="flex items-center gap-2 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMapModalTarget({
+                                  employeeId: row.employee.id,
+                                  employeeName: empName,
+                                  date: parseDateParam(log?.date, selectedDate),
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-800 hover:text-black bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-2 py-0.5 rounded shadow-2xs transition-colors"
+                            >
+                              <MapPin className="h-3 w-3 text-[#1AB3B6]" />
+                              <span>Map View</span>
+                            </button>
+                            <a
+                              href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF7A70] hover:underline"
+                            >
+                              <span>Google Maps</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          </div>
                         ) : null}
                       </div>
                     ) : (
@@ -962,6 +1005,15 @@ export default function TeamAttendancePage() {
           </TableBody>
         </Table>
       </div>
+
+      {mapModalTarget && (
+        <KekaMapViewModal
+          onClose={() => setMapModalTarget(null)}
+          employeeId={mapModalTarget.employeeId}
+          employeeName={mapModalTarget.employeeName}
+          date={mapModalTarget.date}
+        />
+      )}
     </div>
   );
 }

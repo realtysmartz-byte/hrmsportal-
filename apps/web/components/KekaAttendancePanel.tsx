@@ -1,0 +1,670 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import {
+  Clock,
+  Calendar,
+  MapPin,
+  CheckCircle2,
+  AlertTriangle,
+  LogIn,
+  LogOut,
+  RotateCw,
+  ExternalLink,
+  ChevronRight,
+  Filter,
+  Navigation,
+  ShieldCheck,
+  Building,
+  User,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
+import {
+  formatDateIST,
+  formatTimeIST,
+  getISTDateString,
+  getISTDateParts,
+  haversineDistanceM,
+} from "@realty-smartz/shared";
+import { KekaMapViewModal } from "@/components/KekaMapViewModal";
+import { Button } from "@/components/ui/button";
+
+interface KekaAttendancePanelProps {
+  targetEmployeeId?: string; // If admin viewing an employee, otherwise current logged in user
+  employeeName?: string;
+  designation?: string;
+  department?: string;
+  employeeCode?: string;
+}
+
+export function KekaAttendancePanel({
+  targetEmployeeId,
+  employeeName: propName,
+  designation: propDesignation,
+  department: propDepartment,
+  employeeCode: propCode,
+}: KekaAttendancePanelProps) {
+  const { data: session } = useSession();
+  const utils = trpc.useUtils();
+
+  const now = new Date();
+  const todayISTStr = useMemo(() => getISTDateString(now), []);
+  const currentMonthNum = now.getMonth() + 1;
+  const currentYearNum = now.getFullYear();
+
+  // Selected period / month filter
+  const [selectedPeriod, setSelectedPeriod] = useState<"30_DAYS" | "OCT" | "SEP" | "AUG">("30_DAYS");
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthNum);
+  const [selectedYear, setSelectedYear] = useState(currentYearNum);
+
+  // Active tab in Logs & Records
+  const [activeTab, setActiveTab] = useState<"log" | "shifts">("log");
+
+  // State for Keka Map View Modal
+  const [mapModalDate, setMapModalDate] = useState<string | null>(null);
+
+  // Queries
+  const { data: currentUserWorkLoc } = trpc.attendance.myWorkLocation.useQuery();
+  const { data: todayAttendance, isLoading: isTodayLoading } = trpc.attendance.today.useQuery();
+  const { data: monthData, isLoading: isMonthLoading } = trpc.attendance.myMonth.useQuery({
+    year: selectedYear,
+    month: selectedMonth,
+  });
+  const { data: recentWeek } = trpc.attendance.myRecentWeek.useQuery();
+
+  // If admin viewing specific employee:
+  const empId = targetEmployeeId ?? session?.user?.id ?? "";
+  const displayName = propName ?? session?.user?.name ?? "Sapna Mishra";
+  const displayRole = propDesignation ?? "Senior Portfolio Manager";
+  const displayDept = propDepartment ?? "Sales & Portfolio";
+  const displayCode = propCode ?? "EMP-RS01";
+
+  // Check in/out state
+  const [busy, setBusy] = useState(false);
+  const [punchError, setPunchError] = useState("");
+
+  const checkInMutation = trpc.attendance.checkIn.useMutation({
+    onSuccess: async () => {
+      await utils.attendance.today.invalidate();
+      await utils.attendance.myMonth.invalidate();
+      await utils.attendance.myRecentWeek.invalidate();
+      setPunchError("");
+    },
+    onError: (err) => {
+      setPunchError(err.message);
+    },
+  });
+
+  const checkOutMutation = trpc.attendance.checkOut.useMutation({
+    onSuccess: async () => {
+      await utils.attendance.today.invalidate();
+      await utils.attendance.myMonth.invalidate();
+      await utils.attendance.myRecentWeek.invalidate();
+      setPunchError("");
+    },
+    onError: (err) => {
+      setPunchError(err.message);
+    },
+  });
+
+  const isOnDuty = Boolean(
+    todayAttendance?.checkInTime && !todayAttendance?.checkOutTime
+  );
+  const hasCompletedSession = Boolean(
+    todayAttendance?.checkInTime && todayAttendance?.checkOutTime
+  );
+
+  // Office & site location verification
+  const officeData = currentUserWorkLoc?.office;
+  const empWorkData = currentUserWorkLoc?.employee;
+  const officeLat = officeData?.officeLat ?? 28.3997196;
+  const officeLng = officeData?.officeLng ?? 77.0385682;
+  const officeName = officeData?.officeName ?? "REALTY SMARTZ PVT LTD";
+  const geofenceRadius = officeData?.geofenceRadiusM ?? 200;
+
+  const assignedSiteLat = empWorkData?.workLocationLat ?? null;
+  const assignedSiteLng = empWorkData?.workLocationLng ?? null;
+  const assignedSiteName = empWorkData?.workLocationName ?? null;
+
+  // Handle Punch In / Punch Out with STRICT LOCATION GEOFENCE ENFORCEMENT
+  async function handlePunch(mode: "in" | "out") {
+    setPunchError("");
+    setBusy(true);
+
+    try {
+      if (!navigator.geolocation) {
+        throw new Error("Geolocation is not supported by your browser");
+      }
+
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+        });
+      });
+
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      // Distance to Office
+      const distOffice = haversineDistanceM(lat, lng, officeLat, officeLng);
+      const isAtOffice = distOffice <= geofenceRadius;
+
+      // Distance to Allocated Site
+      let isAtSite = false;
+      if (assignedSiteLat != null && assignedSiteLng != null) {
+        const distSite = haversineDistanceM(lat, lng, assignedSiteLat, assignedSiteLng);
+        isAtSite = distSite <= geofenceRadius;
+      }
+
+      const withinAllowed = isAtOffice || isAtSite;
+
+      // STRICT LOCKING: If punch-in and not at office and not at assigned site -> STRICTLY BLOCK!
+      if (mode === "in" && !withinAllowed) {
+        if (assignedSiteLat != null && assignedSiteLng != null) {
+          throw new Error(
+            `Punch-in Blocked: You are outside your allocated work site (${assignedSiteName || "Site"}) and registered office. You can only punch in from your allocated site or registered office.`
+          );
+        } else {
+          throw new Error(
+            `Punch-in Blocked: You are outside the registered office (${officeName}). To punch in from any other location, ask HR/Admin to allocate your location first.`
+          );
+        }
+      }
+
+      const label = isAtOffice
+        ? officeName
+        : isAtSite
+        ? (assignedSiteName || "Allocated Site")
+        : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+      if (mode === "in") {
+        await checkInMutation.mutateAsync({ lat, lng, address: label });
+      } else {
+        await checkOutMutation.mutateAsync({ lat, lng, address: label });
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setPunchError(err.message);
+      } else {
+        setPunchError("Unable to verify location. Please ensure GPS is enabled.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Attendance Records for table (Sorted by date desc)
+  const logs = useMemo(() => {
+    const list = monthData?.logs ?? [];
+    return [...list].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [monthData?.logs]);
+
+  // 30 Days Stats calculation
+  const stats = useMemo(() => {
+    const totalDays = logs.length;
+    const presentCount = logs.filter((l) => l.status === "PRESENT").length;
+    const lateCount = logs.filter((l) => l.status === "LATE").length;
+    const halfDayCount = logs.filter((l) => l.status === "HALF_DAY").length;
+    const onLeaveCount = logs.filter((l) => l.status === "ON_LEAVE").length;
+    const absentCount = logs.filter((l) => l.status === "ABSENT" || !l.checkInTime).length;
+    const totalHours = Math.round(
+      logs.reduce((acc, l) => acc + (l.totalHours || 0), 0) * 10
+    ) / 10;
+    const avgDailyHours = presentCount > 0 ? (totalHours / presentCount).toFixed(1) : "0.0";
+
+    return {
+      totalDays,
+      presentCount,
+      lateCount,
+      halfDayCount,
+      onLeaveCount,
+      absentCount,
+      totalHours,
+      avgDailyHours,
+    };
+  }, [logs]);
+
+  // Initials for avatar
+  const initials = useMemo(() => {
+    const parts = displayName.trim().split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return displayName.slice(0, 2).toUpperCase();
+  }, [displayName]);
+
+  return (
+    <div className="w-full max-w-full space-y-6">
+      {/* 1. TOP EMPLOYEE HEADER BANNER (Keka Style) */}
+      <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            {/* Avatar Badge */}
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold shadow-sm">
+              {initials}
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-display text-lg sm:text-xl font-extrabold text-neutral-900 truncate">
+                  {displayName}
+                </h1>
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                  Full Time
+                </span>
+              </div>
+              <p className="text-xs text-neutral-500 font-medium mt-0.5">
+                {displayRole} · {displayDept} · {displayCode}
+              </p>
+            </div>
+          </div>
+
+          {/* Location Verification Pill */}
+          <div className="flex items-center gap-2 text-xs text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200/70">
+            <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0" />
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase font-bold text-neutral-400 block">
+                Workplace Allocation
+              </span>
+              <span className="font-semibold text-neutral-800 truncate block max-w-[220px]">
+                {assignedSiteName ? assignedSiteName : officeName}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. THREE STATS & ACTION WIDGETS (Keka Style) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Card A: Attendance Stats (Last 30 Days) */}
+        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              ATTENDANCE STATS
+            </span>
+            <span className="text-[11px] font-semibold text-neutral-400">Last 30 Days</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+            <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
+              <span className="text-lg font-extrabold text-emerald-800">
+                {stats.presentCount}
+              </span>
+              <span className="block text-[10px] font-semibold text-emerald-700 uppercase mt-0.5">
+                Present
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-amber-50/70 border border-amber-100">
+              <span className="text-lg font-extrabold text-amber-800">
+                {stats.lateCount}
+              </span>
+              <span className="block text-[10px] font-semibold text-amber-700 uppercase mt-0.5">
+                Late Marks
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-rose-50/70 border border-rose-100">
+              <span className="text-lg font-extrabold text-rose-800">
+                {stats.absentCount}
+              </span>
+              <span className="block text-[10px] font-semibold text-rose-700 uppercase mt-0.5">
+                Absent / Leave
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card B: Timings */}
+        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              TIMINGS
+            </span>
+            <span className="text-[11px] font-semibold text-neutral-400">Shift 10:00 - 19:00</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-xs text-neutral-400 uppercase font-bold text-[10px]">
+                Total Gross Hours
+              </span>
+              <p className="text-lg font-extrabold text-neutral-900 mt-0.5">
+                {stats.totalHours} hrs
+              </p>
+            </div>
+
+            <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-xs text-neutral-400 uppercase font-bold text-[10px]">
+                Avg Daily Hours
+              </span>
+              <p className="text-lg font-extrabold text-neutral-900 mt-0.5">
+                {stats.avgDailyHours} hrs
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Card C: Actions (Punch In / Punch Out with Location Enforcement) */}
+        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              ACTIONS
+            </span>
+            <div className="flex items-center gap-1.5 text-xs font-semibold">
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  isOnDuty ? "bg-emerald-500 animate-pulse" : "bg-neutral-300"
+                )}
+              />
+              <span className={isOnDuty ? "text-emerald-700" : "text-neutral-500"}>
+                {isOnDuty ? "Currently On Duty" : "Off Duty"}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            {isOnDuty ? (
+              <Button
+                onClick={() => handlePunch("out")}
+                disabled={busy}
+                className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-black text-white font-semibold text-xs shadow-sm gap-2"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>{busy ? "Verifying GPS..." : "Clock Out"}</span>
+              </Button>
+            ) : (
+              <Button
+                onClick={() => handlePunch("in")}
+                disabled={busy}
+                className="w-full h-10 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white hover:opacity-95 font-semibold text-xs shadow-sm gap-2"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                <span>
+                  {busy
+                    ? "Verifying Location..."
+                    : hasCompletedSession
+                    ? "Clock In Again"
+                    : "Clock In"}
+                </span>
+              </Button>
+            )}
+
+            {punchError && (
+              <p className="mt-2 text-[11px] font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 leading-relaxed">
+                {punchError}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. LOGS & RECORDS SECTION (Keka Style Table with Visual Timeline) */}
+      <div className="rounded-2xl border border-neutral-200/90 bg-white overflow-hidden shadow-2xs">
+        {/* Top Header & Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-200 px-4 py-3 gap-3 bg-neutral-50/50">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-neutral-900">Logs & Records</h2>
+            <div className="flex items-center rounded-lg border border-neutral-200 p-0.5 bg-white text-xs ml-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab("log")}
+                className={cn(
+                  "px-3 py-1 rounded-md font-semibold transition-colors",
+                  activeTab === "log"
+                    ? "bg-neutral-900 text-white shadow-2xs"
+                    : "text-neutral-600 hover:text-neutral-900"
+                )}
+              >
+                Attendance Log
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("shifts")}
+                className={cn(
+                  "px-3 py-1 rounded-md font-semibold transition-colors",
+                  activeTab === "shifts"
+                    ? "bg-neutral-900 text-white shadow-2xs"
+                    : "text-neutral-600 hover:text-neutral-900"
+                )}
+              >
+                Shifts
+              </button>
+            </div>
+          </div>
+
+          {/* Period Selection Pills matching Screenshot 2 */}
+          <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPeriod("30_DAYS");
+                setSelectedMonth(currentMonthNum);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-md transition-colors",
+                selectedPeriod === "30_DAYS"
+                  ? "bg-[#5D3EBC] text-white"
+                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              )}
+            >
+              30 DAYS
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPeriod("OCT");
+                setSelectedMonth(10);
+              }}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors",
+                selectedPeriod === "OCT"
+                  ? "bg-[#5D3EBC] text-white"
+                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              )}
+            >
+              OCT
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPeriod("SEP");
+                setSelectedMonth(9);
+              }}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors",
+                selectedPeriod === "SEP"
+                  ? "bg-[#5D3EBC] text-white"
+                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              )}
+            >
+              SEP
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPeriod("AUG");
+                setSelectedMonth(8);
+              }}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors",
+                selectedPeriod === "AUG"
+                  ? "bg-[#5D3EBC] text-white"
+                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              )}
+            >
+              AUG
+            </button>
+          </div>
+        </div>
+
+        {/* Table Content */}
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-neutral-200 bg-neutral-50/80 text-[11px] font-bold text-neutral-600">
+                <th className="py-3 px-4 w-[160px]">Date</th>
+                <th className="py-3 px-4 min-w-[200px]">Attendance Visual</th>
+                <th className="py-3 px-4 w-[100px]">Gross Hours</th>
+                <th className="py-3 px-4 w-[100px]">Effective Hours</th>
+                <th className="py-3 px-4 w-[110px]">Clock In</th>
+                <th className="py-3 px-4 w-[110px]">Clock Out</th>
+                <th className="py-3 px-4 w-[90px] text-center">Map View</th>
+                <th className="py-3 px-4 w-[100px] text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {isMonthLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-neutral-400">
+                    Loading attendance logs...
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-neutral-400">
+                    No attendance records for this period.
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => {
+                  const dateStr = formatDateIST(log.date);
+                  const isCheckedIn = Boolean(log.checkInTime);
+                  const isCheckedOut = Boolean(log.checkOutTime);
+                  const hours = log.totalHours != null ? `${log.totalHours}h` : "—";
+
+                  // Calculate percentage for visual bar (e.g. 8 hours out of 9 hours standard shift)
+                  const hoursVal = log.totalHours || (isCheckedIn ? 6 : 0);
+                  const barWidthPercent = Math.min(100, Math.round((hoursVal / 9) * 100));
+
+                  const rawDateStr = new Date(log.date).toISOString().slice(0, 10);
+
+                  return (
+                    <tr
+                      key={log.id}
+                      className="hover:bg-neutral-50/70 transition-colors"
+                    >
+                      {/* Date */}
+                      <td className="py-3 px-4 font-semibold text-neutral-900 whitespace-nowrap">
+                        {dateStr}
+                      </td>
+
+                      {/* Visual Timeline Bar matching Screenshot 2 */}
+                      <td className="py-3 px-4">
+                        <div className="w-full max-w-[240px]">
+                          <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-1">
+                            <span>{log.checkInTime ? formatTimeIST(log.checkInTime) : "—"}</span>
+                            <span>{log.checkOutTime ? formatTimeIST(log.checkOutTime) : isCheckedIn ? "Active" : "—"}</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
+                            {isCheckedIn && (
+                              <div
+                                className="h-full rounded-full bg-[#1AB3B6] transition-all"
+                                style={{ width: `${barWidthPercent}%` }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Gross Hours */}
+                      <td className="py-3 px-4 font-bold text-neutral-800 whitespace-nowrap">
+                        {hours}
+                      </td>
+
+                      {/* Effective Hours */}
+                      <td className="py-3 px-4 font-medium text-neutral-600 whitespace-nowrap">
+                        {hours}
+                      </td>
+
+                      {/* Clock In */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {isCheckedIn ? (
+                          <span className="font-semibold text-neutral-900">
+                            {formatTimeIST(log.checkInTime)}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Clock Out */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {isCheckedOut ? (
+                          <span className="font-semibold text-neutral-900">
+                            {formatTimeIST(log.checkOutTime)}
+                          </span>
+                        ) : isCheckedIn ? (
+                          <span className="font-bold text-[#FF7A70]">On Duty</span>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Map View Button (Opens Screenshot 1 Modal!) */}
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setMapModalDate(rawDateStr)}
+                          title="Open Keka Map View"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700 hover:bg-[#5D3EBC] hover:text-white transition-colors"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        {log.status === "PRESENT" && (
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                            On Time
+                          </span>
+                        )}
+                        {log.status === "LATE" && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                            Late
+                          </span>
+                        )}
+                        {log.status === "HALF_DAY" && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-300">
+                            Half Day
+                          </span>
+                        )}
+                        {log.status === "ON_LEAVE" && (
+                          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-primary border border-indigo-200">
+                            Leave
+                          </span>
+                        )}
+                        {log.status === "ABSENT" && (
+                          <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-maroon border border-rose-200">
+                            Absent
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 4. MODAL: KEKA MAP VIEW (Screenshot 1) */}
+      {mapModalDate && (
+        <KekaMapViewModal
+          employeeId={empId}
+          employeeName={displayName}
+          date={mapModalDate}
+          onClose={() => setMapModalDate(null)}
+        />
+      )}
+    </div>
+  );
+}
