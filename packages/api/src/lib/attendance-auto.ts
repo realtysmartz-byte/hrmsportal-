@@ -3,6 +3,7 @@ import {
   startOfDayUTC,
   getISTDateParts,
   getAutoPunchOutTimeIST,
+  haversineDistanceM,
 } from "@realty-smartz/shared";
 
 /**
@@ -132,23 +133,27 @@ export async function ensureEmployee30MinPings(
     });
 
     // 2. Determine base coordinates:
-    // Priority: Actual punch-in GPS -> Assigned on-site project GPS -> HQ Office
-    const baseLat = log.checkInLat ?? emp?.workLocationLat ?? 28.3997196;
-    const baseLng = log.checkInLng ?? emp?.workLocationLng ?? 77.0385682;
+    // If employee is explicitly assigned to an on-site project location (e.g. M3M Urbana, Signature Global),
+    // anchor their workplace coordinates and pings to their assigned site.
+    const isSiteAssigned = Boolean(emp?.workLocationLat != null && emp?.workLocationLng != null);
+    const baseLat = (isSiteAssigned ? emp!.workLocationLat : log.checkInLat) ?? emp?.workLocationLat ?? 28.3997196;
+    const baseLng = (isSiteAssigned ? emp!.workLocationLng : log.checkInLng) ?? emp?.workLocationLng ?? 77.0385682;
 
     // 3. Determine workplace address label:
-    // If on-site staff has an assigned site name (e.g. "M3M Urbana", "Signature Global Park"),
-    // attach that exact project site name to all pings.
     const address =
       emp?.workLocationName ||
       log.checkInAddress ||
       (log.withinGeofence ? "REALTY SMARTZ PVT LTD" : "Verified Workplace Premise");
 
-    const isSiteAssigned = Boolean(emp?.workLocationLat != null && emp?.workLocationLng != null);
     const withinGeofence = log.withinGeofence || isSiteAssigned;
 
-    // 4. Backfill attendance log if it missed coordinates at check-in
-    if (log.checkInLat == null || log.checkInLng == null || !log.checkInAddress) {
+    // 4. Backfill or update attendance log if it missed coordinates or site was assigned
+    if (
+      log.checkInLat == null ||
+      log.checkInLng == null ||
+      !log.checkInAddress ||
+      (isSiteAssigned && (log.checkInLat !== baseLat || log.checkInLng !== baseLng))
+    ) {
       try {
         await prisma.attendanceLog.update({
           where: { id: log.id },
@@ -182,6 +187,34 @@ export async function ensureEmployee30MinPings(
       },
       orderBy: { capturedAt: "asc" },
     });
+
+    // If employee is assigned to a specific on-site project, migrate any stale pings that were recorded at HQ
+    if (isSiteAssigned && existingPings.length > 0) {
+      const farPingIds = existingPings
+        .filter((p) => haversineDistanceM(p.lat, p.lng, baseLat, baseLng) > 300)
+        .map((p) => p.id);
+
+      if (farPingIds.length > 0) {
+        await prisma.locationPing.updateMany({
+          where: { id: { in: farPingIds } },
+          data: {
+            lat: baseLat,
+            lng: baseLng,
+            address,
+            withinGeofence: true,
+          },
+        });
+
+        for (const p of existingPings) {
+          if (farPingIds.includes(p.id)) {
+            p.lat = baseLat;
+            p.lng = baseLng;
+            p.address = address;
+            p.withinGeofence = true;
+          }
+        }
+      }
+    }
 
     const toCreate: Array<{
       employeeId: string;

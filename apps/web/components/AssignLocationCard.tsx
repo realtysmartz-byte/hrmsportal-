@@ -13,6 +13,7 @@ import {
   Navigation,
   Sparkles,
   Info,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,8 +80,19 @@ export function AssignLocationCard({
     currentLng ?? HQ_OFFICE.lng
   );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync form state whenever props change (e.g. admin selects another employee or location updates)
+  useEffect(() => {
+    setSelectedName(currentLocationName || HQ_OFFICE.name);
+    setSelectedLat(currentLat ?? HQ_OFFICE.lat);
+    setSelectedLng(currentLng ?? HQ_OFFICE.lng);
+    setQuery("");
+    setSuggestions([]);
+    setErrorMessage(null);
+  }, [employeeId, currentLocationName, currentLat, currentLng]);
 
   // Debounced search for places / projects
   useEffect(() => {
@@ -132,19 +144,54 @@ export function AssignLocationCard({
   } | null>(null);
 
   const updateMutation = trpc.employee.update.useMutation({
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
+      const savedName = variables.workLocationName || selectedName;
+      const savedLat = variables.workLocationLat ?? (selectedLat || HQ_OFFICE.lat);
+      const savedLng = variables.workLocationLng ?? (selectedLng || HQ_OFFICE.lng);
+
       setSuccessMessage(
-        `Work location successfully assigned to ${selectedName}! Employee can now login from this workplace.`
+        `Work location successfully assigned to ${savedName}! Employee can now login from this workplace.`
       );
+      setErrorMessage(null);
       setSavedPopup({
-        locationName: variables.workLocationName || selectedName,
-        lat: variables.workLocationLat ?? (selectedLat || HQ_OFFICE.lat),
-        lng: variables.workLocationLng ?? (selectedLng || HQ_OFFICE.lng),
+        locationName: savedName,
+        lat: savedLat,
+        lng: savedLng,
       });
-      utils.employee.profileHub.invalidate({ id: employeeId });
-      utils.employee.byId.invalidate({ id: employeeId });
+
+      // Optimistically update React Query cache in memory so tables update in 0ms
+      utils.employee.list.setData({ pageSize: 100, status: "ACTIVE" }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((emp) =>
+            emp.id === employeeId
+              ? {
+                  ...emp,
+                  workLocationName: savedName,
+                  workLocationLat: savedLat,
+                  workLocationLng: savedLng,
+                }
+              : emp
+          ),
+        };
+      });
+
+      // Invalidate relevant queries across the app
+      await Promise.allSettled([
+        utils.employee.list.invalidate(),
+        utils.attendance.livePersonnelOverview.invalidate(),
+        utils.attendance.allLocationPings.invalidate(),
+        utils.employee.profileHub.invalidate({ id: employeeId }),
+        utils.employee.byId.invalidate({ id: employeeId }),
+      ]);
+
       onUpdated?.();
       setTimeout(() => setSuccessMessage(null), 8000);
+    },
+    onError: (err) => {
+      setSuccessMessage(null);
+      setErrorMessage(err.message || "Failed to update work location. Please verify your connection.");
     },
   });
 
@@ -154,6 +201,30 @@ export function AssignLocationCard({
     setSelectedLng(item.lng);
     setQuery("");
     setIsOpen(false);
+    setErrorMessage(null);
+  };
+
+  const handleUseCustomName = async (customName: string) => {
+    const trimmed = customName.trim();
+    if (!trimmed) return;
+    setSelectedName(trimmed);
+    setQuery("");
+    setIsOpen(false);
+    setErrorMessage(null);
+
+    // Auto-fetch coordinates for custom typed site name
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const json = (await res.json()) as { results?: SearchResult[] };
+        if (json.results && json.results.length > 0) {
+          setSelectedLat(json.results[0].lat);
+          setSelectedLng(json.results[0].lng);
+        }
+      }
+    } catch (e) {
+      console.error("Geocode error", e);
+    }
   };
 
   const handleResetToHQ = () => {
@@ -162,15 +233,56 @@ export function AssignLocationCard({
     setSelectedLng(HQ_OFFICE.lng);
     setQuery("");
     setIsOpen(false);
+    setErrorMessage(null);
   };
 
-  const handleSave = () => {
-    if (selectedLat == null || selectedLng == null) return;
+  const handleSave = async () => {
+    let lat = selectedLat;
+    let lng = selectedLng;
+    let name = selectedName;
+
+    // If there is uncommitted text in the search input, auto-resolve it
+    if (query.trim().length >= 2) {
+      if (suggestions.length > 0) {
+        const top = suggestions[0];
+        name = top.name || top.displayName.split(",")[0];
+        lat = top.lat;
+        lng = top.lng;
+        setSelectedName(name);
+        setSelectedLat(lat);
+        setSelectedLng(lng);
+      } else {
+        name = query.trim();
+        setSelectedName(name);
+        try {
+          const res = await fetch(`/api/geocode?q=${encodeURIComponent(name)}`);
+          if (res.ok) {
+            const json = (await res.json()) as { results?: SearchResult[] };
+            if (json.results && json.results.length > 0) {
+              lat = json.results[0].lat;
+              lng = json.results[0].lng;
+              setSelectedLat(lat);
+              setSelectedLng(lng);
+            }
+          }
+        } catch {
+          // keep existing coords
+        }
+      }
+      setQuery("");
+      setIsOpen(false);
+    }
+
+    if (lat == null || lng == null) {
+      lat = HQ_OFFICE.lat;
+      lng = HQ_OFFICE.lng;
+    }
+
     updateMutation.mutate({
       id: employeeId,
-      workLocationName: selectedName,
-      workLocationLat: selectedLat,
-      workLocationLng: selectedLng,
+      workLocationName: name,
+      workLocationLat: lat,
+      workLocationLng: lng,
     });
   };
 
@@ -216,6 +328,14 @@ export function AssignLocationCard({
         <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800 animate-in fade-in">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {errorMessage && (
+        <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-semibold text-rose-800 animate-in fade-in">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -270,11 +390,7 @@ export function AssignLocationCard({
                 {query.trim().length >= 2 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedName(query.trim());
-                      setQuery("");
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handleUseCustomName(query)}
                     className="w-full text-left p-2.5 px-3 bg-teal-50/60 hover:bg-teal-50 border-b border-teal-100 transition-colors flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-2">

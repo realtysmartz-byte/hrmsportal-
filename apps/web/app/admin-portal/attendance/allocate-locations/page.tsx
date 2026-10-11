@@ -95,9 +95,13 @@ export default function AllocateLocationsPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Sync target values when selected employee changes
+  // Track the ID of the employee we last synchronized the form for
+  const lastSyncedIdRef = useRef<string>("");
+
+  // Sync target values ONLY when selected employee ID actually changes
   useEffect(() => {
-    if (selectedEmployee) {
+    if (selectedEmployee && selectedEmployee.id !== lastSyncedIdRef.current) {
+      lastSyncedIdRef.current = selectedEmployee.id;
       if (selectedEmployee.workLocationLat && selectedEmployee.workLocationLng) {
         setTargetName(selectedEmployee.workLocationName || "Assigned Project Site");
         setTargetLat(selectedEmployee.workLocationLat);
@@ -109,7 +113,6 @@ export default function AllocateLocationsPage() {
       }
       setQuery("");
       setSuggestions([]);
-      setSuccessMsg(null);
       setErrorMsg(null);
     }
   }, [selectedEmployee]);
@@ -161,26 +164,57 @@ export default function AllocateLocationsPage() {
     lng: number;
   } | null>(null);
 
-  // Update employee location mutation
+  // Update employee location mutation with immediate in-memory cache update
   const updateLocation = trpc.employee.update.useMutation({
-    onSuccess: async (_, variables) => {
-      await utils.employee.list.invalidate();
-      await utils.attendance.livePersonnelOverview.invalidate();
+    onSuccess: async (data, variables) => {
+      const newLat = variables.workLocationLat ?? data.workLocationLat ?? targetLat;
+      const newLng = variables.workLocationLng ?? data.workLocationLng ?? targetLng;
+      const newName = variables.workLocationName ?? data.workLocationName ?? targetName;
+
+      // 1. Immediately update the React Query cache so the table updates in 0ms!
+      utils.employee.list.setData({ pageSize: 100, status: "ACTIVE" }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((emp) =>
+            emp.id === variables.id
+              ? {
+                  ...emp,
+                  workLocationName: newName,
+                  workLocationLat: newLat,
+                  workLocationLng: newLng,
+                }
+              : emp
+          ),
+        };
+      });
+
+      // 2. Update local studio state so map preview and inputs immediately reflect the saved data
+      setTargetName(newName);
+      setTargetLat(newLat);
+      setTargetLng(newLng);
+      setQuery("");
+      setIsOpen(false);
+
+      // 3. Trigger server invalidations across the portal
+      await Promise.allSettled([
+        utils.employee.list.invalidate(),
+        utils.attendance.livePersonnelOverview.invalidate(),
+        utils.attendance.allLocationPings.invalidate(),
+      ]);
+
       const emp = employees.find((e) => e.id === variables.id);
       const updatedName = emp ? `${emp.firstName} ${emp.lastName}` : "Employee";
       const code = emp?.employeeCode || "RS";
-      const site = variables.workLocationName || targetName;
-      const lat = variables.workLocationLat ?? targetLat;
-      const lng = variables.workLocationLng ?? targetLng;
 
       setErrorMsg(null);
-      setSuccessMsg(`✓ Location successfully allocated for ${updatedName}! Workplace verification active.`);
+      setSuccessMsg(`✓ Location successfully allocated to "${newName}" for ${updatedName}! Workplace verification active.`);
       setSavedPopup({
         employeeName: updatedName,
         employeeCode: code,
-        locationName: site,
-        lat,
-        lng,
+        locationName: newName,
+        lat: newLat,
+        lng: newLng,
       });
       setTimeout(() => setSuccessMsg(null), 8000);
     },
@@ -196,8 +230,34 @@ export default function AllocateLocationsPage() {
       return;
     }
 
-    const lat = Number(targetLat);
-    const lng = Number(targetLng);
+    let lat = Number(targetLat);
+    let lng = Number(targetLng);
+    let cleanName = (targetName.trim() || HQ_OFFICE.name).slice(0, 180);
+
+    // If there is unsubmitted text in the search input, auto-resolve it first!
+    if (query.trim().length >= 2) {
+      if (suggestions.length > 0) {
+        const top = suggestions[0];
+        lat = top.lat;
+        lng = top.lng;
+        cleanName = (top.displayName || top.name).slice(0, 180);
+      } else {
+        try {
+          const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`);
+          if (res.ok) {
+            const json = (await res.json()) as { results?: SearchResult[] };
+            if (json.results && json.results.length > 0) {
+              const top = json.results[0];
+              lat = top.lat;
+              lng = top.lng;
+              cleanName = (top.displayName || top.name).slice(0, 180);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
 
     if (isNaN(lat) || lat < -90 || lat > 90) {
       setErrorMsg("Invalid Latitude. Must be between -90 and 90.");
@@ -207,9 +267,6 @@ export default function AllocateLocationsPage() {
       setErrorMsg("Invalid Longitude. Must be between -180 and 180.");
       return;
     }
-
-    // Ensure name never exceeds schema max (200 characters)
-    const cleanName = (targetName.trim() || HQ_OFFICE.name).slice(0, 180);
 
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -471,10 +528,23 @@ export default function AllocateLocationsPage() {
                     {query.trim().length >= 2 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setTargetName(query.trim());
+                        onClick={async () => {
+                          const custom = query.trim();
+                          setTargetName(custom);
                           setQuery("");
                           setIsOpen(false);
+                          try {
+                            const res = await fetch(`/api/geocode?q=${encodeURIComponent(custom)}`);
+                            if (res.ok) {
+                              const json = (await res.json()) as { results?: SearchResult[] };
+                              if (json.results && json.results.length > 0) {
+                                setTargetLat(json.results[0].lat);
+                                setTargetLng(json.results[0].lng);
+                              }
+                            }
+                          } catch {
+                            // retain current coords if offline
+                          }
                         }}
                         className="w-full text-left px-3.5 py-2.5 bg-teal-50/60 hover:bg-teal-50 border-b border-teal-100 transition-colors flex items-center justify-between group"
                       >

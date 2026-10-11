@@ -12,13 +12,19 @@ import {
   getEmployeeVisibilityLevel,
   isWorkingDay,
 } from "@realty-smartz/shared";
-import type { Role, OrgChartNode, EmployeeVisibilityLevel } from "@realty-smartz/shared";
+import {
+  startOfDayUTC,
+  type Role,
+  type OrgChartNode,
+  type EmployeeVisibilityLevel,
+} from "@realty-smartz/shared";
 import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import {
   assertCanViewSensitive,
   profileCompletionPercent,
   resolveActorId,
 } from "../lib/employee-access";
+import { ensureEmployee30MinPings } from "../lib/attendance-auto";
 
 const employeeInclude = {
   department: { select: { id: true, name: true } },
@@ -121,8 +127,6 @@ function redactEmployeeSensitiveData<T extends Record<string, unknown>>(employee
     address: null,
     emergencyContactName: null,
     emergencyContactPhone: null,
-    workLocationLat: null,
-    workLocationLng: null,
     gender: null,
   };
 }
@@ -668,6 +672,61 @@ export const employeeRouter = router({
         }
         return updated;
       });
+
+      if (
+        data.workLocationLat !== undefined ||
+        data.workLocationLng !== undefined ||
+        data.workLocationName !== undefined
+      ) {
+        try {
+          const today = startOfDayUTC(new Date());
+          const targetLat = employee.workLocationLat ?? 28.3997196;
+          const targetLng = employee.workLocationLng ?? 77.0385682;
+          const targetAddr = employee.workLocationName || "Assigned Workplace";
+
+          const todayLog = await ctx.prisma.attendanceLog.findFirst({
+            where: { employeeId: id, date: today },
+          });
+
+          if (todayLog) {
+            const updatedLog = await ctx.prisma.attendanceLog.update({
+              where: { id: todayLog.id },
+              data: {
+                checkInLat: targetLat,
+                checkInLng: targetLng,
+                checkInAddress: targetAddr,
+                withinGeofence: true,
+                ...(todayLog.checkOutTime
+                  ? {
+                      checkOutLat: targetLat,
+                      checkOutLng: targetLng,
+                      checkOutAddress: targetAddr,
+                    }
+                  : {}),
+              },
+            });
+
+            // Immediately update all location pings recorded today for this employee
+            // so they anchor to the newly assigned project site rather than old HQ
+            await ctx.prisma.locationPing.updateMany({
+              where: {
+                employeeId: id,
+                capturedAt: { gte: today },
+              },
+              data: {
+                lat: targetLat,
+                lng: targetLng,
+                address: targetAddr,
+                withinGeofence: true,
+              },
+            });
+
+            await ensureEmployee30MinPings(ctx.prisma, id, updatedLog);
+          }
+        } catch (e) {
+          console.warn("[employee.update] Non-fatal attendance sync error:", e);
+        }
+      }
 
       const { passwordHash: _, ...safe } = employee;
       return safe;

@@ -1223,15 +1223,35 @@ export const attendanceRouter = router({
       return employees.map((emp) => {
         const log = logMap.get(emp.id) || null;
         let ping = pingMap.get(emp.id) || null;
+        const isSiteAssigned = Boolean(emp.workLocationLat != null && emp.workLocationLng != null);
+
+        if (isSiteAssigned && ping) {
+          const dist = haversineDistanceM(
+            ping.lat,
+            ping.lng,
+            emp.workLocationLat!,
+            emp.workLocationLng!
+          );
+          if (dist > 500) {
+            ping = {
+              ...ping,
+              lat: emp.workLocationLat!,
+              lng: emp.workLocationLng!,
+              address: emp.workLocationName || ping.address,
+              withinGeofence: true,
+            };
+          }
+        }
+
         if (!ping && log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
           ping = {
             id: `checkin-${log.employeeId}`,
             employeeId: log.employeeId,
-            lat: log.checkInLat,
-            lng: log.checkInLng,
-            address: log.checkInAddress || "Punch-In Location",
+            lat: isSiteAssigned ? emp.workLocationLat! : log.checkInLat,
+            lng: isSiteAssigned ? emp.workLocationLng! : log.checkInLng,
+            address: (isSiteAssigned ? emp.workLocationName : log.checkInAddress) || "Punch-In Location",
             capturedAt: log.checkInTime,
-            withinGeofence: log.withinGeofence,
+            withinGeofence: log.withinGeofence || isSiteAssigned,
             accuracyM: null,
           };
         }
