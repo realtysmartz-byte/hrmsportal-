@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   X,
   MapPin,
@@ -37,6 +37,14 @@ export function KekaMapViewModal({
 
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [mapProvider, setMapProvider] = useState<"google" | "osm">("google");
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const log = data?.log;
   const events = data?.events ?? [];
@@ -133,9 +141,9 @@ export function KekaMapViewModal({
         </div>
 
         {/* Modal Body: Left Sidebar + Right Map */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0 bg-white">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 bg-white overflow-y-auto overscroll-contain md:overflow-hidden">
           {/* Left Pane (Keka Sidebar) */}
-          <div className="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-neutral-200 flex flex-col bg-white overflow-y-auto shrink-0 select-none">
+          <div className="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-neutral-200 flex flex-col bg-white md:overflow-y-auto shrink-0 select-none">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-xs text-neutral-400 gap-2">
                 <RefreshCw className="h-6 w-6 animate-spin text-[#FF7A70]" />
