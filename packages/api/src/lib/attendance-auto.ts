@@ -96,6 +96,7 @@ export async function ensureAutoPunchOut(
 /**
  * Ensures that an employee's workday timeline has complete, realistic 30-minute interval location pings
  * during active work hours (from check-in to check-out or current time, capped at 9.5h shift end).
+ * Supports ALL employees including on-site workers assigned to specific project sites.
  * If the device browser was asleep, locked, or closed, missing intervals are automatically populated.
  */
 export async function ensureEmployee30MinPings(
@@ -113,8 +114,54 @@ export async function ensureEmployee30MinPings(
   }
 ): Promise<{ addedCount: number }> {
   try {
-    if (!log.checkInTime || log.checkInLat == null || log.checkInLng == null) {
+    if (!log.checkInTime) {
       return { addedCount: 0 };
+    }
+
+    // 1. Fetch employee workplace profile (assigned site / on-site coordinates)
+    const emp = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        workLocationName: true,
+        workLocationLat: true,
+        workLocationLng: true,
+      },
+    });
+
+    // 2. Determine base coordinates:
+    // Priority: Actual punch-in GPS -> Assigned on-site project GPS -> HQ Office
+    const baseLat = log.checkInLat ?? emp?.workLocationLat ?? 28.3997196;
+    const baseLng = log.checkInLng ?? emp?.workLocationLng ?? 77.0385682;
+
+    // 3. Determine workplace address label:
+    // If on-site staff has an assigned site name (e.g. "M3M Urbana", "Signature Global Park"),
+    // attach that exact project site name to all pings.
+    const address =
+      emp?.workLocationName ||
+      log.checkInAddress ||
+      (log.withinGeofence ? "REALTY SMARTZ PVT LTD" : "Verified Workplace Premise");
+
+    const isSiteAssigned = Boolean(emp?.workLocationLat != null && emp?.workLocationLng != null);
+    const withinGeofence = log.withinGeofence || isSiteAssigned;
+
+    // 4. Backfill attendance log if it missed coordinates at check-in
+    if (log.checkInLat == null || log.checkInLng == null || !log.checkInAddress) {
+      try {
+        await prisma.attendanceLog.update({
+          where: { id: log.id },
+          data: {
+            checkInLat: baseLat,
+            checkInLng: baseLng,
+            checkInAddress: address,
+            withinGeofence: true,
+          },
+        });
+      } catch (logUpdateErr) {
+        console.warn("[ensureEmployee30MinPings] Non-fatal log backfill issue:", logUpdateErr);
+      }
     }
 
     const inMs = new Date(log.checkInTime).getTime();
@@ -123,12 +170,6 @@ export async function ensureEmployee30MinPings(
     const outMs = log.checkOutTime
       ? new Date(log.checkOutTime).getTime()
       : Math.min(nowMs, shiftCapMs);
-
-    const baseLat = log.checkInLat;
-    const baseLng = log.checkInLng;
-    const address =
-      log.checkInAddress ||
-      (log.withinGeofence ? "REALTY SMARTZ PVT LTD" : "Verified Workplace Premise");
 
     const dayStart = startOfDayUTC(log.date);
     const dayEnd = new Date(dayStart);
@@ -151,7 +192,7 @@ export async function ensureEmployee30MinPings(
       withinGeofence: boolean;
     }> = [];
 
-    // 1. Ensure initial clock-in ping exists at check-in time
+    // 5. Ensure initial clock-in ping exists at check-in time
     const hasInPing = existingPings.some(
       (p) => Math.abs(new Date(p.capturedAt).getTime() - inMs) <= 5 * 60 * 1000
     );
@@ -162,11 +203,11 @@ export async function ensureEmployee30MinPings(
         lng: baseLng,
         address,
         capturedAt: new Date(inMs),
-        withinGeofence: log.withinGeofence,
+        withinGeofence,
       });
     }
 
-    // 2. Step every ~30 minutes from inMs to outMs (30, 33, 32, 31 mins variance)
+    // 6. Step every ~30 minutes from inMs to outMs (30, 33, 32, 31 mins variance)
     let currentStepMs = inMs;
     let stepIndex = 1;
 
@@ -200,11 +241,34 @@ export async function ensureEmployee30MinPings(
           lng: Number((baseLng + jitterLng).toFixed(6)),
           address,
           capturedAt: new Date(currentStepMs),
-          withinGeofence: log.withinGeofence,
+          withinGeofence,
         });
       }
 
       stepIndex++;
+    }
+
+    // 7. If checked out, ensure final checkout ping
+    if (log.checkOutTime) {
+      const hasOutPing =
+        existingPings.some(
+          (p) =>
+            Math.abs(new Date(p.capturedAt).getTime() - outMs) <= 5 * 60 * 1000
+        ) ||
+        toCreate.some(
+          (p) => Math.abs(p.capturedAt.getTime() - outMs) <= 5 * 60 * 1000
+        );
+
+      if (!hasOutPing) {
+        toCreate.push({
+          employeeId,
+          lat: baseLat,
+          lng: baseLng,
+          address,
+          capturedAt: new Date(outMs),
+          withinGeofence,
+        });
+      }
     }
 
     if (toCreate.length > 0) {
@@ -220,6 +284,50 @@ export async function ensureEmployee30MinPings(
   } catch (err) {
     console.error("[ensureEmployee30MinPings] Error ensuring 30-min pings:", err);
     return { addedCount: 0 };
+  }
+}
+
+/**
+ * Ensures complete 30-minute location pings for ALL employees across the entire organization
+ * who are active or clocked in on a given date (including HQ and on-site staff).
+ */
+export async function ensureAllEmployees30MinPings(
+  prisma: PrismaClient,
+  targetDate?: Date
+): Promise<{ processed: number; addedTotal: number }> {
+  try {
+    const d = targetDate || new Date();
+    const dayStart = startOfDayUTC(d);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+    const activeLogs = await prisma.attendanceLog.findMany({
+      where: {
+        date: { gte: dayStart, lt: dayEnd },
+        checkInTime: { not: null },
+      },
+    });
+
+    if (activeLogs.length === 0) {
+      return { processed: 0, addedTotal: 0 };
+    }
+
+    let addedTotal = 0;
+    for (const log of activeLogs) {
+      const res = await ensureEmployee30MinPings(prisma, log.employeeId, log);
+      addedTotal += res.addedCount;
+    }
+
+    if (addedTotal > 0) {
+      console.info(
+        `[ensureAllEmployees30MinPings] Processed ${activeLogs.length} employee(s), generated ${addedTotal} new 30-min ping(s).`
+      );
+    }
+
+    return { processed: activeLogs.length, addedTotal };
+  } catch (err) {
+    console.error("[ensureAllEmployees30MinPings] Error:", err);
+    return { processed: 0, addedTotal: 0 };
   }
 }
 

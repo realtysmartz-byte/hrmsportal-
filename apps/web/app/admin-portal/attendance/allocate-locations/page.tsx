@@ -443,14 +443,14 @@ export default function AllocateLocationsPage() {
                 <div className="relative">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                   <Input
-                    placeholder="Search 'm3m', 'sector 65', or paste Google Maps URL / lat,lng..."
+                    placeholder="Search 'whiteland', 'elan', 'sector 82', 'signature global', 'm3m', or paste Google Maps URL / lat,lng..."
                     value={query}
                     onChange={(e) => {
                       setQuery(e.target.value);
                       if (!isOpen && e.target.value.length >= 2) setIsOpen(true);
                     }}
                     onFocus={() => {
-                      if (suggestions.length > 0) setIsOpen(true);
+                      if (suggestions.length > 0 || query.trim().length >= 2) setIsOpen(true);
                     }}
                     className="pl-10 pr-9 h-11 rounded-xl text-xs sm:text-sm border-neutral-200 focus:border-[#FF7A70] focus:ring-[#FF7A70]/30"
                   />
@@ -460,50 +460,73 @@ export default function AllocateLocationsPage() {
                 </div>
 
                 {/* Auto-suggest dropdown */}
-                {isOpen && suggestions.length > 0 && (
+                {isOpen && (
                   <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
                     <div className="px-3.5 py-1.5 bg-neutral-50 border-b border-neutral-100 text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center justify-between sticky top-0 z-10">
                       <span>Matching Places & Micro-Sites ({suggestions.length})</span>
                       <span>200m Perimeter</span>
                     </div>
-                    {suggestions.map((item, idx) => (
-                      <button
-                        key={`${item.lat}-${item.lng}-${idx}`}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(item)}
-                        className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 flex items-start gap-2.5 border-b border-neutral-100 last:border-0 transition-colors group"
-                      >
-                        <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs font-bold text-neutral-900 truncate">
-                              {item.name}
-                            </p>
-                            {item.tag && (
-                              <Badge variant="secondary" className="text-[9px] uppercase px-1.5 py-0 shrink-0 font-medium bg-neutral-100 text-neutral-600">
-                                {item.tag}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-neutral-500 truncate mt-0.5">
-                            {item.displayName || item.address}
-                          </p>
-                          <p className="font-mono text-[10px] text-neutral-400 mt-0.5">
-                            {item.lat.toFixed(5)}, {item.lng.toFixed(5)}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
 
-                {/* Empty State when search returns 0 results */}
-                {isOpen && !isSearching && query.trim().length >= 2 && suggestions.length === 0 && (
-                  <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl p-3.5 text-center">
-                    <p className="text-xs font-semibold text-neutral-700">No matching site found</p>
-                    <p className="text-[11px] text-neutral-400 mt-0.5">
-                      Tip: Paste a Google Maps URL or enter GPS coordinates (e.g. 28.3997, 77.0385) directly.
-                    </p>
+                    {/* Option to directly use typed query as custom site name */}
+                    {query.trim().length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetName(query.trim());
+                          setQuery("");
+                          setIsOpen(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2.5 bg-teal-50/60 hover:bg-teal-50 border-b border-teal-100 transition-colors flex items-center justify-between group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                          <span className="text-xs font-semibold text-teal-900">
+                            Use custom site name: <strong className="font-bold underline">{query.trim()}</strong>
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase text-teal-700 bg-white px-2 py-0.5 rounded border border-teal-200">
+                          Set Site Name
+                        </span>
+                      </button>
+                    )}
+
+                    {suggestions.length === 0 && !isSearching ? (
+                      <div className="p-4 text-center">
+                        <p className="text-xs font-semibold text-neutral-700">No matching online location found</p>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">
+                          Click "Use custom site name" above to set this name or enter coordinates manually below.
+                        </p>
+                      </div>
+                    ) : (
+                      suggestions.map((item, idx) => (
+                        <button
+                          key={`${item.lat}-${item.lng}-${idx}`}
+                          type="button"
+                          onClick={() => handleSelectSuggestion(item)}
+                          className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 flex items-start gap-2.5 border-b border-neutral-100 last:border-0 transition-colors group"
+                        >
+                          <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-neutral-900 truncate">
+                                {item.name}
+                              </p>
+                              {item.tag && (
+                                <Badge variant="secondary" className="text-[9px] uppercase px-1.5 py-0 shrink-0 font-medium bg-neutral-100 text-neutral-600">
+                                  {item.tag}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-neutral-500 truncate mt-0.5">
+                              {item.displayName || item.address}
+                            </p>
+                            <p className="font-mono text-[10px] text-neutral-400 mt-0.5">
+                              {item.lat.toFixed(5)}, {item.lng.toFixed(5)}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
 
@@ -584,6 +607,48 @@ export default function AllocateLocationsPage() {
                 >
                   <Sparkles className="h-3 w-3 text-[#FF7A70]" />
                   <span>M3M Broadway (Sec 71)</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTargetName("Signature Global Park, Sector 36, Sohna, Gurugram");
+                    setTargetLat(28.261205);
+                    setTargetLng(77.054321);
+                  }}
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                >
+                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <span>Signature Global Park</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTargetName("Whiteland Blissville, Sector 76, SPR Road, Gurugram");
+                    setTargetLat(28.375214);
+                    setTargetLng(76.994812);
+                  }}
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                >
+                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <span>Whiteland Blissville</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTargetName("Elan The Mark, Sector 106, Dwarka Expressway, Gurugram");
+                    setTargetLat(28.508214);
+                    setTargetLng(76.994812);
+                  }}
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                >
+                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <span>Elan The Mark</span>
                 </Button>
                 <Button
                   type="button"

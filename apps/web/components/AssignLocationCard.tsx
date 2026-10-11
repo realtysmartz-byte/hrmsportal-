@@ -245,11 +245,11 @@ export function AssignLocationCard({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <Input
                 type="text"
-                placeholder="Search project or site (e.g. type 'm3m', 'm3m urbana', 'cyber city')..."
+                placeholder="Search project or site (e.g. 'whiteland', 'elan', 'sector 82', 'signature global', 'm3m', or paste Google Maps link)..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => {
-                  if (suggestions.length > 0) setIsOpen(true);
+                  if (suggestions.length > 0 || query.trim().length >= 2) setIsOpen(true);
                 }}
                 className="pl-9 pr-9 bg-white text-xs sm:text-sm h-10 rounded-xl border-neutral-300 shadow-2xs"
               />
@@ -259,41 +259,72 @@ export function AssignLocationCard({
             </div>
 
             {/* Suggestions dropdown */}
-            {isOpen && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xl">
-                <div className="p-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-100 bg-neutral-50/70 px-3 py-1.5">
-                  Suggested Locations (Click to Auto-Fetch Coordinates)
+            {isOpen && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xl">
+                <div className="flex items-center justify-between p-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-100 bg-neutral-50/70 px-3 py-1.5 sticky top-0 z-10">
+                  <span>Suggested Locations ({suggestions.length})</span>
+                  <span>Click to Auto-Fetch Coordinates</span>
                 </div>
-                <div className="divide-y divide-neutral-100">
-                  {suggestions.map((item, idx) => (
-                    <button
-                      key={`${item.lat}-${item.lng}-${idx}`}
-                      type="button"
-                      onClick={() => handleSelect(item)}
-                      className="w-full text-left p-3 hover:bg-neutral-50 transition-colors flex items-start gap-2.5 group"
-                    >
-                      <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-neutral-900 truncate">
-                            {item.name}
+
+                {/* Option to directly use typed query as custom site name */}
+                {query.trim().length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedName(query.trim());
+                      setQuery("");
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left p-2.5 px-3 bg-teal-50/60 hover:bg-teal-50 border-b border-teal-100 transition-colors flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                      <span className="text-xs font-semibold text-teal-900">
+                        Use custom site: <strong className="font-bold underline">{query.trim()}</strong>
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase text-teal-700 bg-white px-1.5 py-0.5 rounded border border-teal-200">
+                      Set Site Name
+                    </span>
+                  </button>
+                )}
+
+                {suggestions.length === 0 && !isSearching ? (
+                  <div className="p-4 text-center text-xs text-neutral-400">
+                    No registry match found. Click "Use custom site" above to assign this name or enter coordinates below.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-neutral-100">
+                    {suggestions.map((item, idx) => (
+                      <button
+                        key={`${item.lat}-${item.lng}-${idx}`}
+                        type="button"
+                        onClick={() => handleSelect(item)}
+                        className="w-full text-left p-3 hover:bg-neutral-50 transition-colors flex items-start gap-2.5 group"
+                      >
+                        <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-neutral-900 truncate">
+                              {item.name}
+                            </p>
+                            {item.tag && (
+                              <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[9px] font-semibold text-neutral-600 shrink-0">
+                                {item.tag}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-neutral-500 line-clamp-1 mt-0.5">
+                            {item.displayName}
                           </p>
-                          {item.tag && (
-                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[9px] font-semibold text-neutral-600 shrink-0">
-                              {item.tag}
-                            </span>
-                          )}
+                          <p className="font-mono text-[10px] text-neutral-400 mt-0.5">
+                            {item.lat.toFixed(5)}, {item.lng.toFixed(5)}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-neutral-500 line-clamp-1 mt-0.5">
-                          {item.displayName}
-                        </p>
-                        <p className="font-mono text-[10px] text-neutral-400 mt-0.5">
-                          {item.lat.toFixed(5)}, {item.lng.toFixed(5)}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

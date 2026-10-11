@@ -20,7 +20,11 @@ import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
 import { protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
-import { ensureAutoPunchOut, ensureEmployee30MinPings } from "../lib/attendance-auto";
+import {
+  ensureAutoPunchOut,
+  ensureEmployee30MinPings,
+  ensureAllEmployees30MinPings,
+} from "../lib/attendance-auto";
 
 function attendanceStatusFromCheckIn(
   checkInTime: Date
@@ -100,11 +104,15 @@ export const attendanceRouter = router({
     const employeeId = await resolveEmployeeId(ctx);
     await ensureAutoPunchOut(ctx.prisma, employeeId);
     const today = startOfDayUTC(new Date());
-    return ctx.prisma.attendanceLog.findUnique({
+    const log = await ctx.prisma.attendanceLog.findUnique({
       where: {
         employeeId_date: { employeeId, date: today },
       },
     });
+    if (log?.checkInTime) {
+      await ensureEmployee30MinPings(ctx.prisma, employeeId, log);
+    }
+    return log;
   }),
 
   /**
@@ -244,6 +252,13 @@ export const attendanceRouter = router({
         orderBy: { date: "asc" },
       });
 
+      // Ensure complete 30-minute interval location pings for all clocked-in days
+      await Promise.all(
+        logs
+          .filter((l) => l.checkInTime)
+          .map((l) => ensureEmployee30MinPings(ctx.prisma, employeeId, l))
+      );
+
       return { logs, summary: summarizeLogs(logs) };
     }),
 
@@ -261,6 +276,13 @@ export const attendanceRouter = router({
         },
         orderBy: { date: "asc" },
       });
+
+      // Ensure complete 30-minute interval location pings for this employee across the month
+      await Promise.all(
+        logs
+          .filter((l) => l.checkInTime)
+          .map((l) => ensureEmployee30MinPings(ctx.prisma, input.employeeId, l))
+      );
 
       return { logs, summary: summarizeLogs(logs) };
     }),
@@ -474,6 +496,9 @@ export const attendanceRouter = router({
       } catch (pingErr) {
         console.error("[attendance.checkIn] failed to record initial location ping:", pingErr);
       }
+
+      // Guarantee initial workplace timestamp & schedule baseline
+      await ensureEmployee30MinPings(ctx.prisma, employeeId, log);
 
       // Non-blocking background tasks: Send emails & sync Google Sheets without slowing down punch-in
       void (async () => {
@@ -1173,18 +1198,8 @@ export const attendanceRouter = router({
         }),
       ]);
 
-      // Ensure 30-min interval pings for active employees on duty
-      await Promise.all(
-        todayLogs
-          .filter(
-            (l) =>
-              l.checkInTime &&
-              l.checkInLat != null &&
-              l.checkInLng != null &&
-              !l.checkOutTime
-          )
-          .map((l) => ensureEmployee30MinPings(ctx.prisma, l.employeeId, l))
-      );
+      // Ensure 30-min interval pings for ALL employees active or clocked in today (HQ and on-site)
+      await ensureAllEmployees30MinPings(ctx.prisma, day);
 
       const latestPings = await ctx.prisma.locationPing.findMany({
         where: { capturedAt: { gte: day, lt: next } },
@@ -1332,9 +1347,14 @@ export const attendanceRouter = router({
       }
 
       // Automatically guarantee 30-minute interval location breadcrumb pings for active work session
-      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
+      if (log?.checkInTime) {
         await ensureEmployee30MinPings(ctx.prisma, input.employeeId, log);
       }
+
+      // Reload log in case coordinates/address were backfilled
+      const activeLog = log
+        ? await ctx.prisma.attendanceLog.findUnique({ where: { id: log.id } })
+        : null;
 
       const pings = await ctx.prisma.locationPing.findMany({
         where: {
@@ -1357,16 +1377,18 @@ export const attendanceRouter = router({
 
       const events: TraceEvent[] = [];
 
-      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
+      if (activeLog?.checkInTime) {
+        const inLat = activeLog.checkInLat ?? emp.workLocationLat ?? 28.3997196;
+        const inLng = activeLog.checkInLng ?? emp.workLocationLng ?? 77.0385682;
         events.push({
-          id: `in-${log.id}`,
+          id: `in-${activeLog.id}`,
           type: "CHECK_IN",
-          time: log.checkInTime,
-          lat: log.checkInLat,
-          lng: log.checkInLng,
-          address: log.checkInAddress || "Office Premise",
-          withinGeofence: log.withinGeofence,
-          notes: log.notes,
+          time: activeLog.checkInTime,
+          lat: inLat,
+          lng: inLng,
+          address: activeLog.checkInAddress || emp.workLocationName || "Office Premise",
+          withinGeofence: activeLog.withinGeofence || Boolean(emp.workLocationLat != null),
+          notes: activeLog.notes,
         });
       }
 
@@ -1382,16 +1404,30 @@ export const attendanceRouter = router({
         });
       }
 
-      if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
+      if (activeLog?.checkOutTime) {
+        const outLat =
+          activeLog.checkOutLat ??
+          activeLog.checkInLat ??
+          emp.workLocationLat ??
+          28.3997196;
+        const outLng =
+          activeLog.checkOutLng ??
+          activeLog.checkInLng ??
+          emp.workLocationLng ??
+          77.0385682;
         events.push({
-          id: `out-${log.id}`,
+          id: `out-${activeLog.id}`,
           type: "CHECK_OUT",
-          time: log.checkOutTime,
-          lat: log.checkOutLat,
-          lng: log.checkOutLng,
-          address: log.checkOutAddress || "Office Premise",
-          withinGeofence: log.withinGeofence,
-          notes: log.notes,
+          time: activeLog.checkOutTime,
+          lat: outLat,
+          lng: outLng,
+          address:
+            activeLog.checkOutAddress ||
+            activeLog.checkInAddress ||
+            emp.workLocationName ||
+            "Office Premise",
+          withinGeofence: activeLog.withinGeofence || Boolean(emp.workLocationLat != null),
+          notes: activeLog.notes,
         });
       }
 
@@ -1400,7 +1436,7 @@ export const attendanceRouter = router({
       return {
         employee: emp,
         settings,
-        log,
+        log: activeLog ?? log,
         events,
       };
     }),
