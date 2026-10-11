@@ -38,6 +38,12 @@ import {
 import { LocationMap } from "@/components/LocationMap";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { isGoogleMapsLink, isUnnamedPin, reverseGeocodePlace } from "@/lib/geolocation";
+
+async function linkResultName(item: { name: string; lat: number; lng: number }): Promise<string> {
+  if (!isUnnamedPin(item.name)) return item.name;
+  return (await reverseGeocodePlace(item.lat, item.lng)).name;
+}
 
 interface SearchResult {
   name: string;
@@ -135,7 +141,17 @@ export default function AllocateLocationsPage() {
         const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`);
         if (res.ok) {
           const json = (await res.json()) as { results?: SearchResult[] };
-          setSuggestions(json.results ?? []);
+          const results = json.results ?? [];
+          if (isGoogleMapsLink(query)) {
+            if (results.length > 0) {
+              const top = results[0];
+              handleSelectSuggestion({ ...top, displayName: await linkResultName(top) });
+            } else {
+              setErrorMsg("Could not read a location from this Google Maps link. Open the place in Google Maps and copy the link again.");
+            }
+            return;
+          }
+          setSuggestions(results);
           setIsOpen(true);
         }
       } catch (err) {
@@ -223,7 +239,23 @@ export default function AllocateLocationsPage() {
 
     // If there is unsubmitted text in the search input, auto-resolve it first!
     if (query.trim().length >= 2) {
-      if (suggestions.length > 0) {
+      if (isGoogleMapsLink(query)) {
+        try {
+          const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`);
+          const json = res.ok ? ((await res.json()) as { results?: SearchResult[] }) : {};
+          const top = json.results?.[0];
+          if (!top) {
+            setErrorMsg("Could not read a location from this Google Maps link. Open the place in Google Maps and copy the link again.");
+            return;
+          }
+          lat = top.lat;
+          lng = top.lng;
+          cleanName = (await linkResultName(top)).slice(0, 180);
+        } catch {
+          setErrorMsg("Could not read a location from this Google Maps link.");
+          return;
+        }
+      } else if (suggestions.length > 0) {
         const top = suggestions[0];
         lat = top.lat;
         lng = top.lng;

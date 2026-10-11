@@ -135,7 +135,7 @@ export function EmployeeProfileHub({
       { id: "attendance", label: "Attendance", sensitive: true },
       {
         id: "location",
-        label: isAdmin ? "Assign Site & GPS" : "30-Min GPS Trail",
+        label: "Location",
         sensitive: true,
       },
       { id: "leave", label: "Leave", sensitive: true },

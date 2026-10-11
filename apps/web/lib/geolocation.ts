@@ -5,6 +5,17 @@ export type GeoPlace = {
   lng: number;
 };
 
+export function isGoogleMapsLink(text: string): boolean {
+  return /^https?:\/\/(?:(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(
+    text.trim()
+  );
+}
+
+/** Link results without a place name come back labelled "Pinned location [...]". */
+export function isUnnamedPin(name: string): boolean {
+  return /^Pinned location \[/.test(name);
+}
+
 export async function reverseGeocodePlace(
   lat: number,
   lng: number

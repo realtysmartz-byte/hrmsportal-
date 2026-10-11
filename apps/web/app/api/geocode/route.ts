@@ -7,67 +7,103 @@ import {
   type PlaceItem,
 } from "@/lib/places-registry";
 
-const MAX_QUERY_LENGTH = 300;
-const SHORT_MAPS_URL = /^https:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+$/i;
+const MAX_QUERY_LENGTH = 600;
+const SHORT_MAPS_URL =
+  /^https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+(?:\?[^\s#]*)?$/i;
+const MAPS_LINK =
+  /^https?:\/\/(?:(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i;
 
 /**
- * Resolves a Google Maps short link by reading a single redirect hop.
- * Only exact maps.app.goo.gl / goo.gl/maps URLs are fetched, so user input can't make the server call arbitrary hosts.
+ * Resolves a Google Maps short link by reading up to two redirect hops.
+ * Only exact maps.app.goo.gl / goo.gl/maps URLs are fetched, and each hop must land on a Google Maps URL,
+ * so user input can't make the server call arbitrary hosts.
  */
 async function resolveShortMapsUrl(url: string): Promise<string | null> {
+  let current = url;
+  for (let hop = 0; hop < 2; hop++) {
+    try {
+      const res = await fetch(current, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(4000),
+      });
+      const location = res.headers.get("location");
+      if (!location) return hop === 0 ? null : current;
+      const next = new URL(location, current).toString();
+      if (!MAPS_LINK.test(next)) return null;
+      if (!SHORT_MAPS_URL.test(next)) return next;
+      current = next;
+    } catch {
+      return null;
+    }
+  }
+  return current;
+}
+
+function isValidLatLng(lat: number, lng: number) {
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+/** Place name from links like https://www.google.com/maps/place/M3M+Urbana/@... */
+function placeNameFromMapsUrl(url: string): string | null {
+  const m = url.match(/\/maps\/place\/([^/@?]+)/);
+  if (!m) return null;
   try {
-    const res = await fetch(url, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(4000),
-    });
-    return res.headers.get("location");
+    const name = decodeURIComponent(m[1].replace(/\+/g, " ")).trim();
+    return name && !/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(name) ? name.slice(0, 180) : null;
   } catch {
     return null;
   }
 }
 
 /**
- * Parses exact coordinates from direct lat/lng inputs, Google Maps share links, or short URLs.
+ * Parses exact coordinates from direct lat/lng inputs or Google Maps links (full or short).
+ * `placeName` is returned for links that name a place, even when they carry no coordinates.
  */
-async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | null> {
+async function parseCoordinatesFromQuery(
+  query: string
+): Promise<{ item: PlaceItem | null; placeName: string | null }> {
   let q = query.trim();
 
   if (SHORT_MAPS_URL.test(q)) {
     q = (await resolveShortMapsUrl(q)) ?? q;
   }
 
-  // 2. Pattern: @lat,lng in Google Maps URL (e.g. https://www.google.com/maps/@28.3997,77.0385,17z)
+  const placeName = placeNameFromMapsUrl(q);
+  const pin = (lat: number, lng: number, tag: string): PlaceItem => ({
+    name: placeName ?? `Pinned location [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
+    displayName: placeName
+      ? `${placeName} (${lat.toFixed(6)}, ${lng.toFixed(6)})`
+      : `Google Maps pin (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
+    lat,
+    lng,
+    address: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+    tag,
+  });
+
+  // 1. Exact place pin inside place links: ...!3d28.39972!4d77.03857
+  const exactPin = q.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (exactPin) {
+    const lat = parseFloat(exactPin[1]);
+    const lng = parseFloat(exactPin[2]);
+    if (isValidLatLng(lat, lng)) return { item: pin(lat, lng, "EXACT GPS PIN"), placeName };
+  }
+
+  // 2. ?q=lat,lng / query= / destination= / ll= links, and /maps/search/lat,lng
+  const paramMatch =
+    q.match(/[?&](?:q|query|destination|ll|saddr|daddr)=(-?\d+\.\d+)(?:,|%2C)\+?(-?\d+\.\d+)/i) ||
+    q.match(/\/maps\/(?:search|place|dir)\/(-?\d+\.\d+),\+?(-?\d+\.\d+)/);
+  if (paramMatch) {
+    const lat = parseFloat(paramMatch[1]);
+    const lng = parseFloat(paramMatch[2]);
+    if (isValidLatLng(lat, lng)) return { item: pin(lat, lng, "GOOGLE MAPS PIN"), placeName };
+  }
+
+  // 3. Map viewport centre: /maps/@28.3997,77.0385,17z (less exact than a place pin)
   const gmapUrlMatch = q.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (gmapUrlMatch) {
     const lat = parseFloat(gmapUrlMatch[1]);
     const lng = parseFloat(gmapUrlMatch[2]);
-    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-      return {
-        name: `Google Maps Pin [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
-        displayName: `Google Maps Pinpoint [${lat.toFixed(6)}, ${lng.toFixed(6)}]`,
-        lat,
-        lng,
-        address: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-        tag: "EXACT GPS PIN",
-      };
-    }
-  }
-
-  // 3. Pattern: ?q=lat,lng or query=lat,lng or destination=lat,lng
-  const paramMatch = q.match(/[?&](?:q|query|destination|ll|saddr|daddr)=(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (paramMatch) {
-    const lat = parseFloat(paramMatch[1]);
-    const lng = parseFloat(paramMatch[2]);
-    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-      return {
-        name: `Pinned Location [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
-        displayName: `Google Maps Coordinate Link [${lat.toFixed(6)}, ${lng.toFixed(6)}]`,
-        lat,
-        lng,
-        address: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-        tag: "GOOGLE MAPS PIN",
-      };
-    }
+    if (isValidLatLng(lat, lng)) return { item: pin(lat, lng, "MAP CENTRE"), placeName };
   }
 
   // 4. Pattern: Direct lat, lng string like "28.3997, 77.0385" or "40.7128, -74.0060"
@@ -75,19 +111,22 @@ async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | nul
   if (directCoordMatch) {
     const lat = parseFloat(directCoordMatch[1]);
     const lng = parseFloat(directCoordMatch[2]);
-    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+    if (isValidLatLng(lat, lng)) {
       return {
-        name: `Custom Location [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
-        displayName: `Custom Coordinates (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
-        lat,
-        lng,
-        address: `Custom Coordinates (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
-        tag: "GPS COORDINATES",
+        item: {
+          name: `Custom Location [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
+          displayName: `Custom Coordinates (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
+          lat,
+          lng,
+          address: `Custom Coordinates (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
+          tag: "GPS COORDINATES",
+        },
+        placeName,
       };
     }
   }
 
-  return null;
+  return { item: null, placeName };
 }
 
 /**
@@ -354,17 +393,25 @@ export async function GET(req: NextRequest) {
 
   // CASE 1: Location search / autocomplete
   if (query) {
-    const qLower = query.toLowerCase();
-
     // 1. Direct coordinate or Google Maps URL parsing
-    const directCoords = await parseCoordinatesFromQuery(query);
-    const directMatch: PlaceItem[] = directCoords ? [directCoords] : [];
+    const parsed = await parseCoordinatesFromQuery(query);
+    const isLink = MAPS_LINK.test(query);
+    if (isLink && parsed.item) {
+      return NextResponse.json({ results: [parsed.item] });
+    }
+    if (isLink && !parsed.placeName) {
+      return NextResponse.json({ results: [] });
+    }
+    // A link that names a place but has no coordinates is searched by that name
+    const searchQuery = isLink ? parsed.placeName! : query;
+    const qLower = searchQuery.toLowerCase();
+    const directMatch: PlaceItem[] = parsed.item ? [parsed.item] : [];
 
     // 2. Official Google Places Text Search (if Google Maps API Key is active)
-    const googlePromise = fetchFromGooglePlaces(query);
+    const googlePromise = fetchFromGooglePlaces(searchQuery);
 
     // 3. Dynamic Sector matcher helper (e.g. "Sector 82", "Sec 106", "Sector 37D", etc.)
-    const sectorMatch = matchSectorQuery(query);
+    const sectorMatch = matchSectorQuery(searchQuery);
     const sectorList: PlaceItem[] = sectorMatch ? [sectorMatch] : [];
 
     // 4. Quick match for known builder projects / hubs
@@ -392,9 +439,9 @@ export async function GET(req: NextRequest) {
     const [googleSettled, photonSettled, nominatimSettled, meteoSettled] =
       await Promise.allSettled([
         googlePromise,
-        fetchWorldwideFromPhoton(query),
-        fetchWorldwideFromNominatim(query),
-        fetchWorldwideFromOpenMeteo(query),
+        fetchWorldwideFromPhoton(searchQuery),
+        fetchWorldwideFromNominatim(searchQuery),
+        fetchWorldwideFromOpenMeteo(searchQuery),
       ]);
 
     const googleMatches = googleSettled.status === "fulfilled" ? googleSettled.value : [];
