@@ -877,6 +877,11 @@ export const attendanceRouter = router({
         });
       }
 
+      const duplicate = await ctx.prisma.locationPing.findFirst({
+        where: { employeeId, capturedAt: input.capturedAt },
+      });
+      if (duplicate) return duplicate;
+
       const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
       const withinGeofence =
         distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
