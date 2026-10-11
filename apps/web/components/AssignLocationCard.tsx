@@ -245,7 +245,7 @@ export function AssignLocationCard({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <Input
                 type="text"
-                placeholder="Search project or site (e.g. 'whiteland', 'elan', 'sector 82', 'signature global', 'm3m', or paste Google Maps link)..."
+                placeholder="Search ANY location worldwide (e.g. 'Times Square', 'Burj Khalifa', 'Sector 82', street, or paste Google Maps link)..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => {
@@ -262,8 +262,8 @@ export function AssignLocationCard({
             {isOpen && (
               <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xl">
                 <div className="flex items-center justify-between p-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-100 bg-neutral-50/70 px-3 py-1.5 sticky top-0 z-10">
-                  <span>Suggested Locations ({suggestions.length})</span>
-                  <span>Click to Auto-Fetch Coordinates</span>
+                  <span>Worldwide Search Results ({suggestions.length})</span>
+                  <span>Click to Set Location</span>
                 </div>
 
                 {/* Option to directly use typed query as custom site name */}

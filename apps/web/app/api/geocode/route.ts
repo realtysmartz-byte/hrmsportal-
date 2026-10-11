@@ -7,6 +7,7 @@ import {
 
 /**
  * Parses exact coordinates from direct lat/lng inputs, Google Maps share links, or short URLs.
+ * Supports any location worldwide.
  */
 async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | null> {
   let q = query.trim();
@@ -26,19 +27,19 @@ async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | nul
     }
   }
 
-  // 2. Pattern: @lat,lng in Google Maps URL
+  // 2. Pattern: @lat,lng in Google Maps URL (e.g. https://www.google.com/maps/@28.3997,77.0385,17z)
   const gmapUrlMatch = q.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (gmapUrlMatch) {
     const lat = parseFloat(gmapUrlMatch[1]);
     const lng = parseFloat(gmapUrlMatch[2]);
     if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
       return {
-        name: `Google Maps Location [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
+        name: `Google Maps Pin [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
         displayName: `Google Maps Pinpoint [${lat.toFixed(6)}, ${lng.toFixed(6)}]`,
         lat,
         lng,
         address: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-        tag: "Exact GPS Pin",
+        tag: "EXACT GPS PIN",
       };
     }
   }
@@ -48,19 +49,19 @@ async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | nul
   if (paramMatch) {
     const lat = parseFloat(paramMatch[1]);
     const lng = parseFloat(paramMatch[2]);
-    if (!isNaN(lat) && !isNaN(lng)) {
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
       return {
         name: `Pinned Location [${lat.toFixed(5)}, ${lng.toFixed(5)}]`,
         displayName: `Google Maps Coordinate Link [${lat.toFixed(6)}, ${lng.toFixed(6)}]`,
         lat,
         lng,
         address: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-        tag: "Google Maps Pin",
+        tag: "GOOGLE MAPS PIN",
       };
     }
   }
 
-  // 4. Pattern: Direct lat, lng string like "28.3997, 77.0385" or "28.3997196 77.0385682"
+  // 4. Pattern: Direct lat, lng string like "28.3997, 77.0385" or "40.7128, -74.0060"
   const directCoordMatch = q.match(/^(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)$/);
   if (directCoordMatch) {
     const lat = parseFloat(directCoordMatch[1]);
@@ -72,7 +73,7 @@ async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | nul
         lat,
         lng,
         address: `Custom Coordinates (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
-        tag: "Custom GPS Coordinates",
+        tag: "GPS COORDINATES",
       };
     }
   }
@@ -81,15 +82,67 @@ async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | nul
 }
 
 /**
- * Fetch micro-locations (every society, building, chowk, sector, market) from Komoot Photon
- * with location proximity scoring centered around Gurugram / Delhi-NCR (28.3997, 77.0385)
- * Filtered strictly to India coordinates so foreign cities are never returned.
+ * Fetch from official Google Places Text Search API if a Google Maps API Key is configured.
+ * Covers every business, street, building, and location worldwide with 100% Google Maps fidelity.
  */
-async function fetchFromPhoton(query: string): Promise<PlaceItem[]> {
+async function fetchFromGooglePlaces(query: string): Promise<PlaceItem[]> {
+  const apiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey || apiKey.trim() === "" || apiKey === '""') return [];
+
   try {
-    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
       query
-    )}&lat=28.3997&lon=77.0385&limit=15`;
+    )}&key=${apiKey}`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return [];
+
+    const data = (await res.json()) as {
+      status?: string;
+      results?: Array<{
+        name?: string;
+        formatted_address?: string;
+        geometry?: { location?: { lat?: number; lng?: number } };
+        types?: string[];
+      }>;
+    };
+
+    if (data.status !== "OK" || !Array.isArray(data.results)) return [];
+
+    return data.results
+      .filter((r) => r.geometry?.location?.lat != null && r.geometry?.location?.lng != null)
+      .map((r) => {
+        const lat = r.geometry!.location!.lat!;
+        const lng = r.geometry!.location!.lng!;
+        const name = r.name || r.formatted_address?.split(",")[0] || "Location";
+        const displayName = r.formatted_address || name;
+        const tag = (r.types?.[0] || "GOOGLE PLACE").replace(/_/g, " ").toUpperCase();
+
+        return {
+          name: name.slice(0, 80),
+          displayName: displayName.slice(0, 150),
+          lat: Number(lat),
+          lng: Number(lng),
+          address: displayName.slice(0, 160),
+          tag: tag.slice(0, 18),
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Worldwide micro-locations (every society, building, chowk, street, market, town)
+ * from Komoot Photon OpenStreetMap index covering the WHOLE WORLD.
+ * NO country filter or coordinate bounding box restrictions.
+ */
+async function fetchWorldwideFromPhoton(query: string): Promise<PlaceItem[]> {
+  try {
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=15`;
 
     const res = await fetch(url, {
       signal: AbortSignal.timeout(5000),
@@ -126,19 +179,14 @@ async function fetchFromPhoton(query: string): Promise<PlaceItem[]> {
     if (!json.features || !Array.isArray(json.features)) return [];
 
     return json.features
-      .filter((f) => {
-        if (!f.geometry?.coordinates || f.geometry.coordinates.length !== 2) return false;
-        const [lon, lat] = f.geometry.coordinates;
-        // Strictly filter to India geography (lat 8° to 38°, lon 68° to 98°)
-        return lat >= 8 && lat <= 38 && lon >= 68 && lon <= 98;
-      })
+      .filter((f) => f.geometry?.coordinates?.length === 2)
       .map((f) => {
         const p = f.properties || {};
         const coords = f.geometry!.coordinates!;
         const lng = coords[0];
         const lat = coords[1];
 
-        const rawName = p.name || p.street || p.district || "Location";
+        const rawName = p.name || p.street || p.district || p.city || "Location";
         const parts = [
           p.name,
           p.housenumber,
@@ -147,23 +195,24 @@ async function fetchFromPhoton(query: string): Promise<PlaceItem[]> {
           p.locality,
           p.city,
           p.state,
+          p.country,
         ].filter(Boolean) as string[];
 
-        // Remove adjacent duplicates e.g. "Gurgaon, Gurgaon"
+        // Remove adjacent/identical duplicates e.g. "Dubai, Dubai"
         const cleanParts = parts.filter((val, i, arr) => arr.indexOf(val) === i);
-        const displayName = cleanParts.slice(0, 4).join(", ") || rawName;
+        const displayName = cleanParts.slice(0, 5).join(", ") || rawName;
 
         let tag = (p.osm_value || p.type || "SITE").toUpperCase();
         if (tag === "YES" || tag === "HOUSE") tag = "RESIDENTIAL";
         if (tag === "MALL" || tag === "SHOP") tag = "COMMERCIAL";
 
         return {
-          name: rawName.slice(0, 70),
-          displayName: displayName.slice(0, 140),
+          name: rawName.slice(0, 80),
+          displayName: displayName.slice(0, 150),
           lat: Number(lat),
           lng: Number(lng),
-          address: displayName.slice(0, 150),
-          tag: tag.slice(0, 14),
+          address: displayName.slice(0, 160),
+          tag: tag.slice(0, 18),
         };
       });
   } catch {
@@ -172,26 +221,19 @@ async function fetchFromPhoton(query: string): Promise<PlaceItem[]> {
 }
 
 /**
- * Fetch from OpenStreetMap Nominatim with country code filter for India
+ * Fetch from OpenStreetMap Nominatim across the WHOLE WORLD.
+ * NO country code restrictions.
  */
-async function fetchFromNominatim(query: string): Promise<PlaceItem[]> {
+async function fetchWorldwideFromNominatim(query: string): Promise<PlaceItem[]> {
   try {
-    let effectiveQuery = query;
-    if (
-      /^(sec|sector)\s*\d+/i.test(query) &&
-      !/gurugram|gurgaon|delhi|haryana/i.test(query)
-    ) {
-      effectiveQuery = `${query}, Gurugram, Haryana`;
-    }
-
     const searchUrl = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
-      effectiveQuery
-    )}&countrycodes=in&limit=10&addressdetails=1`;
+      query
+    )}&limit=12&addressdetails=1`;
 
     const res = await fetch(searchUrl, {
       signal: AbortSignal.timeout(5000),
       headers: {
-        "User-Agent": "RealtySmartzHRMS/1.0 (internal-hr; contact@realtysmartz.in)",
+        "User-Agent": "RealtySmartzHRMS/1.0 (global-portal; contact@realtysmartz.in)",
         Accept: "application/json",
       },
       next: { revalidate: 60 },
@@ -207,17 +249,19 @@ async function fetchFromNominatim(query: string): Promise<PlaceItem[]> {
       type?: string;
     }>;
 
+    if (!Array.isArray(data)) return [];
+
     return data.map((item) => {
       const rawName = item.name || item.display_name.split(",")[0].trim();
       const parts = item.display_name.split(",").map((s) => s.trim());
-      const cleanShort = parts.slice(0, 4).join(", ");
+      const cleanShort = parts.slice(0, 5).join(", ");
       return {
-        name: rawName.slice(0, 70),
-        displayName: cleanShort.slice(0, 140),
+        name: rawName.slice(0, 80),
+        displayName: cleanShort.slice(0, 150),
         lat: Number(item.lat),
         lng: Number(item.lon),
-        address: cleanShort.slice(0, 150),
-        tag: item.type ? item.type.toUpperCase().slice(0, 14) : "LOCATION",
+        address: cleanShort.slice(0, 160),
+        tag: item.type ? item.type.toUpperCase().slice(0, 18) : "LOCATION",
       };
     });
   } catch {
@@ -226,9 +270,10 @@ async function fetchFromNominatim(query: string): Promise<PlaceItem[]> {
 }
 
 /**
- * High-speed Open-Meteo geocoding fallback for Indian cities, towns, and localities
+ * High-speed Open-Meteo geocoding fallback for cities, towns, and localities worldwide.
+ * NO country filter.
  */
-async function fetchFromOpenMeteo(query: string): Promise<PlaceItem[]> {
+async function fetchWorldwideFromOpenMeteo(query: string): Promise<PlaceItem[]> {
   try {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
       query
@@ -256,20 +301,18 @@ async function fetchFromOpenMeteo(query: string): Promise<PlaceItem[]> {
 
     if (!data.results || !Array.isArray(data.results)) return [];
 
-    return data.results
-      .filter((r) => r.country_code === "IN" || r.country === "India")
-      .map((r) => {
-        const parts = [r.name, r.admin2, r.admin1, r.country].filter(Boolean);
-        const displayName = parts.join(", ");
-        return {
-          name: r.name,
-          displayName,
-          lat: r.latitude,
-          lng: r.longitude,
-          address: displayName,
-          tag: "TOWN / DISTRICT",
-        };
-      });
+    return data.results.map((r) => {
+      const parts = [r.name, r.admin2, r.admin1, r.country].filter(Boolean);
+      const displayName = parts.join(", ");
+      return {
+        name: r.name,
+        displayName,
+        lat: r.latitude,
+        lng: r.longitude,
+        address: displayName,
+        tag: "TOWN / DISTRICT",
+      };
+    });
   } catch {
     return [];
   }
@@ -278,10 +321,12 @@ async function fetchFromOpenMeteo(query: string): Promise<PlaceItem[]> {
 /**
  * Handles:
  * 1. Forward Geocoding / Search Autocomplete: ?q=<search_text>
- *    - Exact Google Maps links & GPS coordinates parsed instantly
- *    - Dynamic Gurugram Sector Resolver (Sector 1 to Sector 115)
- *    - Comprehensive curated registry of 100+ NCR builder projects & tech parks
- *    - Multi-tier online geocoding (Photon + Nominatim + Open-Meteo) strictly filtered to India
+ *    - Google Places API (if API Key provided) -> 100% native Google Maps results
+ *    - Exact Google Maps links & GPS coordinates parsed instantly worldwide
+ *    - Worldwide Komoot Photon OpenStreetMap index (every street, building, village, landmark)
+ *    - Worldwide OpenStreetMap Nominatim search across all 195+ countries
+ *    - Worldwide Open-Meteo cities, towns, and districts
+ *    - Dynamic Gurugram Sector Resolver & Project Registry (as offline assistance, not restrictive)
  * 2. Reverse Geocoding: ?lat=<number>&lng=<number>
  */
 export async function GET(req: NextRequest) {
@@ -297,11 +342,14 @@ export async function GET(req: NextRequest) {
     const directCoords = await parseCoordinatesFromQuery(query);
     const directMatch: PlaceItem[] = directCoords ? [directCoords] : [];
 
-    // 2. Dynamic Sector matcher (e.g. "Sector 82", "Sec 106", "Sector 37D", etc.)
+    // 2. Official Google Places Text Search (if Google Maps API Key is active)
+    const googlePromise = fetchFromGooglePlaces(query);
+
+    // 3. Dynamic Sector matcher helper (e.g. "Sector 82", "Sec 106", "Sector 37D", etc.)
     const sectorMatch = matchSectorQuery(query);
     const sectorList: PlaceItem[] = sectorMatch ? [sectorMatch] : [];
 
-    // 3. Curated instant local registry match (Multi-token flexible matching)
+    // 4. Quick match for known builder projects / hubs
     const words = qLower.split(/[\s,]+/).filter((w) => w.length > 0);
     const localMatches: PlaceItem[] = POPULAR_HUBS.filter((h) => {
       const name = h.name.toLowerCase();
@@ -322,20 +370,31 @@ export async function GET(req: NextRequest) {
       );
     });
 
-    // 4. Parallel fetch: Photon (hyper-local micro locations) + Nominatim + Open-Meteo
-    const [photonSettled, nominatimSettled, meteoSettled] = await Promise.allSettled([
-      fetchFromPhoton(query),
-      fetchFromNominatim(query),
-      fetchFromOpenMeteo(query),
-    ]);
+    // 5. Parallel fetch from worldwide geocoding engines
+    const [googleSettled, photonSettled, nominatimSettled, meteoSettled] =
+      await Promise.allSettled([
+        googlePromise,
+        fetchWorldwideFromPhoton(query),
+        fetchWorldwideFromNominatim(query),
+        fetchWorldwideFromOpenMeteo(query),
+      ]);
 
+    const googleMatches = googleSettled.status === "fulfilled" ? googleSettled.value : [];
     const photonMatches = photonSettled.status === "fulfilled" ? photonSettled.value : [];
-    const nominatimMatches = nominatimSettled.status === "fulfilled" ? nominatimSettled.value : [];
+    const nominatimMatches =
+      nominatimSettled.status === "fulfilled" ? nominatimSettled.value : [];
     const meteoMatches = meteoSettled.status === "fulfilled" ? meteoSettled.value : [];
 
-    // Combine in priority order: Direct GPS Pin -> Sector Match -> Curated Projects -> Online Micro-Sites
+    // Priority ordering:
+    // 1. Direct GPS / Google link
+    // 2. Official Google Places results (if available)
+    // 3. Sector & project helpers
+    // 4. Worldwide Photon (micro places, streets, buildings globally)
+    // 5. Worldwide Nominatim
+    // 6. Worldwide Open-Meteo
     const combined = [
       ...directMatch,
+      ...googleMatches,
       ...sectorList,
       ...localMatches,
       ...photonMatches,
@@ -357,7 +416,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      results: Array.from(unique.values()).slice(0, 25),
+      results: Array.from(unique.values()).slice(0, 30),
     });
   }
 
@@ -369,20 +428,68 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`;
+  const numLat = parseFloat(lat);
+  const numLng = parseFloat(lng);
+  if (isNaN(numLat) || isNaN(numLng)) {
+    return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
+  }
+
+  // If Google Maps API key is configured, use Google Reverse Geocoding
+  const apiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  if (apiKey && apiKey.trim() !== "" && apiKey !== '""') {
+    try {
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${numLat},${numLng}&key=${apiKey}`;
+      const gRes = await fetch(gUrl, { signal: AbortSignal.timeout(4000) });
+      if (gRes.ok) {
+        const gData = (await gRes.json()) as {
+          status?: string;
+          results?: Array<{
+            formatted_address?: string;
+            address_components?: Array<{ long_name?: string; types?: string[] }>;
+          }>;
+        };
+        if (gData.status === "OK" && gData.results && gData.results.length > 0) {
+          const first = gData.results[0];
+          const name =
+            first.address_components?.[0]?.long_name ||
+            first.formatted_address?.split(",")[0] ||
+            "Location";
+          return NextResponse.json({
+            name: name.slice(0, 80),
+            address: (first.formatted_address || `${numLat}, ${numLng}`).slice(0, 160),
+            lat: numLat,
+            lng: numLng,
+          });
+        }
+      }
+    } catch {
+      // Fallback to OpenStreetMap reverse geocoding
+    }
+  }
+
+  // OpenStreetMap reverse geocode
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${numLat}&lon=${numLng}&addressdetails=1`;
 
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(4500),
       headers: {
-        "User-Agent": "RealtySmartzHRMS/1.0 (internal-hr; contact@realtysmartz.in)",
+        "User-Agent": "RealtySmartzHRMS/1.0 (global-portal; contact@realtysmartz.in)",
         Accept: "application/json",
       },
       next: { revalidate: 0 },
     });
 
     if (!res.ok) {
-      return NextResponse.json({ error: "Geocoding provider error" }, { status: 502 });
+      return NextResponse.json({
+        name: `Location [${numLat.toFixed(5)}, ${numLng.toFixed(5)}]`,
+        address: `Coordinates: ${numLat.toFixed(6)}, ${numLng.toFixed(6)}`,
+        lat: numLat,
+        lng: numLng,
+      });
     }
 
     const data = (await res.json()) as {
@@ -392,7 +499,7 @@ export async function GET(req: NextRequest) {
     };
 
     const addr = data.address ?? {};
-    let placeName =
+    const placeName =
       data.name ||
       addr.building ||
       addr.amenity ||
@@ -404,25 +511,22 @@ export async function GET(req: NextRequest) {
       addr.village ||
       addr.town ||
       addr.city ||
-      "Realty Smartz Private Limited";
+      `Location [${numLat.toFixed(5)}, ${numLng.toFixed(5)}]`;
 
-    let address = data.display_name || `${lat}, ${lng}`;
-
-    if (!placeName || /sunbreeze/i.test(placeName) || placeName === "Current location") {
-      placeName = "Realty Smartz Private Limited";
-    }
-
-    if (/sunbreeze/i.test(address)) {
-      address = address.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
-    }
+    const address = data.display_name || `${numLat}, ${numLng}`;
 
     return NextResponse.json({
-      name: placeName.slice(0, 70),
-      address: address.slice(0, 150),
-      lat: Number(lat),
-      lng: Number(lng),
+      name: placeName.slice(0, 80),
+      address: address.slice(0, 160),
+      lat: numLat,
+      lng: numLng,
     });
   } catch {
-    return NextResponse.json({ error: "Failed to contact geocoding provider" }, { status: 502 });
+    return NextResponse.json({
+      name: `Location [${numLat.toFixed(5)}, ${numLng.toFixed(5)}]`,
+      address: `Coordinates: ${numLat.toFixed(6)}, ${numLng.toFixed(6)}`,
+      lat: numLat,
+      lng: numLng,
+    });
   }
 }

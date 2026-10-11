@@ -438,12 +438,12 @@ export default function AllocateLocationsPage() {
               {/* 2. Search Site / Project (Auto-suggest + Google Maps link parsing) */}
               <div ref={searchContainerRef} className="relative">
                 <label className="block text-[11px] font-bold text-neutral-700 mb-1.5 uppercase tracking-wider">
-                  2. Search Site, Sector or Paste Maps Link
+                  2. Search Site, City, Street or Paste Google Maps Link
                 </label>
                 <div className="relative">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                   <Input
-                    placeholder="Search 'whiteland', 'elan', 'sector 82', 'signature global', 'm3m', or paste Google Maps URL / lat,lng..."
+                    placeholder="Search ANY location worldwide (e.g. 'Times Square', 'Burj Khalifa', 'Sector 82', or paste Google Maps URL / lat,lng)..."
                     value={query}
                     onChange={(e) => {
                       setQuery(e.target.value);
@@ -463,8 +463,8 @@ export default function AllocateLocationsPage() {
                 {isOpen && (
                   <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
                     <div className="px-3.5 py-1.5 bg-neutral-50 border-b border-neutral-100 text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center justify-between sticky top-0 z-10">
-                      <span>Matching Places & Micro-Sites ({suggestions.length})</span>
-                      <span>200m Perimeter</span>
+                      <span>Worldwide Search Results ({suggestions.length})</span>
+                      <span>Click to Set Location</span>
                     </div>
 
                     {/* Option to directly use typed query as custom site name */}
@@ -531,7 +531,7 @@ export default function AllocateLocationsPage() {
                 )}
 
                 <p className="text-[11px] text-neutral-400 mt-1 truncate">
-                  Auto-fetches coordinates for M3M projects, DLF hubs, sectors, or pasted URLs.
+                  Auto-fetches coordinates for any location worldwide, sectors, buildings, or pasted Google Maps links.
                 </p>
               </div>
             </div>

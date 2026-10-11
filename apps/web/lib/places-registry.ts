@@ -1,3 +1,11 @@
+/**
+ * Places Helper Registry:
+ * NOTE: Search is NOT restricted to this file!
+ * The app searches live worldwide map databases (Google Places, OpenStreetMap Photon, Nominatim, Open-Meteo)
+ * covering all 195+ countries down to micro streets, buildings, and villages.
+ * This file provides instant offline matching for sector numbers and local headquarters.
+ */
+
 export interface PlaceItem {
   name: string;
   displayName: string;
