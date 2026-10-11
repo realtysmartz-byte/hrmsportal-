@@ -7,24 +7,26 @@ import {
   employeeAttendanceSchema,
   employeeAttendanceHistorySchema,
   locationPingSchema,
-  haversineDistanceM,
   startOfDayUTC,
   getISTDateParts,
   isWeeklyOffDay,
   LATE_CHECK_IN_HOUR,
   canViewTeamAttendance,
-  isWorkingDay,
   formatTimeIST,
 } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
 import { protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
+import { ensureAutoPunchOut } from "../lib/attendance-auto";
 import {
-  ensureAutoPunchOut,
-  ensureEmployee30MinPings,
-  ensureAllEmployees30MinPings,
-} from "../lib/attendance-auto";
+  getEffectiveWorkLocation,
+  distanceToWorkLocationM,
+} from "../lib/work-location";
+
+/** Reject pings whose GPS fix is older than this or stamped in the future. */
+const MAX_PING_AGE_MS = 10 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 2 * 60 * 1000;
 
 function attendanceStatusFromCheckIn(
   checkInTime: Date
@@ -104,55 +106,17 @@ export const attendanceRouter = router({
     const employeeId = await resolveEmployeeId(ctx);
     await ensureAutoPunchOut(ctx.prisma, employeeId);
     const today = startOfDayUTC(new Date());
-    const log = await ctx.prisma.attendanceLog.findUnique({
+    return ctx.prisma.attendanceLog.findUnique({
       where: {
         employeeId_date: { employeeId, date: today },
       },
     });
-    if (log?.checkInTime) {
-      await ensureEmployee30MinPings(ctx.prisma, employeeId, log);
-    }
-    return log;
   }),
 
-  /**
-   * Return current employee's assigned work site and registered head office with coordinates and 200m geofence rules.
-   */
+  /** The location the current employee must punch in from (assigned site, else office). */
   myWorkLocation: protectedProcedure.query(async ({ ctx }) => {
     const employeeId = await resolveEmployeeId(ctx);
-    const [emp, settings] = await Promise.all([
-      ctx.prisma.employee.findUnique({
-        where: { id: employeeId },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          workLocationName: true,
-          workLocationLat: true,
-          workLocationLng: true,
-        },
-      }),
-      ctx.prisma.companySettings.findUnique({
-        where: { id: "singleton" },
-        select: {
-          officeName: true,
-          officeLat: true,
-          officeLng: true,
-          geofenceRadiusM: true,
-        },
-      }),
-    ]);
-
-    return {
-      employee: emp,
-      office: settings || {
-        officeName: "REALTY SMARTZ PVT LTD",
-        officeLat: 28.3997196,
-        officeLng: 77.0385682,
-        geofenceRadiusM: 200,
-      },
-    };
+    return getEffectiveWorkLocation(ctx.prisma, employeeId);
   }),
 
   /**
@@ -216,12 +180,8 @@ export const attendanceRouter = router({
               status: log.status,
               checkInTime: log.checkInTime,
               checkOutTime: log.checkOutTime,
-              checkInAddress: log.checkInAddress
-                ? log.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
-                : log.checkInAddress,
-              checkOutAddress: log.checkOutAddress
-                ? log.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
-                : log.checkOutAddress,
+              checkInAddress: log.checkInAddress,
+              checkOutAddress: log.checkOutAddress,
               totalHours: log.totalHours,
               withinGeofence: log.withinGeofence,
               notes: log.notes,
@@ -252,13 +212,6 @@ export const attendanceRouter = router({
         orderBy: { date: "asc" },
       });
 
-      // Ensure complete 30-minute interval location pings for all clocked-in days
-      await Promise.all(
-        logs
-          .filter((l) => l.checkInTime)
-          .map((l) => ensureEmployee30MinPings(ctx.prisma, employeeId, l))
-      );
-
       return { logs, summary: summarizeLogs(logs) };
     }),
 
@@ -276,13 +229,6 @@ export const attendanceRouter = router({
         },
         orderBy: { date: "asc" },
       });
-
-      // Ensure complete 30-minute interval location pings for this employee across the month
-      await Promise.all(
-        logs
-          .filter((l) => l.checkInTime)
-          .map((l) => ensureEmployee30MinPings(ctx.prisma, input.employeeId, l))
-      );
 
       return { logs, summary: summarizeLogs(logs) };
     }),
@@ -341,15 +287,7 @@ export const attendanceRouter = router({
     .input(checkInOutSchema)
     .mutation(async ({ ctx, input }) => {
       const employeeId = await resolveEmployeeId(ctx);
-      const settings = await ctx.prisma.companySettings.findUnique({
-        where: { id: "singleton" },
-      });
-      if (!settings) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "Company office location is not configured",
-        });
-      }
+      const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
 
       const today = startOfDayUTC(new Date());
       const existing = await ctx.prisma.attendanceLog.findUnique({
@@ -372,82 +310,29 @@ export const attendanceRouter = router({
         });
       }
 
-      const emp = await ctx.prisma.employee.findUnique({
-        where: { id: employeeId },
-        select: {
-          id: true,
-          role: true,
-          firstName: true,
-          lastName: true,
-          employeeCode: true,
-          email: true,
-          workLocationLat: true,
-          workLocationLng: true,
-          workLocationName: true,
-          manager: { select: { email: true } },
-        },
-      });
+      const distanceM = distanceToWorkLocationM(workLocation, input.lat, input.lng);
+      const withinGeofence = distanceM <= workLocation.radiusM;
 
-      const distanceOfficeM = haversineDistanceM(
-        input.lat,
-        input.lng,
-        settings.officeLat,
-        settings.officeLng
-      );
-      const isAtOffice = distanceOfficeM <= settings.geofenceRadiusM;
-
-      let isAtAllocatedSite = false;
-      let distanceSiteM: number | null = null;
-      if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
-        distanceSiteM = haversineDistanceM(
-          input.lat,
-          input.lng,
-          emp.workLocationLat,
-          emp.workLocationLng
-        );
-        isAtAllocatedSite = distanceSiteM <= settings.geofenceRadiusM;
-      }
-
-      const withinGeofence = isAtOffice || isAtAllocatedSite;
-
-      // STRICT GEOFENCE ENFORCEMENT - APPLIES EQUALLY TO ALL EMPLOYEES & ADMINS:
-      // Punch-in is strictly blocked if outside the 200m perimeter of registered office or assigned site.
       if (!withinGeofence) {
-        const minDist = Math.round(
-          Math.min(distanceOfficeM, distanceSiteM ?? distanceOfficeM)
-        );
-        if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Punch-in blocked: You are outside your assigned workplace (~${minDist}m away). You must be physically present within ${settings.geofenceRadiusM}m of your assigned site (${emp.workLocationName || "Site"}) or registered office to punch in.`,
-          });
-        } else {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Punch-in blocked: You are outside the registered office of ${settings.officeName || "REALTY SMARTZ PVT LTD"} (~${minDist}m away). You must be physically present within ${settings.geofenceRadiusM}m to punch in.`,
-          });
-        }
+        const where =
+          workLocation.source === "ASSIGNED"
+            ? `your assigned site (${workLocation.name})`
+            : `the office (${workLocation.name})`;
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Punch-in blocked: you are ~${Math.round(distanceM)}m from ${where}. You must be within ${workLocation.radiusM}m to punch in.`,
+        });
       }
 
       const now = new Date();
       // On initial punch of the day calculate late status; on re-punch keep existing status
       const status = existing?.status || attendanceStatusFromCheckIn(now);
 
-      let finalAddress = input.address;
-      let logNotes: string | null = null;
-
-      if (isAtOffice) {
-        finalAddress = settings.officeName || "REALTY SMARTZ PVT LTD";
-        logNotes = "Office login (verified workplace)";
-      } else if (isAtAllocatedSite) {
-        finalAddress = emp?.workLocationName || "Allocated Site Location";
-        logNotes = `Site login: ${emp?.workLocationName || "Site"} (verified workplace)`;
-      } else {
-        finalAddress = input.address
-          ? input.address.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD")
-          : (settings.officeName || "REALTY SMARTZ PVT LTD");
-        logNotes = "Verified workplace";
-      }
+      const finalAddress = workLocation.name;
+      let logNotes: string | null =
+        workLocation.source === "ASSIGNED"
+          ? `Site punch-in: ${workLocation.name}`
+          : "Office punch-in";
 
       if (existing?.checkOutTime) {
         const reNote = `Re-punch in at ${formatTimeIST(now)}`;
@@ -481,7 +366,6 @@ export const attendanceRouter = router({
             },
           });
 
-      // Immediate location ping for real-time tracking & chronological breadcrumb trace
       try {
         await ctx.prisma.locationPing.create({
           data: {
@@ -491,14 +375,12 @@ export const attendanceRouter = router({
             address: finalAddress,
             accuracyM: null,
             withinGeofence,
+            capturedAt: now,
           },
         });
       } catch (pingErr) {
         console.error("[attendance.checkIn] failed to record initial location ping:", pingErr);
       }
-
-      // Guarantee initial workplace timestamp & schedule baseline
-      await ensureEmployee30MinPings(ctx.prisma, employeeId, log);
 
       // Non-blocking background tasks: Send emails & sync Google Sheets without slowing down punch-in
       void (async () => {
@@ -613,10 +495,8 @@ export const attendanceRouter = router({
 
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
-      const [settings, emp] = await Promise.all([
-        ctx.prisma.companySettings.findUnique({
-          where: { id: "singleton" },
-        }),
+      const [workLocation, emp] = await Promise.all([
+        getEffectiveWorkLocation(ctx.prisma, employeeId),
         ctx.prisma.employee.findUnique({
           where: { id: employeeId },
           select: {
@@ -625,24 +505,14 @@ export const attendanceRouter = router({
             firstName: true,
             lastName: true,
             employeeCode: true,
-            workLocationName: true,
             manager: { select: { email: true } },
           },
         }),
       ]);
 
-      let finalOutAddress = input.address;
-      if (!finalOutAddress || finalOutAddress === "Current location" || finalOutAddress.trim() === "") {
-        if (emp?.workLocationName) {
-          finalOutAddress = emp.workLocationName;
-        } else if (settings?.officeName) {
-          finalOutAddress = settings.officeName;
-        } else {
-          finalOutAddress = "REALTY SMARTZ PVT LTD";
-        }
-      } else {
-        finalOutAddress = finalOutAddress.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD");
-      }
+      const outWithinGeofence =
+        distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
+      const finalOutAddress = outWithinGeofence ? workLocation.name : input.address;
 
       const outNote = `Punch out at ${formatTimeIST(now)}`;
       const logNotes = existing.notes
@@ -662,10 +532,6 @@ export const attendanceRouter = router({
         },
       });
 
-      // Guarantee all 30-min location pings throughout the entire workday are saved
-      await ensureEmployee30MinPings(ctx.prisma, employeeId, updated);
-
-      // Immediate location ping for checkout tracking
       try {
         await ctx.prisma.locationPing.create({
           data: {
@@ -674,7 +540,8 @@ export const attendanceRouter = router({
             lng: input.lng,
             address: finalOutAddress,
             accuracyM: null,
-            withinGeofence: existing.withinGeofence,
+            withinGeofence: outWithinGeofence,
+            capturedAt: now,
           },
         });
       } catch (pingErr) {
@@ -965,18 +832,8 @@ export const attendanceRouter = router({
       const avgHours =
         presentCount > 0 ? Math.round((totalHoursSum / presentCount) * 10) / 10 : 0;
 
-      const sanitizedEntries = entries.map((entry) => ({
-        ...entry,
-        checkInAddress: entry.checkInAddress
-          ? entry.checkInAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
-          : entry.checkInAddress,
-        checkOutAddress: entry.checkOutAddress
-          ? entry.checkOutAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited")
-          : entry.checkOutAddress,
-      }));
-
       return {
-        entries: sanitizedEntries,
+        entries,
         totalCount,
         page: input.page,
         pageSize: input.pageSize,
@@ -997,60 +854,42 @@ export const attendanceRouter = router({
     .input(locationPingSchema)
     .mutation(async ({ ctx, input }) => {
       const employeeId = await resolveEmployeeId(ctx);
-      const [settings, emp] = await Promise.all([
-        ctx.prisma.companySettings.findUnique({
-          where: { id: "singleton" },
-        }),
-        ctx.prisma.employee.findUnique({
-          where: { id: employeeId },
-          select: {
-            workLocationLat: true,
-            workLocationLng: true,
-            workLocationName: true,
-          },
-        }),
-      ]);
 
-      let isAtOffice = false;
-      let isAtAllocatedSite = false;
-      if (settings) {
-        const distanceOfficeM = haversineDistanceM(
-          input.lat,
-          input.lng,
-          settings.officeLat,
-          settings.officeLng
-        );
-        isAtOffice = distanceOfficeM <= settings.geofenceRadiusM;
-        if (emp?.workLocationLat != null && emp?.workLocationLng != null) {
-          const distanceSiteM = haversineDistanceM(
-            input.lat,
-            input.lng,
-            emp.workLocationLat,
-            emp.workLocationLng
-          );
-          isAtAllocatedSite = distanceSiteM <= settings.geofenceRadiusM;
-        }
+      const nowMs = Date.now();
+      const capturedMs = input.capturedAt.getTime();
+      if (capturedMs > nowMs + MAX_CLOCK_SKEW_MS || nowMs - capturedMs > MAX_PING_AGE_MS) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Location fix is stale or has an invalid timestamp",
+        });
       }
 
-      const withinGeofence = isAtOffice || isAtAllocatedSite;
-
-      let cleanAddress = input.address || null;
-      if (isAtOffice && settings?.officeName) {
-        cleanAddress = settings.officeName;
-      } else if (isAtAllocatedSite && emp?.workLocationName) {
-        cleanAddress = emp.workLocationName;
-      } else if (cleanAddress) {
-        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "REALTY SMARTZ PVT LTD");
+      const todayLog = await ctx.prisma.attendanceLog.findUnique({
+        where: {
+          employeeId_date: { employeeId, date: startOfDayUTC(new Date()) },
+        },
+        select: { checkInTime: true, checkOutTime: true },
+      });
+      if (!todayLog?.checkInTime || todayLog.checkOutTime) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Location pings are only recorded while punched in",
+        });
       }
+
+      const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
+      const withinGeofence =
+        distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
 
       return ctx.prisma.locationPing.create({
         data: {
           employeeId,
           lat: input.lat,
           lng: input.lng,
-          address: cleanAddress,
+          address: withinGeofence ? workLocation.name : input.address || null,
           accuracyM: input.accuracyM ?? null,
           withinGeofence,
+          capturedAt: input.capturedAt,
         },
       });
     }),
@@ -1131,6 +970,9 @@ export const attendanceRouter = router({
         where: {
           employeeId: input.employeeId || undefined,
           capturedAt: { gte: day, lt: next },
+          ...(role === "MANAGER"
+            ? { employee: { managerId: await resolveEmployeeId(ctx) } }
+            : {}),
         },
         include: {
           employee: {
@@ -1162,7 +1004,10 @@ export const attendanceRouter = router({
 
       const [employees, todayLogs] = await Promise.all([
         ctx.prisma.employee.findMany({
-          where: { status: "ACTIVE" },
+          where: {
+            status: "ACTIVE",
+            ...(role === "MANAGER" ? { managerId: await resolveEmployeeId(ctx) } : {}),
+          },
           select: {
             id: true,
             firstName: true,
@@ -1198,9 +1043,6 @@ export const attendanceRouter = router({
         }),
       ]);
 
-      // Ensure 30-min interval pings for ALL employees active or clocked in today (HQ and on-site)
-      await ensureAllEmployees30MinPings(ctx.prisma, day);
-
       const latestPings = await ctx.prisma.locationPing.findMany({
         where: { capturedAt: { gte: day, lt: next } },
         orderBy: { capturedAt: "desc" },
@@ -1223,35 +1065,16 @@ export const attendanceRouter = router({
       return employees.map((emp) => {
         const log = logMap.get(emp.id) || null;
         let ping = pingMap.get(emp.id) || null;
-        const isSiteAssigned = Boolean(emp.workLocationLat != null && emp.workLocationLng != null);
-
-        if (isSiteAssigned && ping) {
-          const dist = haversineDistanceM(
-            ping.lat,
-            ping.lng,
-            emp.workLocationLat!,
-            emp.workLocationLng!
-          );
-          if (dist > 500) {
-            ping = {
-              ...ping,
-              lat: emp.workLocationLat!,
-              lng: emp.workLocationLng!,
-              address: emp.workLocationName || ping.address,
-              withinGeofence: true,
-            };
-          }
-        }
 
         if (!ping && log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
           ping = {
             id: `checkin-${log.employeeId}`,
             employeeId: log.employeeId,
-            lat: isSiteAssigned ? emp.workLocationLat! : log.checkInLat,
-            lng: isSiteAssigned ? emp.workLocationLng! : log.checkInLng,
-            address: (isSiteAssigned ? emp.workLocationName : log.checkInAddress) || "Punch-In Location",
+            lat: log.checkInLat,
+            lng: log.checkInLng,
+            address: log.checkInAddress,
             capturedAt: log.checkInTime,
-            withinGeofence: log.withinGeofence || isSiteAssigned,
+            withinGeofence: log.withinGeofence,
             accuracyM: null,
           };
         }
@@ -1324,10 +1147,7 @@ export const attendanceRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const role = (ctx.session!.user.role ?? "EMPLOYEE") as Role;
-      if (!canViewTeamAttendance(role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Forbidden" });
-      }
+      await assertCanViewSensitive(ctx, input.employeeId);
 
       const day = input.date ? startOfDayUTC(input.date) : startOfDayUTC(new Date());
       const next = new Date(day);
@@ -1366,16 +1186,6 @@ export const attendanceRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
-      // Automatically guarantee 30-minute interval location breadcrumb pings for active work session
-      if (log?.checkInTime) {
-        await ensureEmployee30MinPings(ctx.prisma, input.employeeId, log);
-      }
-
-      // Reload log in case coordinates/address were backfilled
-      const activeLog = log
-        ? await ctx.prisma.attendanceLog.findUnique({ where: { id: log.id } })
-        : null;
-
       const pings = await ctx.prisma.locationPing.findMany({
         where: {
           employeeId: input.employeeId,
@@ -1397,18 +1207,16 @@ export const attendanceRouter = router({
 
       const events: TraceEvent[] = [];
 
-      if (activeLog?.checkInTime) {
-        const inLat = activeLog.checkInLat ?? emp.workLocationLat ?? 28.3997196;
-        const inLng = activeLog.checkInLng ?? emp.workLocationLng ?? 77.0385682;
+      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
         events.push({
-          id: `in-${activeLog.id}`,
+          id: `in-${log.id}`,
           type: "CHECK_IN",
-          time: activeLog.checkInTime,
-          lat: inLat,
-          lng: inLng,
-          address: activeLog.checkInAddress || emp.workLocationName || "Office Premise",
-          withinGeofence: activeLog.withinGeofence || Boolean(emp.workLocationLat != null),
-          notes: activeLog.notes,
+          time: log.checkInTime,
+          lat: log.checkInLat,
+          lng: log.checkInLng,
+          address: log.checkInAddress || `${log.checkInLat.toFixed(5)}, ${log.checkInLng.toFixed(5)}`,
+          withinGeofence: log.withinGeofence,
+          notes: log.notes,
         });
       }
 
@@ -1424,30 +1232,17 @@ export const attendanceRouter = router({
         });
       }
 
-      if (activeLog?.checkOutTime) {
-        const outLat =
-          activeLog.checkOutLat ??
-          activeLog.checkInLat ??
-          emp.workLocationLat ??
-          28.3997196;
-        const outLng =
-          activeLog.checkOutLng ??
-          activeLog.checkInLng ??
-          emp.workLocationLng ??
-          77.0385682;
+      // Auto punch-out has no device fix; only plot a checkout we actually captured.
+      if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
         events.push({
-          id: `out-${activeLog.id}`,
+          id: `out-${log.id}`,
           type: "CHECK_OUT",
-          time: activeLog.checkOutTime,
-          lat: outLat,
-          lng: outLng,
-          address:
-            activeLog.checkOutAddress ||
-            activeLog.checkInAddress ||
-            emp.workLocationName ||
-            "Office Premise",
-          withinGeofence: activeLog.withinGeofence || Boolean(emp.workLocationLat != null),
-          notes: activeLog.notes,
+          time: log.checkOutTime,
+          lat: log.checkOutLat,
+          lng: log.checkOutLng,
+          address: log.checkOutAddress || `${log.checkOutLat.toFixed(5)}, ${log.checkOutLng.toFixed(5)}`,
+          withinGeofence: log.withinGeofence,
+          notes: log.notes,
         });
       }
 
@@ -1456,7 +1251,7 @@ export const attendanceRouter = router({
       return {
         employee: emp,
         settings,
-        log: activeLog ?? log,
+        log,
         events,
       };
     }),

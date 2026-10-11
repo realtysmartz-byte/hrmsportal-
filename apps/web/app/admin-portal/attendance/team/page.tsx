@@ -246,10 +246,7 @@ export default function TeamAttendancePage() {
         : log?.checkInTime
           ? "On Duty"
           : "—";
-      const locationAddr = (log?.checkInAddress || log?.checkOutAddress || "—").replace(
-        /sunbreeze/gi,
-        "Realty Smartz Private Limited"
-      );
+      const locationAddr = log?.checkInAddress || log?.checkOutAddress || "—";
       const coords =
         log?.checkInLat != null && log?.checkInLng != null
           ? `${log.checkInLat}, ${log.checkInLng}`
@@ -628,11 +625,7 @@ export default function TeamAttendancePage() {
           const hasGps = log?.checkInLat != null && log?.checkInLng != null;
           const mapLat = log?.checkInLat ?? 0;
           const mapLng = log?.checkInLng ?? 0;
-          const addressText = (
-            log?.checkInAddress ||
-            log?.checkOutAddress ||
-            "Realty Smartz Private Limited HQ"
-          ).replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+          const addressText = log?.checkInAddress || log?.checkOutAddress || "—";
 
           return (
             <div
@@ -855,11 +848,7 @@ export default function TeamAttendancePage() {
               const hasGps = log?.checkInLat != null && log?.checkInLng != null;
               const mapLat = log?.checkInLat ?? 0;
               const mapLng = log?.checkInLng ?? 0;
-              const addressText = (
-                log?.checkInAddress ||
-                log?.checkOutAddress ||
-                "Realty Smartz Private Limited HQ"
-              ).replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+              const addressText = log?.checkInAddress || log?.checkOutAddress || "—";
 
               return (
                 <TableRow

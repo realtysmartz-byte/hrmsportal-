@@ -1,30 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import {
   POPULAR_HUBS,
   matchSectorQuery,
   type PlaceItem,
 } from "@/lib/places-registry";
 
+const MAX_QUERY_LENGTH = 300;
+const SHORT_MAPS_URL = /^https:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+$/i;
+
+/**
+ * Resolves a Google Maps short link by reading a single redirect hop.
+ * Only exact maps.app.goo.gl / goo.gl/maps URLs are fetched, so user input can't make the server call arbitrary hosts.
+ */
+async function resolveShortMapsUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(4000),
+    });
+    return res.headers.get("location");
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Parses exact coordinates from direct lat/lng inputs, Google Maps share links, or short URLs.
- * Supports any location worldwide.
  */
 async function parseCoordinatesFromQuery(query: string): Promise<PlaceItem | null> {
   let q = query.trim();
 
-  // 1. Follow short Google Maps URLs (e.g. https://maps.app.goo.gl/XYZ or https://goo.gl/maps/XYZ)
-  if (/https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+/i.test(q)) {
-    try {
-      const res = await fetch(q, {
-        redirect: "follow",
-        signal: AbortSignal.timeout(4000),
-      });
-      if (res.url) {
-        q = res.url;
-      }
-    } catch {
-      // ignore network issue on short url follow
-    }
+  if (SHORT_MAPS_URL.test(q)) {
+    q = (await resolveShortMapsUrl(q)) ?? q;
   }
 
   // 2. Pattern: @lat,lng in Google Maps URL (e.g. https://www.google.com/maps/@28.3997,77.0385,17z)
@@ -330,9 +339,18 @@ async function fetchWorldwideFromOpenMeteo(query: string): Promise<PlaceItem[]> 
  * 2. Reverse Geocoding: ?lat=<number>&lng=<number>
  */
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const query = req.nextUrl.searchParams.get("q")?.trim();
   const lat = req.nextUrl.searchParams.get("lat");
   const lng = req.nextUrl.searchParams.get("lng");
+
+  if (query && query.length > MAX_QUERY_LENGTH) {
+    return NextResponse.json({ error: "Query too long" }, { status: 400 });
+  }
 
   // CASE 1: Location search / autocomplete
   if (query) {
@@ -430,7 +448,14 @@ export async function GET(req: NextRequest) {
 
   const numLat = parseFloat(lat);
   const numLng = parseFloat(lng);
-  if (isNaN(numLat) || isNaN(numLng)) {
+  if (
+    !Number.isFinite(numLat) ||
+    !Number.isFinite(numLng) ||
+    numLat < -90 ||
+    numLat > 90 ||
+    numLng < -180 ||
+    numLng > 180
+  ) {
     return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
   }
 

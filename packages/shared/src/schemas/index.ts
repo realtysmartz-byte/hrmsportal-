@@ -111,6 +111,7 @@ export const locationPingSchema = z.object({
   lng: z.number().min(-180).max(180),
   address: z.string().trim().max(500).optional().nullable(),
   accuracyM: z.number().min(0).max(50000).optional().nullable(),
+  capturedAt: z.coerce.date(),
 });
 
 export const createLeaveTypeSchema = z.object({

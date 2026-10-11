@@ -52,9 +52,9 @@ const emptyValues: EmployeeFormValues = {
   address: "",
   profilePhotoUrl: "",
   status: "ACTIVE",
-  workLocationName: "REALTY SMARTZ PVT LTD",
-  workLocationLat: "28.3997196",
-  workLocationLng: "77.0385682",
+  workLocationName: "",
+  workLocationLat: "",
+  workLocationLng: "",
 };
 
 function toDateInput(value?: Date | string | null) {
@@ -92,9 +92,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     managerId: initial?.managerId ?? "",
     address: initial?.address ?? "",
     profilePhotoUrl: initial?.profilePhotoUrl ?? "",
-    workLocationName: initial?.workLocationName ?? "REALTY SMARTZ PVT LTD",
-    workLocationLat: (initial as any)?.workLocationLat != null ? String((initial as any).workLocationLat) : "28.3997196",
-    workLocationLng: (initial as any)?.workLocationLng != null ? String((initial as any).workLocationLng) : "77.0385682",
+    workLocationName: initial?.workLocationName ?? "",
+    workLocationLat: initial?.workLocationLat ?? "",
+    workLocationLng: initial?.workLocationLng ?? "",
   });
 
   const { data: departments } = trpc.department.list.useQuery();
@@ -137,6 +137,11 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
 
     const parsedLat = values.workLocationLat.trim() ? parseFloat(values.workLocationLat) : null;
     const parsedLng = values.workLocationLng.trim() ? parseFloat(values.workLocationLng) : null;
+    const hasSite = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+    if (!hasSite && (values.workLocationLat.trim() || values.workLocationLng.trim())) {
+      setError("Enter both a valid latitude and longitude for the work location, or leave both empty to use the company office.");
+      return;
+    }
 
     const payload = {
       firstName: values.firstName,
@@ -157,9 +162,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       address: values.address || null,
       profilePhotoUrl: values.profilePhotoUrl || null,
       status: values.status,
-      workLocationName: values.workLocationName || null,
-      workLocationLat: Number.isFinite(parsedLat) ? parsedLat : null,
-      workLocationLng: Number.isFinite(parsedLng) ? parsedLng : null,
+      workLocationName: hasSite ? values.workLocationName.trim() || null : null,
+      workLocationLat: hasSite ? parsedLat : null,
+      workLocationLng: hasSite ? parsedLng : null,
     };
 
     if (mode === "create") {
@@ -376,7 +381,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                   </span>
                 </Label>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Staff can only punch in at this designated workplace or registered office. Leave as HQ office for registered office login, or enter remote site coordinates.
+                  Staff can only punch in at this designated workplace. Leave empty to use the company office from Company Settings.
                 </p>
               </div>
 
@@ -385,13 +390,13 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                 <button
                   type="button"
                   onClick={() => {
-                    setField("workLocationName", "REALTY SMARTZ PVT LTD");
-                    setField("workLocationLat", "28.3997196");
-                    setField("workLocationLng", "77.0385682");
+                    setField("workLocationName", "");
+                    setField("workLocationLat", "");
+                    setField("workLocationLng", "");
                   }}
                   className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100 shadow-2xs transition-colors"
                 >
-                  🏢 Set HQ Office
+                  🏢 Use Company Office
                 </button>
                 <button
                   type="button"
@@ -401,11 +406,12 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                         (pos) => {
                           setField("workLocationLat", String(pos.coords.latitude));
                           setField("workLocationLng", String(pos.coords.longitude));
-                          if (!values.workLocationName || values.workLocationName === "REALTY SMARTZ PVT LTD") {
+                          if (!values.workLocationName) {
                             setField("workLocationName", "Allocated Remote Site");
                           }
                         },
-                        () => alert("Could not fetch device GPS coordinates.")
+                        () => alert("Could not fetch device GPS coordinates."),
+                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                       );
                     }
                   }}

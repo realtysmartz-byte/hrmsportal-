@@ -22,13 +22,6 @@ import { LocationMap } from "@/components/LocationMap";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
-const HQ_OFFICE = {
-  name: "REALTY SMARTZ PVT LTD (HQ)",
-  address: "REALTY SMARTZ PVT LTD, Badshahpur, Sector 66, Gurugram, Haryana 122101",
-  lat: 28.3997196,
-  lng: 77.0385682,
-};
-
 interface SearchResult {
   name: string;
   displayName: string;
@@ -57,38 +50,29 @@ export function AssignLocationCard({
   canManage,
   onUpdated,
 }: AssignLocationCardProps) {
-  // Only HR Admin can assign or change employee work locations. Never visible to regular employees!
-  if (!canManage) {
-    return null;
-  }
-
   const utils = trpc.useUtils();
+  const { data: office } = trpc.companySettings.get.useQuery(undefined, {
+    enabled: canManage,
+  });
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Form states for assignment
-  const [selectedName, setSelectedName] = useState(
-    currentLocationName || HQ_OFFICE.name
-  );
-  const [selectedLat, setSelectedLat] = useState<number | null>(
-    currentLat ?? HQ_OFFICE.lat
-  );
-  const [selectedLng, setSelectedLng] = useState<number | null>(
-    currentLng ?? HQ_OFFICE.lng
-  );
+  // Empty name + null coords means "no assignment": employee punches in at the company office.
+  const [selectedName, setSelectedName] = useState(currentLocationName ?? "");
+  const [selectedLat, setSelectedLat] = useState<number | null>(currentLat);
+  const [selectedLng, setSelectedLng] = useState<number | null>(currentLng);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync form state whenever props change (e.g. admin selects another employee or location updates)
   useEffect(() => {
-    setSelectedName(currentLocationName || HQ_OFFICE.name);
-    setSelectedLat(currentLat ?? HQ_OFFICE.lat);
-    setSelectedLng(currentLng ?? HQ_OFFICE.lng);
+    setSelectedName(currentLocationName ?? "");
+    setSelectedLat(currentLat);
+    setSelectedLng(currentLng);
     setQuery("");
     setSuggestions([]);
     setErrorMessage(null);
@@ -144,40 +128,26 @@ export function AssignLocationCard({
   } | null>(null);
 
   const updateMutation = trpc.employee.update.useMutation({
-    onSuccess: async (_, variables) => {
-      const savedName = variables.workLocationName || selectedName;
-      const savedLat = variables.workLocationLat ?? (selectedLat || HQ_OFFICE.lat);
-      const savedLng = variables.workLocationLng ?? (selectedLng || HQ_OFFICE.lng);
+    onSuccess: async (updated) => {
+      const isAssigned = updated.workLocationLat != null && updated.workLocationLng != null;
+      const savedName = isAssigned
+        ? updated.workLocationName || "Assigned site"
+        : office?.officeName ?? "Company office";
 
       setSuccessMessage(
-        `Work location successfully assigned to ${savedName}! Employee can now login from this workplace.`
+        isAssigned
+          ? `Work location assigned: ${savedName}. The employee can now punch in only from this site.`
+          : `Assignment cleared. The employee will punch in from the company office (${savedName}).`
       );
       setErrorMessage(null);
-      setSavedPopup({
-        locationName: savedName,
-        lat: savedLat,
-        lng: savedLng,
-      });
+      if (isAssigned) {
+        setSavedPopup({
+          locationName: savedName,
+          lat: updated.workLocationLat!,
+          lng: updated.workLocationLng!,
+        });
+      }
 
-      // Optimistically update React Query cache in memory so tables update in 0ms
-      utils.employee.list.setData({ pageSize: 100, status: "ACTIVE" }, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          items: old.items.map((emp) =>
-            emp.id === employeeId
-              ? {
-                  ...emp,
-                  workLocationName: savedName,
-                  workLocationLat: savedLat,
-                  workLocationLng: savedLng,
-                }
-              : emp
-          ),
-        };
-      });
-
-      // Invalidate relevant queries across the app
       await Promise.allSettled([
         utils.employee.list.invalidate(),
         utils.attendance.livePersonnelOverview.invalidate(),
@@ -227,10 +197,10 @@ export function AssignLocationCard({
     }
   };
 
-  const handleResetToHQ = () => {
-    setSelectedName(HQ_OFFICE.name);
-    setSelectedLat(HQ_OFFICE.lat);
-    setSelectedLng(HQ_OFFICE.lng);
+  const handleResetToOffice = () => {
+    setSelectedName("");
+    setSelectedLat(null);
+    setSelectedLng(null);
     setQuery("");
     setIsOpen(false);
     setErrorMessage(null);
@@ -273,22 +243,30 @@ export function AssignLocationCard({
       setIsOpen(false);
     }
 
-    if (lat == null || lng == null) {
-      lat = HQ_OFFICE.lat;
-      lng = HQ_OFFICE.lng;
+    const hasCoords = lat != null && lng != null;
+    if (!hasCoords && name.trim()) {
+      setErrorMessage("Could not find coordinates for this site. Pick a search result or enter latitude and longitude.");
+      return;
     }
 
     updateMutation.mutate({
       id: employeeId,
-      workLocationName: name,
-      workLocationLat: lat,
-      workLocationLng: lng,
+      workLocationName: hasCoords ? name.trim() || null : null,
+      workLocationLat: hasCoords ? lat : null,
+      workLocationLng: hasCoords ? lng : null,
     });
   };
 
-  const activeLat = selectedLat ?? HQ_OFFICE.lat;
-  const activeLng = selectedLng ?? HQ_OFFICE.lng;
-  const activeName = selectedName || HQ_OFFICE.name;
+  if (!canManage) {
+    return null;
+  }
+
+  const isAssigned = selectedLat != null && selectedLng != null;
+  const activeLat = isAssigned ? selectedLat : office?.officeLat ?? null;
+  const activeLng = isAssigned ? selectedLng : office?.officeLng ?? null;
+  const activeName = isAssigned
+    ? selectedName || "Assigned site"
+    : `${office?.officeName ?? "Company office"} (default)`;
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-4 md:p-6 shadow-2xs space-y-5">
@@ -308,19 +286,21 @@ export function AssignLocationCard({
             </span>
           </div>
           <p className="mt-1 text-xs text-neutral-500">
-            Allocate an official project/site for {employeeName}. The employee will only be permitted to check in when physically present at this location or the HQ office.
+            Allocate an official project/site for {employeeName}. The employee will only be permitted to punch in when physically present at this location. Without an assignment, the company office is used.
           </p>
         </div>
 
-        <a
-          href={`https://www.google.com/maps?q=${activeLat},${activeLng}&z=17`}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
-        >
-          <span>Open in Google Maps</span>
-          <ExternalLink className="h-3 w-3 text-neutral-400" />
-        </a>
+        {activeLat != null && activeLng != null && (
+          <a
+            href={`https://www.google.com/maps?q=${activeLat},${activeLng}&z=17`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+          >
+            <span>Open in Google Maps</span>
+            <ExternalLink className="h-3 w-3 text-neutral-400" />
+          </a>
+        )}
       </div>
 
       {/* Success banner */}
@@ -340,7 +320,7 @@ export function AssignLocationCard({
       )}
 
       {/* 2. Admin Assignment Form */}
-      {canManage && (
+      {(
         <div className="space-y-4 rounded-xl bg-neutral-50/70 p-4 border border-neutral-200/80">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-700 flex items-center gap-1.5">
@@ -351,11 +331,11 @@ export function AssignLocationCard({
               type="button"
               variant="outline"
               size="sm"
-              onClick={handleResetToHQ}
+              onClick={handleResetToOffice}
               className="h-7 text-xs gap-1 border-neutral-300 hover:bg-white"
             >
               <Building className="h-3 w-3 text-neutral-500" />
-              <span>Reset to HQ Office</span>
+              <span>Use Company Office (default)</span>
             </Button>
           </div>
 
@@ -496,18 +476,16 @@ export function AssignLocationCard({
             <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
               <Info className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
               <span>
-                Employee punch-in will be authorized for this location and HQ office.
+                {isAssigned
+                  ? "Employee punch-in will be authorized only at this location."
+                  : "No site selected: saving will make the employee punch in from the company office."}
               </span>
             </div>
 
             <Button
               type="button"
               onClick={handleSave}
-              disabled={
-                updateMutation.isLoading ||
-                selectedLat == null ||
-                selectedLng == null
-              }
+              disabled={updateMutation.isLoading}
               className="gap-2 bg-[#FF7A70] hover:bg-[#FF6559] text-white font-bold text-xs h-9 px-4 rounded-xl shadow-xs shrink-0"
             >
               {updateMutation.isLoading ? (
@@ -527,26 +505,28 @@ export function AssignLocationCard({
       )}
 
       {/* 3. Interactive Map Preview of Assigned Location */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-bold text-neutral-700">
-          <span className="flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5 text-[#FF7A70]" />
-            Assigned Site Map Preview ({activeName})
-          </span>
-          <span className="text-[11px] font-mono text-neutral-500">
-            {activeLat.toFixed(5)}, {activeLng.toFixed(5)}
-          </span>
-        </div>
+      {activeLat != null && activeLng != null && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-neutral-700">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-[#FF7A70]" />
+              Assigned Site Map Preview ({activeName})
+            </span>
+            <span className="text-[11px] font-mono text-neutral-500">
+              {activeLat.toFixed(5)}, {activeLng.toFixed(5)}
+            </span>
+          </div>
 
-        <div className="rounded-xl overflow-hidden border border-neutral-200">
-          <LocationMap
-            lat={activeLat}
-            lng={activeLng}
-            label={`${activeName} (Authorized Work Location)`}
-            height={240}
-          />
+          <div className="rounded-xl overflow-hidden border border-neutral-200">
+            <LocationMap
+              lat={activeLat}
+              lng={activeLng}
+              label={`${activeName} (Authorized Work Location)`}
+              height={240}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Location Saved Confirmation Popup Modal */}
       {savedPopup && (

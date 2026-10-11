@@ -1802,10 +1802,16 @@ function GpsTrailTab({
     limit: 60,
   });
 
-  const activeLat =
-    selectedPing?.lat ?? pings?.[0]?.lat ?? emp.workLocationLat ?? 28.3997196;
-  const activeLng =
-    selectedPing?.lng ?? pings?.[0]?.lng ?? emp.workLocationLng ?? 77.0385682;
+  const { data: office } = trpc.companySettings.get.useQuery();
+  const hasAssignedSite = emp.workLocationLat != null && emp.workLocationLng != null;
+  const workplaceName = hasAssignedSite
+    ? emp.workLocationName || "Assigned site"
+    : `${office?.officeName ?? "Company office"} (default)`;
+  const workplaceLat = hasAssignedSite ? emp.workLocationLat : office?.officeLat ?? null;
+  const workplaceLng = hasAssignedSite ? emp.workLocationLng : office?.officeLng ?? null;
+
+  const activeLat = selectedPing?.lat ?? pings?.[0]?.lat ?? workplaceLat ?? 0;
+  const activeLng = selectedPing?.lng ?? pings?.[0]?.lng ?? workplaceLng ?? 0;
   const activeLabel =
     selectedPing?.label ??
     (pings?.[0]
@@ -1813,7 +1819,7 @@ function GpsTrailTab({
           hour: "2-digit",
           minute: "2-digit",
         })}`
-      : emp.workLocationName || "Allocated Work Location");
+      : workplaceName);
 
   return (
     <div className="space-y-5">
@@ -1836,7 +1842,7 @@ function GpsTrailTab({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-bold text-neutral-900">
-                  {emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)"}
+                  {workplaceName}
                 </h4>
                 <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                   Assigned Workplace
@@ -1848,7 +1854,7 @@ function GpsTrailTab({
             </div>
           </div>
           <a
-            href={`https://www.google.com/maps?q=${emp.workLocationLat ?? 28.3997196},${emp.workLocationLng ?? 77.0385682}&z=17`}
+            href={`https://www.google.com/maps?q=${workplaceLat},${workplaceLng}&z=17`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#FF7A70] hover:underline"

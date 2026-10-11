@@ -54,5 +54,5 @@ export {
   getSmtpConfig,
 } from "./lib/email";
 
-export { ensureAutoPunchOut, ensureEmployee30MinPings, ensureAllEmployees30MinPings } from "./lib/attendance-auto";
+export { ensureAutoPunchOut } from "./lib/attendance-auto";
 

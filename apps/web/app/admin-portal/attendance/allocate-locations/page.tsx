@@ -39,14 +39,6 @@ import { LocationMap } from "@/components/LocationMap";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
-// Official Registered Office of Realty Smartz Private Limited
-const HQ_OFFICE = {
-  name: "REALTY SMARTZ PVT LTD (HQ)",
-  address: "REALTY SMARTZ PVT LTD, Badshahpur, Sector 66, Gurugram, Haryana 122101",
-  lat: 28.3997196,
-  lng: 77.0385682,
-};
-
 interface SearchResult {
   name: string;
   displayName: string;
@@ -59,6 +51,12 @@ interface SearchResult {
 export default function AllocateLocationsPage() {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
+  const { data: officeSettings } = trpc.companySettings.get.useQuery();
+  const officeLabel = `${officeSettings?.officeName ?? "Company office"} (default)`;
+  const officeCoords =
+    officeSettings != null
+      ? `${officeSettings.officeLat.toFixed(4)}, ${officeSettings.officeLng.toFixed(4)}`
+      : "—";
 
   // 1. Fetch all active employees
   const { data: employeesData, isLoading: isLoadingEmployees, refetch } = trpc.employee.list.useQuery({
@@ -89,9 +87,14 @@ export default function AllocateLocationsPage() {
   const [isOpen, setIsOpen] = useState(false);
 
   // Target coordinates and site name
-  const [targetName, setTargetName] = useState(HQ_OFFICE.name);
-  const [targetLat, setTargetLat] = useState<number>(HQ_OFFICE.lat);
-  const [targetLng, setTargetLng] = useState<number>(HQ_OFFICE.lng);
+  // Null coordinates mean "no assigned site": the employee punches in at the company office.
+  const [targetName, setTargetName] = useState("");
+  const [targetLat, setTargetLat] = useState<number | null>(null);
+  const [targetLng, setTargetLng] = useState<number | null>(null);
+  const isTargetAssigned = targetLat != null && targetLng != null;
+  const previewLat = isTargetAssigned ? targetLat : officeSettings?.officeLat ?? null;
+  const previewLng = isTargetAssigned ? targetLng : officeSettings?.officeLng ?? null;
+  const previewName = isTargetAssigned ? targetName || "Assigned site" : officeLabel;
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -102,14 +105,14 @@ export default function AllocateLocationsPage() {
   useEffect(() => {
     if (selectedEmployee && selectedEmployee.id !== lastSyncedIdRef.current) {
       lastSyncedIdRef.current = selectedEmployee.id;
-      if (selectedEmployee.workLocationLat && selectedEmployee.workLocationLng) {
-        setTargetName(selectedEmployee.workLocationName || "Assigned Project Site");
+      if (selectedEmployee.workLocationLat != null && selectedEmployee.workLocationLng != null) {
+        setTargetName(selectedEmployee.workLocationName || "");
         setTargetLat(selectedEmployee.workLocationLat);
         setTargetLng(selectedEmployee.workLocationLng);
       } else {
-        setTargetName(HQ_OFFICE.name);
-        setTargetLat(HQ_OFFICE.lat);
-        setTargetLng(HQ_OFFICE.lng);
+        setTargetName("");
+        setTargetLat(null);
+        setTargetLng(null);
       }
       setQuery("");
       setSuggestions([]);
@@ -167,55 +170,39 @@ export default function AllocateLocationsPage() {
   // Update employee location mutation with immediate in-memory cache update
   const updateLocation = trpc.employee.update.useMutation({
     onSuccess: async (data, variables) => {
-      const newLat = variables.workLocationLat ?? data.workLocationLat ?? targetLat;
-      const newLng = variables.workLocationLng ?? data.workLocationLng ?? targetLng;
-      const newName = variables.workLocationName ?? data.workLocationName ?? targetName;
+      const newLat = data.workLocationLat;
+      const newLng = data.workLocationLng;
+      const newName = data.workLocationName ?? "";
 
-      // 1. Immediately update the React Query cache so the table updates in 0ms!
-      utils.employee.list.setData({ pageSize: 100, status: "ACTIVE" }, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          items: old.items.map((emp) =>
-            emp.id === variables.id
-              ? {
-                  ...emp,
-                  workLocationName: newName,
-                  workLocationLat: newLat,
-                  workLocationLng: newLng,
-                }
-              : emp
-          ),
-        };
-      });
-
-      // 2. Update local studio state so map preview and inputs immediately reflect the saved data
-      setTargetName(newName);
-      setTargetLat(newLat);
-      setTargetLng(newLng);
+      if (variables.id === selectedEmpId) {
+        setTargetName(newName);
+        setTargetLat(newLat);
+        setTargetLng(newLng);
+      }
       setQuery("");
       setIsOpen(false);
 
-      // 3. Trigger server invalidations across the portal
       await Promise.allSettled([
         utils.employee.list.invalidate(),
         utils.attendance.livePersonnelOverview.invalidate(),
         utils.attendance.allLocationPings.invalidate(),
       ]);
 
-      const emp = employees.find((e) => e.id === variables.id);
-      const updatedName = emp ? `${emp.firstName} ${emp.lastName}` : "Employee";
-      const code = emp?.employeeCode || "RS";
+      const updatedName = `${data.firstName} ${data.lastName}`;
 
       setErrorMsg(null);
-      setSuccessMsg(`✓ Location successfully allocated to "${newName}" for ${updatedName}! Workplace verification active.`);
-      setSavedPopup({
-        employeeName: updatedName,
-        employeeCode: code,
-        locationName: newName,
-        lat: newLat,
-        lng: newLng,
-      });
+      if (newLat != null && newLng != null) {
+        setSuccessMsg(`✓ "${newName || "Assigned site"}" allocated to ${updatedName}. They can now punch in only from this site.`);
+        setSavedPopup({
+          employeeName: updatedName,
+          employeeCode: data.employeeCode,
+          locationName: newName || "Assigned site",
+          lat: newLat,
+          lng: newLng,
+        });
+      } else {
+        setSuccessMsg(`✓ Site cleared for ${updatedName}. They will punch in from ${officeLabel}.`);
+      }
       setTimeout(() => setSuccessMsg(null), 8000);
     },
     onError: (err) => {
@@ -230,9 +217,9 @@ export default function AllocateLocationsPage() {
       return;
     }
 
-    let lat = Number(targetLat);
-    let lng = Number(targetLng);
-    let cleanName = (targetName.trim() || HQ_OFFICE.name).slice(0, 180);
+    let lat = targetLat;
+    let lng = targetLng;
+    let cleanName = targetName.trim().slice(0, 180);
 
     // If there is unsubmitted text in the search input, auto-resolve it first!
     if (query.trim().length >= 2) {
@@ -259,11 +246,16 @@ export default function AllocateLocationsPage() {
       }
     }
 
-    if (isNaN(lat) || lat < -90 || lat > 90) {
+    const hasSite = lat != null && lng != null;
+    if ((lat == null) !== (lng == null) || (!hasSite && cleanName)) {
+      setErrorMsg("Pick a search result or enter both latitude and longitude for this site.");
+      return;
+    }
+    if (hasSite && (isNaN(lat!) || lat! < -90 || lat! > 90)) {
       setErrorMsg("Invalid Latitude. Must be between -90 and 90.");
       return;
     }
-    if (isNaN(lng) || lng < -180 || lng > 180) {
+    if (hasSite && (isNaN(lng!) || lng! < -180 || lng! > 180)) {
       setErrorMsg("Invalid Longitude. Must be between -180 and 180.");
       return;
     }
@@ -274,9 +266,9 @@ export default function AllocateLocationsPage() {
     try {
       await updateLocation.mutateAsync({
         id: selectedEmpId,
-        workLocationName: cleanName,
-        workLocationLat: lat,
-        workLocationLng: lng,
+        workLocationName: hasSite ? cleanName || null : null,
+        workLocationLat: hasSite ? lat : null,
+        workLocationLng: hasSite ? lng : null,
       });
     } catch (err: unknown) {
       const errObj = err as { message?: string };
@@ -285,9 +277,9 @@ export default function AllocateLocationsPage() {
   };
 
   const handleSetHQ = () => {
-    setTargetName(HQ_OFFICE.name);
-    setTargetLat(HQ_OFFICE.lat);
-    setTargetLng(HQ_OFFICE.lng);
+    setTargetName("");
+    setTargetLat(null);
+    setTargetLng(null);
     setQuery("");
     setIsOpen(false);
     setErrorMsg(null);
@@ -322,11 +314,10 @@ export default function AllocateLocationsPage() {
 
       if (!matchesSearch) return false;
 
-      const hasCustomSite = Boolean(emp.workLocationLat && emp.workLocationLng);
-      const isHQ = !hasCustomSite || (emp.workLocationName && emp.workLocationName.includes("HQ"));
+      const hasCustomSite = emp.workLocationLat != null && emp.workLocationLng != null;
 
-      if (filterType === "hq") return isHQ;
-      if (filterType === "site") return hasCustomSite && !isHQ;
+      if (filterType === "hq") return !hasCustomSite;
+      if (filterType === "site") return hasCustomSite;
       return true;
     });
   }, [employees, tableSearch, filterType]);
@@ -334,7 +325,7 @@ export default function AllocateLocationsPage() {
   // Metrics
   const totalCount = employees.length;
   const projectSiteCount = employees.filter(
-    (e) => e.workLocationLat && e.workLocationLng && !e.workLocationName?.includes("HQ")
+    (e) => e.workLocationLat != null && e.workLocationLng != null
   ).length;
   const hqCount = totalCount - projectSiteCount;
 
@@ -488,7 +479,7 @@ export default function AllocateLocationsPage() {
                   ))}
                 </select>
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Currently assigned: <strong className="text-neutral-700">{selectedEmployee?.workLocationName || HQ_OFFICE.name}</strong>
+                  Currently assigned: <strong className="text-neutral-700">{selectedEmployee?.workLocationLat != null ? selectedEmployee.workLocationName || "Assigned site" : officeLabel}</strong>
                 </p>
               </div>
 
@@ -746,7 +737,7 @@ export default function AllocateLocationsPage() {
                     Target Site
                   </span>
                   <span className="text-xs font-bold text-neutral-900 truncate">
-                    {targetName}
+                    {previewName}
                   </span>
                 </div>
 
@@ -777,8 +768,11 @@ export default function AllocateLocationsPage() {
                   <Input
                     type="number"
                     step="0.000001"
-                    value={targetLat}
-                    onChange={(e) => setTargetLat(parseFloat(e.target.value) || 0)}
+                    value={targetLat ?? ""}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setTargetLat(Number.isFinite(v) ? v : null);
+                    }}
                     placeholder="e.g. 28.399719"
                     className="h-9 text-xs font-mono bg-white border-neutral-200"
                   />
@@ -791,8 +785,11 @@ export default function AllocateLocationsPage() {
                   <Input
                     type="number"
                     step="0.000001"
-                    value={targetLng}
-                    onChange={(e) => setTargetLng(parseFloat(e.target.value) || 0)}
+                    value={targetLng ?? ""}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setTargetLng(Number.isFinite(v) ? v : null);
+                    }}
                     placeholder="e.g. 77.038568"
                     className="h-9 text-xs font-mono bg-white border-neutral-200"
                   />
@@ -802,7 +799,7 @@ export default function AllocateLocationsPage() {
               {/* Action Buttons Row (Responsive Stack on Mobile, Flex on Desktop) */}
               <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                 <a
-                  href={`https://www.google.com/maps?q=${targetLat},${targetLng}`}
+                  href={`https://www.google.com/maps?q=${previewLat},${previewLng}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-10 items-center justify-center gap-1.5 text-xs text-neutral-700 hover:text-neutral-900 border border-neutral-200 rounded-xl px-3 bg-white font-semibold shadow-2xs hover:bg-neutral-50 transition-colors"
@@ -832,24 +829,26 @@ export default function AllocateLocationsPage() {
             </div>
 
             {/* Live Interactive Map Preview */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
-                  Live Workplace Location Map
-                </span>
-                <span className="text-[10px] text-neutral-400 font-mono">
-                  {targetLat.toFixed(5)}, {targetLng.toFixed(5)}
-                </span>
+            {previewLat != null && previewLng != null && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
+                    Live Workplace Location Map
+                  </span>
+                  <span className="text-[10px] text-neutral-400 font-mono">
+                    {previewLat.toFixed(5)}, {previewLng.toFixed(5)}
+                  </span>
+                </div>
+                <div className="rounded-2xl overflow-hidden border border-neutral-200 shadow-2xs">
+                  <LocationMap
+                    lat={previewLat}
+                    lng={previewLng}
+                    label={`${previewName} · Authorized Workplace`}
+                    height={220}
+                  />
+                </div>
               </div>
-              <div className="rounded-2xl overflow-hidden border border-neutral-200 shadow-2xs">
-                <LocationMap
-                  lat={targetLat}
-                  lng={targetLng}
-                  label={`${targetName} · Authorized Workplace`}
-                  height={220}
-                />
-              </div>
-            </div>
+            )}
           </div>
         </Card>
       </div>
@@ -920,8 +919,7 @@ export default function AllocateLocationsPage() {
             {/* Mobile View: Cards */}
             <div className="block md:hidden divide-y divide-neutral-100">
               {filteredEmployees.map((emp) => {
-                const hasCustom = Boolean(emp.workLocationLat && emp.workLocationLng);
-                const isAllocatedHQ = !hasCustom || (emp.workLocationName && emp.workLocationName.includes("HQ"));
+                const isAllocatedHQ = emp.workLocationLat == null || emp.workLocationLng == null;
                 const isCurrentSelected = emp.id === selectedEmpId;
 
                 return (
@@ -960,7 +958,7 @@ export default function AllocateLocationsPage() {
                         <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0" />
                       )}
                       <span className="truncate text-xs font-semibold text-neutral-800">
-                        {emp.workLocationName || HQ_OFFICE.name}
+                        {isAllocatedHQ ? officeLabel : emp.workLocationName || "Assigned site"}
                       </span>
                     </div>
 
@@ -968,7 +966,7 @@ export default function AllocateLocationsPage() {
                       <span className="text-[10px] font-mono text-neutral-400">
                         {emp.workLocationLat != null && emp.workLocationLng != null
                           ? `${emp.workLocationLat.toFixed(4)}, ${emp.workLocationLng.toFixed(4)}`
-                          : `${HQ_OFFICE.lat.toFixed(4)}, ${HQ_OFFICE.lng.toFixed(4)}`}
+                          : officeCoords}
                       </span>
 
                       <div className="flex items-center gap-1.5">
@@ -989,9 +987,9 @@ export default function AllocateLocationsPage() {
                             onClick={async () => {
                               await updateLocation.mutateAsync({
                                 id: emp.id,
-                                workLocationName: HQ_OFFICE.name,
-                                workLocationLat: HQ_OFFICE.lat,
-                                workLocationLng: HQ_OFFICE.lng,
+                                workLocationName: null,
+                                workLocationLat: null,
+                                workLocationLng: null,
                               });
                             }}
                             title="Reset back to Company HQ"
@@ -1022,8 +1020,7 @@ export default function AllocateLocationsPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredEmployees.map((emp) => {
-                    const hasCustom = Boolean(emp.workLocationLat && emp.workLocationLng);
-                    const isAllocatedHQ = !hasCustom || (emp.workLocationName && emp.workLocationName.includes("HQ"));
+                    const isAllocatedHQ = emp.workLocationLat == null || emp.workLocationLng == null;
                     const isCurrentSelected = emp.id === selectedEmpId;
 
                     return (
@@ -1064,7 +1061,7 @@ export default function AllocateLocationsPage() {
                               <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0" />
                             )}
                             <span className="text-xs font-semibold text-neutral-800 truncate">
-                              {emp.workLocationName || HQ_OFFICE.name}
+                              {isAllocatedHQ ? officeLabel : emp.workLocationName || "Assigned site"}
                             </span>
                           </div>
                         </TableCell>
@@ -1073,7 +1070,7 @@ export default function AllocateLocationsPage() {
                           <span className="text-[11px] font-mono text-neutral-500">
                             {emp.workLocationLat != null && emp.workLocationLng != null
                               ? `${emp.workLocationLat.toFixed(4)}, ${emp.workLocationLng.toFixed(4)}`
-                              : `${HQ_OFFICE.lat.toFixed(4)}, ${HQ_OFFICE.lng.toFixed(4)}`}
+                              : officeCoords}
                           </span>
                         </TableCell>
 
@@ -1103,9 +1100,9 @@ export default function AllocateLocationsPage() {
                                 onClick={async () => {
                                   await updateLocation.mutateAsync({
                                     id: emp.id,
-                                    workLocationName: HQ_OFFICE.name,
-                                    workLocationLat: HQ_OFFICE.lat,
-                                    workLocationLng: HQ_OFFICE.lng,
+                                    workLocationName: null,
+                                    workLocationLat: null,
+                                    workLocationLng: null,
                                   });
                                 }}
                                 title="Reset back to Company HQ"

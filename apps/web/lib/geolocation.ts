@@ -1,7 +1,3 @@
-/**
- * Reverse geocode via OpenStreetMap Nominatim (free).
- * Rate limit: max ~1 request/second.
- */
 export type GeoPlace = {
   name: string;
   address: string;
@@ -13,53 +9,29 @@ export async function reverseGeocodePlace(
   lat: number,
   lng: number
 ): Promise<GeoPlace> {
+  const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
     const res = await fetch(
       `/api/geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
       { signal: controller.signal }
     );
     clearTimeout(timeoutId);
     if (res.ok) {
-      const data = (await res.json()) as GeoPlace;
-      let cleanName = data.name || "Realty Smartz Private Limited";
-      let cleanAddress = data.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-
-      if (/sunbreeze/i.test(cleanName) || cleanName === "Current location" || cleanName === "Location Coordinates") {
-        cleanName = "Realty Smartz Private Limited";
-      }
-      if (/sunbreeze/i.test(cleanAddress)) {
-        cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
-      }
-
+      const data = (await res.json()) as Partial<GeoPlace>;
       return {
-        name: cleanName,
-        address: cleanAddress,
+        name: data.name || coords,
+        address: data.address || coords,
         lat,
         lng,
       };
     }
   } catch (e) {
-    console.warn("[geolocation] Reverse geocode network fallback:", e);
+    console.warn("[geolocation] Reverse geocode failed:", e);
   }
 
-  // Graceful fallback to GPS coordinates (never blocks employee punch-in)
-  return {
-    name: "Realty Smartz Private Limited",
-    address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-    lat,
-    lng,
-  };
-}
-
-/** @deprecated prefer reverseGeocodePlace */
-export async function reverseGeocode(
-  lat: number,
-  lng: number
-): Promise<string> {
-  const place = await reverseGeocodePlace(lat, lng);
-  return place.address;
+  return { name: coords, address: coords, lat, lng };
 }
 
 export function getCurrentPosition(): Promise<GeolocationPosition> {

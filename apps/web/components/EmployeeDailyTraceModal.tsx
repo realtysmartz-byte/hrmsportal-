@@ -71,9 +71,14 @@ export function EmployeeDailyTraceModal({
     return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
   }, [events]);
 
-  const assignedSiteName = emp?.workLocationName || "REALTY SMARTZ PVT LTD (HQ)";
-  const assignedLat = emp?.workLocationLat ?? 28.3997196;
-  const assignedLng = emp?.workLocationLng ?? 77.0385682;
+  const hasAssignedSite = emp?.workLocationLat != null && emp?.workLocationLng != null;
+  const assignedSiteName = hasAssignedSite
+    ? emp?.workLocationName || "Assigned site"
+    : `${data?.settings?.officeName ?? "Company office"} (default)`;
+  const assignedLat = hasAssignedSite ? emp!.workLocationLat : data?.settings?.officeLat ?? null;
+  const assignedLng = hasAssignedSite ? emp!.workLocationLng : data?.settings?.officeLng ?? null;
+  const mapLat = activeEvent ? activeEvent.lat : assignedLat;
+  const mapLng = activeEvent ? activeEvent.lng : assignedLng;
 
   // Compute total duration if punched in
   const dutyDuration = useMemo(() => {
@@ -225,19 +230,21 @@ export function EmployeeDailyTraceModal({
                   )}
                 </div>
 
-                <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-2xs">
-                  <LocationMap
-                    lat={activeEvent ? activeEvent.lat : assignedLat}
-                    lng={activeEvent ? activeEvent.lng : assignedLng}
-                    label={
-                      activeEvent
-                        ? `${employeeName} - ${activeEvent.type} at ${new Date(activeEvent.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                        : assignedSiteName
-                    }
-                    showCard={false}
-                    height={280}
-                  />
-                </div>
+                {mapLat != null && mapLng != null && (
+                  <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-2xs">
+                    <LocationMap
+                      lat={mapLat}
+                      lng={mapLng}
+                      label={
+                        activeEvent
+                          ? `${employeeName} - ${activeEvent.type} at ${new Date(activeEvent.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                          : assignedSiteName
+                      }
+                      showCard={false}
+                      height={280}
+                    />
+                  </div>
+                )}
 
                 {/* Active Point Detail Card */}
                 {activeEvent ? (

@@ -37,7 +37,6 @@ export function CheckInOutCard() {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
   const { data: today, isLoading } = trpc.attendance.today.useQuery();
-  const { data: settings } = trpc.companySettings.get.useQuery();
   const { data: workLoc } = trpc.attendance.myWorkLocation.useQuery();
 
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -148,31 +147,6 @@ export function CheckInOutCard() {
     },
   });
 
-  // Workplace details & geofence resolution
-  const empData = workLoc?.employee;
-  const officeData = workLoc?.office;
-  const assignedSiteName = empData?.workLocationName || "Registered Office";
-  const assignedSiteLat = empData?.workLocationLat ?? null;
-  const assignedSiteLng = empData?.workLocationLng ?? null;
-  const officeName = officeData?.officeName || "REALTY SMARTZ PVT LTD";
-  const officeLat = officeData?.officeLat ?? 28.3997196;
-  const officeLng = officeData?.officeLng ?? 77.0385682;
-  const geofenceRadius = officeData?.geofenceRadiusM ?? 200;
-
-  const distanceOfficeM = useMemo(() => {
-    if (!liveCoords) return null;
-    return haversineDistanceM(liveCoords.lat, liveCoords.lng, officeLat, officeLng);
-  }, [liveCoords, officeLat, officeLng]);
-
-  const distanceSiteM = useMemo(() => {
-    if (!liveCoords || assignedSiteLat == null || assignedSiteLng == null) return null;
-    return haversineDistanceM(liveCoords.lat, liveCoords.lng, assignedSiteLat, assignedSiteLng);
-  }, [liveCoords, assignedSiteLat, assignedSiteLng]);
-
-  const isAtOffice = distanceOfficeM != null && distanceOfficeM <= geofenceRadius;
-  const isAtSite = distanceSiteM != null && distanceSiteM <= geofenceRadius;
-  const isAuthorizedLocation = isAtOffice || isAtSite;
-
   async function captureAndSubmit(mode: "in" | "out") {
     setError("");
     setIsPermissionDenied(false);
@@ -184,53 +158,20 @@ export function CheckInOutCard() {
       const lng = pos.coords.longitude;
       setLiveCoords({ lat, lng });
 
-      // Immediate client-side verification - Strict workplace location check
-      const curDistOffice = haversineDistanceM(lat, lng, officeLat, officeLng);
-      const curDistSite =
-        assignedSiteLat != null && assignedSiteLng != null
-          ? haversineDistanceM(lat, lng, assignedSiteLat, assignedSiteLng)
-          : null;
-
-      const withinAllowed =
-        curDistOffice <= geofenceRadius ||
-        (curDistSite != null && curDistSite <= geofenceRadius);
-
-      if (mode === "in" && !withinAllowed) {
-        setError(
-          `Punch-in blocked: You are outside your assigned workplace. Please punch in from your registered office (${officeName}) or assigned site.`
-        );
-        return;
-      }
-
-      let cleanName = officeName || "Realty Smartz Private Limited";
-      let cleanAddress = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-
-      // Instant address resolution: when verified within office or site geofence, use registered workplace name
-      if (curDistOffice <= geofenceRadius) {
-        cleanName = officeName || "Realty Smartz Private Limited";
-        cleanAddress = `${cleanName} (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-        setCaptured({ name: cleanName, address: cleanAddress, lat, lng });
-      } else if (curDistSite != null && curDistSite <= geofenceRadius) {
-        cleanName = assignedSiteName || "Assigned Project Site";
-        cleanAddress = `${cleanName} (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-        setCaptured({ name: cleanName, address: cleanAddress, lat, lng });
-      } else {
-        const place = await reverseGeocodePlace(lat, lng);
-        setCaptured(place);
-        cleanName = place.name;
-        cleanAddress = place.address;
-
-        if (!cleanName || /sunbreeze/i.test(cleanName) || cleanName === "Current location") {
-          cleanName = "Realty Smartz Private Limited";
-        }
-        if (cleanAddress && /sunbreeze/i.test(cleanAddress)) {
-          cleanAddress = cleanAddress.replace(/sunbreeze/gi, "Realty Smartz Private Limited");
+      if (mode === "in" && workLoc) {
+        const dist = haversineDistanceM(lat, lng, workLoc.lat, workLoc.lng);
+        if (dist > workLoc.radiusM) {
+          setError(
+            `Punch-in blocked: you are ~${Math.round(dist)}m from ${workLoc.name}. You must be within ${workLoc.radiusM}m to punch in.`
+          );
+          return;
         }
       }
 
-      const addressLabel = cleanAddress
-        ? `${cleanName} — ${cleanAddress}`
-        : cleanName;
+      const place = await reverseGeocodePlace(lat, lng);
+      setCaptured(place);
+      const addressLabel =
+        place.name === place.address ? place.address : `${place.name} — ${place.address}`;
 
       if (mode === "in") {
         await checkIn.mutateAsync({ lat, lng, address: addressLabel });
@@ -317,9 +258,7 @@ export function CheckInOutCard() {
         <div className="mt-3 flex items-center gap-1.5 rounded-full bg-neutral-50 border border-neutral-200/70 px-3 py-1 text-xs text-neutral-600 max-w-full">
           <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0" />
           <span className="truncate font-medium">
-            {assignedSiteName && assignedSiteName !== "Registered Office"
-              ? assignedSiteName
-              : officeName}
+            {workLoc?.name ?? "Loading work location…"}
           </span>
         </div>
 
@@ -445,8 +384,8 @@ export function CheckInOutCard() {
           {showMap && (
             <div className="mt-2.5">
               <LocationMap
-                lat={today?.checkInLat ?? captured?.lat ?? liveCoords?.lat ?? officeLat}
-                lng={today?.checkInLng ?? captured?.lng ?? liveCoords?.lng ?? officeLng}
+                lat={(today?.checkInLat ?? captured?.lat ?? liveCoords?.lat)!}
+                lng={(today?.checkInLng ?? captured?.lng ?? liveCoords?.lng)!}
                 label={
                   today?.checkInTime
                     ? `Punched In Location`

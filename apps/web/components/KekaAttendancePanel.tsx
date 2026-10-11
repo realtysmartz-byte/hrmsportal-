@@ -22,6 +22,11 @@ import {
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
+  geolocationErrorMessage,
+  getCurrentPosition,
+  reverseGeocodePlace,
+} from "@/lib/geolocation";
+import {
   formatDateIST,
   formatTimeIST,
   getISTDateString,
@@ -50,8 +55,6 @@ export function KekaAttendancePanel({
   department: propDepartment,
   employeeCode: propCode,
   workLocationName: propSiteName,
-  workLocationLat: propSiteLat,
-  workLocationLng: propSiteLng,
   hideHeaderBanner = false,
 }: KekaAttendancePanelProps) {
   const { data: session } = useSession();
@@ -169,69 +172,31 @@ export function KekaAttendancePanel({
     todayAttendance?.checkInTime && todayAttendance?.checkOutTime
   );
 
-  // Office & site location verification
-  const officeData = currentUserWorkLoc?.office;
-  const empWorkData = currentUserWorkLoc?.employee;
-  const officeLat = officeData?.officeLat ?? 28.3997196;
-  const officeLng = officeData?.officeLng ?? 77.0385682;
-  const officeName = officeData?.officeName ?? "REALTY SMARTZ PVT LTD";
-  const geofenceRadius = officeData?.geofenceRadiusM ?? 200;
+  const displaySiteName = isTargetMode
+    ? propSiteName || "Company office (default)"
+    : currentUserWorkLoc?.name ?? "Loading work location…";
 
-  const assignedSiteLat = propSiteLat ?? empWorkData?.workLocationLat ?? null;
-  const assignedSiteLng = propSiteLng ?? empWorkData?.workLocationLng ?? null;
-  const assignedSiteName = propSiteName ?? empWorkData?.workLocationName ?? null;
-
-  // Handle Punch In / Punch Out with STRICT LOCATION GEOFENCE ENFORCEMENT
   async function handlePunch(mode: "in" | "out") {
     setPunchError("");
     setBusy(true);
 
     try {
-      if (!navigator.geolocation) {
-        throw new Error("Geolocation is not supported by your browser");
-      }
-
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-        });
-      });
-
+      const pos = await getCurrentPosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
 
-      // Distance to Office
-      const distOffice = haversineDistanceM(lat, lng, officeLat, officeLng);
-      const isAtOffice = distOffice <= geofenceRadius;
-
-      // Distance to Allocated Site
-      let isAtSite = false;
-      if (assignedSiteLat != null && assignedSiteLng != null) {
-        const distSite = haversineDistanceM(lat, lng, assignedSiteLat, assignedSiteLng);
-        isAtSite = distSite <= geofenceRadius;
-      }
-
-      const withinAllowed = isAtOffice || isAtSite;
-
-      // STRICT LOCKING: If punch-in and not at office and not at assigned site -> STRICTLY BLOCK!
-      if (mode === "in" && !withinAllowed) {
-        if (assignedSiteLat != null && assignedSiteLng != null) {
+      if (mode === "in" && currentUserWorkLoc) {
+        const dist = haversineDistanceM(lat, lng, currentUserWorkLoc.lat, currentUserWorkLoc.lng);
+        if (dist > currentUserWorkLoc.radiusM) {
           throw new Error(
-            `Punch-in Blocked: You are outside your allocated work site (${assignedSiteName || "Site"}) and registered office. You can only punch in from your allocated site or registered office.`
-          );
-        } else {
-          throw new Error(
-            `Punch-in Blocked: You are outside the registered office (${officeName}). To punch in from any other location, ask HR/Admin to allocate your location first.`
+            `Punch-in blocked: you are ~${Math.round(dist)}m from ${currentUserWorkLoc.name}. You must be within ${currentUserWorkLoc.radiusM}m to punch in.`
           );
         }
       }
 
-      const label = isAtOffice
-        ? officeName
-        : isAtSite
-        ? (assignedSiteName || "Allocated Site")
-        : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      const place = await reverseGeocodePlace(lat, lng);
+      const label =
+        place.name === place.address ? place.address : `${place.name} — ${place.address}`;
 
       if (mode === "in") {
         await checkInMutation.mutateAsync({ lat, lng, address: label });
@@ -239,11 +204,7 @@ export function KekaAttendancePanel({
         await checkOutMutation.mutateAsync({ lat, lng, address: label });
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setPunchError(err.message);
-      } else {
-        setPunchError("Unable to verify location. Please ensure GPS is enabled.");
-      }
+      setPunchError(geolocationErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -326,7 +287,7 @@ export function KekaAttendancePanel({
                   Workplace Allocation
                 </span>
                 <span className="font-semibold text-neutral-800 truncate block max-w-[220px]">
-                  {assignedSiteName ? assignedSiteName : officeName}
+                  {displaySiteName}
                 </span>
               </div>
             </div>

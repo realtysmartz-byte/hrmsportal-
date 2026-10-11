@@ -39,6 +39,8 @@ import { cn } from "@/lib/utils";
 
 export default function LocationTracingPage() {
   const { data: session } = useSession();
+  const { data: office } = trpc.companySettings.get.useQuery();
+  const officeLabel = `${office?.officeName ?? "Company office"} (default)`;
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -413,14 +415,14 @@ export default function LocationTracingPage() {
                       const empName = `${emp.firstName} ${emp.lastName}`;
                       const initial = emp.firstName?.[0] ?? "E";
 
-                      const isSiteAssigned = Boolean(emp.workLocationLat != null && emp.workLocationLng != null);
-                      const siteName = emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)";
-                      const siteLat = emp.workLocationLat ?? 28.3997196;
-                      const siteLng = emp.workLocationLng ?? 77.0385682;
+                      const isSiteAssigned = emp.workLocationLat != null && emp.workLocationLng != null;
+                      const siteName = isSiteAssigned ? emp.workLocationName || "Assigned site" : officeLabel;
+                      const siteLat = (isSiteAssigned ? emp.workLocationLat : office?.officeLat) ?? 0;
+                      const siteLng = (isSiteAssigned ? emp.workLocationLng : office?.officeLng) ?? 0;
 
-                      // Preferred coordinates to show on map (assigned site takes precedence if configured)
-                      const targetLat = (isSiteAssigned ? siteLat : ping?.lat ?? att?.checkInLat) ?? siteLat;
-                      const targetLng = (isSiteAssigned ? siteLng : ping?.lng ?? att?.checkInLng) ?? siteLng;
+                      // Real device position first; workplace only when nothing was captured today
+                      const targetLat = ping?.lat ?? att?.checkInLat ?? siteLat;
+                      const targetLng = ping?.lng ?? att?.checkInLng ?? siteLng;
                       const targetLabel = ping
                         ? `30-Min Ping at ${new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                         : att?.checkInTime
@@ -588,13 +590,13 @@ export default function LocationTracingPage() {
               <div className="md:hidden divide-y divide-neutral-100 p-2 space-y-2.5">
                 {filteredStaff.map(({ employee: emp, todayAttendance: att, latestPing: ping }) => {
                   const empName = `${emp.firstName} ${emp.lastName}`;
-                  const isSiteAssigned = Boolean(emp.workLocationLat != null && emp.workLocationLng != null);
-                  const siteName = emp.workLocationName || "REALTY SMARTZ PVT LTD (HQ)";
-                  const siteLat = emp.workLocationLat ?? 28.3997196;
-                  const siteLng = emp.workLocationLng ?? 77.0385682;
+                  const isSiteAssigned = emp.workLocationLat != null && emp.workLocationLng != null;
+                  const siteName = isSiteAssigned ? emp.workLocationName || "Assigned site" : officeLabel;
+                  const siteLat = (isSiteAssigned ? emp.workLocationLat : office?.officeLat) ?? 0;
+                  const siteLng = (isSiteAssigned ? emp.workLocationLng : office?.officeLng) ?? 0;
 
-                  const targetLat = (isSiteAssigned ? siteLat : ping?.lat ?? att?.checkInLat) ?? siteLat;
-                  const targetLng = (isSiteAssigned ? siteLng : ping?.lng ?? att?.checkInLng) ?? siteLng;
+                  const targetLat = ping?.lat ?? att?.checkInLat ?? siteLat;
+                  const targetLng = ping?.lng ?? att?.checkInLng ?? siteLng;
                   const targetLabel = ping
                     ? `Ping at ${new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                     : att?.checkInTime

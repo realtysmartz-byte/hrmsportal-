@@ -69,8 +69,12 @@ export function KekaMapViewModal({
   }, [selectedPinId, events, checkInEvent, punchItemsWithBadges, checkOutEvent]);
 
   // Coordinates for map display
-  const mapCenterLat = activePoint ? activePoint.lat : log?.checkInLat ?? 28.3997196;
-  const mapCenterLng = activePoint ? activePoint.lng : log?.checkInLng ?? 77.0385682;
+  const mapCenterLat = activePoint
+    ? activePoint.lat
+    : data?.employee.workLocationLat ?? data?.settings?.officeLat ?? 0;
+  const mapCenterLng = activePoint
+    ? activePoint.lng
+    : data?.employee.workLocationLng ?? data?.settings?.officeLng ?? 0;
 
   // Header formatted date e.g. "10 OCT 2026"
   const formattedHeaderDate = useMemo(() => {

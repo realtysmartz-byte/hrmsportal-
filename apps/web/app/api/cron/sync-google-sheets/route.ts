@@ -21,12 +21,9 @@ export async function GET(req: Request) {
     const authHeader = req.headers.get("authorization");
     const secret = searchParams.get("secret");
 
-    // Optional Cron Secret verification if configured
-    if (process.env.CRON_SECRET) {
-      const token = authHeader?.replace("Bearer ", "") || secret;
-      if (token !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    const token = authHeader?.replace("Bearer ", "") || secret;
+    if (!process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Date to sync (defaults to today)

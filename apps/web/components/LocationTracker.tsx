@@ -3,27 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { MapPin } from "lucide-react";
+import { haversineDistanceM, LOCATION_PING_INTERVAL_MS } from "@realty-smartz/shared";
 import { trpc } from "@/lib/trpc";
+import { getCurrentPosition, reverseGeocodePlace } from "@/lib/geolocation";
 import { cn } from "@/lib/utils";
 
-// Active tracking interval: 15 minutes during work sessions (900,000 ms)
-const ACTIVE_PING_INTERVAL_MS = 15 * 60 * 1000;
-
-function haversineDistM(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3;
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+const MOVE_THRESHOLD_M = 50;
+const MIN_MOVE_PING_GAP_MS = 5 * 60 * 1000;
 
 export function LocationTracker() {
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const { data: todayAttendance } = trpc.attendance.today.useQuery(undefined, {
     enabled: authStatus === "authenticated",
     refetchInterval: 60_000,
@@ -31,10 +20,7 @@ export function LocationTracker() {
 
   const [status, setStatus] = useState<"on" | "denied" | "error" | "idle">("idle");
   const [lastAt, setLastAt] = useState<Date | null>(null);
-  const lastPos = useRef<GeolocationPosition | null>(null);
-  const lastPingedCoords = useRef<{ lat: number; lng: number } | null>(null);
-  const lastPingTime = useRef<number>(0);
-  const watchId = useRef<number | null>(null);
+  const lastPinged = useRef<{ lat: number; lng: number; at: number } | null>(null);
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null);
 
   const pingMutation = trpc.attendance.locationPing.useMutation();
@@ -42,6 +28,8 @@ export function LocationTracker() {
   pingRef.current = pingMutation.mutateAsync;
 
   const reportDisabledMutation = trpc.attendance.reportLocationDisabled.useMutation();
+  const reportRef = useRef(reportDisabledMutation.mutate);
+  reportRef.current = reportDisabledMutation.mutate;
   const hasReportedRef = useRef(false);
 
   const isOnDuty = Boolean(
@@ -56,25 +44,50 @@ export function LocationTracker() {
     }
 
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    function handleError(err: GeolocationPositionError) {
+      if (cancelled) return;
+      if (err.code === err.PERMISSION_DENIED) {
+        setStatus("denied");
+        if (!hasReportedRef.current) {
+          hasReportedRef.current = true;
+          reportRef.current({
+            reason: "Employee turned off device location / denied permission",
+            deviceInfo: navigator.userAgent,
+          });
+        }
+      } else {
+        setStatus("error");
+      }
+    }
 
     async function sendPing(pos: GeolocationPosition) {
       const { latitude, longitude, accuracy } = pos.coords;
       try {
+        const place = await reverseGeocodePlace(latitude, longitude);
         await pingRef.current({
           lat: latitude,
           lng: longitude,
-          address: null, // Let server assign verified workplace name
+          address: place.address,
           accuracyM: accuracy ?? null,
+          capturedAt: new Date(pos.timestamp),
         });
         if (!cancelled) {
-          lastPingedCoords.current = { lat: latitude, lng: longitude };
-          lastPingTime.current = Date.now();
-          setLastAt(new Date());
+          lastPinged.current = { lat: latitude, lng: longitude, at: Date.now() };
+          setLastAt(new Date(pos.timestamp));
           setStatus("on");
         }
       } catch {
         if (!cancelled) setStatus("error");
+      }
+    }
+
+    async function pingFresh() {
+      try {
+        const pos = await getCurrentPosition();
+        if (!cancelled) await sendPing(pos);
+      } catch (err) {
+        handleError(err as GeolocationPositionError);
       }
     }
 
@@ -93,123 +106,54 @@ export function LocationTracker() {
       }
     }
 
-    // 1. Send initial ping on load if user is on duty
-    navigator.geolocation.getCurrentPosition(
+    if (!isOnDuty) {
+      // Only check permission state so the badge is accurate; nothing is recorded off duty.
+      navigator.geolocation.getCurrentPosition(
+        () => !cancelled && setStatus("on"),
+        handleError,
+        { enableHighAccuracy: false, timeout: 15_000, maximumAge: 0 }
+      );
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void pingFresh();
+
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         if (cancelled) return;
-        lastPos.current = pos;
         setStatus("on");
-        if (isOnDuty) {
-          void sendPing(pos);
-        }
+        const prev = lastPinged.current;
+        if (!prev || Date.now() - prev.at < MIN_MOVE_PING_GAP_MS) return;
+        const moved = haversineDistanceM(
+          prev.lat,
+          prev.lng,
+          pos.coords.latitude,
+          pos.coords.longitude
+        );
+        if (moved > MOVE_THRESHOLD_M) void sendPing(pos);
       },
-      (err) => {
-        if (cancelled) return;
-        if (err.code === err.PERMISSION_DENIED) {
-          setStatus("denied");
-          if (!hasReportedRef.current) {
-            hasReportedRef.current = true;
-            reportDisabledMutation.mutate({
-              reason: "Employee turned off device location / denied permission on page load",
-              deviceInfo: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-            });
-          }
-        } else {
-          setStatus("error");
-        }
-      },
-      { enableHighAccuracy: true, timeout: 15_000 }
-    );
-
-    // 2. Watch position continuously; ping if employee moves > 50 meters during on duty
-    watchId.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (cancelled) return;
-        lastPos.current = pos;
-        setStatus("on");
-
-        if (isOnDuty && lastPingedCoords.current) {
-          const distMoved = haversineDistM(
-            lastPingedCoords.current.lat,
-            lastPingedCoords.current.lng,
-            pos.coords.latitude,
-            pos.coords.longitude
-          );
-          // If moved > 50m, record ping immediately
-          if (distMoved > 50) {
-            void sendPing(pos);
-          }
-        }
-      },
-      (err) => {
-        if (cancelled) return;
-        const isDenied = err.code === err.PERMISSION_DENIED;
-        setStatus(isDenied ? "denied" : "error");
-
-        if (isDenied && !hasReportedRef.current) {
-          hasReportedRef.current = true;
-          reportDisabledMutation.mutate({
-            reason: "Employee turned off device location / denied permission during active session",
-            deviceInfo: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-          });
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 30_000,
-        timeout: 20_000,
-      }
+      handleError,
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 }
     );
 
     void requestWakeLock();
 
-    // 3. Periodic breadcrumb interval (every 15-30 mins while on duty)
-    intervalId = setInterval(() => {
-      if (!isOnDuty) return;
+    const intervalId = setInterval(() => void pingFresh(), LOCATION_PING_INTERVAL_MS);
 
-      if (lastPos.current) {
-        void sendPing(lastPos.current);
-      } else {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            lastPos.current = pos;
-            void sendPing(pos);
-          },
-          () => {
-            if (!cancelled) setStatus("error");
-          },
-          { enableHighAccuracy: true, timeout: 20_000 }
-        );
-      }
-    }, ACTIVE_PING_INTERVAL_MS);
-
-    // 4. When visibility turns on (app brought to foreground), check if >=15 mins since last ping
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void requestWakeLock();
-        if (isOnDuty) {
-          const elapsedMs = Date.now() - lastPingTime.current;
-          if (elapsedMs >= 15 * 60 * 1000) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                lastPos.current = pos;
-                void sendPing(pos);
-              },
-              () => {},
-              { enableHighAccuracy: true, timeout: 15_000 }
-            );
-          }
-        }
-      }
+      if (document.visibilityState !== "visible") return;
+      void requestWakeLock();
+      const last = lastPinged.current?.at ?? 0;
+      if (Date.now() - last >= LOCATION_PING_INTERVAL_MS) void pingFresh();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
-      if (watchId.current != null) {
-        navigator.geolocation.clearWatch(watchId.current);
-      }
+      clearInterval(intervalId);
+      navigator.geolocation.clearWatch(watchId);
       document.removeEventListener("visibilitychange", onVisibility);
       void wakeLock.current?.release();
     };
@@ -225,7 +169,7 @@ export function LocationTracker() {
         status === "denied" && "border-rose-200 text-rose-700 bg-rose-50/90",
         (status === "error" || status === "idle") && "border-neutral-200 text-neutral-600"
       )}
-      title="Live GPS Location Tracking active. Pings are logged automatically every 15-30 minutes during active work shifts."
+      title="While punched in, your live GPS location is recorded every 30 minutes."
     >
       <span
         className={cn(
