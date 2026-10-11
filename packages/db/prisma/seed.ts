@@ -106,9 +106,6 @@ async function main() {
       dateOfBirth: new Date("1992-05-15"),
       address: "Realty Smartz HQ, Gurugram, Haryana",
       status: EmployeeStatus.ACTIVE,
-      workLocationName: "Realty Smartz Private Limited HQ, Gurugram",
-      workLocationLat: 28.4595,
-      workLocationLng: 77.0266,
     },
   });
 
