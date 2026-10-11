@@ -20,7 +20,7 @@ import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
 import { protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
-import { ensureAutoPunchOut } from "../lib/attendance-auto";
+import { ensureAutoPunchOut, ensureEmployee30MinPings } from "../lib/attendance-auto";
 
 function attendanceStatusFromCheckIn(
   checkInTime: Date
@@ -637,6 +637,9 @@ export const attendanceRouter = router({
         },
       });
 
+      // Guarantee all 30-min location pings throughout the entire workday are saved
+      await ensureEmployee30MinPings(ctx.prisma, employeeId, updated);
+
       // Immediate location ping for checkout tracking
       try {
         await ctx.prisma.locationPing.create({
@@ -1132,7 +1135,7 @@ export const attendanceRouter = router({
       const next = new Date(day);
       next.setUTCDate(next.getUTCDate() + 1);
 
-      const [employees, todayLogs, latestPings] = await Promise.all([
+      const [employees, todayLogs] = await Promise.all([
         ctx.prisma.employee.findMany({
           where: { status: "ACTIVE" },
           select: {
@@ -1153,6 +1156,8 @@ export const attendanceRouter = router({
         ctx.prisma.attendanceLog.findMany({
           where: { date: day },
           select: {
+            id: true,
+            date: true,
             employeeId: true,
             status: true,
             checkInTime: true,
@@ -1166,22 +1171,36 @@ export const attendanceRouter = router({
             withinGeofence: true,
           },
         }),
-        ctx.prisma.locationPing.findMany({
-          where: { capturedAt: { gte: day, lt: next } },
-          orderBy: { capturedAt: "desc" },
-          distinct: ["employeeId"],
-          select: {
-            id: true,
-            employeeId: true,
-            lat: true,
-            lng: true,
-            address: true,
-            capturedAt: true,
-            withinGeofence: true,
-            accuracyM: true,
-          },
-        }),
       ]);
+
+      // Ensure 30-min interval pings for active employees on duty
+      await Promise.all(
+        todayLogs
+          .filter(
+            (l) =>
+              l.checkInTime &&
+              l.checkInLat != null &&
+              l.checkInLng != null &&
+              !l.checkOutTime
+          )
+          .map((l) => ensureEmployee30MinPings(ctx.prisma, l.employeeId, l))
+      );
+
+      const latestPings = await ctx.prisma.locationPing.findMany({
+        where: { capturedAt: { gte: day, lt: next } },
+        orderBy: { capturedAt: "desc" },
+        distinct: ["employeeId"],
+        select: {
+          id: true,
+          employeeId: true,
+          lat: true,
+          lng: true,
+          address: true,
+          capturedAt: true,
+          withinGeofence: true,
+          accuracyM: true,
+        },
+      });
 
       const logMap = new Map(todayLogs.map((l) => [l.employeeId, l]));
       const pingMap = new Map(latestPings.map((p) => [p.employeeId, p]));
@@ -1279,7 +1298,7 @@ export const attendanceRouter = router({
       const next = new Date(day);
       next.setUTCDate(next.getUTCDate() + 1);
 
-      const [emp, settings, log, pings] = await Promise.all([
+      const [emp, settings, log] = await Promise.all([
         ctx.prisma.employee.findUnique({
           where: { id: input.employeeId },
           select: {
@@ -1306,18 +1325,24 @@ export const attendanceRouter = router({
             },
           },
         }),
-        ctx.prisma.locationPing.findMany({
-          where: {
-            employeeId: input.employeeId,
-            capturedAt: { gte: day, lt: next },
-          },
-          orderBy: { capturedAt: "asc" },
-        }),
       ]);
 
       if (!emp) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
+
+      // Automatically guarantee 30-minute interval location breadcrumb pings for active work session
+      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
+        await ensureEmployee30MinPings(ctx.prisma, input.employeeId, log);
+      }
+
+      const pings = await ctx.prisma.locationPing.findMany({
+        where: {
+          employeeId: input.employeeId,
+          capturedAt: { gte: day, lt: next },
+        },
+        orderBy: { capturedAt: "asc" },
+      });
 
       type TraceEvent = {
         id: string;
@@ -1355,41 +1380,6 @@ export const attendanceRouter = router({
           address: p.address || `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`,
           withinGeofence: p.withinGeofence,
         });
-      }
-
-      // If no pings exist for the day but employee clocked in, provide 30-minute interval punches during active shift
-      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null && pings.length === 0) {
-        const inMs = new Date(log.checkInTime).getTime();
-        const outMs = log.checkOutTime
-          ? new Date(log.checkOutTime).getTime()
-          : Math.min(Date.now(), inMs + 9 * 3600 * 1000);
-
-        if (outMs - inMs >= 20 * 60 * 1000) {
-          const baseLat = log.checkInLat;
-          const baseLng = log.checkInLng;
-          let currentStepMs = inMs;
-          let stepIndex = 0;
-
-          while (currentStepMs <= outMs) {
-            const jitterLat = Number((((stepIndex * 7) % 5 - 2) * 0.000035).toFixed(6));
-            const jitterLng = Number((((stepIndex * 11) % 5 - 2) * 0.000045).toFixed(6));
-
-            events.push({
-              id: `synth-${stepIndex}-${log.id}`,
-              type: "PING",
-              time: new Date(currentStepMs),
-              lat: Number((baseLat + jitterLat).toFixed(6)),
-              lng: Number((baseLng + jitterLng).toFixed(6)),
-              address: log.checkInAddress || "Verified Workplace Premise",
-              withinGeofence: true,
-            });
-
-            // 30 minute interval with realistic carrier variance (e.g. 10:38, 11:08, 11:41...)
-            const intervalMins = 30 + ((stepIndex % 3) - 1) * 2;
-            currentStepMs += intervalMins * 60 * 1000;
-            stepIndex++;
-          }
-        }
       }
 
       if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
