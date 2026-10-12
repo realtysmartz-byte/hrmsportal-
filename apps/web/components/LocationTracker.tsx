@@ -6,6 +6,7 @@ import { MapPin } from "lucide-react";
 import { haversineDistanceM, LOCATION_PING_INTERVAL_MS } from "@realty-smartz/shared";
 import { trpc } from "@/lib/trpc";
 import { getCurrentPosition, reverseGeocodePlace } from "@/lib/geolocation";
+import { isNativeApp, sendNativePing, startNativeWatcher } from "@/lib/native-location";
 import { cn } from "@/lib/utils";
 
 const MOVE_THRESHOLD_M = 50;
@@ -115,6 +116,77 @@ export function LocationTracker() {
       );
       return () => {
         cancelled = true;
+      };
+    }
+
+    if (isNativeApp()) {
+      let sending = false;
+      let stopWatcher: (() => void) | null = null;
+
+      const onNativeLocation = async (loc: {
+        latitude: number;
+        longitude: number;
+        accuracy: number | null;
+        time: number | null;
+      }) => {
+        if (cancelled || sending) return;
+        setStatus("on");
+        const prev = lastPinged.current;
+        const now = Date.now();
+        const due =
+          !prev ||
+          now - prev.at >= LOCATION_PING_INTERVAL_MS ||
+          (now - prev.at >= MIN_MOVE_PING_GAP_MS &&
+            haversineDistanceM(prev.lat, prev.lng, loc.latitude, loc.longitude) > MOVE_THRESHOLD_M);
+        if (!due) return;
+
+        sending = true;
+        const capturedAt = new Date(loc.time ?? now);
+        try {
+          const place = await reverseGeocodePlace(loc.latitude, loc.longitude);
+          await sendNativePing({
+            lat: loc.latitude,
+            lng: loc.longitude,
+            address: place.address,
+            accuracyM: loc.accuracy ?? null,
+            capturedAt,
+          });
+          lastPinged.current = { lat: loc.latitude, lng: loc.longitude, at: now };
+          if (!cancelled) setLastAt(capturedAt);
+        } catch {
+          if (!cancelled) setStatus("error");
+        } finally {
+          sending = false;
+        }
+      };
+
+      startNativeWatcher(
+        (loc) => void onNativeLocation(loc),
+        (err) => {
+          if (cancelled) return;
+          if (err.code === "NOT_AUTHORIZED") {
+            setStatus("denied");
+            if (!hasReportedRef.current) {
+              hasReportedRef.current = true;
+              reportRef.current({
+                reason: "Employee turned off device location / denied permission",
+                deviceInfo: navigator.userAgent,
+              });
+            }
+          } else {
+            setStatus("error");
+          }
+        }
+      )
+        .then((stop) => {
+          if (cancelled) stop();
+          else stopWatcher = stop;
+        })
+        .catch(() => !cancelled && setStatus("error"));
+
+      return () => {
+        cancelled = true;
+        stopWatcher?.();
       };
     }
 
