@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RS HRMS</string>
-    <string name="hostName">realty-hrms-portal-web-amber.vercel.app</string>
-    <string name="launchUrl">https://realty-hrms-portal-web-amber.vercel.app/?source=pwa</string>
+    <string name="hostName">rshrms.in</string>
+    <string name="launchUrl">https://rshrms.in/?source=pwa</string>
     <string name="providerAuthority">com.realtysmartz.hrms.fileprovider</string>
     <string name="assetStatements">
         [{
             \"relation\": [\"delegate_permission/common.handle_all_urls\"],
-            \"target\": {\"namespace\": \"web\", \"site\": \"https://realty-hrms-portal-web-amber.vercel.app\"}
+            \"target\": {\"namespace\": \"web\", \"site\": \"https://rshrms.in\"}
         }]
     </string>
 </resources>
