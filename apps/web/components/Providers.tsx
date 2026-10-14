@@ -25,6 +25,8 @@ const MESSAGES: Record<string, string> = {
   "designation.delete": "Designation deleted",
   "emailSettings.sendTestEmail": "Test email sent",
   "employee.create": "Employee added",
+  "employee.importExcel": "Employees imported from Excel",
+  "attendance.importExcel": "Attendance imported from Excel",
   "employee.update": "Employee details saved",
   "employee.delete": "Employee deleted",
   "employee.updateMyPhoto": "Profile photo updated",

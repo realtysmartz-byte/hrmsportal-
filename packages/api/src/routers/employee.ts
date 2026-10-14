@@ -23,6 +23,7 @@ import {
   profileCompletionPercent,
   resolveActorId,
 } from "../lib/employee-access";
+import { parseExcelDate } from "../lib/excel-import";
 
 const employeeInclude = {
   department: { select: { id: true, name: true } },
@@ -563,6 +564,166 @@ export const employeeRouter = router({
 
       const { passwordHash: _, ...safe } = employee;
       return safe;
+    }),
+
+  importExcel: hrAdminProcedure
+    .input(
+      z.object({
+        rows: z
+          .array(
+            z.object({
+              employeeCode: z.string().optional(),
+              firstName: z.string().optional(),
+              lastName: z.string().optional(),
+              email: z.string().optional(),
+              phone: z.string().optional(),
+              gender: z.string().optional(),
+              role: z.string().optional(),
+              department: z.string().optional(),
+              designation: z.string().optional(),
+              dateOfJoining: z.string().optional(),
+              dateOfBirth: z.string().optional(),
+              status: z.string().optional(),
+              password: z.string().optional(),
+            })
+          )
+          .max(2000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const ROLES = ["ADMIN", "HR", "MANAGER", "EMPLOYEE"] as const;
+      const STATUSES = ["ACTIVE", "ON_LEAVE", "RESIGNED", "TERMINATED"] as const;
+      const departmentIds = new Map<string, string>();
+      const designationIds = new Map<string, string>();
+      const leaveTypes = await ctx.prisma.leaveType.findMany();
+      const year = new Date().getFullYear();
+      let created = 0;
+      let updated = 0;
+      const errors: { row: number; message: string }[] = [];
+
+      const departmentId = async (name?: string) => {
+        const key = name?.trim();
+        if (!key) return undefined;
+        if (!departmentIds.has(key.toLowerCase())) {
+          const dept =
+            (await ctx.prisma.department.findFirst({
+              where: { name: { equals: key, mode: "insensitive" } },
+            })) ?? (await ctx.prisma.department.create({ data: { name: key } }));
+          departmentIds.set(key.toLowerCase(), dept.id);
+        }
+        return departmentIds.get(key.toLowerCase());
+      };
+
+      const designationId = async (title?: string) => {
+        const key = title?.trim();
+        if (!key) return undefined;
+        if (!designationIds.has(key.toLowerCase())) {
+          const des =
+            (await ctx.prisma.designation.findFirst({
+              where: { title: { equals: key, mode: "insensitive" } },
+            })) ?? (await ctx.prisma.designation.create({ data: { title: key } }));
+          designationIds.set(key.toLowerCase(), des.id);
+        }
+        return designationIds.get(key.toLowerCase());
+      };
+
+      for (const [i, row] of input.rows.entries()) {
+        const rowNo = i + 2;
+        try {
+          const email = row.email?.trim().toLowerCase();
+          if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+            errors.push({ row: rowNo, message: "Valid Email is required" });
+            continue;
+          }
+
+          const role = row.role?.trim().toUpperCase();
+          if (role && !ROLES.includes(role as (typeof ROLES)[number])) {
+            errors.push({ row: rowNo, message: `Invalid Role "${row.role}"` });
+            continue;
+          }
+          const status = row.status?.trim().toUpperCase().replace(/\s+/g, "_");
+          if (status && !STATUSES.includes(status as (typeof STATUSES)[number])) {
+            errors.push({ row: rowNo, message: `Invalid Status "${row.status}"` });
+            continue;
+          }
+
+          const doj = parseExcelDate(row.dateOfJoining);
+          const dob = parseExcelDate(row.dateOfBirth);
+          const data = {
+            ...(row.firstName?.trim() && { firstName: row.firstName.trim() }),
+            ...(row.lastName?.trim() && { lastName: row.lastName.trim() }),
+            ...(row.phone?.trim() && { phone: row.phone.trim() }),
+            ...(row.gender?.trim() && { gender: row.gender.trim() }),
+            ...(role && { role: role as (typeof ROLES)[number] }),
+            ...(status && { status: status as (typeof STATUSES)[number] }),
+            ...(doj && { dateOfJoining: new Date(doj) }),
+            ...(dob && { dateOfBirth: new Date(dob) }),
+            departmentId: await departmentId(row.department),
+            designationId: await designationId(row.designation),
+          };
+
+          const existing = await ctx.prisma.employee.findUnique({
+            where: { email },
+            select: { id: true },
+          });
+
+          if (existing) {
+            await ctx.prisma.employee.update({ where: { id: existing.id }, data });
+            updated++;
+            continue;
+          }
+
+          if (!row.firstName?.trim()) {
+            errors.push({ row: rowNo, message: "First Name is required for new employee" });
+            continue;
+          }
+
+          const code = row.employeeCode?.trim().toUpperCase();
+          if (code) {
+            const taken = await ctx.prisma.employee.findUnique({
+              where: { employeeCode: code },
+              select: { id: true },
+            });
+            if (taken) {
+              errors.push({ row: rowNo, message: `Employee Code ${code} already exists` });
+              continue;
+            }
+          }
+
+          const employee = await ctx.prisma.employee.create({
+            data: {
+              ...data,
+              firstName: row.firstName.trim(),
+              lastName: row.lastName?.trim() ?? "",
+              email,
+              employeeCode: code || (await nextEmployeeCode(ctx.prisma)),
+              passwordHash: await bcrypt.hash(row.password?.trim() || "Realty@123", 10),
+            },
+          });
+
+          if (leaveTypes.length > 0) {
+            await ctx.prisma.leaveBalance.createMany({
+              data: leaveTypes.map((lt) => ({
+                employeeId: employee.id,
+                leaveTypeId: lt.id,
+                year,
+                allotted: lt.annualQuota,
+                used: 0,
+                remaining: lt.annualQuota,
+              })),
+              skipDuplicates: true,
+            });
+          }
+          created++;
+        } catch (err) {
+          errors.push({
+            row: rowNo,
+            message: err instanceof Error ? err.message.split("\n").pop() ?? "Failed" : "Failed",
+          });
+        }
+      }
+
+      return { created, updated, errors };
     }),
 
   update: hrAdminProcedure

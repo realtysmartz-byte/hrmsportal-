@@ -16,7 +16,8 @@ import {
 } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
-import { protectedProcedure, router } from "../trpc";
+import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
+import { istDateTime, parseExcelDate, parseExcelTime } from "../lib/excel-import";
 import { assertCanViewSensitive } from "../lib/employee-access";
 import { ensureAutoPunchOut } from "../lib/attendance-auto";
 import {
@@ -1156,6 +1157,121 @@ export const attendanceRouter = router({
       }
 
       return { success: true, notified: true };
+    }),
+
+  /** Bulk import of past attendance (last 6 months) from an Excel sheet */
+  importExcel: hrAdminProcedure
+    .input(
+      z.object({
+        rows: z
+          .array(
+            z.object({
+              employeeCode: z.string().optional(),
+              email: z.string().optional(),
+              date: z.string().optional(),
+              checkIn: z.string().optional(),
+              checkOut: z.string().optional(),
+              status: z.string().optional(),
+            })
+          )
+          .max(20000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const STATUSES = ["PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE", "HOLIDAY"] as const;
+      const today = startOfDayUTC();
+      const minDate = new Date(today);
+      minDate.setUTCMonth(minDate.getUTCMonth() - 6);
+
+      const employees = await ctx.prisma.employee.findMany({
+        select: { id: true, employeeCode: true, email: true },
+      });
+      const byCode = new Map(employees.map((e) => [e.employeeCode.toUpperCase(), e.id]));
+      const byEmail = new Map(employees.map((e) => [e.email.toLowerCase(), e.id]));
+
+      let imported = 0;
+      const errors: { row: number; message: string }[] = [];
+      const records: {
+        employeeId: string;
+        date: Date;
+        checkInTime: Date | null;
+        checkOutTime: Date | null;
+        status: (typeof STATUSES)[number];
+        totalHours: number | null;
+      }[] = [];
+
+      for (const [i, row] of input.rows.entries()) {
+        const rowNo = i + 2;
+        const employeeId =
+          byCode.get(row.employeeCode?.trim().toUpperCase() ?? "") ??
+          byEmail.get(row.email?.trim().toLowerCase() ?? "");
+        if (!employeeId) {
+          errors.push({ row: rowNo, message: "Employee not found (check Employee Code / Email)" });
+          continue;
+        }
+
+        const isoDate = parseExcelDate(row.date);
+        if (!isoDate) {
+          errors.push({ row: rowNo, message: `Invalid Date "${row.date ?? ""}"` });
+          continue;
+        }
+        const date = startOfDayUTC(isoDate);
+        if (date < minDate || date > today) {
+          errors.push({ row: rowNo, message: `Date ${isoDate} is not within the last 6 months` });
+          continue;
+        }
+
+        const inTime = parseExcelTime(row.checkIn);
+        const outTime = parseExcelTime(row.checkOut);
+        const checkInTime = inTime ? istDateTime(isoDate, inTime) : null;
+        const checkOutTime = outTime ? istDateTime(isoDate, outTime) : null;
+        if (checkInTime && checkOutTime && checkOutTime <= checkInTime) {
+          errors.push({ row: rowNo, message: "Check Out must be after Check In" });
+          continue;
+        }
+
+        const statusRaw = row.status?.trim().toUpperCase().replace(/\s+/g, "_");
+        if (statusRaw && !STATUSES.includes(statusRaw as (typeof STATUSES)[number])) {
+          errors.push({ row: rowNo, message: `Invalid Status "${row.status}"` });
+          continue;
+        }
+        const status =
+          (statusRaw as (typeof STATUSES)[number] | undefined) ??
+          (checkInTime ? attendanceStatusFromCheckIn(checkInTime) : "ABSENT");
+
+        records.push({
+          employeeId,
+          date,
+          checkInTime,
+          checkOutTime,
+          status,
+          totalHours:
+            checkInTime && checkOutTime
+              ? Math.round(((checkOutTime.getTime() - checkInTime.getTime()) / 3600000) * 100) / 100
+              : null,
+        });
+      }
+
+      for (let i = 0; i < records.length; i += 100) {
+        const batch = records.slice(i, i + 100);
+        await ctx.prisma.$transaction(
+          batch.map((r) =>
+            ctx.prisma.attendanceLog.upsert({
+              where: { employeeId_date: { employeeId: r.employeeId, date: r.date } },
+              create: r,
+              update: {
+                checkInTime: r.checkInTime,
+                checkOutTime: r.checkOutTime,
+                status: r.status,
+                totalHours: r.totalHours,
+              },
+            })
+          )
+        );
+        imported += batch.length;
+      }
+
+      return { imported, errors };
     }),
 
   /**

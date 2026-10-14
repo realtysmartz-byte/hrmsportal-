@@ -14,8 +14,10 @@ import {
   Mail,
   Phone,
   Sparkles,
+  FileSpreadsheet,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ExcelImportModal } from "@/components/ExcelImportModal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,7 @@ export default function EmployeesPage({
   const canManage = canManageEmployees(role);
 
   const [search, setSearch] = useState(searchParams.q ?? "");
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     if (searchParams.q !== undefined) setSearch(searchParams.q);
@@ -79,17 +82,29 @@ export default function EmployeesPage({
         </div>
 
         {canManage && (
-          <Link href="/admin-portal/employees/new">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex items-center gap-2 rounded-lg bg-[#5D3EBC] px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95 active:scale-95 transition-all"
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-[#5D3EBC]/30 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-[#5D3EBC] hover:bg-[#F3F0FC] transition-all"
             >
-              <Plus className="h-4 w-4" />
-              Add Employee
+              <FileSpreadsheet className="h-4 w-4" />
+              Import Excel
             </button>
-          </Link>
+            <Link href="/admin-portal/employees/new">
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-lg bg-[#5D3EBC] px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95 active:scale-95 transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                Add Employee
+              </button>
+            </Link>
+          </div>
         )}
       </div>
+
+      <ExcelImportModal open={importOpen} onClose={() => setImportOpen(false)} />
 
       {/* 2. FILTER & SEARCH CONTROL BAR */}
       <div className="rounded-lg border border-neutral-200/80 bg-white p-3 sm:p-4 overflow-hidden">

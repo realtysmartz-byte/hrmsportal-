@@ -16,7 +16,9 @@ import {
   Filter,
   CalendarDays,
   CalendarRange,
+  Upload,
 } from "lucide-react";
+import { ExcelImportModal } from "@/components/ExcelImportModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +34,7 @@ import { fullName, cn } from "@/lib/utils";
 import { KekaMapViewModal } from "@/components/KekaMapViewModal";
 import {
   canViewTeamAttendance,
+  canManageEmployees,
   formatTimeIST,
   formatDateIST,
   formatDateTimeIST,
@@ -72,6 +75,7 @@ export default function TeamAttendancePage() {
   const currentMonthIST = useMemo(() => todayIST.slice(0, 7), [todayIST]);
 
   // View modes: daily (1 day), monthly (1 full month), custom (date range)
+  const [importOpen, setImportOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("daily");
   const [selectedDate, setSelectedDate] = useState(todayIST);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthIST);
@@ -359,8 +363,26 @@ export default function TeamAttendancePage() {
             <Download className="h-3.5 w-3.5 text-neutral-500" />
             <span>Export CSV</span>
           </Button>
+
+          {canManageEmployees(role) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="h-3.5 w-3.5 text-neutral-500" />
+              <span>Import Excel</span>
+            </Button>
+          )}
         </div>
       </div>
+
+      <ExcelImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        defaultKind="attendance"
+      />
 
       {/* Sync Status Banner */}
       {googleSheetResult && (
