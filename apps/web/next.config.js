@@ -4,6 +4,7 @@ const path = require("path");
 const nextConfig = {
   output: "standalone",
   experimental: {
+    instrumentationHook: true,
     outputFileTracingRoot: path.join(__dirname, "../../"),
   },
   transpilePackages: [

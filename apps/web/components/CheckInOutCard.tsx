@@ -47,11 +47,13 @@ export function CheckInOutCard() {
   const hasCompletedSession = Boolean(today?.checkInTime && today?.checkOutTime);
 
   useEffect(() => {
+    let lastRefresh = 0;
     const tick = () => {
       const d = new Date();
       setNow(d);
-      // Server auto punches out at 7:00 PM IST; refresh so the card reflects it
-      if (isOnDuty && getISTDateParts(d).hour >= 19) {
+      // Server auto punches out at 7:00 PM IST; refresh (at most once a minute) so the card reflects it
+      if (isOnDuty && getISTDateParts(d).hour >= 19 && d.getTime() - lastRefresh > 60_000) {
+        lastRefresh = d.getTime();
         void utils.attendance.today.invalidate();
       }
     };
