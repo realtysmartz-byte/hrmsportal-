@@ -1,6 +1,10 @@
 import webpush from "web-push";
 import type { PrismaClient } from "@realty-smartz/db";
-import { startOfDayUTC } from "@realty-smartz/shared";
+import {
+  AUTO_PUNCH_OUT_HOUR_IST,
+  getISTDateParts,
+  startOfDayUTC,
+} from "@realty-smartz/shared";
 
 const STALE_AFTER_MS = 25 * 60 * 1000;
 
@@ -18,6 +22,10 @@ export async function sendLocationReminders(prisma: PrismaClient) {
   webpush.setVapidDetails(subject, publicKey, privateKey);
 
   const now = new Date();
+  if (getISTDateParts(now).hour >= AUTO_PUNCH_OUT_HOUR_IST) {
+    return { onDuty: 0, sent: 0, removed: 0 };
+  }
+
   const onDuty = await prisma.attendanceLog.findMany({
     where: {
       date: startOfDayUTC(now),
@@ -47,7 +55,7 @@ export async function sendLocationReminders(prisma: PrismaClient) {
             body: "You are punched in. Tap to share your current location.",
             url: "/employee-portal/dashboard",
           }),
-          { TTL: 20 * 60 }
+          { TTL: 5 * 60 }
         );
         sent++;
       } catch (err) {
