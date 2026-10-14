@@ -18,7 +18,7 @@ export function Logo({
         alt="Realty Smartz Private Limited"
         width={size}
         height={size}
-        className="shrink-0 object-contain drop-shadow-xs"
+        className="shrink-0 object-contain"
         style={{ width: `${size}px`, height: `${size}px` }}
       />
       {showText && (

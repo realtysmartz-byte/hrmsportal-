@@ -96,7 +96,7 @@ export function EmployeeDailyTraceModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 bg-neutral-50/70">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5D3EBC] text-white shadow-sm font-bold text-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5D3EBC] text-white font-bold text-sm">
               {employeeName.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -231,7 +231,7 @@ export function EmployeeDailyTraceModal({
                 </div>
 
                 {mapLat != null && mapLng != null && (
-                  <div className="rounded-lg overflow-hidden border border-neutral-200 bg-white shadow-2xs">
+                  <div className="rounded-lg overflow-hidden border border-neutral-200 bg-white">
                     <LocationMap
                       lat={mapLat}
                       lng={mapLng}
@@ -248,7 +248,7 @@ export function EmployeeDailyTraceModal({
 
                 {/* Active Point Detail Card */}
                 {activeEvent ? (
-                  <div className="mt-3 p-3 rounded-xl bg-white border border-neutral-200/80 shadow-2xs space-y-1.5 text-xs">
+                  <div className="mt-3 p-3 rounded-xl bg-white border border-neutral-200/80 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-neutral-900 flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5 text-neutral-400" />
@@ -358,7 +358,7 @@ export function EmployeeDailyTraceModal({
                           className={cn(
                             "cursor-pointer rounded-xl p-3 border transition-all text-xs space-y-1 relative",
                             isSelected
-                              ? "border-[#5D3EBC] bg-[#5D3EBC]/5 shadow-2xs"
+                              ? "border-[#5D3EBC] bg-[#5D3EBC]/5"
                               : "border-neutral-100 hover:border-neutral-200 bg-neutral-50/60"
                           )}
                         >
@@ -381,7 +381,7 @@ export function EmployeeDailyTraceModal({
                           </p>
 
                           <div className="flex items-center justify-between text-[10px] text-neutral-400 pt-0.5">
-                            <span className="font-mono">
+                            <span className="tabular-nums">
                               {event.lat.toFixed(4)}, {event.lng.toFixed(4)}
                             </span>
                             <span

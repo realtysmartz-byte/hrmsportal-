@@ -231,7 +231,7 @@ export function AssignLocationCard({
         )}
 
         {isOpen && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg">
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-neutral-200 bg-white">
             {suggestions.map((item, idx) => (
               <button
                 key={`${item.lat}-${item.lng}-${idx}`}
@@ -262,7 +262,7 @@ export function AssignLocationCard({
             step="any"
             value={lat ?? ""}
             onChange={(e) => setLat(e.target.value ? Number(e.target.value) : null)}
-            className="font-mono"
+            className="tabular-nums"
           />
         </div>
         <div className="space-y-1">
@@ -272,7 +272,7 @@ export function AssignLocationCard({
             step="any"
             value={lng ?? ""}
             onChange={(e) => setLng(e.target.value ? Number(e.target.value) : null)}
-            className="font-mono"
+            className="tabular-nums"
           />
         </div>
       </div>

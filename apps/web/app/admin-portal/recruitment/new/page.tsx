@@ -54,7 +54,7 @@ export default function NewJobPage() {
           Publish an opening to the recruitment pipeline
         </p>
       </div>
-      <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+      <Card className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
         <CardHeader className="p-5 sm:p-6 pb-2">
           <CardTitle className="font-display text-lg font-bold text-neutral-900">Position Details</CardTitle>
         </CardHeader>

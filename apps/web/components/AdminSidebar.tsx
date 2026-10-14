@@ -77,7 +77,7 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "relative flex h-full max-h-screen shrink-0 flex-col bg-[#1E1A3C] text-white border-r border-white/10 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-x-hidden",
+        "relative flex h-full max-h-screen shrink-0 flex-col bg-[#1E1A3C] text-white border-r border-white/10 transition-all duration-300 ease-in-out select-none overflow-x-hidden",
         isCollapsed ? "w-[76px]" : "w-[260px]"
       )}
     >
@@ -100,7 +100,7 @@ export function AdminSidebar({
               alt="Realty Smartz"
               width={26}
               height={26}
-              className="h-6 w-6 object-contain drop-shadow"
+              className="h-6 w-6 object-contain"
             />
           </div>
 
@@ -186,13 +186,13 @@ export function AdminSidebar({
                   )}
 
                   {!isCollapsed && active && (
-                    <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white shadow-xs" />
+                    <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white " />
                   )}
                 </Link>
 
                 {/* Floating Tooltip in Collapsed Dock Mode */}
                 {isCollapsed && (
-                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#1E202E] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white shadow-xl opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
+                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#1E202E] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
                     {item.label}
                   </div>
                 )}
@@ -241,7 +241,7 @@ export function AdminSidebar({
 
                 {/* Tooltip for collapsed dock mode */}
                 {isCollapsed && (
-                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#1E202E] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white shadow-xl opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
+                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#1E202E] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
                     {item.label}
                   </div>
                 )}
@@ -291,7 +291,7 @@ export function AdminSidebar({
           type="button"
           onClick={() => setShowInstallModal(true)}
           className={cn(
-            "flex w-full items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
+            "flex w-full items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all ",
             isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Install Realty Smartz App (Mobile & Desktop)"
@@ -312,7 +312,7 @@ export function AdminSidebar({
           href="/employee-portal/dashboard"
           onClick={onCloseMobile}
           className={cn(
-            "flex items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
+            "flex items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all ",
             isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Switch to Employee Portal"
@@ -332,7 +332,7 @@ export function AdminSidebar({
           )}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#A78BFA] to-[#C4B5FD] text-xs font-bold text-white shadow-sm">
+            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#A78BFA] to-[#C4B5FD] text-xs font-bold text-white">
               {userInitial}
               <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#18152F]" />
             </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -34,12 +34,20 @@ import { fullName, initials } from "@/lib/utils";
 import { canManageEmployees, EMPLOYEE_STATUSES } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 
-export default function EmployeesPage() {
+export default function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
   const { data: session } = useSession();
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
   const canManage = canManageEmployees(role);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.q ?? "");
+
+  useEffect(() => {
+    if (searchParams.q !== undefined) setSearch(searchParams.q);
+  }, [searchParams.q]);
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -84,7 +92,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* 2. FILTER & SEARCH CONTROL BAR */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-3 sm:p-4 shadow-2xs overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-3 sm:p-4 overflow-hidden">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search Field */}
           <div className="relative min-w-0 sm:min-w-[200px] flex-1">
@@ -164,7 +172,7 @@ export default function EmployeesPage() {
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : (
-        <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
           {/* Mobile Employee Cards (sm:hidden) */}
           <div className="block sm:hidden divide-y divide-neutral-100">
             {rows.length === 0 && (
@@ -188,7 +196,7 @@ export default function EmployeesPage() {
                 className="flex items-center justify-between p-3.5 hover:bg-neutral-50/70 transition-colors gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-xs">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white">
                     {emp.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -208,7 +216,7 @@ export default function EmployeesPage() {
                       {emp.designation?.title ?? "No designation"} {emp.department?.name ? `• ${emp.department.name}` : ""}
                     </p>
                     <div className="mt-1 flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-neutral-400 font-medium">
+                      <span className="tabular-nums text-[10px] text-neutral-400 font-medium">
                         {emp.employeeCode}
                       </span>
                       <StatusBadge status={emp.status} />
@@ -259,7 +267,7 @@ export default function EmployeesPage() {
                         href={`/admin-portal/employees/${emp.id}`}
                         className="flex items-center gap-3.5 group/emp"
                       >
-                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-xs group-hover/emp:scale-105 transition-transform">
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white group-hover/emp:scale-105 transition-transform">
                           {emp.profilePhotoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -275,7 +283,7 @@ export default function EmployeesPage() {
                           <p className="font-bold text-neutral-900 group-hover/emp:text-[#5D3EBC] transition-colors truncate">
                             {fullName(emp.firstName, emp.lastName)}
                           </p>
-                          <p className="text-[11px] font-mono text-neutral-400 font-medium">
+                          <p className="text-[11px] tabular-nums text-neutral-400 font-medium">
                             {emp.employeeCode}
                           </p>
                         </div>

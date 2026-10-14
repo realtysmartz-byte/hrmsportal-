@@ -159,7 +159,7 @@ export default function EmployeePerformancePage() {
   return (
     <div className="section-gap">
       {/* Active Cycle Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-teal-200 bg-white p-6 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-teal-200 bg-white p-6">
         <div>
           <div className="flex items-center gap-2">
             <Badge variant="success">Active Cycle</Badge>
@@ -184,7 +184,7 @@ export default function EmployeePerformancePage() {
             onClick={() => setActiveTab("goals")}
             className={`rounded-lg px-4 py-2 text-caption font-semibold transition-all ${
               activeTab === "goals"
-                ? "bg-white text-teal-800 shadow-sm"
+                ? "bg-white text-teal-800"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
@@ -195,7 +195,7 @@ export default function EmployeePerformancePage() {
             onClick={() => setActiveTab("reviews")}
             className={`rounded-lg px-4 py-2 text-caption font-semibold transition-all ${
               activeTab === "reviews"
-                ? "bg-white text-teal-800 shadow-sm"
+                ? "bg-white text-teal-800"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
@@ -612,7 +612,7 @@ export default function EmployeePerformancePage() {
                           }
                           className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-bold transition-all ${
                             reviewForm.rating >= star
-                              ? "border-amber-400 bg-amber-50 text-amber-700 shadow-sm"
+                              ? "border-amber-400 bg-amber-50 text-amber-700"
                               : "border-neutral-200 text-neutral-400 hover:border-neutral-300"
                           }`}
                         >

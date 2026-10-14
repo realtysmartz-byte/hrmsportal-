@@ -97,7 +97,7 @@ export default function DesignationsPage() {
       </div>
 
       {/* 2. ADD DESIGNATION CARD (Sleek Glass Bento Card) */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-4 sm:p-5 shadow-2xs">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-4 sm:p-5">
         <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3">
           Create New Designation
         </h2>
@@ -125,7 +125,7 @@ export default function DesignationsPage() {
       </div>
 
       {/* 3. DESIGNATIONS TABLE (Contained & Overflow-Hidden) */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -203,7 +203,7 @@ export default function DesignationsPage() {
                             setEditingId(desig.id);
                             setEditTitle(desig.title);
                           }}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors shadow-2xs"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
                           title="Edit designation title"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -215,7 +215,7 @@ export default function DesignationsPage() {
                               deleteMutation.mutate({ id: desig.id });
                             }
                           }}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200/60 bg-white text-rose-600 hover:bg-rose-50 transition-colors shadow-2xs"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200/60 bg-white text-rose-600 hover:bg-rose-50 transition-colors"
                           title="Delete designation"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

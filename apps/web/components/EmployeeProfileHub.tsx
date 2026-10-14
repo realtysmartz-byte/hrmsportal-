@@ -164,7 +164,7 @@ export function EmployeeProfileHub({
   const { employee: emp, access, overview, jobHistory } = data;
 
   return (
-    <div className="w-full max-w-full overflow-hidden bg-white rounded-lg border border-neutral-200/80 shadow-2xs">
+    <div className="w-full max-w-full overflow-hidden bg-white rounded-lg border border-neutral-200/80">
       {/* Bento Obsidian + Radiant Coral banner */}
       <div className="relative">
         <div
@@ -199,7 +199,7 @@ export function EmployeeProfileHub({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white shadow-2xs"
+                  className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white"
                 >
                   <Pencil className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   Edit
@@ -210,7 +210,7 @@ export function EmployeeProfileHub({
               <Button
                 size="sm"
                 variant="secondary"
-                className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white shadow-2xs"
+                className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white"
               >
                 <Network className="h-3.5 w-3.5 text-[#5D3EBC]" />
                 Org Chart
@@ -241,7 +241,7 @@ export function EmployeeProfileHub({
         <div className="relative px-4 pb-0 pt-0 md:px-6">
           <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
             <div className="relative group">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#5D3EBC] font-display text-xl font-bold text-white shadow-md md:h-24 md:w-24 md:text-2xl">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#5D3EBC] font-display text-xl font-bold text-white md:h-24 md:w-24 md:text-2xl">
                 {emp.profilePhotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -257,7 +257,7 @@ export function EmployeeProfileHub({
                 <button
                   type="button"
                   onClick={() => setShowPhotoModal(true)}
-                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#181C26] text-white shadow-md hover:bg-neutral-800 transition-colors"
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#181C26] text-white hover:bg-neutral-800 transition-colors"
                   title="Upload / Change profile photo"
                 >
                   <Camera className="h-3.5 w-3.5" />
@@ -441,7 +441,7 @@ export function EmployeeProfileHub({
       {/* Photo Change Modal for Employee */}
       {showPhotoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl border border-neutral-200 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 border border-neutral-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <h3 className="font-display text-base font-bold text-neutral-900">
                 Profile Photo Settings
@@ -462,7 +462,7 @@ export function EmployeeProfileHub({
             <div className="mt-4 space-y-4">
               {/* Current Photo Preview & Source */}
               <div className="flex items-center gap-4 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#5D3EBC] text-white font-bold text-lg shadow-sm">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#5D3EBC] text-white font-bold text-lg">
                   {photoPreview || emp.profilePhotoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -607,7 +607,7 @@ function LimitedColleagueProfileView({
       {/* 3 Bento Cards for Directory Details */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Card 1: Job & Department */}
-        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+        <Card className="border-neutral-200/80 bg-white">
           <CardHeader className="pb-3 border-b border-neutral-100">
             <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
               <Building className="h-4 w-4 text-primary" />
@@ -623,7 +623,7 @@ function LimitedColleagueProfileView({
         </Card>
 
         {/* Card 2: Work Contact */}
-        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+        <Card className="border-neutral-200/80 bg-white">
           <CardHeader className="pb-3 border-b border-neutral-100">
             <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
               <Mail className="h-4 w-4 text-primary" />
@@ -638,7 +638,7 @@ function LimitedColleagueProfileView({
         </Card>
 
         {/* Card 3: Reporting Manager */}
-        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+        <Card className="border-neutral-200/80 bg-white">
           <CardHeader className="pb-3 border-b border-neutral-100">
             <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
               <Network className="h-4 w-4 text-primary" />
@@ -672,7 +672,7 @@ function LimitedColleagueProfileView({
 
       {/* Direct Reports List if any */}
       {emp.directReports && emp.directReports.length > 0 && (
-        <Card className="border-neutral-200/80 shadow-2xs bg-white">
+        <Card className="border-neutral-200/80 bg-white">
           <CardHeader className="pb-3 border-b border-neutral-100">
             <CardTitle className="text-sm font-bold text-neutral-900 flex items-center gap-2">
               <Network className="h-4 w-4 text-primary" />
@@ -685,9 +685,9 @@ function LimitedColleagueProfileView({
                 <Link
                   key={report.id}
                   href={`${basePath}/${report.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-neutral-200/70 p-3 hover:bg-neutral-50 transition-colors shadow-2xs"
+                  className="flex items-center gap-3 rounded-xl border border-neutral-200/70 p-3 hover:bg-neutral-50 transition-colors"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-2xs">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white">
                     {report.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -715,7 +715,7 @@ function LimitedColleagueProfileView({
       )}
 
       {/* Access Control Notice */}
-      <div className="rounded-xl border border-neutral-200/80 bg-white p-4 text-xs text-neutral-500 flex items-start gap-3 shadow-2xs">
+      <div className="rounded-xl border border-neutral-200/80 bg-white p-4 text-xs text-neutral-500 flex items-start gap-3">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700">
           <ShieldCheck className="h-4 w-4" />
         </div>
@@ -984,7 +984,7 @@ function OverviewTab({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="border border-neutral-200/80 bg-white shadow-2xs">
+    <Card className="border border-neutral-200/80 bg-white">
       <CardContent className="p-4 sm:p-5">
         <p className="text-xs font-medium text-neutral-500">{label}</p>
         <p className="mt-1 font-display text-2xl font-bold text-primary">
@@ -1834,7 +1834,7 @@ function GpsTrailTab({
           canManage={canManage}
         />
       ) : (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-2xs flex items-center justify-between gap-3">
+        <div className="rounded-lg border border-neutral-200 bg-white p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
               <Building className="h-5 w-5" />
@@ -1866,7 +1866,7 @@ function GpsTrailTab({
       )}
 
       {/* 2. Interactive Map & Date Selector */}
-      <div className="rounded-lg border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">
+      <div className="rounded-lg border border-neutral-200 bg-white p-4 md:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
@@ -1913,7 +1913,7 @@ function GpsTrailTab({
       </div>
 
       {/* 3. Timestamps & Coordinates List */}
-      <div className="rounded-lg border border-neutral-200 bg-white shadow-2xs overflow-hidden">
+      <div className="rounded-lg border border-neutral-200 bg-white overflow-hidden">
         <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
             Recorded Half-Hour Timestamps ({pings?.length ?? 0})
@@ -1974,7 +1974,7 @@ function GpsTrailTab({
                           </p>
                         </TableCell>
                         <TableCell>
-                          <span className="font-mono text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
+                          <span className="tabular-nums text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
                             {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
                           </span>
                         </TableCell>
@@ -2056,7 +2056,7 @@ function GpsTrailTab({
                     </p>
 
                     <div className="flex items-center justify-between pt-1 text-[11px]">
-                      <span className="font-mono text-neutral-500">
+                      <span className="tabular-nums text-neutral-500">
                         {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
                       </span>
                       <a

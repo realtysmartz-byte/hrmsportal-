@@ -198,7 +198,7 @@ export default function AllocateLocationsPage() {
       setQuery("");
       setIsOpen(false);
 
-      await Promise.allSettled([
+      void Promise.allSettled([
         utils.employee.list.invalidate(),
         utils.attendance.livePersonnelOverview.invalidate(),
         utils.attendance.allLocationPings.invalidate(),
@@ -374,7 +374,7 @@ export default function AllocateLocationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#5D3EBC] text-white shadow-2xs">
+            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#5D3EBC] text-white">
               <Navigation className="h-3.5 w-3.5" />
             </span>
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#5D3EBC]">
@@ -404,7 +404,7 @@ export default function AllocateLocationsPage() {
 
       {/* 2. KPI Metrics Bento */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
             <Users className="h-4.5 w-4.5" />
           </div>
@@ -415,7 +415,7 @@ export default function AllocateLocationsPage() {
           </div>
         </Card>
 
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <Building className="h-4.5 w-4.5" />
           </div>
@@ -426,7 +426,7 @@ export default function AllocateLocationsPage() {
           </div>
         </Card>
 
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
             <Compass className="h-4.5 w-4.5" />
           </div>
@@ -437,7 +437,7 @@ export default function AllocateLocationsPage() {
           </div>
         </Card>
 
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
             <ShieldCheck className="h-4.5 w-4.5" />
           </div>
@@ -451,7 +451,7 @@ export default function AllocateLocationsPage() {
 
       {/* 3. Interactive Allocation Studio Card */}
       <div ref={studioRef}>
-        <Card className="border border-neutral-200/80 bg-white shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
+        <Card className="border border-neutral-200/80 bg-white rounded-lg sm:rounded-xl overflow-hidden">
           {/* Card Top Title Bar */}
           <div className="border-b border-neutral-100 bg-neutral-50/70 px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -467,7 +467,7 @@ export default function AllocateLocationsPage() {
             </div>
 
             {selectedEmployee && (
-              <div className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full bg-white border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700 shadow-2xs">
+              <div className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full bg-white border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700">
                 <span className="text-[#5D3EBC]">●</span>
                 <span className="truncate max-w-[200px] sm:max-w-xs">
                   {selectedEmployee.firstName} {selectedEmployee.lastName} ({selectedEmployee.employeeCode})
@@ -541,7 +541,7 @@ export default function AllocateLocationsPage() {
 
                 {/* Auto-suggest dropdown */}
                 {isOpen && (
-                  <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
+                  <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl overflow-hidden max-h-80 overflow-y-auto">
                     <div className="px-3.5 py-1.5 bg-neutral-50 border-b border-neutral-100 text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center justify-between sticky top-0 z-10">
                       <span>Worldwide Search Results ({suggestions.length})</span>
                       <span>Click to Set Location</span>
@@ -613,7 +613,7 @@ export default function AllocateLocationsPage() {
                             <p className="text-[11px] text-neutral-500 truncate mt-0.5">
                               {item.displayName || item.address}
                             </p>
-                            <p className="font-mono text-[10px] text-neutral-400 mt-0.5">
+                            <p className="tabular-nums text-[10px] text-neutral-400 mt-0.5">
                               {item.lat.toFixed(5)}, {item.lng.toFixed(5)}
                             </p>
                           </div>
@@ -640,7 +640,7 @@ export default function AllocateLocationsPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleSetHQ}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Building className="h-3 w-3 text-neutral-700" />
                   <span>🏢 Realty Smartz HQ</span>
@@ -654,7 +654,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.397521);
                     setTargetLng(77.062085);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M Urbana (Sec 67)</span>
@@ -668,7 +668,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.4011436);
                     setTargetLng(77.0664133);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M Golf Estate (Sec 65)</span>
@@ -682,7 +682,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.4049117);
                     setTargetLng(77.0584264);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M IFC (Sec 66)</span>
@@ -696,7 +696,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.392941);
                     setTargetLng(77.017832);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M Broadway (Sec 71)</span>
@@ -710,7 +710,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.261205);
                     setTargetLng(77.054321);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>Signature Global Park</span>
@@ -724,7 +724,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.375214);
                     setTargetLng(76.994812);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>Whiteland Blissville</span>
@@ -738,7 +738,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.508214);
                     setTargetLng(76.994812);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>Elan The Mark</span>
@@ -752,7 +752,7 @@ export default function AllocateLocationsPage() {
                     setTargetLat(28.4906);
                     setTargetLng(77.0898);
                   }}
-                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
+                  className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0"
                 >
                   <Building className="h-3 w-3 text-neutral-600" />
                   <span>DLF Cyber City</span>
@@ -806,7 +806,7 @@ export default function AllocateLocationsPage() {
                       setTargetLat(Number.isFinite(v) ? v : null);
                     }}
                     placeholder="e.g. 28.399719"
-                    className="h-9 text-xs font-mono bg-white border-neutral-200"
+                    className="h-9 text-xs tabular-nums bg-white border-neutral-200"
                   />
                 </div>
 
@@ -823,7 +823,7 @@ export default function AllocateLocationsPage() {
                       setTargetLng(Number.isFinite(v) ? v : null);
                     }}
                     placeholder="e.g. 77.038568"
-                    className="h-9 text-xs font-mono bg-white border-neutral-200"
+                    className="h-9 text-xs tabular-nums bg-white border-neutral-200"
                   />
                 </div>
               </div>
@@ -834,7 +834,7 @@ export default function AllocateLocationsPage() {
                   href={`https://www.google.com/maps?q=${previewLat},${previewLng}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-10 items-center justify-center gap-1.5 text-xs text-neutral-700 hover:text-neutral-900 border border-neutral-200 rounded-xl px-3 bg-white font-semibold shadow-2xs hover:bg-neutral-50 transition-colors"
+                  className="inline-flex h-10 items-center justify-center gap-1.5 text-xs text-neutral-700 hover:text-neutral-900 border border-neutral-200 rounded-xl px-3 bg-white font-semibold hover:bg-neutral-50 transition-colors"
                 >
                   <ExternalLink className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   <span>Verify in Google Maps</span>
@@ -843,7 +843,7 @@ export default function AllocateLocationsPage() {
                 <Button
                   onClick={handleApplyLocation}
                   disabled={updateLocation.isPending || !selectedEmpId}
-                  className="h-10 px-5 rounded-xl text-xs sm:text-sm font-bold bg-[#5D3EBC] text-white hover:opacity-95 shadow-md active:scale-98 transition-all gap-2"
+                  className="h-10 px-5 rounded-xl text-xs sm:text-sm font-bold bg-[#5D3EBC] text-white hover:opacity-95 active:scale-98 transition-all gap-2"
                 >
                   {updateLocation.isPending ? (
                     <>
@@ -867,11 +867,11 @@ export default function AllocateLocationsPage() {
                   <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
                     Live Workplace Location Map
                   </span>
-                  <span className="text-[10px] text-neutral-400 font-mono">
+                  <span className="text-[10px] text-neutral-400 tabular-nums">
                     {previewLat.toFixed(5)}, {previewLng.toFixed(5)}
                   </span>
                 </div>
-                <div className="rounded-lg overflow-hidden border border-neutral-200 shadow-2xs">
+                <div className="rounded-lg overflow-hidden border border-neutral-200">
                   <LocationMap
                     lat={previewLat}
                     lng={previewLng}
@@ -886,7 +886,7 @@ export default function AllocateLocationsPage() {
       </div>
 
       {/* 4. Personnel Worksite Allocation Roster */}
-      <Card className="border border-neutral-200/80 bg-white shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
+      <Card className="border border-neutral-200/80 bg-white rounded-lg sm:rounded-xl overflow-hidden">
         <div className="border-b border-neutral-100 p-4 sm:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-neutral-900">Personnel Worksite Allocation Roster</h3>
@@ -901,7 +901,7 @@ export default function AllocateLocationsPage() {
                 onClick={() => setFilterType("all")}
                 className={cn(
                   "px-3 py-1 rounded-lg font-medium transition-all",
-                  filterType === "all" ? "bg-white text-neutral-900 shadow-2xs font-bold" : "text-neutral-500 hover:text-neutral-900"
+                  filterType === "all" ? "bg-white text-neutral-900 font-bold" : "text-neutral-500 hover:text-neutral-900"
                 )}
               >
                 All ({totalCount})
@@ -911,7 +911,7 @@ export default function AllocateLocationsPage() {
                 onClick={() => setFilterType("site")}
                 className={cn(
                   "px-3 py-1 rounded-lg font-medium transition-all",
-                  filterType === "site" ? "bg-white text-neutral-900 shadow-2xs font-bold" : "text-neutral-500 hover:text-neutral-900"
+                  filterType === "site" ? "bg-white text-neutral-900 font-bold" : "text-neutral-500 hover:text-neutral-900"
                 )}
               >
                 Sites ({projectSiteCount})
@@ -921,7 +921,7 @@ export default function AllocateLocationsPage() {
                 onClick={() => setFilterType("hq")}
                 className={cn(
                   "px-3 py-1 rounded-lg font-medium transition-all",
-                  filterType === "hq" ? "bg-white text-neutral-900 shadow-2xs font-bold" : "text-neutral-500 hover:text-neutral-900"
+                  filterType === "hq" ? "bg-white text-neutral-900 font-bold" : "text-neutral-500 hover:text-neutral-900"
                 )}
               >
                 HQ ({hqCount})
@@ -971,7 +971,7 @@ export default function AllocateLocationsPage() {
                           <p className="text-xs font-bold text-neutral-900 truncate">
                             {emp.firstName} {emp.lastName}
                           </p>
-                          <p className="text-[10px] text-neutral-400 font-mono">
+                          <p className="text-[10px] text-neutral-400 tabular-nums">
                             {emp.employeeCode} · {emp.department?.name || "General"}
                           </p>
                         </div>
@@ -995,7 +995,7 @@ export default function AllocateLocationsPage() {
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] font-mono text-neutral-400">
+                      <span className="text-[10px] tabular-nums text-neutral-400">
                         {emp.workLocationLat != null && emp.workLocationLng != null
                           ? `${emp.workLocationLat.toFixed(4)}, ${emp.workLocationLng.toFixed(4)}`
                           : officeCoords}
@@ -1072,7 +1072,7 @@ export default function AllocateLocationsPage() {
                               <p className="text-xs font-bold text-neutral-900 leading-tight">
                                 {emp.firstName} {emp.lastName}
                               </p>
-                              <p className="text-[10px] text-neutral-400 font-mono">
+                              <p className="text-[10px] text-neutral-400 tabular-nums">
                                 {emp.employeeCode} · {emp.email}
                               </p>
                             </div>
@@ -1099,7 +1099,7 @@ export default function AllocateLocationsPage() {
                         </TableCell>
 
                         <TableCell>
-                          <span className="text-[11px] font-mono text-neutral-500">
+                          <span className="text-[11px] tabular-nums text-neutral-500">
                             {emp.workLocationLat != null && emp.workLocationLng != null
                               ? `${emp.workLocationLat.toFixed(4)}, ${emp.workLocationLng.toFixed(4)}`
                               : officeCoords}
@@ -1158,7 +1158,7 @@ export default function AllocateLocationsPage() {
       {/* 5. Location Saved Confirmation Popup Modal */}
       {savedPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-neutral-100 text-center animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 border border-neutral-100 text-center animate-in zoom-in-95 duration-200">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-4 ring-8 ring-emerald-50/50">
               <CheckCircle2 className="h-9 w-9" />
             </div>
@@ -1178,7 +1178,7 @@ export default function AllocateLocationsPage() {
                 <span className="text-[10px] uppercase font-bold text-neutral-400 block">Allocated Worksite</span>
                 <span className="text-xs font-semibold text-neutral-800">{savedPopup.locationName}</span>
               </div>
-              <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-neutral-200/60 font-mono text-neutral-500">
+              <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-neutral-200/60 tabular-nums text-neutral-500">
                 <span>GPS Coordinates</span>
                 <span>{savedPopup.lat.toFixed(5)}, {savedPopup.lng.toFixed(5)}</span>
               </div>
@@ -1200,7 +1200,7 @@ export default function AllocateLocationsPage() {
               </a>
               <Button
                 onClick={() => setSavedPopup(null)}
-                className="flex-1 h-11 rounded-xl bg-[#5D3EBC] text-white text-xs font-bold shadow-md hover:opacity-95"
+                className="flex-1 h-11 rounded-xl bg-[#5D3EBC] text-white text-xs font-bold hover:opacity-95"
               >
                 Got It, Continue
               </Button>

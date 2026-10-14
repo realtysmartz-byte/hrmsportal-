@@ -147,7 +147,7 @@ export function PwaInstallBanner() {
       <div
         role="region"
         aria-label="Install Realty Smartz Private Limited App"
-        className="relative z-40 w-full overflow-hidden border-b border-white/10 bg-gradient-to-r from-[#181926] via-[#232638] to-[#181926] text-white shadow-md"
+        className="relative z-40 w-full overflow-hidden border-b border-white/10 bg-gradient-to-r from-[#181926] via-[#232638] to-[#181926] text-white"
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:py-2.5">
           {/* Left: App Logo & Details */}
@@ -181,7 +181,7 @@ export function PwaInstallBanner() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#5D3EBC] px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:scale-95 focus:outline-none"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#5D3EBC] px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold text-white transition hover:opacity-95 active:scale-95 focus:outline-none"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Install</span>

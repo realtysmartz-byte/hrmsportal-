@@ -28,12 +28,12 @@ export function UpcomingBirthdaysWidget({
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ duration: 0.18 }}
-      className={`rounded-lg border border-neutral-200/80 bg-white p-5 md:p-6 shadow-sm ${className}`}
+      className={`rounded-lg border border-neutral-200/80 bg-white p-5 md:p-6 ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5D3EBC]/20 text-[#5D3EBC] border border-[#5D3EBC]/30 shadow-2xs">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5D3EBC]/20 text-[#5D3EBC] border border-[#5D3EBC]/30">
             <Cake className="h-5 w-5" />
           </div>
           <div>
@@ -78,14 +78,14 @@ export function UpcomingBirthdaysWidget({
               href={`${profileBasePath}/${item.id}`}
               className={`group flex items-center justify-between rounded-xl p-2.5 transition-all ${
                 item.isToday
-                  ? "bg-gradient-to-r from-[#5D3EBC]/15 via-[#7B5CD6]/15 to-transparent border border-[#5D3EBC]/40 shadow-xs hover:border-[#5D3EBC]"
+                  ? "bg-gradient-to-r from-[#5D3EBC]/15 via-[#7B5CD6]/15 to-transparent border border-[#5D3EBC]/40 hover:border-[#5D3EBC]"
                   : "border border-neutral-200/70 bg-neutral-50/50 hover:bg-neutral-50 hover:border-neutral-300"
               }`}
             >
               {/* Colleague Avatar & Details */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#2B3A67] to-[#1E294A] text-white text-xs font-bold shadow-2xs">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#2B3A67] to-[#1E294A] text-white text-xs font-bold">
                     {item.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -98,7 +98,7 @@ export function UpcomingBirthdaysWidget({
                     )}
                   </div>
                   {item.isToday && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[9px] shadow-sm animate-bounce">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[9px] animate-bounce">
                       🎉
                     </span>
                   )}
@@ -117,7 +117,7 @@ export function UpcomingBirthdaysWidget({
               {/* Date & Today Badge */}
               <div className="text-right shrink-0">
                 {item.isToday ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#5D3EBC] px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#5D3EBC] px-2 py-0.5 text-[10px] font-bold text-white">
                     <Sparkles className="h-2.5 w-2.5" />
                     Today!
                   </span>

@@ -394,7 +394,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                     setField("workLocationLat", "");
                     setField("workLocationLng", "");
                   }}
-                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100 shadow-2xs transition-colors"
+                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
                 >
                   🏢 Use Company Office
                 </button>
@@ -415,7 +415,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                       );
                     }
                   }}
-                  className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 hover:bg-teal-100 shadow-2xs transition-colors"
+                  className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 hover:bg-teal-100 transition-colors"
                 >
                   📍 Detect Device GPS
                 </button>
@@ -438,7 +438,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                   placeholder="28.3997196"
                   value={values.workLocationLat}
                   onChange={(e) => setField("workLocationLat", e.target.value)}
-                  className="text-xs h-9 font-mono bg-white"
+                  className="text-xs h-9 tabular-nums bg-white"
                 />
               </div>
               <div className="space-y-1">
@@ -447,7 +447,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                   placeholder="77.0385682"
                   value={values.workLocationLng}
                   onChange={(e) => setField("workLocationLng", e.target.value)}
-                  className="text-xs h-9 font-mono bg-white"
+                  className="text-xs h-9 tabular-nums bg-white"
                 />
               </div>
             </div>

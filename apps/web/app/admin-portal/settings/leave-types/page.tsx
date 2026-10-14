@@ -97,7 +97,7 @@ export default function LeaveTypesPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-5 shadow-2xs">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-5">
         <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-4">
           Add New Leave Classification
         </h2>
@@ -154,7 +154,7 @@ export default function LeaveTypesPage() {
 
       {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
 
-      <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

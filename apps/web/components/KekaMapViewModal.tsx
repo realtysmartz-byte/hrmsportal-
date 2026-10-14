@@ -172,7 +172,7 @@ export function KekaMapViewModal({
                           <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 stroke-[3]" />
                           <span>{formatTimeIST(checkInEvent.time)}</span>
                         </div>
-                        <p className="font-mono text-[11px] text-neutral-500 mt-0.5 truncate">
+                        <p className="tabular-nums text-[11px] text-neutral-500 mt-0.5 truncate">
                           {checkInEvent.lat.toFixed(6)}, {checkInEvent.lng.toFixed(6)}
                         </p>
                         <p className="text-[10px] text-neutral-400 truncate mt-0.5">
@@ -181,7 +181,7 @@ export function KekaMapViewModal({
                       </div>
 
                       {/* Purple Pin A */}
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[11px] font-bold shadow-2xs">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[11px] font-bold">
                         A
                       </div>
                     </div>
@@ -207,7 +207,7 @@ export function KekaMapViewModal({
                           <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 stroke-[3]" />
                           <span>{formatTimeIST(checkOutEvent.time)}</span>
                         </div>
-                        <p className="font-mono text-[11px] text-neutral-500 mt-0.5 truncate">
+                        <p className="tabular-nums text-[11px] text-neutral-500 mt-0.5 truncate">
                           {checkOutEvent.lat.toFixed(6)}, {checkOutEvent.lng.toFixed(6)}
                         </p>
                         <p className="text-[10px] text-neutral-400 truncate mt-0.5">
@@ -216,7 +216,7 @@ export function KekaMapViewModal({
                       </div>
 
                       {/* Purple Pin B */}
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[11px] font-bold shadow-2xs">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[11px] font-bold">
                         B
                       </div>
                     </div>
@@ -263,7 +263,7 @@ export function KekaMapViewModal({
                                 <span className="text-emerald-600 font-bold">↓</span>
                                 <span>{formatTimeIST(punch.time)}</span>
                               </div>
-                              <p className="font-mono text-[11px] text-neutral-500 mt-0.5 truncate">
+                              <p className="tabular-nums text-[11px] text-neutral-500 mt-0.5 truncate">
                                 {punch.lat.toFixed(6)}, {punch.lng.toFixed(6)}
                               </p>
                               <p className="text-[10px] text-neutral-400 truncate mt-0.5">
@@ -272,7 +272,7 @@ export function KekaMapViewModal({
                             </div>
 
                             {/* Grey Badge Letter (C, D, E, F...) matching Screenshot 1 */}
-                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#757575] text-white text-[11px] font-bold shadow-2xs">
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#757575] text-white text-[11px] font-bold">
                               {punch.badgeLetter}
                             </div>
                           </div>
@@ -293,7 +293,7 @@ export function KekaMapViewModal({
                 href={googleMapsExternalUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-800 shadow-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-800 border border-neutral-200 hover:bg-neutral-50 transition-colors"
               >
                 <span>Google Maps</span>
                 <ExternalLink className="h-3 w-3 text-neutral-500" />
@@ -302,7 +302,7 @@ export function KekaMapViewModal({
               <button
                 type="button"
                 onClick={() => setMapProvider((p) => (p === "google" ? "osm" : "google"))}
-                className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 shadow-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors"
                 title="Toggle satellite/map provider"
               >
                 <Layers className="h-3 w-3 text-neutral-500" />
@@ -312,7 +312,7 @@ export function KekaMapViewModal({
 
             {/* Active Pin Info Overlay */}
             {activePoint && (
-              <div className="absolute top-3 left-3 z-20 hidden md:block max-w-sm rounded-lg bg-white p-3 text-xs shadow-md border border-neutral-200">
+              <div className="absolute top-3 left-3 z-20 hidden md:block max-w-sm rounded-lg bg-white p-3 text-xs border border-neutral-200">
                 <div className="flex items-center gap-1.5 font-bold text-neutral-900">
                   <MapPin className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   <span>
@@ -327,7 +327,7 @@ export function KekaMapViewModal({
                     {formatTimeIST(activePoint.time)}
                   </span>
                 </div>
-                <p className="mt-1 font-mono text-[11px] text-neutral-500">
+                <p className="mt-1 tabular-nums text-[11px] text-neutral-500">
                   {activePoint.lat.toFixed(6)}, {activePoint.lng.toFixed(6)}
                 </p>
                 <p className="mt-0.5 text-[11px] text-neutral-700 font-medium break-words">

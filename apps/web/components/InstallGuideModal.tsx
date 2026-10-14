@@ -76,7 +76,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-xl bg-[#181926] border border-white/15 p-5 text-white shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md rounded-xl bg-[#181926] border border-white/15 p-5 text-white overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
             onClick={() => setActiveTab("ios")}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
               activeTab === "ios"
-                ? "bg-[#5D3EBC] text-white shadow-xs"
+                ? "bg-[#5D3EBC] text-white"
                 : "text-neutral-400 hover:text-white"
             }`}
           >
@@ -122,7 +122,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
             onClick={() => setActiveTab("mac")}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
               activeTab === "mac"
-                ? "bg-[#5D3EBC] text-white shadow-xs"
+                ? "bg-[#5D3EBC] text-white"
                 : "text-neutral-400 hover:text-white"
             }`}
           >
@@ -135,7 +135,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
             onClick={() => setActiveTab("desktop")}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
               activeTab === "desktop"
-                ? "bg-[#5D3EBC] text-white shadow-xs"
+                ? "bg-[#5D3EBC] text-white"
                 : "text-neutral-400 hover:text-white"
             }`}
           >
@@ -234,7 +234,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
                   <button
                     type="button"
                     onClick={handleNativeInstall}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#5D3EBC] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-95"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#5D3EBC] px-5 py-2.5 text-xs font-bold text-white hover:opacity-95"
                   >
                     <Download className="h-4 w-4" />
                     <span>Install App on this Computer</span>

@@ -170,7 +170,7 @@ export function LocationTracker() {
   return (
     <div
       className={cn(
-        "fixed bottom-20 right-3 md:bottom-4 md:right-4 z-30 flex items-center gap-2 rounded-full border bg-white/95 backdrop-blur-xs px-3.5 py-1.5 text-[11px] font-semibold shadow-md transition-all",
+        "fixed bottom-20 right-3 md:bottom-4 md:right-4 z-30 flex items-center gap-2 rounded-full border bg-white/95 backdrop-blur-xs px-3.5 py-1.5 text-[11px] font-semibold transition-all",
         status === "on" && "border-teal-200 text-teal-800",
         status === "denied" && "border-rose-200 text-rose-700 bg-rose-50/90",
         (status === "error" || status === "idle") && "border-neutral-200 text-neutral-600"

@@ -112,7 +112,7 @@ export default function EmailSettingsPage() {
 
         <div className="flex items-center gap-2 text-xs font-semibold shrink-0">
           <span
-            className={`px-3 py-1 rounded-full border shadow-sm ${
+            className={`px-3 py-1 rounded-full border ${
               isConfigured
                 ? "bg-emerald-100/90 text-emerald-800 border-emerald-300"
                 : "bg-amber-100/90 text-amber-800 border-amber-300"
@@ -127,7 +127,7 @@ export default function EmailSettingsPage() {
         {/* Left Column: Test & Security Notice */}
         <div className="lg:col-span-2 space-y-6">
           {/* Test Email Verification Card */}
-          <Card className="border-neutral-200 shadow-sm">
+          <Card className="border-neutral-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Send className="h-4 w-4 text-[#5D3EBC]" />
@@ -194,7 +194,7 @@ export default function EmailSettingsPage() {
           </Card>
 
           {/* Secure Environment Notice Card */}
-          <Card className="border-neutral-200 bg-neutral-50/50 shadow-sm">
+          <Card className="border-neutral-200 bg-neutral-50/50">
             <CardContent className="p-5 flex items-start gap-3.5">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-200/80 text-neutral-700">
                 <Lock className="h-4 w-4" />
@@ -204,7 +204,7 @@ export default function EmailSettingsPage() {
                   Zero-Exposure Configuration Policy
                 </h4>
                 <p className="text-[12px] text-neutral-600 leading-relaxed">
-                  All SMTP servers, ports, authentication keys, and sender accounts are isolated exclusively within backend environment variables (<code className="font-mono text-neutral-800">.env</code>). Credentials are never rendered in any user interface, bundle script, or client network payload.
+                  All SMTP servers, ports, authentication keys, and sender accounts are isolated exclusively within backend environment variables (<code className="tabular-nums text-neutral-800">.env</code>). Credentials are never rendered in any user interface, bundle script, or client network payload.
                 </p>
               </div>
             </CardContent>
@@ -214,7 +214,7 @@ export default function EmailSettingsPage() {
         {/* Right Column: Features & Anti-Spam Details */}
         <div className="space-y-6">
           {/* Anti-Spam Guarantee Card */}
-          <Card className="border-neutral-200 shadow-sm bg-gradient-to-br from-neutral-900 to-slate-900 text-white">
+          <Card className="border-neutral-200 bg-gradient-to-br from-neutral-900 to-slate-900 text-white">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-white">
                 <ShieldCheck className="h-4 w-4 text-[#5D3EBC]" />
@@ -243,7 +243,7 @@ export default function EmailSettingsPage() {
           </Card>
 
           {/* Automated Emails Overview */}
-          <Card className="border-neutral-200 shadow-sm">
+          <Card className="border-neutral-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-[#5D3EBC]" />

@@ -170,7 +170,7 @@ function LoginForm() {
   const currentTestimonial = TESTIMONIALS[activeTestimonialIdx];
 
   return (
-    <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[36px] bg-[#181926]/95 backdrop-blur-2xl border border-white/10 shadow-[0_25px_80px_rgba(0,0,0,0.45)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white">
+    <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[36px] bg-[#181926]/95 backdrop-blur-2xl border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white">
       {/* LEFT COLUMN: Modern Login Form (~6.5/12 cols) */}
       <div className="p-7 sm:p-10 lg:p-12 lg:col-span-7 flex flex-col justify-between">
         <div>
@@ -181,7 +181,7 @@ function LoginForm() {
               alt="Realty Smartz Private Limited"
               width={40}
               height={40}
-              className="h-10 w-10 object-contain drop-shadow-md"
+              className="h-10 w-10 object-contain"
             />
             <div>
               <span className="font-display text-sm font-bold tracking-wider uppercase text-white block">
@@ -204,7 +204,7 @@ function LoginForm() {
           </div>
 
           {/* Universal Single Sign-In Capsule */}
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#11121A] px-3.5 py-1.5 border border-white/10 shadow-inner">
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#11121A] px-3.5 py-1.5 border border-white/10">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs font-medium text-neutral-300">
               Universal Sign-In · Employee, Candidate & Admin
@@ -240,7 +240,7 @@ function LoginForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@realtysmartz.com"
                   required
-                  className="w-full rounded-lg border border-white/10 bg-[#11121A] px-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#5D3EBC] focus:ring-1 focus:ring-[#5D3EBC]"
+                  className="w-full rounded-lg border border-white/10 bg-[#11121A] px-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 outline-none transition-all focus:border-[#5D3EBC] focus:ring-1 focus:ring-[#5D3EBC]"
                 />
               </div>
             </div>
@@ -262,7 +262,7 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full rounded-lg border border-white/10 bg-[#11121A] px-4 py-3 pr-11 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#5D3EBC] focus:ring-1 focus:ring-[#5D3EBC]"
+                  className="w-full rounded-lg border border-white/10 bg-[#11121A] px-4 py-3 pr-11 text-xs sm:text-sm text-white placeholder-neutral-500 outline-none transition-all focus:border-[#5D3EBC] focus:ring-1 focus:ring-[#5D3EBC]"
                 />
                 <button
                   type="button"
@@ -317,7 +317,7 @@ function LoginForm() {
                 type="button"
                 disabled={googleLoading}
                 onClick={onGoogleSignIn}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-900 shadow-md hover:scale-105 active:scale-95 transition-transform"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-900 hover:scale-105 active:scale-95 transition-transform"
                 title="Sign in with Google"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -413,7 +413,7 @@ function LoginForm() {
         </div>
 
         {/* BOTTOM FLOATING NOTCH CARD (Signature Element from Image 3) */}
-        <div className="relative z-10 mt-8 rounded-lg bg-white p-5 text-neutral-900 shadow-2xl space-y-2 border border-neutral-100 transition-all duration-300">
+        <div className="relative z-10 mt-8 rounded-lg bg-white p-5 text-neutral-900 space-y-2 border border-neutral-100 transition-all duration-300">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#0F5C74]">
               <Sparkles className="h-3 w-3 text-amber-500" />
@@ -489,7 +489,7 @@ export default function LoginPage() {
       {/* Footer */}
       <footer
         suppressHydrationWarning
-        className="relative z-10 mt-6 text-center text-xs text-neutral-400 font-medium drop-shadow-sm"
+        className="relative z-10 mt-6 text-center text-xs text-neutral-400 font-medium"
       >
         © 2026 Realty Smartz Private Limited · All rights reserved.
       </footer>

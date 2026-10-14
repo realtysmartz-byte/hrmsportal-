@@ -1,20 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { LocationTracker } from "@/components/LocationTracker";
+import { AppSplash } from "@/components/AppSplash";
 import "./globals.css";
 
-const display = Plus_Jakarta_Sans({
+const display = Outfit({
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
   variable: "--font-display",
   display: "swap",
 });
 
-const sans = Inter({
+const sans = Outfit({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
   variable: "--font-sans",
   display: "swap",
 });
@@ -47,7 +46,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#11121A",
+  themeColor: "#5D3EBC",
 };
 
 export default function RootLayout({
@@ -59,6 +58,7 @@ export default function RootLayout({
     <html lang="en" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
+          <AppSplash />
           <PwaInstallBanner />
           {children}
           <LocationTracker />

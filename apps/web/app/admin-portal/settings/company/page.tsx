@@ -99,7 +99,7 @@ export default function CompanySettingsPage() {
         </p>
       </div>
 
-      <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+      <Card className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
         <CardHeader className="p-5 sm:p-6 pb-2">
           <CardTitle className="font-display text-lg font-bold text-neutral-900">
             Office Geofence & Boundary
@@ -198,7 +198,7 @@ export default function CompanySettingsPage() {
           </form>
 
           {officeLat && officeLng && !Number.isNaN(parseFloat(officeLat)) && (
-            <div className="mt-4 rounded-xl overflow-hidden border border-neutral-200 shadow-2xs">
+            <div className="mt-4 rounded-xl overflow-hidden border border-neutral-200">
               <LocationMap
                 lat={parseFloat(officeLat)}
                 lng={parseFloat(officeLng)}
@@ -211,10 +211,10 @@ export default function CompanySettingsPage() {
       </Card>
 
       {/* Google Sheets Daily Sync Integration Card */}
-      <Card className="rounded-lg border-neutral-200/80 shadow-sm bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border">
+      <Card className="rounded-lg border-neutral-200/80 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border">
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
               <FileSpreadsheet className="h-6 w-6" />
             </div>
             <div>
@@ -235,10 +235,10 @@ export default function CompanySettingsPage() {
       </Card>
 
       {/* Email Notification Service Card */}
-      <Card className="rounded-lg border-neutral-200/80 shadow-sm bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
+      <Card className="rounded-lg border-neutral-200/80 bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
               <Mail className="h-6 w-6" />
             </div>
             <div>

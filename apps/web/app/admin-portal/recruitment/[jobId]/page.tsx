@@ -219,7 +219,7 @@ export default function JobDetailPage() {
                 {(byStage[stage] ?? []).map((c) => (
                   <div
                     key={c.id}
-                    className="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm"
+                    className="rounded-xl border border-neutral-200 bg-white p-3"
                   >
                     <Link
                       href={`/admin-portal/recruitment/${params.jobId}/candidates/${c.id}`}

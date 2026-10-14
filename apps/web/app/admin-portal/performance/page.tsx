@@ -92,7 +92,7 @@ export default function AdminPerformanceCyclesPage() {
       </div>
 
       {showCreate && (
-        <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-sm">
+        <Card className="rounded-lg border border-neutral-200/80 bg-white">
           <CardHeader>
             <CardTitle className="text-heading-md">
               Create Performance Cycle

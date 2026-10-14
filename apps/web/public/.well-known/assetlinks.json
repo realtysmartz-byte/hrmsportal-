@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.realtysmartz.hrms",
+      "sha256_cert_fingerprints": [
+        "D1:41:04:8A:75:30:C7:F0:AD:B0:0D:24:F1:4D:74:A3:AA:4C:CD:9B:B5:4B:EB:A8:EE:58:A0:6C:14:56:9D:13"
+      ]
+    }
+  }
+]

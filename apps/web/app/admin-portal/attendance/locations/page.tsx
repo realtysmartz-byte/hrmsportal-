@@ -126,7 +126,7 @@ export default function LocationTracingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#5D3EBC] text-white shadow-sm">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#5D3EBC] text-white">
               <MapPin className="h-4 w-4" />
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-[#5D3EBC]">
@@ -157,7 +157,7 @@ export default function LocationTracingPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
             <Users className="h-5 w-5" />
           </div>
@@ -170,7 +170,7 @@ export default function LocationTracingPage() {
           </div>
         </Card>
 
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
             <LogIn className="h-5 w-5" />
           </div>
@@ -183,7 +183,7 @@ export default function LocationTracingPage() {
           </div>
         </Card>
 
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
             <Navigation className="h-5 w-5" />
           </div>
@@ -196,7 +196,7 @@ export default function LocationTracingPage() {
           </div>
         </Card>
 
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
             <Building className="h-5 w-5" />
           </div>
@@ -211,7 +211,7 @@ export default function LocationTracingPage() {
       </div>
 
       {/* View Switcher & Filter Controls */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-3.5 sm:p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* View Toggle Tabs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl w-full sm:w-auto">
@@ -221,7 +221,7 @@ export default function LocationTracingPage() {
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center",
                 viewMode === "overview"
-                  ? "bg-white text-neutral-900 shadow-xs"
+                  ? "bg-white text-neutral-900"
                   : "text-neutral-500 hover:text-neutral-800"
               )}
             >
@@ -233,7 +233,7 @@ export default function LocationTracingPage() {
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center",
                 viewMode === "traces"
-                  ? "bg-white text-neutral-900 shadow-xs"
+                  ? "bg-white text-neutral-900"
                   : "text-neutral-500 hover:text-neutral-800"
               )}
             >
@@ -287,7 +287,7 @@ export default function LocationTracingPage() {
       {/* Location Map Preview Modal (if selected) */}
       {activeMapPing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-xl rounded-xl bg-white p-5 shadow-2xl border border-neutral-200">
+          <div className="relative w-full max-w-xl rounded-xl bg-white p-5 border border-neutral-200">
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
@@ -337,7 +337,7 @@ export default function LocationTracingPage() {
       {/* Assign Location Modal for Admin */}
       {assignStaffTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl rounded-xl bg-white p-5 sm:p-6 shadow-2xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-2xl rounded-xl bg-white p-5 sm:p-6 border border-neutral-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-4">
               <div>
                 <h3 className="font-bold text-base text-neutral-900">
@@ -384,7 +384,7 @@ export default function LocationTracingPage() {
 
       {/* VIEW 1: All Employees Live Status */}
       {viewMode === "overview" && (
-        <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+        <Card className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
           {isStaffLoading ? (
             <div className="py-16 text-center text-xs text-neutral-400">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
@@ -434,7 +434,7 @@ export default function LocationTracingPage() {
                           {/* Employee */}
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white shadow-2xs">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white">
                                 {initial}
                               </div>
                               <div>
@@ -455,7 +455,7 @@ export default function LocationTracingPage() {
                                 <Building className="h-3 w-3 text-neutral-400" />
                                 <span>{siteName}</span>
                               </p>
-                              <p className="text-[10px] font-mono text-neutral-400">
+                              <p className="text-[10px] tabular-nums text-neutral-400">
                                 {siteLat.toFixed(4)}, {siteLng.toFixed(4)} · Assigned Workplace
                               </p>
                             </div>
@@ -545,7 +545,7 @@ export default function LocationTracingPage() {
                               <Button
                                 size="sm"
                                 onClick={() => setTraceModalEmployee({ id: emp.id, name: empName })}
-                                className="h-7 px-2 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold"
                                 title="View Full Day Trace"
                               >
                                 <Route className="h-3 w-3" />
@@ -562,7 +562,7 @@ export default function LocationTracingPage() {
                                     lng: emp.workLocationLng,
                                   })
                                 }
-                                className="h-7 px-2 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg font-semibold"
                                 title="Assign Official Workplace"
                               >
                                 <Navigation className="h-3 w-3" />
@@ -674,7 +674,7 @@ export default function LocationTracingPage() {
                         <Button
                           size="sm"
                           onClick={() => setTraceModalEmployee({ id: emp.id, name: empName })}
-                          className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold px-2"
+                          className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold px-2"
                         >
                           <Route className="h-3 w-3" />
                           <span>Day Trace</span>
@@ -690,7 +690,7 @@ export default function LocationTracingPage() {
                               lng: emp.workLocationLng,
                             })
                           }
-                          className="h-7 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold px-2"
+                          className="h-7 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg font-semibold px-2"
                         >
                           <Navigation className="h-3 w-3" />
                           <span>Assign Site</span>
@@ -716,7 +716,7 @@ export default function LocationTracingPage() {
 
       {/* VIEW 2: Detailed 30-Minute Location Traces */}
       {viewMode === "traces" && (
-        <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+        <Card className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
           {isPingsLoading ? (
             <div className="py-16 text-center text-xs text-neutral-400">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
@@ -761,7 +761,7 @@ export default function LocationTracingPage() {
                         <TableRow key={ping.id} className="hover:bg-neutral-50/60 transition-colors">
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white shadow-2xs">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white">
                                 {initial}
                               </div>
                               <div>
@@ -792,7 +792,7 @@ export default function LocationTracingPage() {
                           </TableCell>
 
                           <TableCell>
-                            <span className="font-mono text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
+                            <span className="tabular-nums text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
                               {ping.lat.toFixed(5)}, {ping.lng.toFixed(5)}
                             </span>
                           </TableCell>
@@ -833,7 +833,7 @@ export default function LocationTracingPage() {
                               <Button
                                 size="sm"
                                 onClick={() => setTraceModalEmployee({ id: ping.employeeId, name: empName })}
-                                className="h-7 px-2 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold"
                                 title="View Full Day Trace"
                               >
                                 <Route className="h-3 w-3" />
@@ -917,7 +917,7 @@ export default function LocationTracingPage() {
                           <Button
                             size="sm"
                             onClick={() => setTraceModalEmployee({ id: ping.employeeId, name: empName })}
-                            className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs font-semibold px-2"
+                            className="h-7 text-xs gap-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold px-2"
                           >
                             <Route className="h-3 w-3" />
                             <span>Trace</span>

@@ -265,7 +265,7 @@ export default function AdminCycleDetailPage() {
       </div>
 
       {/* Completion Tracking Table */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

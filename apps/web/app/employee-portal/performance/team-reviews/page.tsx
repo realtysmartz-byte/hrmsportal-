@@ -155,7 +155,7 @@ export default function TeamReviewsPage() {
               <Card
                 key={emp.id}
                 className={`transition-all ${
-                  isExpanded ? "border-teal-300 shadow-elevated" : "hover:border-neutral-300"
+                  isExpanded ? "border-teal-300 " : "hover:border-neutral-300"
                 }`}
               >
                 <CardHeader className="cursor-pointer pb-4" onClick={() => setExpandedEmpId(isExpanded ? null : emp.id)}>
@@ -316,7 +316,7 @@ export default function TeamReviewsPage() {
                                   }
                                   className={`flex h-9 w-9 items-center justify-center rounded-lg border text-caption font-bold transition-all ${
                                     formState.rating >= star
-                                      ? "border-amber-400 bg-amber-50 text-amber-700 shadow-sm"
+                                      ? "border-amber-400 bg-amber-50 text-amber-700"
                                       : "border-neutral-200 text-neutral-400 hover:border-neutral-300"
                                   }`}
                                 >

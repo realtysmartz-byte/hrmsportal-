@@ -28,7 +28,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-brand-bg shadow-xl md:my-0 md:min-h-screen md:border-x md:border-border">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-brand-bg md:my-0 md:min-h-screen md:border-x md:border-border">
       <header className="sticky top-0 z-20 border-b bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <Logo className="scale-90 origin-left" />

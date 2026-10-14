@@ -328,7 +328,7 @@ export default function TeamAttendancePage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 text-xs text-neutral-600 hover:text-neutral-900 shadow-2xs"
+            className="h-8 gap-1.5 text-xs text-neutral-600 hover:text-neutral-900"
             onClick={() => void refetch()}
             disabled={isFetching}
           >
@@ -340,7 +340,7 @@ export default function TeamAttendancePage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 gap-1.5 text-xs border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold shadow-2xs"
+              className="h-8 gap-1.5 text-xs border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold"
               disabled={syncGoogleSheet.isLoading}
               onClick={() => syncGoogleSheet.mutate({ date: selectedDate })}
             >
@@ -352,7 +352,7 @@ export default function TeamAttendancePage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 text-xs shadow-2xs"
+            className="h-8 gap-1.5 text-xs"
             onClick={exportCsv}
             disabled={!rows.length}
           >
@@ -364,7 +364,7 @@ export default function TeamAttendancePage() {
 
       {/* Sync Status Banner */}
       {googleSheetResult && (
-        <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 font-medium shadow-2xs">
+        <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 font-medium">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>{googleSheetResult}</span>
@@ -380,7 +380,7 @@ export default function TeamAttendancePage() {
       )}
 
       {/* 2. ADVANCED FILTERS: VIEW MODE, DATES, EMPLOYEE & STATUS */}
-      <div className="rounded-xl border border-neutral-200/90 bg-white p-3.5 shadow-2xs space-y-3.5">
+      <div className="rounded-xl border border-neutral-200/90 bg-white p-3.5 space-y-3.5">
         {/* Row 1: Mode Switcher Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
           <div className="inline-flex rounded-lg border border-neutral-200 p-1 bg-neutral-50 text-xs">
@@ -390,7 +390,7 @@ export default function TeamAttendancePage() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors",
                 viewMode === "daily"
-                  ? "bg-white text-neutral-900 shadow-2xs"
+                  ? "bg-white text-neutral-900"
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
@@ -404,7 +404,7 @@ export default function TeamAttendancePage() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors",
                 viewMode === "monthly"
-                  ? "bg-white text-neutral-900 shadow-2xs"
+                  ? "bg-white text-neutral-900"
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
@@ -418,7 +418,7 @@ export default function TeamAttendancePage() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors",
                 viewMode === "custom"
-                  ? "bg-white text-neutral-900 shadow-2xs"
+                  ? "bg-white text-neutral-900"
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
@@ -557,7 +557,7 @@ export default function TeamAttendancePage() {
               aria-label="Filter attendance by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 shadow-2xs focus:border-[#5D3EBC] focus:outline-none"
+              className="h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 focus:border-[#5D3EBC] focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
               <option value="PRESENT">Present Only</option>
@@ -625,7 +625,7 @@ export default function TeamAttendancePage() {
           return (
             <div
               key={log?.id ?? `${row.employee.id}-${index}`}
-              className="rounded-xl border border-neutral-200/90 bg-white p-3.5 space-y-3 shadow-2xs overflow-hidden"
+              className="rounded-xl border border-neutral-200/90 bg-white p-3.5 space-y-3 overflow-hidden"
             >
               {/* Card Header: Employee Name, Code & Status */}
               <div className="flex items-start justify-between gap-2">
@@ -751,7 +751,7 @@ export default function TeamAttendancePage() {
                               date: parseDateParam(log?.date, selectedDate),
                             });
                           }}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-neutral-900 hover:bg-black px-2.5 py-1 rounded-md shrink-0 transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-neutral-900 hover:bg-black px-2.5 py-1 rounded-md shrink-0 transition-colors"
                         >
                           <MapPin className="h-3 w-3 text-[#1AB3B6]" />
                           <span>Map View</span>
@@ -771,7 +771,7 @@ export default function TeamAttendancePage() {
 
                   {/* Google Map View */}
                   {hasGps && (
-                    <div className="w-full h-[160px] rounded-lg overflow-hidden border border-neutral-200/80 bg-neutral-100 shadow-2xs">
+                    <div className="w-full h-[160px] rounded-lg overflow-hidden border border-neutral-200/80 bg-neutral-100">
                       <iframe
                         title={`Location Map for ${empName}`}
                         src={`https://www.google.com/maps?q=${mapLat},${mapLng}&z=16&output=embed`}
@@ -788,7 +788,7 @@ export default function TeamAttendancePage() {
       </div>
 
       {/* 4. DESKTOP TABLE VIEW (Horizontally scrollable container, page never scrolls sideways) */}
-      <div className="hidden md:block overflow-x-auto w-full rounded-lg border border-neutral-200/80 bg-white shadow-2xs">
+      <div className="hidden md:block overflow-x-auto w-full rounded-lg border border-neutral-200/80 bg-white">
         <Table>
           <TableHeader>
             <TableRow className="bg-neutral-50/90 border-b border-neutral-200">
@@ -917,7 +917,7 @@ export default function TeamAttendancePage() {
                                   date: parseDateParam(log?.date, selectedDate),
                                 });
                               }}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-800 hover:text-black bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-2 py-0.5 rounded shadow-2xs transition-colors"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-800 hover:text-black bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-2 py-0.5 rounded transition-colors"
                             >
                               <MapPin className="h-3 w-3 text-[#1AB3B6]" />
                               <span>Map View</span>

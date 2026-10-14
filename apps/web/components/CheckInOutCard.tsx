@@ -9,6 +9,8 @@ import {
   reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
+import { toast } from "@/lib/toast";
+import { TRPCClientError } from "@trpc/client";
 import {
   formatTimeIST,
   TIMEZONE_IST,
@@ -80,9 +82,9 @@ export function CheckInOutCard() {
       if (mode === "in" && workLoc) {
         const dist = haversineDistanceM(lat, lng, workLoc.lat, workLoc.lng);
         if (dist > workLoc.radiusM) {
-          setError(
-            `You are ${Math.round(dist)} m away from ${workLoc.name}. Move within ${workLoc.radiusM} m to punch in.`
-          );
+          const message = `You are ${Math.round(dist)} m away from ${workLoc.name}. Move within ${workLoc.radiusM} m to punch in.`;
+          setError(message);
+          toast("error", message);
           return;
         }
       }
@@ -103,7 +105,9 @@ export function CheckInOutCard() {
           deviceInfo: navigator.userAgent,
         });
       }
-      setError(geolocationErrorMessage(err));
+      const message = geolocationErrorMessage(err);
+      setError(message);
+      if (!(err instanceof TRPCClientError)) toast("error", message);
     } finally {
       setBusy(false);
     }
@@ -174,7 +178,7 @@ export function CheckInOutCard() {
           {busy ? "Getting location…" : isOnDuty ? "Clock Out" : "Clock In"}
         </span>
         <span className="flex w-[42%] flex-col items-center justify-center bg-white">
-          <span className="font-mono text-base font-semibold text-neutral-900">
+          <span className="tabular-nums text-base font-semibold text-neutral-900">
             {isOnDuty
               ? formatClock(elapsed)
               : now?.toLocaleTimeString("en-IN", {

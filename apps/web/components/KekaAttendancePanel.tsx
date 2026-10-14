@@ -27,6 +27,8 @@ import {
   reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
+import { toast } from "@/lib/toast";
+import { TRPCClientError } from "@trpc/client";
 import {
   formatDateIST,
   formatTimeIST,
@@ -208,7 +210,9 @@ export function KekaAttendancePanel({
         await checkOutMutation.mutateAsync({ lat, lng, address: label });
       }
     } catch (err: unknown) {
-      setPunchError(geolocationErrorMessage(err));
+      const message = geolocationErrorMessage(err);
+      setPunchError(message);
+      if (!(err instanceof TRPCClientError)) toast("error", message);
     } finally {
       setBusy(false);
     }
@@ -260,11 +264,11 @@ export function KekaAttendancePanel({
     <div className="w-full max-w-full space-y-6">
       {/* 1. TOP EMPLOYEE HEADER BANNER (Keka Style) */}
       {!hideHeaderBanner && (
-        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               {/* Avatar Badge */}
-              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold shadow-sm">
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold">
                 {initials}
               </div>
 
@@ -302,7 +306,7 @@ export function KekaAttendancePanel({
       {/* 2. THREE STATS & ACTION WIDGETS (Keka Style) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card A: Attendance Stats (Last 30 Days) */}
-        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               ATTENDANCE STATS
@@ -341,7 +345,7 @@ export function KekaAttendancePanel({
         </div>
 
         {/* Card B: Timings */}
-        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               TIMINGS
@@ -371,7 +375,7 @@ export function KekaAttendancePanel({
         </div>
 
         {/* Card C: Actions (Punch In / Punch Out with Location Enforcement) */}
-        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               ACTIONS
@@ -434,7 +438,7 @@ export function KekaAttendancePanel({
               <Button
                 onClick={() => handlePunch("out")}
                 disabled={busy}
-                className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-black text-white font-semibold text-xs shadow-sm gap-2"
+                className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-black text-white font-semibold text-xs gap-2"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span>{busy ? "Verifying GPS..." : "Clock Out"}</span>
@@ -443,7 +447,7 @@ export function KekaAttendancePanel({
               <Button
                 onClick={() => handlePunch("in")}
                 disabled={busy}
-                className="w-full h-10 rounded-xl bg-[#5D3EBC] text-white hover:opacity-95 font-semibold text-xs shadow-sm gap-2"
+                className="w-full h-10 rounded-xl bg-[#5D3EBC] text-white hover:opacity-95 font-semibold text-xs gap-2"
               >
                 <LogIn className="h-3.5 w-3.5" />
                 <span>
@@ -466,7 +470,7 @@ export function KekaAttendancePanel({
       </div>
 
       {/* 3. LOGS & RECORDS SECTION (Keka Style Table with Visual Timeline) */}
-      <div className="rounded-lg border border-neutral-200/90 bg-white overflow-hidden shadow-2xs">
+      <div className="rounded-lg border border-neutral-200/90 bg-white overflow-hidden">
         {/* Top Header & Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-200 px-4 py-3 gap-3 bg-neutral-50/50">
           <div className="flex items-center gap-2">
@@ -478,7 +482,7 @@ export function KekaAttendancePanel({
                 className={cn(
                   "px-3 py-1 rounded-md font-semibold transition-colors",
                   activeTab === "log"
-                    ? "bg-neutral-900 text-white shadow-2xs"
+                    ? "bg-neutral-900 text-white"
                     : "text-neutral-600 hover:text-neutral-900"
                 )}
               >
@@ -490,7 +494,7 @@ export function KekaAttendancePanel({
                 className={cn(
                   "px-3 py-1 rounded-md font-semibold transition-colors",
                   activeTab === "shifts"
-                    ? "bg-neutral-900 text-white shadow-2xs"
+                    ? "bg-neutral-900 text-white"
                     : "text-neutral-600 hover:text-neutral-900"
                 )}
               >

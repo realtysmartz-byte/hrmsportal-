@@ -175,7 +175,7 @@ export default function GoogleSheetsSettingsPage() {
       {/* Main Grid: Operational Actions & Last Sync Telemetry */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card 1: On-Demand Manual Sync */}
-        <Card className="border-neutral-200 shadow-sm">
+        <Card className="border-neutral-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <FileSpreadsheet className="h-4 w-4 text-[#5D3EBC]" />
@@ -227,7 +227,7 @@ export default function GoogleSheetsSettingsPage() {
         </Card>
 
         {/* Card 2: Last Sync Telemetry */}
-        <Card className="border-neutral-200 shadow-sm">
+        <Card className="border-neutral-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Clock className="h-4 w-4 text-[#5D3EBC]" />
@@ -246,7 +246,7 @@ export default function GoogleSheetsSettingsPage() {
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-50 border border-neutral-100 text-xs">
                   <span className="text-neutral-500">Target Tab:</span>
-                  <span className="font-mono font-semibold text-neutral-800">
+                  <span className="tabular-nums font-semibold text-neutral-800">
                     {lastSync.sheetTitle}
                   </span>
                 </div>

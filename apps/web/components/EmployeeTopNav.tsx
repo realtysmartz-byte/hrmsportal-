@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -17,16 +17,13 @@ import {
   Shield,
   Search,
   Award,
-  Calendar,
   Download,
   Menu,
   X,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
-import { Button } from "@/components/ui/button";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { canAccessAdminPortal, isManager } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
@@ -37,6 +34,8 @@ export function EmployeeTopNav() {
   const { data: session } = useSession();
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const router = useRouter();
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
 
   const links = [
@@ -54,10 +53,6 @@ export function EmployeeTopNav() {
     { href: "/employee-portal/profile", label: "Profile", icon: User },
   ];
 
-  const currentDateFormatted = new Date().toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
 
   // Mobile Bottom Tabs (5 Core Destinations)
   const bottomTabs = [
@@ -70,137 +65,101 @@ export function EmployeeTopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white pt-[max(0.5rem,env(safe-area-inset-top))] shadow-2xs">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3">
-          {/* Brand Logo */}
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Link href="/employee-portal/dashboard" className="flex items-center gap-2 group">
-              <Logo showText={false} />
-              <div>
-                <span className="font-display text-sm font-bold tracking-tight text-neutral-900 group-hover:text-primary transition-colors">
-                  Realty Smartz
-                </span>
-                <span className="block text-[9px] sm:text-[10px] font-medium uppercase tracking-wider text-neutral-400 -mt-0.5">
-                  Private Limited
-                </span>
-              </div>
+      <header className="sticky top-0 z-30 bg-white">
+        <div className="bg-[#5D3EBC] pt-[env(safe-area-inset-top)] text-white">
+          <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-3 sm:px-4 lg:gap-6">
+            <Link href="/employee-portal/dashboard" className="flex shrink-0 items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
+                <Logo showText={false} size={26} />
+              </span>
+              <span className="text-sm font-semibold">Realty Smartz</span>
             </Link>
-          </div>
 
-          {/* Center Pill Segmented Navigation (Desktop) */}
-          <nav className="hidden lg:flex items-center rounded-full bg-neutral-100/90 p-1 border border-neutral-200/70 shadow-inner">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                router.push(`/employee-portal/directory?q=${encodeURIComponent(query.trim())}`);
+              }}
+              className="relative hidden w-full max-w-md lg:block"
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search employees"
+                className="h-9 w-full rounded-full bg-white pl-9 pr-4 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none"
+              />
+            </form>
+
+            <div className="ml-auto flex items-center gap-3">
+              {canAccessAdminPortal(role) && (
+                <Link
+                  href="/admin-portal/dashboard"
+                  title="Switch to Admin Console"
+                  className="hidden text-white/90 hover:text-white lg:block"
+                >
+                  <Shield className="h-5 w-5" />
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowInstallModal(true)}
+                title="Install Realty Smartz App"
+                className="hidden text-white/90 hover:text-white lg:block"
+              >
+                <Download className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                title="Log Out"
+                className="hidden text-white/90 hover:text-white lg:block"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+              <Link
+                href="/employee-portal/profile"
+                title={session?.user?.name ?? "Profile"}
+                className="hidden h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-white lg:flex"
+              >
+                {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
+              </Link>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white lg:hidden"
+                title="Open Navigation Menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <nav className="hidden border-b border-neutral-200 lg:block">
+          <div className="mx-auto flex max-w-7xl gap-7 px-4">
             {links.map((item) => {
               const active =
                 pathname === item.href ||
                 (item.href !== "/employee-portal/dashboard" &&
                   pathname.startsWith(`${item.href}/`));
-              const Icon = item.icon;
-
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="relative px-3.5 py-1.5 text-xs font-semibold rounded-full transition-colors flex items-center gap-1.5"
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="active-pill-emp"
-                      className="absolute inset-0 rounded-full bg-[#5D3EBC]"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
+                  className={cn(
+                    "border-b-2 py-2.5 text-xs font-medium uppercase tracking-wide",
+                    active
+                      ? "border-[#5D3EBC] text-[#5D3EBC]"
+                      : "border-transparent text-neutral-600 hover:text-neutral-900"
                   )}
-                  <span
-                    className={`relative z-10 flex items-center gap-1.5 transition-colors ${
-                      active ? "text-white font-bold" : "text-neutral-600 hover:text-neutral-900"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {item.label}
-                  </span>
+                >
+                  {item.label}
                 </Link>
               );
             })}
-          </nav>
-
-          {/* Right Actions & User Profile */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
-            {/* Date Pill Badge (Desktop) */}
-            <div className="hidden xl:flex items-center gap-1.5 rounded-full border border-neutral-200/80 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-600">
-              <Calendar className="h-3.5 w-3.5 text-neutral-400" />
-              <span>{currentDateFormatted}</span>
-            </div>
-
-            {/* Search Button */}
-            <Link
-              href="/employee-portal/directory"
-              className="hidden lg:flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 transition-colors shadow-2xs"
-              title="Search Directory"
-            >
-              <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Link>
-
-            {/* Install App Quick Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowInstallModal(true)}
-              className="hidden lg:flex h-9 items-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors shadow-2xs"
-              title="Install Realty Smartz App"
-            >
-              <Download className="h-3.5 w-3.5 text-[#5D3EBC]" />
-              <span className="hidden sm:inline">Install</span>
-            </button>
-
-            {/* Admin Switcher (If Authorized) */}
-            {canAccessAdminPortal(role) && (
-              <Link href="/admin-portal/dashboard">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1 rounded-full border-neutral-200 text-[11px] sm:text-xs font-semibold text-primary hover:bg-rose-50 px-2 sm:px-3"
-                  title="Switch to Admin Console"
-                >
-                  <Shield className="h-3.5 w-3.5 text-primary" />
-                  <span className="hidden sm:inline">Admin Mode</span>
-                </Button>
-              </Link>
-            )}
-
-            {/* Mobile Hamburger / Extra Menu Toggle */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="flex lg:hidden h-8 w-8 items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-700 hover:bg-neutral-50"
-              title="Open Navigation Menu"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-
-            {/* User Avatar + Sign Out (Desktop Only) */}
-            <div className="hidden lg:flex items-center gap-2 pl-1 border-l border-neutral-200">
-              <Link
-                href="/employee-portal/profile"
-                className="flex items-center gap-2 rounded-full p-1 hover:bg-neutral-100 transition-colors"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white shadow-sm">
-                  {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
-                </div>
-                <span className="text-xs font-semibold text-neutral-800">
-                  {session?.user?.name?.split(" ")[0]}
-                </span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => signOut({ callbackUrl: "/login" })}
-                className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-95 transition-all shadow-2xs"
-                title="Log Out of Employee Portal"
-              >
-                <LogOut className="h-3.5 w-3.5 text-rose-600" />
-                <span>Log Out</span>
-              </button>
-            </div>
           </div>
-        </div>
+        </nav>
       </header>
 
       {/* MOBILE SLIDE-OVER DRAWER FOR ALL LINKS */}
@@ -219,12 +178,12 @@ export function EmployeeTopNav() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 280 }}
-              className="fixed inset-y-0 right-0 z-50 w-[290px] max-w-[85vw] bg-white shadow-2xl flex flex-col pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:hidden"
+              className="fixed inset-y-0 right-0 z-50 w-[290px] max-w-[85vw] bg-white flex flex-col pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:hidden"
             >
               {/* Drawer Header */}
               <div className="flex items-center justify-between px-5 pb-4 border-b border-neutral-100">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-sm text-white shadow-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-sm text-white">
                     {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
                   </div>
                   <div className="min-w-0">
@@ -262,7 +221,7 @@ export function EmployeeTopNav() {
                       className={cn(
                         "flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-colors",
                         active
-                          ? "bg-[#5D3EBC] text-white shadow-sm"
+                          ? "bg-[#5D3EBC] text-white"
                           : "text-neutral-700 hover:bg-neutral-50"
                       )}
                     >
@@ -310,7 +269,7 @@ export function EmployeeTopNav() {
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors"
                 >
                   <LogOut className="h-3.5 w-3.5 text-rose-600" />
                   <span>Sign Out</span>

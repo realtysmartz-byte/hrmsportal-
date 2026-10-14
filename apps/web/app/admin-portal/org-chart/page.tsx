@@ -37,7 +37,7 @@ function OrgChartInner() {
       {error && <p className="text-sm font-semibold text-rose-600">{error.message}</p>}
 
       {data && data.length > 0 ? (
-        <div className="rounded-lg border border-neutral-200/80 bg-white p-6 md:p-10 shadow-sm overflow-hidden">
+        <div className="rounded-lg border border-neutral-200/80 bg-white p-6 md:p-10 overflow-hidden">
           <div className="overflow-x-auto pb-4 scrollbar-thin">
             <ul className="flex min-w-max justify-center gap-10">
               {data.map((root) => (
@@ -53,7 +53,7 @@ function OrgChartInner() {
         </div>
       ) : (
         !error && (
-          <div className="rounded-lg border border-neutral-200/80 bg-white p-12 text-center shadow-sm">
+          <div className="rounded-lg border border-neutral-200/80 bg-white p-12 text-center">
             <EmptyState
               title="No org chart data available"
               description="Add employees with assigned managers to build the reporting tree."

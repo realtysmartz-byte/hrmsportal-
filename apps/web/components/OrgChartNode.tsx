@@ -39,7 +39,7 @@ export function OrgChartNode({
       <div className="mb-4 flex flex-col items-center">
         <div
           className={cn(
-            "relative rounded-lg border bg-white p-3 shadow-sm transition-all duration-150 hover:shadow-md",
+            "relative rounded-lg border bg-white p-3 transition-all duration-150 ",
             isHighlighted && "ring-2 ring-teal-600 border-teal-600"
           )}
         >
@@ -47,7 +47,7 @@ export function OrgChartNode({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="absolute -bottom-3 left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border border-neutral-200 bg-white text-teal-700 shadow-sm transition-colors duration-150"
+              className="absolute -bottom-3 left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border border-neutral-200 bg-white text-teal-700 transition-colors duration-150"
               aria-label={expanded ? "Collapse" : "Expand"}
             >
               {expanded ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -19,8 +19,16 @@ import {
 import { trpc } from "@/lib/trpc";
 import { fullName, initials } from "@/lib/utils";
 
-export default function DirectoryPage() {
-  const [search, setSearch] = useState("");
+export default function DirectoryPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
+  const [search, setSearch] = useState(searchParams.q ?? "");
+
+  useEffect(() => {
+    if (searchParams.q !== undefined) setSearch(searchParams.q);
+  }, [searchParams.q]);
   const [departmentId, setDepartmentId] = useState("");
   const { data: departments } = trpc.department.list.useQuery();
   const { data, isLoading } = trpc.employee.list.useQuery({

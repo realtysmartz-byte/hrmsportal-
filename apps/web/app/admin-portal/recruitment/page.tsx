@@ -50,7 +50,7 @@ export default function RecruitmentJobsPage() {
       </div>
 
       {/* 2. FILTER BAR */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-3.5 sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="w-full sm:w-56">
             <Select
@@ -75,7 +75,7 @@ export default function RecruitmentJobsPage() {
       {isLoading ? (
         <TableSkeleton rows={4} />
       ) : !data?.length ? (
-        <div className="rounded-lg border border-neutral-200/80 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-lg border border-neutral-200/80 bg-white p-12 text-center">
           <EmptyState
             title="No active job postings found"
             description="Create your first job requisition to start receiving candidate applications."
@@ -88,7 +88,7 @@ export default function RecruitmentJobsPage() {
           />
         </div>
       ) : (
-        <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

@@ -90,7 +90,7 @@ export function LocationMap({
       <button
         type="button"
         onClick={() => setMapProvider((prev) => (prev === "google" ? "osm" : "google"))}
-        className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-neutral-700 shadow-sm border border-neutral-200 hover:bg-neutral-50 transition-colors"
+        className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors"
         title="Toggle Map Provider"
       >
         <Layers className="h-3 w-3 text-neutral-500" />
@@ -110,7 +110,7 @@ export function LocationMap({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-neutral-200/90 bg-neutral-50 shadow-2xs",
+        "overflow-hidden rounded-xl border border-neutral-200/90 bg-neutral-50 ",
         className
       )}
     >
@@ -139,7 +139,7 @@ export function LocationMap({
           {label && (
             <p className="line-clamp-2 text-xs font-medium text-neutral-800">{label}</p>
           )}
-          <p className="text-[10px] font-mono text-neutral-500">
+          <p className="text-[10px] tabular-nums text-neutral-500">
             {lat.toFixed(6)}, {lng.toFixed(6)}
           </p>
         </div>
