@@ -17,6 +17,17 @@ try {
     console.log('[postbuild] Created compatibility link for Vercel at:', targetNextLink);
   }
 
+  // 1b. Hosts that resolve the output directory (.next) from the repository root (e.g. Hostinger)
+  const rootNextLink = path.resolve('..', '..', '.next');
+  if (fs.existsSync(sourceNext) && fs.existsSync(path.resolve('..', '..', 'pnpm-workspace.yaml'))) {
+    try {
+      fs.lstatSync(rootNextLink);
+    } catch {
+      fs.symlinkSync(path.relative(path.dirname(rootNextLink), sourceNext), rootNextLink, 'junction');
+      console.log('[postbuild] Created root output link at:', rootNextLink);
+    }
+  }
+
   // 2. package.json in targetDir:
   // Resolves Vercel's NFT server file tracer looking for apps/web/apps/web/package.json
   const sourcePkg = path.resolve('package.json');
