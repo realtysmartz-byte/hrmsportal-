@@ -164,7 +164,7 @@ export function EmployeeProfileHub({
   const { employee: emp, access, overview, jobHistory } = data;
 
   return (
-    <div className="w-full max-w-full overflow-hidden bg-white rounded-2xl border border-neutral-200/80 shadow-2xs">
+    <div className="w-full max-w-full overflow-hidden bg-white rounded-lg border border-neutral-200/80 shadow-2xs">
       {/* Bento Obsidian + Radiant Coral banner */}
       <div className="relative">
         <div
@@ -178,7 +178,7 @@ export function EmployeeProfileHub({
             className="absolute inset-0 opacity-20 pointer-events-none"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 20% 50%, rgba(255,122,112,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(255,160,122,0.3) 0%, transparent 35%)",
+                "radial-gradient(circle at 20% 50%, rgba(93,62,188,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(255,160,122,0.3) 0%, transparent 35%)",
             }}
           />
           <div className="absolute left-3 top-3 z-10 flex gap-2">
@@ -201,7 +201,7 @@ export function EmployeeProfileHub({
                   variant="secondary"
                   className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white shadow-2xs"
                 >
-                  <Pencil className="h-3.5 w-3.5 text-[#FF7A70]" />
+                  <Pencil className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   Edit
                 </Button>
               </Link>
@@ -212,7 +212,7 @@ export function EmployeeProfileHub({
                 variant="secondary"
                 className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white shadow-2xs"
               >
-                <Network className="h-3.5 w-3.5 text-[#FF7A70]" />
+                <Network className="h-3.5 w-3.5 text-[#5D3EBC]" />
                 Org Chart
               </Button>
             </Link>
@@ -241,7 +241,7 @@ export function EmployeeProfileHub({
         <div className="relative px-4 pb-0 pt-0 md:px-6">
           <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
             <div className="relative group">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-display text-xl font-bold text-white shadow-md md:h-24 md:w-24 md:text-2xl">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#5D3EBC] font-display text-xl font-bold text-white shadow-md md:h-24 md:w-24 md:text-2xl">
                 {emp.profilePhotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -304,7 +304,7 @@ export function EmployeeProfileHub({
                   <div className="flex min-w-[140px] max-w-xs flex-1 items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] transition-all duration-200"
+                        className="h-full rounded-full bg-[#5D3EBC] transition-all duration-200"
                         style={{ width: `${emp.profileCompletion}%` }}
                       />
                     </div>
@@ -336,7 +336,7 @@ export function EmployeeProfileHub({
                     <button
                       type="button"
                       onClick={() => setShowPhotoModal(true)}
-                      className="text-[11px] font-bold text-[#FF7A70] hover:underline"
+                      className="text-[11px] font-bold text-[#5D3EBC] hover:underline"
                     >
                       Change Photo
                     </button>
@@ -354,7 +354,7 @@ export function EmployeeProfileHub({
       ) : (
         <>
           {/* Tabs - Mobile horizontal scrollable */}
-          <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md overflow-x-auto no-scrollbar scroll-smooth">
+          <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white overflow-x-auto no-scrollbar scroll-smooth">
             <div className="flex min-w-max gap-0 px-1 md:px-4">
               {tabs.map((t) => (
                 <button
@@ -364,7 +364,7 @@ export function EmployeeProfileHub({
                   className={cn(
                     "relative px-3.5 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150 shrink-0 whitespace-nowrap",
                     tab === t.id
-                      ? "text-[#FF7A70] font-bold"
+                      ? "text-[#5D3EBC] font-bold"
                       : "text-neutral-500 hover:text-neutral-800"
                   )}
                 >
@@ -372,7 +372,7 @@ export function EmployeeProfileHub({
                   {tab === t.id && (
                     <motion.span
                       layoutId="profile-tab"
-                      className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A]"
+                      className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-[#5D3EBC]"
                     />
                   )}
                 </button>
@@ -441,7 +441,7 @@ export function EmployeeProfileHub({
       {/* Photo Change Modal for Employee */}
       {showPhotoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-neutral-200 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl border border-neutral-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <h3 className="font-display text-base font-bold text-neutral-900">
                 Profile Photo Settings
@@ -462,7 +462,7 @@ export function EmployeeProfileHub({
             <div className="mt-4 space-y-4">
               {/* Current Photo Preview & Source */}
               <div className="flex items-center gap-4 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white font-bold text-lg shadow-sm">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#5D3EBC] text-white font-bold text-lg shadow-sm">
                   {photoPreview || emp.profilePhotoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -687,7 +687,7 @@ function LimitedColleagueProfileView({
                   href={`${basePath}/${report.id}`}
                   className="flex items-center gap-3 rounded-xl border border-neutral-200/70 p-3 hover:bg-neutral-50 transition-colors shadow-2xs"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-2xs">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-2xs">
                     {report.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -1834,7 +1834,7 @@ function GpsTrailTab({
           canManage={canManage}
         />
       ) : (
-        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xs flex items-center justify-between gap-3">
+        <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-2xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
               <Building className="h-5 w-5" />
@@ -1857,7 +1857,7 @@ function GpsTrailTab({
             href={`https://www.google.com/maps?q=${workplaceLat},${workplaceLng}&z=17`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-[#FF7A70] hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#5D3EBC] hover:underline"
           >
             <span>View Map</span>
             <ExternalLink className="h-3 w-3" />
@@ -1866,11 +1866,11 @@ function GpsTrailTab({
       )}
 
       {/* 2. Interactive Map & Date Selector */}
-      <div className="rounded-2xl border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">
+      <div className="rounded-lg border border-neutral-200 bg-white p-4 md:p-5 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-[#FF7A70]" />
+              <MapPin className="h-4 w-4 text-[#5D3EBC]" />
               <span>30-Minute GPS Breadcrumbs Trail</span>
             </h3>
             <p className="text-xs text-neutral-500 mt-0.5">
@@ -1913,7 +1913,7 @@ function GpsTrailTab({
       </div>
 
       {/* 3. Timestamps & Coordinates List */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-2xs overflow-hidden">
+      <div className="rounded-lg border border-neutral-200 bg-white shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
             Recorded Half-Hour Timestamps ({pings?.length ?? 0})
@@ -2011,7 +2011,7 @@ function GpsTrailTab({
                               href={`https://www.google.com/maps?q=${p.lat},${p.lng}&z=17`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                              className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
                             >
                               <span>Google Maps</span>
                               <ExternalLink className="h-3 w-3" />
@@ -2063,7 +2063,7 @@ function GpsTrailTab({
                         href={`https://www.google.com/maps?q=${p.lat},${p.lng}&z=17`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-bold text-[#FF7A70]"
+                        className="inline-flex items-center gap-1 font-bold text-[#5D3EBC]"
                       >
                         Open Maps <ExternalLink className="h-3 w-3" />
                       </a>

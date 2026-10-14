@@ -100,7 +100,7 @@ export default function AdminCycleDetailPage() {
       <div>
         <Link
           href="/admin-portal/performance"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7A70] hover:underline mb-1"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5D3EBC] hover:underline mb-1"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to Performance Cycles
@@ -265,7 +265,7 @@ export default function AdminCycleDetailPage() {
       </div>
 
       {/* Completion Tracking Table */}
-      <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

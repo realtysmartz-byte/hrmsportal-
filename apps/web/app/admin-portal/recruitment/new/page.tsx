@@ -47,19 +47,14 @@ export default function NewJobPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 overflow-hidden">
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          <span>Realty Smartz Private Limited</span>
-          <span>·</span>
-          <span className="text-[#FF7A70] font-bold">ATS & Hiring</span>
-        </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+        <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
           New Job Opening
         </h1>
         <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
           Publish an opening to the recruitment pipeline
         </p>
       </div>
-      <Card className="rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md shadow-2xs overflow-hidden">
+      <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
         <CardHeader className="p-5 sm:p-6 pb-2">
           <CardTitle className="font-display text-lg font-bold text-neutral-900">Position Details</CardTitle>
         </CardHeader>

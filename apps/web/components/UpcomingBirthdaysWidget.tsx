@@ -28,12 +28,12 @@ export function UpcomingBirthdaysWidget({
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ duration: 0.18 }}
-      className={`rounded-2xl border border-neutral-200/80 bg-white p-5 md:p-6 shadow-sm ${className}`}
+      className={`rounded-lg border border-neutral-200/80 bg-white p-5 md:p-6 shadow-sm ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#FF7A70]/20 to-[#FFA07A]/20 text-[#FF7A70] border border-[#FF7A70]/30 shadow-2xs">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5D3EBC]/20 text-[#5D3EBC] border border-[#5D3EBC]/30 shadow-2xs">
             <Cake className="h-5 w-5" />
           </div>
           <div>
@@ -48,7 +48,7 @@ export function UpcomingBirthdaysWidget({
 
         <Link
           href={profileBasePath}
-          className="text-[11px] font-semibold text-neutral-500 hover:text-[#FF7A70] transition-colors flex items-center gap-0.5"
+          className="text-[11px] font-semibold text-neutral-500 hover:text-[#5D3EBC] transition-colors flex items-center gap-0.5"
         >
           View all <ChevronRight className="h-3 w-3" />
         </Link>
@@ -78,7 +78,7 @@ export function UpcomingBirthdaysWidget({
               href={`${profileBasePath}/${item.id}`}
               className={`group flex items-center justify-between rounded-xl p-2.5 transition-all ${
                 item.isToday
-                  ? "bg-gradient-to-r from-[#FF7A70]/15 via-[#FFA07A]/15 to-transparent border border-[#FF7A70]/40 shadow-xs hover:border-[#FF7A70]"
+                  ? "bg-gradient-to-r from-[#5D3EBC]/15 via-[#7B5CD6]/15 to-transparent border border-[#5D3EBC]/40 shadow-xs hover:border-[#5D3EBC]"
                   : "border border-neutral-200/70 bg-neutral-50/50 hover:bg-neutral-50 hover:border-neutral-300"
               }`}
             >
@@ -98,14 +98,14 @@ export function UpcomingBirthdaysWidget({
                     )}
                   </div>
                   {item.isToday && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#FF7A70] text-white text-[9px] shadow-sm animate-bounce">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#5D3EBC] text-white text-[9px] shadow-sm animate-bounce">
                       🎉
                     </span>
                   )}
                 </div>
 
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-neutral-900 truncate group-hover:text-[#FF7A70] transition-colors">
+                  <p className="text-xs font-bold text-neutral-900 truncate group-hover:text-[#5D3EBC] transition-colors">
                     {item.name}
                   </p>
                   <p className="text-[10px] text-neutral-500 truncate">
@@ -117,7 +117,7 @@ export function UpcomingBirthdaysWidget({
               {/* Date & Today Badge */}
               <div className="text-right shrink-0">
                 {item.isToday ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#5D3EBC] px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
                     <Sparkles className="h-2.5 w-2.5" />
                     Today!
                   </span>

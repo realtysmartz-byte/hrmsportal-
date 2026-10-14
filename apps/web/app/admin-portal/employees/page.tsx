@@ -62,12 +62,7 @@ export default function EmployeesPage() {
       {/* 1. TOP HEADER & QUICK STATS (Dashboards V3 Bento Style) */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-            <span>Realty Smartz Private Limited</span>
-            <span>·</span>
-            <span className="text-[#FF7A70] font-bold">Personnel Directory</span>
-          </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
             Employees
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
@@ -79,7 +74,7 @@ export default function EmployeesPage() {
           <Link href="/admin-portal/employees/new">
             <button
               type="button"
-              className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)] hover:opacity-95 active:scale-95 transition-all"
+              className="flex items-center gap-2 rounded-lg bg-[#5D3EBC] px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95 active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4" />
               Add Employee
@@ -89,7 +84,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* 2. FILTER & SEARCH CONTROL BAR */}
-      <div className="rounded-2xl border border-neutral-200/80 bg-white/90 backdrop-blur-md p-3 sm:p-4 shadow-2xs overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-3 sm:p-4 shadow-2xs overflow-hidden">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search Field */}
           <div className="relative min-w-0 sm:min-w-[200px] flex-1">
@@ -169,7 +164,7 @@ export default function EmployeesPage() {
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : (
-        <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
           {/* Mobile Employee Cards (sm:hidden) */}
           <div className="block sm:hidden divide-y divide-neutral-100">
             {rows.length === 0 && (
@@ -193,7 +188,7 @@ export default function EmployeesPage() {
                 className="flex items-center justify-between p-3.5 hover:bg-neutral-50/70 transition-colors gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-xs">
                     {emp.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -264,7 +259,7 @@ export default function EmployeesPage() {
                         href={`/admin-portal/employees/${emp.id}`}
                         className="flex items-center gap-3.5 group/emp"
                       >
-                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs group-hover/emp:scale-105 transition-transform">
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-xs group-hover/emp:scale-105 transition-transform">
                           {emp.profilePhotoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -277,7 +272,7 @@ export default function EmployeesPage() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-neutral-900 group-hover/emp:text-[#FF7A70] transition-colors truncate">
+                          <p className="font-bold text-neutral-900 group-hover/emp:text-[#5D3EBC] transition-colors truncate">
                             {fullName(emp.firstName, emp.lastName)}
                           </p>
                           <p className="text-[11px] font-mono text-neutral-400 font-medium">
@@ -309,7 +304,7 @@ export default function EmployeesPage() {
                     <TableCell className="text-right">
                       <Link
                         href={`/admin-portal/employees/${emp.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#FF7A70] transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#5D3EBC] transition-colors"
                       >
                         <span>Manage</span>
                         <ChevronRight className="h-3.5 w-3.5" />

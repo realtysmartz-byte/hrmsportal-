@@ -82,7 +82,7 @@ export default function JobDetailPage() {
         <div>
           <Link
             href="/admin-portal/recruitment"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7A70] hover:underline mb-1"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5D3EBC] hover:underline mb-1"
           >
             ← Back to Openings
           </Link>
@@ -110,7 +110,7 @@ export default function JobDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => setShowAdd((v) => !v)}
-            className="rounded-xl shadow-[0_4px_16px_rgba(255,122,112,0.3)]"
+            className="rounded-xl"
           >
             {showAdd ? "Cancel" : "+ Add Candidate"}
           </Button>

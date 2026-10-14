@@ -62,12 +62,7 @@ export default function LeaveApprovalsPage() {
       {/* 1. TOP HEADER (Dashboards V3 Style) */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-            <span>Realty Smartz Private Limited</span>
-            <span>·</span>
-            <span className="text-[#FF7A70] font-bold">Managerial Approvals</span>
-          </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
             Leave Approvals
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
@@ -76,7 +71,7 @@ export default function LeaveApprovalsPage() {
         </div>
 
         <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 py-1.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
-          <Clock className="h-4 w-4 text-[#FF7A70]" />
+          <Clock className="h-4 w-4 text-[#5D3EBC]" />
           <span>{data?.length ?? 0} Awaiting Decision</span>
         </div>
       </div>
@@ -92,7 +87,7 @@ export default function LeaveApprovalsPage() {
       {isLoading ? (
         <TableSkeleton rows={4} />
       ) : !data?.length ? (
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-lg border border-neutral-200/80 bg-white p-12 text-center shadow-sm">
           <EmptyState
             title="All clear! Zero pending requests"
             description="When employees submit new leave applications, they will appear here for your review."
@@ -102,7 +97,7 @@ export default function LeaveApprovalsPage() {
       ) : (
         <div className="space-y-4">
           {/* Desktop Table View */}
-          <div className="hidden md:block rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+          <div className="hidden md:block rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -119,7 +114,7 @@ export default function LeaveApprovalsPage() {
                   <TableRow key={r.id} className="hover:bg-neutral-50/70 transition-colors">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-xs">
                           {r.employee.firstName?.[0]}
                           {r.employee.lastName?.[0]}
                         </div>
@@ -212,11 +207,11 @@ export default function LeaveApprovalsPage() {
             {data.map((r) => (
               <div
                 key={r.id}
-                className="rounded-2xl border border-neutral-200/80 bg-white p-4 shadow-2xs space-y-3"
+                className="rounded-lg border border-neutral-200/80 bg-white p-4 shadow-2xs space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-xs">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white shadow-xs">
                       {r.employee.firstName?.[0]}
                       {r.employee.lastName?.[0]}
                     </div>
@@ -242,7 +237,7 @@ export default function LeaveApprovalsPage() {
                   </div>
                   <div className="flex items-center justify-between text-neutral-700">
                     <span className="text-neutral-400 font-medium">Duration:</span>
-                    <span className="font-bold text-[#FF7A70]">
+                    <span className="font-bold text-[#5D3EBC]">
                       {r.numberOfDays} {r.numberOfDays === 1 ? "day" : "days"}
                     </span>
                   </div>

@@ -88,12 +88,7 @@ export default function LeaveTypesPage() {
       {/* 1. TOP HEADER (Dashboards V3 Style) */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-            <span>Realty Smartz Private Limited</span>
-            <span>·</span>
-            <span className="text-[#FF7A70] font-bold">Policy & Entitlements</span>
-          </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
             Leave Types
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
@@ -102,7 +97,7 @@ export default function LeaveTypesPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md p-5 shadow-2xs">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-5 shadow-2xs">
         <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-4">
           Add New Leave Classification
         </h2>
@@ -131,7 +126,7 @@ export default function LeaveTypesPage() {
               type="checkbox"
               checked={carryForward}
               onChange={(e) => setCarryForward(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-300 text-[#FF7A70] accent-[#FF7A70]"
+              className="h-4 w-4 rounded border-neutral-300 text-[#5D3EBC] accent-[#5D3EBC]"
             />
             Carry forward unused days allowed
           </label>
@@ -140,7 +135,7 @@ export default function LeaveTypesPage() {
               type="checkbox"
               checked={requiresApproval}
               onChange={(e) => setRequiresApproval(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-300 text-[#FF7A70] accent-[#FF7A70]"
+              className="h-4 w-4 rounded border-neutral-300 text-[#5D3EBC] accent-[#5D3EBC]"
             />
             Requires managerial approval
           </label>
@@ -148,7 +143,7 @@ export default function LeaveTypesPage() {
             <button
               type="submit"
               disabled={createMutation.isLoading || !name.trim()}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs font-bold text-white shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
+              className="flex items-center gap-2 rounded-xl bg-[#5D3EBC] px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
             >
               <Plus className="h-4 w-4" />
               {createMutation.isLoading ? "Saving..." : "Add Leave Type"}
@@ -159,7 +154,7 @@ export default function LeaveTypesPage() {
 
       {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
 
-      <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

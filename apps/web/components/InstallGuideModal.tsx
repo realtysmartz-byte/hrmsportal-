@@ -76,11 +76,11 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#181926] border border-white/15 p-5 text-white shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md rounded-xl bg-[#181926] border border-white/15 p-5 text-white shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 shrink-0 rounded-2xl bg-white/10 border border-white/15 p-2 flex items-center justify-center">
+            <div className="h-10 w-10 shrink-0 rounded-lg bg-white/10 border border-white/15 p-2 flex items-center justify-center">
               <img src="/logo.png" alt="Realty Smartz" className="h-full w-full object-contain" />
             </div>
             <div>
@@ -109,7 +109,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
             onClick={() => setActiveTab("ios")}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
               activeTab === "ios"
-                ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-xs"
+                ? "bg-[#5D3EBC] text-white shadow-xs"
                 : "text-neutral-400 hover:text-white"
             }`}
           >
@@ -122,7 +122,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
             onClick={() => setActiveTab("mac")}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
               activeTab === "mac"
-                ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-xs"
+                ? "bg-[#5D3EBC] text-white shadow-xs"
                 : "text-neutral-400 hover:text-white"
             }`}
           >
@@ -135,7 +135,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
             onClick={() => setActiveTab("desktop")}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
               activeTab === "desktop"
-                ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-xs"
+                ? "bg-[#5D3EBC] text-white shadow-xs"
                 : "text-neutral-400 hover:text-white"
             }`}
           >
@@ -149,7 +149,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
           {activeTab === "ios" && (
             <div className="space-y-3 text-xs text-neutral-300">
               <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                   1
                 </span>
                 <div className="leading-snug">
@@ -157,26 +157,26 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
                   <span className="font-semibold text-white">Apple Safari</span>
                   <span>, then tap the </span>
                   <span className="inline-flex items-center gap-1 font-semibold text-white bg-white/10 px-1.5 py-0.5 rounded">
-                    <Share className="h-3 w-3 text-[#FFA07A]" /> Share
+                    <Share className="h-3 w-3 text-[#7B5CD6]" /> Share
                   </span>
                   <span> button at the bottom toolbar.</span>
                 </div>
               </div>
 
               <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                   2
                 </span>
                 <div className="leading-snug">
                   <span>Scroll down the menu and tap </span>
                   <span className="inline-flex items-center gap-1 font-semibold text-white bg-white/10 px-1.5 py-0.5 rounded">
-                    <PlusSquare className="h-3 w-3 text-[#FFA07A]" /> Add to Home Screen
+                    <PlusSquare className="h-3 w-3 text-[#7B5CD6]" /> Add to Home Screen
                   </span>
                 </div>
               </div>
 
               <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                   3
                 </span>
                 <div className="leading-snug">
@@ -191,7 +191,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
           {activeTab === "mac" && (
             <div className="space-y-3 text-xs text-neutral-300">
               <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                   1
                 </span>
                 <div className="leading-snug">
@@ -202,7 +202,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
               </div>
 
               <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                   2
                 </span>
                 <div className="leading-snug">
@@ -214,7 +214,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
               </div>
 
               <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                   3
                 </span>
                 <div className="leading-snug">
@@ -234,7 +234,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
                   <button
                     type="button"
                     onClick={handleNativeInstall}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-95"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#5D3EBC] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-95"
                   >
                     <Download className="h-4 w-4" />
                     <span>Install App on this Computer</span>
@@ -242,7 +242,7 @@ export function InstallGuideModal({ isOpen, onClose }: InstallGuideModalProps) {
                 </div>
               ) : (
                 <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-start gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7A70]/20 text-[#FFA07A] font-bold text-xs">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC]/20 text-[#7B5CD6] font-bold text-xs">
                     ★
                   </span>
                   <div className="leading-snug">

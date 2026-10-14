@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, LogIn, LogOut, Loader2, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
   geolocationErrorMessage,
@@ -22,6 +21,13 @@ function formatDuration(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   return `${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+function formatClock(totalSeconds: number) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
 }
 
 export function CheckInOutCard() {
@@ -105,7 +111,7 @@ export function CheckInOutCard() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+      <div className="flex h-64 w-full items-center justify-center rounded-lg border border-neutral-200 bg-white">
         <Loader2 className="h-6 w-6 animate-spin text-neutral-400" />
       </div>
     );
@@ -116,94 +122,81 @@ export function CheckInOutCard() {
       ? Math.max(0, Math.floor((now.getTime() - new Date(today.checkInTime).getTime()) / 1000))
       : 0;
 
-  const status = isOnDuty
-    ? { label: "On duty", className: "bg-emerald-50 text-emerald-700" }
-    : hasCompletedSession
-    ? { label: "Punched out", className: "bg-neutral-100 text-neutral-600" }
-    : { label: "Not punched in", className: "bg-neutral-100 text-neutral-600" };
-
   const hours =
     today?.totalHours != null && today.totalHours > 0
-      ? `${today.totalHours} h`
+      ? `${today.totalHours}h`
       : isOnDuty
       ? formatDuration(elapsed)
-      : "—";
+      : "0h 00m";
 
   return (
-    <div className="w-full rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-neutral-500">
-          {now?.toLocaleDateString("en-IN", {
-            timeZone: TIMEZONE_IST,
-            weekday: "long",
-            day: "numeric",
-            month: "short",
-          })}
-        </span>
-        <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", status.className)}>
-          {status.label}
-        </span>
-      </div>
+    <div className="w-full rounded-xl bg-[#F3F0FC] p-4">
+      <p className="text-xs text-neutral-600">10:00 AM - 07:00 PM • GENERAL</p>
 
-      <div className="mt-4 text-center">
-        <div className="font-mono text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
-          {now?.toLocaleTimeString("en-IN", {
-            timeZone: TIMEZONE_IST,
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          }) ?? "--:--"}
+      <div className="mt-3 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-white">
+          <CalendarClock className="h-5 w-5" />
         </div>
-        <div className="mt-2 inline-flex max-w-full items-center gap-1.5 text-sm text-neutral-500">
-          <MapPin className="h-4 w-4 shrink-0 text-neutral-400" />
-          <span className="truncate">{workLoc?.name ?? "Loading work location…"}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-neutral-900">
+            {now?.toLocaleDateString("en-IN", { timeZone: TIMEZONE_IST, day: "numeric", month: "short" })}{" "}
+            <span className="font-normal text-neutral-500">
+              {now?.toLocaleDateString("en-IN", { timeZone: TIMEZONE_IST, weekday: "short" })}
+            </span>
+          </p>
+          <p className="text-sm text-neutral-700">{hours} worked</p>
         </div>
       </div>
 
       {error && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      <Button
-        className={cn(
-          "mt-5 h-12 w-full gap-2 rounded-xl text-base font-semibold",
-          isOnDuty
-            ? "bg-neutral-900 text-white hover:bg-black"
-            : "bg-[#FF7A70] text-white hover:bg-[#FF6559]"
-        )}
+      <button
+        type="button"
         disabled={busy}
         onClick={() => punch(isOnDuty ? "out" : "in")}
-      >
-        {busy ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : isOnDuty ? (
-          <LogOut className="h-5 w-5" />
-        ) : (
-          <LogIn className="h-5 w-5" />
+        className={cn(
+          "mt-4 flex h-12 w-full overflow-hidden rounded-lg border text-left disabled:opacity-70",
+          isOnDuty ? "border-rose-500" : "border-[#5D3EBC]"
         )}
-        {busy ? "Getting location…" : isOnDuty ? "Punch Out" : "Punch In"}
-      </Button>
+      >
+        <span
+          className={cn(
+            "flex flex-1 items-center justify-center gap-2 text-sm font-semibold text-white",
+            isOnDuty ? "bg-rose-500" : "bg-[#5D3EBC]"
+          )}
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {busy ? "Getting location…" : isOnDuty ? "Clock Out" : "Clock In"}
+        </span>
+        <span className="flex w-[42%] flex-col items-center justify-center bg-white">
+          <span className="font-mono text-base font-semibold text-neutral-900">
+            {isOnDuty
+              ? formatClock(elapsed)
+              : now?.toLocaleTimeString("en-IN", {
+                  timeZone: TIMEZONE_IST,
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                }) ?? "--:--"}
+          </span>
+          {today?.checkInTime && (
+            <span className="flex items-center gap-0.5 text-[11px] text-neutral-500">
+              <ArrowDownLeft className="h-3 w-3 text-emerald-600" />
+              {formatTimeIST(today.checkInTime)}
+              {hasCompletedSession && today.checkOutTime && ` - ${formatTimeIST(today.checkOutTime)}`}
+            </span>
+          )}
+        </span>
+      </button>
 
-      <div className="mt-5 grid grid-cols-3 divide-x divide-neutral-100 border-t border-neutral-100 pt-4 text-center">
-        <div>
-          <div className="text-xs text-neutral-400">In</div>
-          <div className="mt-0.5 text-sm font-medium text-neutral-800">
-            {today?.checkInTime ? formatTimeIST(today.checkInTime) : "—"}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-neutral-400">Out</div>
-          <div className="mt-0.5 text-sm font-medium text-neutral-800">
-            {today?.checkOutTime ? formatTimeIST(today.checkOutTime) : "—"}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-neutral-400">Hours</div>
-          <div className="mt-0.5 text-sm font-medium text-neutral-800">{hours}</div>
-        </div>
+      <div className="mt-3 flex items-center gap-1.5 text-xs text-neutral-500">
+        <MapPin className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{workLoc?.name ?? "Loading work location…"}</span>
       </div>
     </div>
   );

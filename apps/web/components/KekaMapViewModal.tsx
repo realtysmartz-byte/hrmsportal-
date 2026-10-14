@@ -108,16 +108,15 @@ export function KekaMapViewModal({
     : `https://www.google.com/maps?q=${mapCenterLat},${mapCenterLng}&z=17`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-1 sm:p-4 animate-in fade-in duration-150">
-      <div className="relative flex flex-col w-full max-w-6xl h-[94vh] rounded-2xl bg-white shadow-2xl border border-neutral-300 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4">
+      <div className="relative flex flex-col w-full max-w-6xl h-[100dvh] sm:h-[90vh] sm:rounded-lg bg-white overflow-hidden">
         {/* Top Header - Exact Keka Style */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-200 bg-white shrink-0">
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-neutral-800 tracking-wide uppercase">
-            <span>MAP VIEW</span>
-            <span>-</span>
-            <span>{formattedHeaderDate}</span>
-            <span>-</span>
-            <span className="text-neutral-900 font-extrabold">{employeeName}</span>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-neutral-200 bg-white shrink-0">
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-neutral-900">Map View</p>
+            <p className="truncate text-xs text-neutral-500">
+              {employeeName} · {formattedHeaderDate}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -128,7 +127,7 @@ export function KekaMapViewModal({
               title="Refresh GPS logs"
               className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
             >
-              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin text-[#FF7A70]")} />
+              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin text-[#5D3EBC]")} />
             </button>
             <button
               type="button"
@@ -141,20 +140,20 @@ export function KekaMapViewModal({
         </div>
 
         {/* Modal Body: Left Sidebar + Right Map */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0 bg-white overflow-y-auto overscroll-contain md:overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 bg-white overflow-hidden">
           {/* Left Pane (Keka Sidebar) */}
-          <div className="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-neutral-200 flex flex-col bg-white md:overflow-y-auto shrink-0 select-none">
+          <div className="order-2 md:order-1 w-full md:w-80 lg:w-96 flex-1 md:flex-none min-h-0 overflow-y-auto overscroll-contain md:border-r border-neutral-200 bg-white select-none">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-xs text-neutral-400 gap-2">
-                <RefreshCw className="h-6 w-6 animate-spin text-[#FF7A70]" />
+                <RefreshCw className="h-6 w-6 animate-spin text-[#5D3EBC]" />
                 <span>Loading location timeline...</span>
               </div>
             ) : (
               <div className="p-4 space-y-6">
                 {/* 1. REMOTE CLOCK IN / CLOCK OUT */}
                 <div>
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-3">
-                    REMOTE CLOCK IN
+                  <h3 className="text-xs font-semibold text-neutral-500 mb-3">
+                    Clock In / Out
                   </h3>
 
                   {/* Clock In Item */}
@@ -162,9 +161,9 @@ export function KekaMapViewModal({
                     <div
                       onClick={() => setSelectedPinId(checkInEvent.id)}
                       className={cn(
-                        "flex items-start justify-between gap-3 p-2.5 rounded-xl border cursor-pointer transition-all mb-2",
+                        "flex items-start justify-between gap-3 p-2.5 rounded-lg border cursor-pointer transition-all mb-2",
                         activePoint?.id === checkInEvent.id
-                          ? "bg-purple-50/70 border-purple-300 shadow-2xs"
+                          ? "bg-[#F3F0FC] border-[#5D3EBC]/40"
                           : "bg-white border-neutral-100 hover:bg-neutral-50/80"
                       )}
                     >
@@ -187,7 +186,7 @@ export function KekaMapViewModal({
                       </div>
                     </div>
                   ) : (
-                    <div className="p-2.5 rounded-xl border border-dashed border-neutral-200 text-xs text-neutral-400 mb-2">
+                    <div className="p-2.5 rounded-lg border border-dashed border-neutral-200 text-xs text-neutral-400 mb-2">
                       No Clock-In recorded
                     </div>
                   )}
@@ -197,9 +196,9 @@ export function KekaMapViewModal({
                     <div
                       onClick={() => setSelectedPinId(checkOutEvent.id)}
                       className={cn(
-                        "flex items-start justify-between gap-3 p-2.5 rounded-xl border cursor-pointer transition-all",
+                        "flex items-start justify-between gap-3 p-2.5 rounded-lg border cursor-pointer transition-all",
                         activePoint?.id === checkOutEvent.id
-                          ? "bg-purple-50/70 border-purple-300 shadow-2xs"
+                          ? "bg-[#F3F0FC] border-[#5D3EBC]/40"
                           : "bg-white border-neutral-100 hover:bg-neutral-50/80"
                       )}
                     >
@@ -232,8 +231,8 @@ export function KekaMapViewModal({
                 {/* 2. LOCATION PUNCH (Every 30 mins) */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-                      LOCATION PUNCH
+                    <h3 className="text-xs font-semibold text-neutral-500">
+                      Location Punches
                     </h3>
                     <span className="text-[10px] font-semibold text-neutral-400">
                       {punchItemsWithBadges.length} captures
@@ -241,7 +240,7 @@ export function KekaMapViewModal({
                   </div>
 
                   {punchItemsWithBadges.length === 0 ? (
-                    <div className="p-3 rounded-xl border border-neutral-100 bg-neutral-50 text-center text-xs text-neutral-400">
+                    <div className="p-3 rounded-lg border border-neutral-100 bg-neutral-50 text-center text-xs text-neutral-400">
                       No 30-min location punches available for this date.
                     </div>
                   ) : (
@@ -253,9 +252,9 @@ export function KekaMapViewModal({
                             key={punch.id}
                             onClick={() => setSelectedPinId(punch.id)}
                             className={cn(
-                              "flex items-start justify-between gap-3 p-2.5 rounded-xl border cursor-pointer transition-all",
+                              "flex items-start justify-between gap-3 p-2.5 rounded-lg border cursor-pointer transition-all",
                               isSelected
-                                ? "bg-neutral-100 border-neutral-400 shadow-2xs ring-1 ring-neutral-400"
+                                ? "bg-[#F3F0FC] border-[#5D3EBC]/40"
                                 : "bg-white border-neutral-100 hover:bg-neutral-50"
                             )}
                           >
@@ -287,14 +286,14 @@ export function KekaMapViewModal({
           </div>
 
           {/* Right Pane (Google Map View) */}
-          <div className="flex-1 relative flex flex-col bg-neutral-100 min-h-[350px]">
+          <div className="order-1 md:order-2 relative h-[42vh] md:h-auto md:flex-1 shrink-0 bg-neutral-100">
             {/* Map Provider Toggle & External Link Bar */}
             <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
               <a
                 href={googleMapsExternalUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-bold text-neutral-800 shadow-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-800 shadow-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
               >
                 <span>Google Maps</span>
                 <ExternalLink className="h-3 w-3 text-neutral-500" />
@@ -303,7 +302,7 @@ export function KekaMapViewModal({
               <button
                 type="button"
                 onClick={() => setMapProvider((p) => (p === "google" ? "osm" : "google"))}
-                className="flex items-center gap-1 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-bold text-neutral-700 shadow-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 shadow-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
                 title="Toggle satellite/map provider"
               >
                 <Layers className="h-3 w-3 text-neutral-500" />
@@ -313,9 +312,9 @@ export function KekaMapViewModal({
 
             {/* Active Pin Info Overlay */}
             {activePoint && (
-              <div className="absolute top-3 left-3 z-20 max-w-sm rounded-xl bg-white/95 backdrop-blur-xs p-3 text-xs shadow-md border border-neutral-200">
+              <div className="absolute top-3 left-3 z-20 hidden md:block max-w-sm rounded-lg bg-white p-3 text-xs shadow-md border border-neutral-200">
                 <div className="flex items-center gap-1.5 font-bold text-neutral-900">
-                  <MapPin className="h-3.5 w-3.5 text-[#FF7A70]" />
+                  <MapPin className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   <span>
                     {activePoint.type === "CHECK_IN"
                       ? "Clock-In Point (A)"
@@ -338,7 +337,7 @@ export function KekaMapViewModal({
             )}
 
             {/* Google Maps / OSM Embed */}
-            <div className="w-full h-full min-h-[400px]">
+            <div className="w-full h-full">
               <iframe
                 title={`Keka Map View for ${employeeName}`}
                 src={currentEmbedUrl}

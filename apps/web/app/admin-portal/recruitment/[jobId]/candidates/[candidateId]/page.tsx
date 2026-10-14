@@ -60,7 +60,7 @@ export default function CandidateDetailPage() {
         <div>
           <Link
             href={`/admin-portal/recruitment/${params.jobId}`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7A70] hover:underline mb-1"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5D3EBC] hover:underline mb-1"
           >
             ← Back to Job Pipeline
           </Link>

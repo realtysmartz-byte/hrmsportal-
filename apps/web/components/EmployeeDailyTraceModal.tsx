@@ -91,12 +91,12 @@ export function EmployeeDailyTraceModal({
   }, [log]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="relative flex flex-col w-full max-w-5xl max-h-[92vh] rounded-3xl bg-white shadow-2xl border border-neutral-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4">
+      <div className="relative flex flex-col w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-lg bg-white overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 bg-neutral-50/70">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white shadow-sm font-bold text-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5D3EBC] text-white shadow-sm font-bold text-sm">
               {employeeName.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -145,7 +145,7 @@ export function EmployeeDailyTraceModal({
         {/* Content */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 text-neutral-400 space-y-3">
-            <RefreshCw className="h-8 w-8 animate-spin text-[#FF7A70]" />
+            <RefreshCw className="h-8 w-8 animate-spin text-[#5D3EBC]" />
             <p className="text-sm font-medium text-neutral-600">Loading daily GPS trace and timestamps...</p>
           </div>
         ) : isError ? (
@@ -197,7 +197,7 @@ export function EmployeeDailyTraceModal({
                   Total GPS Trace Pings
                 </span>
                 <span className="font-bold text-neutral-900 text-sm flex items-center gap-1 mt-0.5">
-                  <Route className="h-3.5 w-3.5 text-[#FF7A70]" />
+                  <Route className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   {events.length} recorded points
                 </span>
               </div>
@@ -209,7 +209,7 @@ export function EmployeeDailyTraceModal({
               <div className="lg:col-span-7 flex flex-col p-3.5 sm:p-4 bg-neutral-50/50 border-b lg:border-b-0 lg:border-r border-neutral-100 lg:overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-[#FF7A70]" />
+                    <MapPin className="h-4 w-4 text-[#5D3EBC]" />
                     <span className="text-xs font-bold text-neutral-800">
                       {activeEvent
                         ? `${activeEvent.type.replace("_", " ")} Location`
@@ -221,7 +221,7 @@ export function EmployeeDailyTraceModal({
                       href={routeUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF7A70] hover:underline"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5D3EBC] hover:underline"
                     >
                       <Route className="h-3.5 w-3.5" />
                       View Entire Route in Google Maps
@@ -231,7 +231,7 @@ export function EmployeeDailyTraceModal({
                 </div>
 
                 {mapLat != null && mapLng != null && (
-                  <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-2xs">
+                  <div className="rounded-lg overflow-hidden border border-neutral-200 bg-white shadow-2xs">
                     <LocationMap
                       lat={mapLat}
                       lng={mapLng}
@@ -290,7 +290,7 @@ export function EmployeeDailyTraceModal({
                         href={`https://www.google.com/maps?q=${activeEvent.lat},${activeEvent.lng}&z=17`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[#FF7A70] font-semibold hover:underline flex items-center gap-1"
+                        className="text-[#5D3EBC] font-semibold hover:underline flex items-center gap-1"
                       >
                         Open Exact Pin <ExternalLink className="h-3 w-3" />
                       </a>
@@ -358,7 +358,7 @@ export function EmployeeDailyTraceModal({
                           className={cn(
                             "cursor-pointer rounded-xl p-3 border transition-all text-xs space-y-1 relative",
                             isSelected
-                              ? "border-[#FF7A70] bg-[#FF7A70]/5 shadow-2xs"
+                              ? "border-[#5D3EBC] bg-[#5D3EBC]/5 shadow-2xs"
                               : "border-neutral-100 hover:border-neutral-200 bg-neutral-50/60"
                           )}
                         >

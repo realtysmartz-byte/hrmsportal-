@@ -117,14 +117,14 @@ export function LocationMap({
       {showHeader && (
         <div className="flex items-center justify-between gap-2 border-b border-neutral-100 bg-white px-3 py-2">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700">
-            <MapPin className="h-3.5 w-3.5 text-[#FF7A70]" />
+            <MapPin className="h-3.5 w-3.5 text-[#5D3EBC]" />
             <span>Map Location</span>
           </p>
           <a
             href={openUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF7A70] hover:underline"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#5D3EBC] hover:underline"
           >
             <span>Open in Google Maps</span>
             <ExternalLink className="h-3 w-3" />

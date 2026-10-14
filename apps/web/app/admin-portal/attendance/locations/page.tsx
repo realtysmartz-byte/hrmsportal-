@@ -126,10 +126,10 @@ export default function LocationTracingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white shadow-sm">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#5D3EBC] text-white shadow-sm">
               <MapPin className="h-4 w-4" />
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#FF7A70]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#5D3EBC]">
               REALTY SMARTZ PVT LTD · Personnel GPS Monitoring
             </span>
           </div>
@@ -157,7 +157,7 @@ export default function LocationTracingPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
             <Users className="h-5 w-5" />
           </div>
@@ -170,7 +170,7 @@ export default function LocationTracingPage() {
           </div>
         </Card>
 
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
             <LogIn className="h-5 w-5" />
           </div>
@@ -183,7 +183,7 @@ export default function LocationTracingPage() {
           </div>
         </Card>
 
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
             <Navigation className="h-5 w-5" />
           </div>
@@ -196,7 +196,7 @@ export default function LocationTracingPage() {
           </div>
         </Card>
 
-        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-2xl flex items-center gap-3.5">
+        <Card className="p-4 border-neutral-200/80 bg-white/90 shadow-2xs rounded-lg flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
             <Building className="h-5 w-5" />
           </div>
@@ -211,7 +211,7 @@ export default function LocationTracingPage() {
       </div>
 
       {/* View Switcher & Filter Controls */}
-      <div className="rounded-2xl border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
+      <div className="rounded-lg border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* View Toggle Tabs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl w-full sm:w-auto">
@@ -260,7 +260,7 @@ export default function LocationTracingPage() {
             <select
               value={selectedEmployeeId}
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-2 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#FF7A70]/30"
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-2 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#5D3EBC]/30"
             >
               <option value="">All Employees ({allStaff?.length ?? 0})</option>
               {(allStaff ?? []).map((item) => (
@@ -287,7 +287,7 @@ export default function LocationTracingPage() {
       {/* Location Map Preview Modal (if selected) */}
       {activeMapPing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-xl rounded-3xl bg-white p-5 shadow-2xl border border-neutral-200">
+          <div className="relative w-full max-w-xl rounded-xl bg-white p-5 shadow-2xl border border-neutral-200">
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
@@ -307,7 +307,7 @@ export default function LocationTracingPage() {
               </button>
             </div>
 
-            <div className="mt-4 rounded-2xl overflow-hidden border border-neutral-200">
+            <div className="mt-4 rounded-lg overflow-hidden border border-neutral-200">
               <LocationMap
                 lat={activeMapPing.lat}
                 lng={activeMapPing.lng}
@@ -325,7 +325,7 @@ export default function LocationTracingPage() {
                 href={`https://www.google.com/maps?q=${activeMapPing.lat},${activeMapPing.lng}&z=17`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-[#FF7A70] hover:underline"
+                className="inline-flex items-center gap-1 font-semibold text-[#5D3EBC] hover:underline"
               >
                 Open in Google Maps <ExternalLink className="h-3 w-3" />
               </a>
@@ -337,7 +337,7 @@ export default function LocationTracingPage() {
       {/* Assign Location Modal for Admin */}
       {assignStaffTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white p-5 sm:p-6 shadow-2xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-2xl rounded-xl bg-white p-5 sm:p-6 shadow-2xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-4">
               <div>
                 <h3 className="font-bold text-base text-neutral-900">
@@ -384,7 +384,7 @@ export default function LocationTracingPage() {
 
       {/* VIEW 1: All Employees Live Status */}
       {viewMode === "overview" && (
-        <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+        <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
           {isStaffLoading ? (
             <div className="py-16 text-center text-xs text-neutral-400">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
@@ -434,7 +434,7 @@ export default function LocationTracingPage() {
                           {/* Employee */}
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-xs text-white shadow-2xs">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white shadow-2xs">
                                 {initial}
                               </div>
                               <div>
@@ -539,7 +539,7 @@ export default function LocationTracingPage() {
                                 className="h-7 px-2 text-xs text-neutral-700 hover:bg-neutral-50 rounded-lg border-neutral-200"
                                 title="View Map Pin"
                               >
-                                <MapPin className="h-3 w-3 text-[#FF7A70] mr-1" />
+                                <MapPin className="h-3 w-3 text-[#5D3EBC] mr-1" />
                                 Pin
                               </Button>
                               <Button
@@ -562,7 +562,7 @@ export default function LocationTracingPage() {
                                     lng: emp.workLocationLng,
                                   })
                                 }
-                                className="h-7 px-2 text-xs gap-1 bg-[#FF7A70] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold"
+                                className="h-7 px-2 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold"
                                 title="Assign Official Workplace"
                               >
                                 <Navigation className="h-3 w-3" />
@@ -572,7 +572,7 @@ export default function LocationTracingPage() {
                                 href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                                className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
                                 title="Open in Google Maps"
                               >
                                 <ExternalLink className="h-3 w-3" />
@@ -668,7 +668,7 @@ export default function LocationTracingPage() {
                           }
                           className="h-7 text-xs text-neutral-700 border-neutral-200 px-2 font-semibold"
                         >
-                          <MapPin className="h-3 w-3 mr-1 text-[#FF7A70]" />
+                          <MapPin className="h-3 w-3 mr-1 text-[#5D3EBC]" />
                           Pin Map
                         </Button>
                         <Button
@@ -690,7 +690,7 @@ export default function LocationTracingPage() {
                               lng: emp.workLocationLng,
                             })
                           }
-                          className="h-7 text-xs gap-1 bg-[#FF7A70] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold px-2"
+                          className="h-7 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg shadow-2xs font-semibold px-2"
                         >
                           <Navigation className="h-3 w-3" />
                           <span>Assign Site</span>
@@ -699,7 +699,7 @@ export default function LocationTracingPage() {
                           href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
                           target="_blank"
                           rel="noreferrer"
-                          className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                          className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
                         >
                           <span>Google Maps</span>
                           <ExternalLink className="h-3 w-3" />
@@ -716,7 +716,7 @@ export default function LocationTracingPage() {
 
       {/* VIEW 2: Detailed 30-Minute Location Traces */}
       {viewMode === "traces" && (
-        <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
+        <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
           {isPingsLoading ? (
             <div className="py-16 text-center text-xs text-neutral-400">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
@@ -761,7 +761,7 @@ export default function LocationTracingPage() {
                         <TableRow key={ping.id} className="hover:bg-neutral-50/60 transition-colors">
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-xs text-white shadow-2xs">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white shadow-2xs">
                                 {initial}
                               </div>
                               <div>
@@ -827,7 +827,7 @@ export default function LocationTracingPage() {
                                 className="h-7 px-2 text-xs text-neutral-700 hover:bg-neutral-50 rounded-lg border-neutral-200"
                                 title="View Map Pin"
                               >
-                                <MapPin className="h-3 w-3 text-[#FF7A70] mr-1" />
+                                <MapPin className="h-3 w-3 text-[#5D3EBC] mr-1" />
                                 Pin
                               </Button>
                               <Button
@@ -843,7 +843,7 @@ export default function LocationTracingPage() {
                                 href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                                className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
                                 title="Open in Google Maps"
                               >
                                 <ExternalLink className="h-3 w-3" />
@@ -911,7 +911,7 @@ export default function LocationTracingPage() {
                             }
                             className="h-7 text-xs text-neutral-700 border-neutral-200 px-2 font-semibold"
                           >
-                            <MapPin className="h-3 w-3 mr-1 text-[#FF7A70]" />
+                            <MapPin className="h-3 w-3 mr-1 text-[#5D3EBC]" />
                             Pin
                           </Button>
                           <Button
@@ -926,7 +926,7 @@ export default function LocationTracingPage() {
                             href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
                             target="_blank"
                             rel="noreferrer"
-                            className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#FF7A70] hover:bg-[#FF7A70]/10 transition-colors"
+                            className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>

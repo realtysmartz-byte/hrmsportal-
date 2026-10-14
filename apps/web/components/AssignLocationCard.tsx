@@ -199,7 +199,7 @@ export function AssignLocationCard({
   const previewName = isAssigned ? name || "Assigned site" : office?.officeName ?? "Company office";
 
   return (
-    <div className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-4 md:p-6">
+    <div className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold text-neutral-900">Work location</h3>
@@ -294,7 +294,7 @@ export function AssignLocationCard({
           type="button"
           onClick={handleSave}
           disabled={updateMutation.isLoading}
-          className="bg-[#FF7A70] text-white hover:bg-[#FF6559]"
+          className="bg-[#5D3EBC] text-white hover:bg-[#FF6559]"
         >
           {updateMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save

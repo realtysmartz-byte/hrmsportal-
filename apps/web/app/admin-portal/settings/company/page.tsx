@@ -91,12 +91,7 @@ export default function CompanySettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          <span>Realty Smartz Private Limited</span>
-          <span>·</span>
-          <span className="text-[#FF7A70] font-bold">System Configuration</span>
-        </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+        <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
           Company Settings
         </h1>
         <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
@@ -104,7 +99,7 @@ export default function CompanySettingsPage() {
         </p>
       </div>
 
-      <Card className="rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md shadow-2xs overflow-hidden">
+      <Card className="rounded-lg border border-neutral-200/80 bg-white shadow-2xs overflow-hidden">
         <CardHeader className="p-5 sm:p-6 pb-2">
           <CardTitle className="font-display text-lg font-bold text-neutral-900">
             Office Geofence & Boundary
@@ -196,7 +191,7 @@ export default function CompanySettingsPage() {
             <button
               type="submit"
               disabled={update.isLoading}
-              className="w-full flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] py-2.5 px-4 text-sm font-bold text-white shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-98 transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center rounded-xl bg-[#5D3EBC] py-2.5 px-4 text-sm font-bold text-white hover:opacity-95 active:scale-98 transition-all disabled:opacity-50"
             >
               {update.isLoading ? "Saving Settings..." : "Save Company Settings"}
             </button>
@@ -216,7 +211,7 @@ export default function CompanySettingsPage() {
       </Card>
 
       {/* Google Sheets Daily Sync Integration Card */}
-      <Card className="rounded-2xl border-neutral-200/80 shadow-sm bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border">
+      <Card className="rounded-lg border-neutral-200/80 shadow-sm bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border">
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
@@ -240,7 +235,7 @@ export default function CompanySettingsPage() {
       </Card>
 
       {/* Email Notification Service Card */}
-      <Card className="rounded-2xl border-neutral-200/80 shadow-sm bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
+      <Card className="rounded-lg border-neutral-200/80 shadow-sm bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">

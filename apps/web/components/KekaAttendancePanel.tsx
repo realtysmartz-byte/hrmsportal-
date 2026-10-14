@@ -260,11 +260,11 @@ export function KekaAttendancePanel({
     <div className="w-full max-w-full space-y-6">
       {/* 1. TOP EMPLOYEE HEADER BANNER (Keka Style) */}
       {!hideHeaderBanner && (
-        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               {/* Avatar Badge */}
-              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold shadow-sm">
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-[#0F5C74] to-[#1AB3B6] text-white text-base sm:text-lg font-bold shadow-sm">
                 {initials}
               </div>
 
@@ -285,7 +285,7 @@ export function KekaAttendancePanel({
 
             {/* Location Verification Pill */}
             <div className="flex items-center gap-2 text-xs text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200/70">
-              <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0" />
+              <MapPin className="h-4 w-4 text-[#5D3EBC] shrink-0" />
               <div className="min-w-0">
                 <span className="text-[10px] uppercase font-bold text-neutral-400 block">
                   Workplace Allocation
@@ -302,7 +302,7 @@ export function KekaAttendancePanel({
       {/* 2. THREE STATS & ACTION WIDGETS (Keka Style) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card A: Attendance Stats (Last 30 Days) */}
-        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               ATTENDANCE STATS
@@ -341,7 +341,7 @@ export function KekaAttendancePanel({
         </div>
 
         {/* Card B: Timings */}
-        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               TIMINGS
@@ -371,7 +371,7 @@ export function KekaAttendancePanel({
         </div>
 
         {/* Card C: Actions (Punch In / Punch Out with Location Enforcement) */}
-        <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
+        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               ACTIONS
@@ -443,7 +443,7 @@ export function KekaAttendancePanel({
               <Button
                 onClick={() => handlePunch("in")}
                 disabled={busy}
-                className="w-full h-10 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white hover:opacity-95 font-semibold text-xs shadow-sm gap-2"
+                className="w-full h-10 rounded-xl bg-[#5D3EBC] text-white hover:opacity-95 font-semibold text-xs shadow-sm gap-2"
               >
                 <LogIn className="h-3.5 w-3.5" />
                 <span>
@@ -466,7 +466,7 @@ export function KekaAttendancePanel({
       </div>
 
       {/* 3. LOGS & RECORDS SECTION (Keka Style Table with Visual Timeline) */}
-      <div className="rounded-2xl border border-neutral-200/90 bg-white overflow-hidden shadow-2xs">
+      <div className="rounded-lg border border-neutral-200/90 bg-white overflow-hidden shadow-2xs">
         {/* Top Header & Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-200 px-4 py-3 gap-3 bg-neutral-50/50">
           <div className="flex items-center gap-2">
@@ -661,7 +661,7 @@ export function KekaAttendancePanel({
                             {formatTimeIST(log.checkOutTime)}
                           </span>
                         ) : isCheckedIn ? (
-                          <span className="font-bold text-[#FF7A70]">On Duty</span>
+                          <span className="font-bold text-[#5D3EBC]">On Duty</span>
                         ) : (
                           <span className="text-neutral-400">—</span>
                         )}

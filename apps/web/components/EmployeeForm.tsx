@@ -371,12 +371,12 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
             />
           </Field>
           {/* Work Mode & Assigned Workplace Location Allocation */}
-          <div className="sm:col-span-2 rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-3">
+          <div className="sm:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50/70 p-4 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <Label className="text-sm font-bold text-neutral-900 flex items-center gap-1.5">
                   <span>📍 Assigned Work & Punch-In Location</span>
-                  <span className="rounded-full bg-[#FF7A70]/10 px-2 py-0.5 text-[10px] font-bold text-[#FF7A70]">
+                  <span className="rounded-full bg-[#5D3EBC]/10 px-2 py-0.5 text-[10px] font-bold text-[#5D3EBC]">
                     Workplace Verified
                   </span>
                 </Label>
@@ -459,7 +459,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                   href={`https://www.google.com/maps?q=${values.workLocationLat},${values.workLocationLng}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[#FF7A70] font-semibold hover:underline"
+                  className="text-[#5D3EBC] font-semibold hover:underline"
                 >
                   Verify on Google Maps →
                 </a>

@@ -164,7 +164,7 @@ export function PwaInstallBanner() {
                 <span className="truncate font-display text-xs sm:text-sm font-bold tracking-tight text-white">
                   Realty Smartz
                 </span>
-                <span className="shrink-0 rounded-full bg-gradient-to-r from-[#FF7A70]/30 to-[#FFA07A]/30 border border-[#FF7A70]/40 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-semibold text-[#FFA07A]">
+                <span className="shrink-0 rounded-full bg-[#5D3EBC]/30 border border-[#5D3EBC]/40 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-semibold text-[#7B5CD6]">
                   PWA
                 </span>
               </div>
@@ -181,7 +181,7 @@ export function PwaInstallBanner() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:scale-95 focus:outline-none"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#5D3EBC] px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:scale-95 focus:outline-none"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Install</span>

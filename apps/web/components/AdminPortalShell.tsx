@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ArrowLeftRight, LogOut, Download } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -18,6 +18,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { data: session } = useSession();
 
   useEffect(() => {
     setMounted(true);
@@ -51,7 +52,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
   }
 
   return (
-    <div className="relative flex min-h-screen w-full max-w-full overflow-x-hidden bg-[#F6F8FB] antialiased">
+    <div className="relative flex min-h-screen w-full max-w-full overflow-x-clip bg-[#F4F5FA] antialiased">
       {/* 1. DESKTOP STRETCHABLE SIDEBAR */}
       <div className="hidden lg:block sticky top-0 h-screen shrink-0 z-40">
         <AdminSidebar
@@ -91,7 +92,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
       {/* 3. MAIN CONTENT CONTAINER */}
       <div className="flex min-h-screen flex-1 flex-col transition-all duration-300 ease-in-out min-w-0 w-full max-w-full overflow-x-hidden">
         {/* Mobile Header Bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200/80 bg-white/95 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3 pt-[max(0.6rem,env(safe-area-inset-top))] lg:hidden shadow-xs">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200/80 bg-white px-3 sm:px-4 py-2.5 sm:py-3 pt-[max(0.6rem,env(safe-area-inset-top))] lg:hidden shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
@@ -125,7 +126,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 sm:px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors shadow-2xs"
               title="Install Realty Smartz App"
             >
-              <Download className="h-3.5 w-3.5 text-[#FF7A70]" />
+              <Download className="h-3.5 w-3.5 text-[#5D3EBC]" />
               <span className="hidden sm:inline">Install</span>
             </button>
 
@@ -134,7 +135,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 sm:px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors shadow-2xs"
               title="Switch to Employee View"
             >
-              <ArrowLeftRight className="h-3.5 w-3.5 text-[#FF7A70]" />
+              <ArrowLeftRight className="h-3.5 w-3.5 text-[#5D3EBC]" />
               <span className="hidden sm:inline">Employee View</span>
             </Link>
 
@@ -147,6 +148,25 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               <LogOut className="h-3.5 w-3.5 text-rose-600" />
               <span className="hidden sm:inline">Log Out</span>
             </button>
+          </div>
+        </header>
+
+        <header className="sticky top-0 z-30 hidden h-14 items-center justify-between border-b border-neutral-200 bg-white px-8 lg:flex">
+          <p className="text-sm font-semibold text-neutral-800">
+            Realty Smartz Private Limited
+          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="text-right">
+              <p className="text-xs font-semibold text-neutral-800">
+                {session?.user?.name ?? "Administrator"}
+              </p>
+              <p className="text-[10px] capitalize text-neutral-500">
+                {(session?.user?.role ?? "ADMIN").replace("_", " ").toLowerCase()}
+              </p>
+            </div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-semibold text-white">
+              {session?.user?.name?.[0] ?? "A"}
+            </div>
           </div>
         </header>
 

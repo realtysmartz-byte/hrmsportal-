@@ -99,7 +99,7 @@ const config: Config = {
         "brand-danger": "var(--danger)",
         border: "var(--neutral-200)",
         input: "var(--neutral-200)",
-        ring: "#FF7A70",
+        ring: "#5D3EBC",
         background: "var(--neutral-50)",
         foreground: "var(--neutral-900)",
         primary: {

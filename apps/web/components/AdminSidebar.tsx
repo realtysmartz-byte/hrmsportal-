@@ -77,7 +77,7 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "relative flex h-full max-h-screen shrink-0 flex-col bg-[#11121A] text-white border-r border-white/10 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-x-hidden",
+        "relative flex h-full max-h-screen shrink-0 flex-col bg-[#1E1A3C] text-white border-r border-white/10 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-x-hidden",
         isCollapsed ? "w-[76px]" : "w-[260px]"
       )}
     >
@@ -94,7 +94,7 @@ export function AdminSidebar({
           className="flex items-center gap-3 overflow-hidden group"
           title="Realty Smartz Private Limited"
         >
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#181926] border border-white/10 shadow-md group-hover:border-[#FF7A70]/50 transition-colors">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-white/10 group-hover:border-[#A78BFA]/50 transition-colors">
             <img
               src="/logo.png"
               alt="Realty Smartz"
@@ -133,7 +133,7 @@ export function AdminSidebar({
           )}
         >
           {isCollapsed ? (
-            <PanelLeftOpen className="h-4 w-4 text-[#FF7A70]" />
+            <PanelLeftOpen className="h-4 w-4 text-[#A78BFA]" />
           ) : (
             <PanelLeftClose className="h-4 w-4" />
           )}
@@ -167,11 +167,11 @@ export function AdminSidebar({
                   href={item.href}
                   onClick={onCloseMobile}
                   className={cn(
-                    "flex items-center rounded-2xl text-xs font-semibold transition-all duration-200",
+                    "flex items-center rounded-lg text-xs font-semibold transition-all duration-200",
                     isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
                     active
-                      ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)]"
-                      : "text-neutral-400 hover:bg-white/5 hover:text-white"
+                      ? "bg-white/15 text-white"
+                      : "text-white/70 hover:bg-white/5 hover:text-white"
                   )}
                 >
                   <Icon
@@ -220,11 +220,11 @@ export function AdminSidebar({
                   href={item.href}
                   onClick={onCloseMobile}
                   className={cn(
-                    "flex items-center rounded-2xl text-xs font-semibold transition-all duration-200",
+                    "flex items-center rounded-lg text-xs font-semibold transition-all duration-200",
                     isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
                     active
-                      ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-[0_4px_20px_rgba(255,122,112,0.35)]"
-                      : "text-neutral-400 hover:bg-white/5 hover:text-white"
+                      ? "bg-white/15 text-white"
+                      : "text-white/70 hover:bg-white/5 hover:text-white"
                   )}
                 >
                   <Icon
@@ -256,13 +256,13 @@ export function AdminSidebar({
             <Link
               href="/admin-portal/employees/new"
               onClick={onCloseMobile}
-              className="flex items-center justify-between rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3.5 py-2.5 text-xs font-semibold text-neutral-300 hover:border-[#FF7A70]/60 hover:text-white hover:bg-[#FF7A70]/10 transition-all group"
+              className="flex items-center justify-between rounded-lg border border-dashed border-white/15 bg-white/[0.02] px-3.5 py-2.5 text-xs font-semibold text-neutral-300 hover:border-[#A78BFA]/60 hover:text-white hover:bg-[#A78BFA]/10 transition-all group"
             >
               <span className="flex items-center gap-2">
-                <UserPlus className="h-3.5 w-3.5 text-[#FF7A70] group-hover:scale-110 transition-transform" />
+                <UserPlus className="h-3.5 w-3.5 text-[#A78BFA] group-hover:scale-110 transition-transform" />
                 Add Employee
               </span>
-              <span className="text-[10px] font-bold text-[#FFA07A] bg-[#FFA07A]/15 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-[#C4B5FD] bg-[#C4B5FD]/15 px-2 py-0.5 rounded-full">
                 +New
               </span>
             </Link>
@@ -277,7 +277,7 @@ export function AdminSidebar({
             type="button"
             onClick={onToggleCollapse}
             title="Expand sidebar (Ctrl+B)"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-[#FF7A70] hover:bg-[#FF7A70]/10 hover:text-white transition-all active:scale-95 border border-white/5"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-[#A78BFA] hover:bg-[#A78BFA]/10 hover:text-white transition-all active:scale-95 border border-white/5"
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>
@@ -285,23 +285,23 @@ export function AdminSidebar({
       )}
 
       {/* Footer Profile & Portal Switcher */}
-      <div className={cn("border-t border-white/10 space-y-2 bg-[#0E0F16] shrink-0", isCollapsed ? "p-2" : "p-3")}>
+      <div className={cn("border-t border-white/10 space-y-2 bg-[#18152F] shrink-0", isCollapsed ? "p-2" : "p-3")}>
         {/* Install App Button */}
         <button
           type="button"
           onClick={() => setShowInstallModal(true)}
           className={cn(
-            "flex w-full items-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
+            "flex w-full items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
             isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Install Realty Smartz App (Mobile & Desktop)"
         >
           <span className="flex items-center gap-2">
-            <Download className="h-3.5 w-3.5 text-[#FFA07A]" />
+            <Download className="h-3.5 w-3.5 text-[#C4B5FD]" />
             {!isCollapsed && <span>Install App</span>}
           </span>
           {!isCollapsed && (
-            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold text-[#FFA07A]">
+            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold text-[#C4B5FD]">
               PWA
             </span>
           )}
@@ -312,13 +312,13 @@ export function AdminSidebar({
           href="/employee-portal/dashboard"
           onClick={onCloseMobile}
           className={cn(
-            "flex items-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
+            "flex items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all shadow-sm",
             isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Switch to Employee Portal"
         >
           <span className="flex items-center gap-2">
-            <ArrowLeftRight className="h-3.5 w-3.5 text-[#FF7A70]" />
+            <ArrowLeftRight className="h-3.5 w-3.5 text-[#A78BFA]" />
             {!isCollapsed && <span>Employee Portal</span>}
           </span>
           {!isCollapsed && <ChevronRight className="h-3.5 w-3.5 text-neutral-500" />}
@@ -327,14 +327,14 @@ export function AdminSidebar({
         {/* User Card */}
         <div
           className={cn(
-            "flex items-center rounded-2xl bg-white/[0.04] border border-white/10 transition-all",
+            "flex items-center rounded-lg bg-white/[0.04] border border-white/10 transition-all",
             isCollapsed ? "flex-col gap-1.5 p-1.5" : "justify-between p-2.5"
           )}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-xs font-bold text-white shadow-sm">
+            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#A78BFA] to-[#C4B5FD] text-xs font-bold text-white shadow-sm">
               {userInitial}
-              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0E0F16]" />
+              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#18152F]" />
             </div>
 
             {!isCollapsed && (

@@ -316,12 +316,7 @@ export default function TeamAttendancePage() {
       {/* 1. TOP HEADER & ACTIONS */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-            <span>Realty Smartz Private Limited</span>
-            <span>·</span>
-            <span className="text-[#FF7A70] font-bold">Admin Portal</span>
-          </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 truncate">
+          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900 truncate">
             {viewMode === "monthly" ? "1-Month Attendance" : "Team Attendance"}
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
@@ -399,7 +394,7 @@ export default function TeamAttendancePage() {
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
-              <Calendar className="h-3.5 w-3.5 text-[#FF7A70]" />
+              <Calendar className="h-3.5 w-3.5 text-[#5D3EBC]" />
               <span>Daily (1 Day)</span>
             </button>
 
@@ -413,7 +408,7 @@ export default function TeamAttendancePage() {
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
-              <CalendarDays className="h-3.5 w-3.5 text-[#FF7A70]" />
+              <CalendarDays className="h-3.5 w-3.5 text-[#5D3EBC]" />
               <span>1 Month Attendance</span>
             </button>
 
@@ -427,14 +422,14 @@ export default function TeamAttendancePage() {
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
-              <CalendarRange className="h-3.5 w-3.5 text-[#FF7A70]" />
+              <CalendarRange className="h-3.5 w-3.5 text-[#5D3EBC]" />
               <span>Custom Range</span>
             </button>
           </div>
 
           <div className="text-[11px] font-semibold text-neutral-500">
             {viewMode === "monthly" && (
-              <span className="text-[#FF7A70] font-bold">
+              <span className="text-[#5D3EBC] font-bold">
                 Viewing full month of {formatMonthTitle(selectedMonth)}
               </span>
             )}
@@ -447,7 +442,7 @@ export default function TeamAttendancePage() {
           {viewMode === "daily" && (
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 shrink-0">
-                <Calendar className="h-4 w-4 text-[#FF7A70]" />
+                <Calendar className="h-4 w-4 text-[#5D3EBC]" />
                 <span>Date:</span>
               </div>
               <Input
@@ -460,7 +455,7 @@ export default function TeamAttendancePage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-xs text-[#FF7A70] hover:bg-[#FF7A70]/10 px-2 font-semibold"
+                  className="h-8 text-xs text-[#5D3EBC] hover:bg-[#5D3EBC]/10 px-2 font-semibold"
                   onClick={() => setSelectedDate(todayIST)}
                 >
                   Today
@@ -473,7 +468,7 @@ export default function TeamAttendancePage() {
           {viewMode === "monthly" && (
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 shrink-0">
-                <CalendarDays className="h-4 w-4 text-[#FF7A70]" />
+                <CalendarDays className="h-4 w-4 text-[#5D3EBC]" />
                 <span>Select Month:</span>
               </div>
               <Input
@@ -488,7 +483,7 @@ export default function TeamAttendancePage() {
                 className={cn(
                   "h-8 text-xs px-2.5 font-semibold",
                   selectedMonth === currentMonthIST
-                    ? "bg-[#FF7A70] hover:bg-[#FF6559] text-white"
+                    ? "bg-[#5D3EBC] hover:bg-[#FF6559] text-white"
                     : "text-neutral-700"
                 )}
                 onClick={handleSelectThisMonth}
@@ -510,7 +505,7 @@ export default function TeamAttendancePage() {
           {viewMode === "custom" && (
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 shrink-0">
-                <CalendarRange className="h-4 w-4 text-[#FF7A70]" />
+                <CalendarRange className="h-4 w-4 text-[#5D3EBC]" />
                 <span>From:</span>
               </div>
               <Input
@@ -562,7 +557,7 @@ export default function TeamAttendancePage() {
               aria-label="Filter attendance by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 shadow-2xs focus:border-[#FF7A70] focus:outline-none"
+              className="h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 shadow-2xs focus:border-[#5D3EBC] focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
               <option value="PRESENT">Present Only</option>
@@ -741,7 +736,7 @@ export default function TeamAttendancePage() {
                   {/* Location Address & Map Link Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 flex items-start gap-1.5 text-xs text-neutral-700">
-                      <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0 mt-0.5" />
+                      <MapPin className="h-3.5 w-3.5 text-[#5D3EBC] shrink-0 mt-0.5" />
                       <span className="break-words line-clamp-2 text-[11px]">{addressText}</span>
                     </div>
 
@@ -765,7 +760,7 @@ export default function TeamAttendancePage() {
                           href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF7A70] bg-[#FF7A70]/10 hover:bg-[#FF7A70]/20 p-1.5 rounded-md shrink-0 transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5D3EBC] bg-[#5D3EBC]/10 hover:bg-[#5D3EBC]/20 p-1.5 rounded-md shrink-0 transition-colors"
                           title="Open Google Maps"
                         >
                           <ExternalLink className="h-3 w-3" />
@@ -793,7 +788,7 @@ export default function TeamAttendancePage() {
       </div>
 
       {/* 4. DESKTOP TABLE VIEW (Horizontally scrollable container, page never scrolls sideways) */}
-      <div className="hidden md:block overflow-x-auto w-full rounded-2xl border border-neutral-200/80 bg-white shadow-2xs">
+      <div className="hidden md:block overflow-x-auto w-full rounded-lg border border-neutral-200/80 bg-white shadow-2xs">
         <Table>
           <TableHeader>
             <TableRow className="bg-neutral-50/90 border-b border-neutral-200">
@@ -931,7 +926,7 @@ export default function TeamAttendancePage() {
                               href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF7A70] hover:underline"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#5D3EBC] hover:underline"
                             >
                               <span>Google Maps</span>
                               <ExternalLink className="h-2.5 w-2.5" />

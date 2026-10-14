@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export default function OfflinePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-brand-bg px-4 text-center">
-      <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-8 shadow-lg">
         <div className="mb-6 flex justify-center">
           <Logo />
         </div>

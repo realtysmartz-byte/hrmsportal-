@@ -374,10 +374,10 @@ export default function AllocateLocationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white shadow-2xs">
+            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#5D3EBC] text-white shadow-2xs">
               <Navigation className="h-3.5 w-3.5" />
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#FF7A70]">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#5D3EBC]">
               REALTY SMARTZ PVT LTD · Workplace Geofencing
             </span>
           </div>
@@ -404,7 +404,7 @@ export default function AllocateLocationsPage() {
 
       {/* 2. KPI Metrics Bento */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-2xl flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
             <Users className="h-4.5 w-4.5" />
           </div>
@@ -415,7 +415,7 @@ export default function AllocateLocationsPage() {
           </div>
         </Card>
 
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-2xl flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <Building className="h-4.5 w-4.5" />
           </div>
@@ -426,7 +426,7 @@ export default function AllocateLocationsPage() {
           </div>
         </Card>
 
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-2xl flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
             <Compass className="h-4.5 w-4.5" />
           </div>
@@ -437,7 +437,7 @@ export default function AllocateLocationsPage() {
           </div>
         </Card>
 
-        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-2xl flex items-center gap-3">
+        <Card className="p-3.5 sm:p-4 border-neutral-200/80 bg-white shadow-2xs rounded-lg flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
             <ShieldCheck className="h-4.5 w-4.5" />
           </div>
@@ -451,12 +451,12 @@ export default function AllocateLocationsPage() {
 
       {/* 3. Interactive Allocation Studio Card */}
       <div ref={studioRef}>
-        <Card className="border border-neutral-200/80 bg-white shadow-sm rounded-2xl sm:rounded-3xl overflow-hidden">
+        <Card className="border border-neutral-200/80 bg-white shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
           {/* Card Top Title Bar */}
           <div className="border-b border-neutral-100 bg-neutral-50/70 px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#11121A] text-white">
-                <Compass className="h-4 w-4 text-[#FF7A70]" />
+                <Compass className="h-4 w-4 text-[#5D3EBC]" />
               </span>
               <div className="min-w-0">
                 <h2 className="text-sm font-bold text-neutral-900 truncate">Interactive Allocation Studio</h2>
@@ -468,7 +468,7 @@ export default function AllocateLocationsPage() {
 
             {selectedEmployee && (
               <div className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full bg-white border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700 shadow-2xs">
-                <span className="text-[#FF7A70]">●</span>
+                <span className="text-[#5D3EBC]">●</span>
                 <span className="truncate max-w-[200px] sm:max-w-xs">
                   {selectedEmployee.firstName} {selectedEmployee.lastName} ({selectedEmployee.employeeCode})
                 </span>
@@ -502,7 +502,7 @@ export default function AllocateLocationsPage() {
                 <select
                   value={selectedEmpId}
                   onChange={(e) => setSelectedEmpId(e.target.value)}
-                  className="w-full h-11 px-3.5 rounded-xl border border-neutral-200 bg-white text-xs sm:text-sm font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FF7A70]/30 focus:border-[#FF7A70] transition-all"
+                  className="w-full h-11 px-3.5 rounded-xl border border-neutral-200 bg-white text-xs sm:text-sm font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#5D3EBC]/30 focus:border-[#5D3EBC] transition-all"
                 >
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
@@ -532,10 +532,10 @@ export default function AllocateLocationsPage() {
                     onFocus={() => {
                       if (suggestions.length > 0 || query.trim().length >= 2) setIsOpen(true);
                     }}
-                    className="pl-10 pr-9 h-11 rounded-xl text-xs sm:text-sm border-neutral-200 focus:border-[#FF7A70] focus:ring-[#FF7A70]/30"
+                    className="pl-10 pr-9 h-11 rounded-xl text-xs sm:text-sm border-neutral-200 focus:border-[#5D3EBC] focus:ring-[#5D3EBC]/30"
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[#FF7A70]" />
+                    <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[#5D3EBC]" />
                   )}
                 </div>
 
@@ -598,7 +598,7 @@ export default function AllocateLocationsPage() {
                           onClick={() => handleSelectSuggestion(item)}
                           className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 flex items-start gap-2.5 border-b border-neutral-100 last:border-0 transition-colors group"
                         >
-                          <MapPin className="h-4 w-4 text-[#FF7A70] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                          <MapPin className="h-4 w-4 text-[#5D3EBC] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <p className="text-xs font-bold text-neutral-900 truncate">
@@ -656,7 +656,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M Urbana (Sec 67)</span>
                 </Button>
                 <Button
@@ -670,7 +670,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M Golf Estate (Sec 65)</span>
                 </Button>
                 <Button
@@ -684,7 +684,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M IFC (Sec 66)</span>
                 </Button>
                 <Button
@@ -698,7 +698,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>M3M Broadway (Sec 71)</span>
                 </Button>
                 <Button
@@ -712,7 +712,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>Signature Global Park</span>
                 </Button>
                 <Button
@@ -726,7 +726,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>Whiteland Blissville</span>
                 </Button>
                 <Button
@@ -740,7 +740,7 @@ export default function AllocateLocationsPage() {
                   }}
                   className="h-8 text-xs rounded-xl gap-1.5 border-neutral-200 bg-white hover:bg-neutral-50 font-semibold shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="h-3 w-3 text-[#FF7A70]" />
+                  <Sparkles className="h-3 w-3 text-[#5D3EBC]" />
                   <span>Elan The Mark</span>
                 </Button>
                 <Button
@@ -761,10 +761,10 @@ export default function AllocateLocationsPage() {
             </div>
 
             {/* Target Location Details Card (Mobile-Optimized & Structured) */}
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 sm:p-5 space-y-3.5">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50/80 p-4 sm:p-5 space-y-3.5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-neutral-200/60 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-[#FF7A70] text-white px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shrink-0">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-[#5D3EBC] text-white px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shrink-0">
                     <MapPin className="h-3 w-3" />
                     Target Site
                   </span>
@@ -836,14 +836,14 @@ export default function AllocateLocationsPage() {
                   rel="noopener noreferrer"
                   className="inline-flex h-10 items-center justify-center gap-1.5 text-xs text-neutral-700 hover:text-neutral-900 border border-neutral-200 rounded-xl px-3 bg-white font-semibold shadow-2xs hover:bg-neutral-50 transition-colors"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 text-[#FF7A70]" />
+                  <ExternalLink className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   <span>Verify in Google Maps</span>
                 </a>
 
                 <Button
                   onClick={handleApplyLocation}
                   disabled={updateLocation.isPending || !selectedEmpId}
-                  className="h-10 px-5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white hover:opacity-95 shadow-md active:scale-98 transition-all gap-2"
+                  className="h-10 px-5 rounded-xl text-xs sm:text-sm font-bold bg-[#5D3EBC] text-white hover:opacity-95 shadow-md active:scale-98 transition-all gap-2"
                 >
                   {updateLocation.isPending ? (
                     <>
@@ -871,7 +871,7 @@ export default function AllocateLocationsPage() {
                     {previewLat.toFixed(5)}, {previewLng.toFixed(5)}
                   </span>
                 </div>
-                <div className="rounded-2xl overflow-hidden border border-neutral-200 shadow-2xs">
+                <div className="rounded-lg overflow-hidden border border-neutral-200 shadow-2xs">
                   <LocationMap
                     lat={previewLat}
                     lng={previewLng}
@@ -886,7 +886,7 @@ export default function AllocateLocationsPage() {
       </div>
 
       {/* 4. Personnel Worksite Allocation Roster */}
-      <Card className="border border-neutral-200/80 bg-white shadow-sm rounded-2xl sm:rounded-3xl overflow-hidden">
+      <Card className="border border-neutral-200/80 bg-white shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
         <div className="border-b border-neutral-100 p-4 sm:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-neutral-900">Personnel Worksite Allocation Roster</h3>
@@ -959,12 +959,12 @@ export default function AllocateLocationsPage() {
                     key={emp.id}
                     className={cn(
                       "p-3.5 space-y-2.5 transition-colors",
-                      isCurrentSelected && "bg-[#FF7A70]/5"
+                      isCurrentSelected && "bg-[#5D3EBC]/5"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white text-xs font-bold">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#5D3EBC] text-white text-xs font-bold">
                           {emp.firstName[0]}
                         </div>
                         <div className="min-w-0">
@@ -987,7 +987,7 @@ export default function AllocateLocationsPage() {
                       {isAllocatedHQ ? (
                         <Building className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
                       ) : (
-                        <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0" />
+                        <MapPin className="h-3.5 w-3.5 text-[#5D3EBC] shrink-0" />
                       )}
                       <span className="truncate text-xs font-semibold text-neutral-800">
                         {isAllocatedHQ ? officeLabel : emp.workLocationName || "Assigned site"}
@@ -1006,7 +1006,7 @@ export default function AllocateLocationsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleEditForEmployee(emp.id)}
-                          className="h-7 text-[11px] rounded-lg gap-1 border-neutral-200 hover:border-[#FF7A70] hover:text-[#FF7A70]"
+                          className="h-7 text-[11px] rounded-lg gap-1 border-neutral-200 hover:border-[#5D3EBC] hover:text-[#5D3EBC]"
                         >
                           <Compass className="h-3 w-3" />
                           <span>Allocate Site</span>
@@ -1060,12 +1060,12 @@ export default function AllocateLocationsPage() {
                         key={emp.id}
                         className={cn(
                           "hover:bg-neutral-50/70 transition-colors",
-                          isCurrentSelected && "bg-[#FF7A70]/5"
+                          isCurrentSelected && "bg-[#5D3EBC]/5"
                         )}
                       >
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white text-xs font-bold">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#5D3EBC] text-white text-xs font-bold">
                               {emp.firstName[0]}
                             </div>
                             <div>
@@ -1090,7 +1090,7 @@ export default function AllocateLocationsPage() {
                             {isAllocatedHQ ? (
                               <Building className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
                             ) : (
-                              <MapPin className="h-3.5 w-3.5 text-[#FF7A70] shrink-0" />
+                              <MapPin className="h-3.5 w-3.5 text-[#5D3EBC] shrink-0" />
                             )}
                             <span className="text-xs font-semibold text-neutral-800 truncate">
                               {isAllocatedHQ ? officeLabel : emp.workLocationName || "Assigned site"}
@@ -1119,7 +1119,7 @@ export default function AllocateLocationsPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleEditForEmployee(emp.id)}
-                              className="h-7 text-xs rounded-lg gap-1 border-neutral-200 hover:border-[#FF7A70] hover:text-[#FF7A70]"
+                              className="h-7 text-xs rounded-lg gap-1 border-neutral-200 hover:border-[#5D3EBC] hover:text-[#5D3EBC]"
                             >
                               <Compass className="h-3 w-3" />
                               <span>Allocate Site</span>
@@ -1158,8 +1158,8 @@ export default function AllocateLocationsPage() {
       {/* 5. Location Saved Confirmation Popup Modal */}
       {savedPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-neutral-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4 ring-8 ring-emerald-50/50">
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-neutral-100 text-center animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-4 ring-8 ring-emerald-50/50">
               <CheckCircle2 className="h-9 w-9" />
             </div>
             <h3 className="text-lg font-bold text-neutral-900">
@@ -1169,7 +1169,7 @@ export default function AllocateLocationsPage() {
               Workplace location verification is now active for this employee.
             </p>
 
-            <div className="mt-4 rounded-2xl bg-neutral-50 p-4 border border-neutral-100 text-left space-y-2">
+            <div className="mt-4 rounded-lg bg-neutral-50 p-4 border border-neutral-100 text-left space-y-2">
               <div>
                 <span className="text-[10px] uppercase font-bold text-neutral-400 block">Target Employee</span>
                 <span className="text-xs font-bold text-neutral-900">{savedPopup.employeeName} ({savedPopup.employeeCode})</span>
@@ -1200,7 +1200,7 @@ export default function AllocateLocationsPage() {
               </a>
               <Button
                 onClick={() => setSavedPopup(null)}
-                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white text-xs font-bold shadow-md hover:opacity-95"
+                className="flex-1 h-11 rounded-xl bg-[#5D3EBC] text-white text-xs font-bold shadow-md hover:opacity-95"
               >
                 Got It, Continue
               </Button>

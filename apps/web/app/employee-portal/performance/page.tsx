@@ -159,7 +159,7 @@ export default function EmployeePerformancePage() {
   return (
     <div className="section-gap">
       {/* Active Cycle Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-white p-6 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-teal-200 bg-white p-6 shadow-card">
         <div>
           <div className="flex items-center gap-2">
             <Badge variant="success">Active Cycle</Badge>

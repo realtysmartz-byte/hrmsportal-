@@ -68,12 +68,7 @@ export default function EmailSettingsPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Top Header */}
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          <span>Realty Smartz Private Limited</span>
-          <span>·</span>
-          <span className="text-[#FF7A70] font-bold">Mail Delivery Engine</span>
-        </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+        <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
           Email Service Status
         </h1>
         <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
@@ -83,7 +78,7 @@ export default function EmailSettingsPage() {
 
       {/* Operational Status Banner */}
       <div
-        className={`rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+        className={`rounded-lg border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
           isConfigured
             ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
             : "border-amber-200 bg-amber-50/70 text-amber-900"
@@ -135,7 +130,7 @@ export default function EmailSettingsPage() {
           <Card className="border-neutral-200 shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Send className="h-4 w-4 text-[#FF7A70]" />
+                <Send className="h-4 w-4 text-[#5D3EBC]" />
                 Test Email Deliverability
               </CardTitle>
               <CardDescription className="text-xs">
@@ -222,7 +217,7 @@ export default function EmailSettingsPage() {
           <Card className="border-neutral-200 shadow-sm bg-gradient-to-br from-neutral-900 to-slate-900 text-white">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-white">
-                <ShieldCheck className="h-4 w-4 text-[#FF7A70]" />
+                <ShieldCheck className="h-4 w-4 text-[#5D3EBC]" />
                 Deliverability Standards
               </CardTitle>
             </CardHeader>
@@ -251,7 +246,7 @@ export default function EmailSettingsPage() {
           <Card className="border-neutral-200 shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#FF7A70]" />
+                <Sparkles className="h-4 w-4 text-[#5D3EBC]" />
                 Automated System Triggers
               </CardTitle>
             </CardHeader>

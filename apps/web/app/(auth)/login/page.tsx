@@ -240,7 +240,7 @@ function LoginForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@realtysmartz.com"
                   required
-                  className="w-full rounded-2xl border border-white/10 bg-[#11121A] px-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-1 focus:ring-[#FF7A70]"
+                  className="w-full rounded-lg border border-white/10 bg-[#11121A] px-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#5D3EBC] focus:ring-1 focus:ring-[#5D3EBC]"
                 />
               </div>
             </div>
@@ -262,7 +262,7 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full rounded-2xl border border-white/10 bg-[#11121A] px-4 py-3 pr-11 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#FF7A70] focus:ring-1 focus:ring-[#FF7A70]"
+                  className="w-full rounded-lg border border-white/10 bg-[#11121A] px-4 py-3 pr-11 text-xs sm:text-sm text-white placeholder-neutral-500 shadow-inner outline-none transition-all focus:border-[#5D3EBC] focus:ring-1 focus:ring-[#5D3EBC]"
                 />
                 <button
                   type="button"
@@ -286,7 +286,7 @@ function LoginForm() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-neutral-700 bg-[#11121A] text-[#FF7A70] accent-[#FF7A70] focus:ring-0"
+                  className="h-3.5 w-3.5 rounded border-neutral-700 bg-[#11121A] text-[#5D3EBC] accent-[#5D3EBC] focus:ring-0"
                 />
                 <span>Keep me logged in</span>
               </label>
@@ -300,7 +300,7 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-full bg-gradient-to-r from-[#FF7A70] via-[#FF8B7D] to-[#FFA07A] py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_8px_24px_rgba(255,122,112,0.35)] transition-all hover:opacity-95 active:scale-[0.99] disabled:opacity-50"
+                className="w-full rounded-full bg-gradient-to-r from-[#5D3EBC] via-[#FF8B7D] to-[#7B5CD6] py-3.5 text-xs sm:text-sm font-bold text-white transition-all hover:opacity-95 active:scale-[0.99] disabled:opacity-50"
               >
                 {loading ? "Authenticating..." : "Sign in"}
               </button>
@@ -364,7 +364,7 @@ function LoginForm() {
 
         {/* Top Section: Quote and Mission */}
         <div className="relative z-10 space-y-5">
-          <div className="font-serif text-4xl text-[#FF7A70] leading-none font-bold">
+          <div className="font-serif text-4xl text-[#5D3EBC] leading-none font-bold">
             “
           </div>
           <h2 className="font-display text-2xl font-bold text-white tracking-tight leading-snug">
@@ -392,7 +392,7 @@ function LoginForm() {
                   prev === 0 ? TESTIMONIALS.length - 1 : prev - 1
                 )
               }
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF7A70]/90 text-white hover:bg-[#FF7A70] transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#5D3EBC]/90 text-white hover:bg-[#5D3EBC] transition-colors"
               title="Previous"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -413,7 +413,7 @@ function LoginForm() {
         </div>
 
         {/* BOTTOM FLOATING NOTCH CARD (Signature Element from Image 3) */}
-        <div className="relative z-10 mt-8 rounded-2xl bg-white p-5 text-neutral-900 shadow-2xl space-y-2 border border-neutral-100 transition-all duration-300">
+        <div className="relative z-10 mt-8 rounded-lg bg-white p-5 text-neutral-900 shadow-2xl space-y-2 border border-neutral-100 transition-all duration-300">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#0F5C74]">
               <Sparkles className="h-3 w-3 text-amber-500" />

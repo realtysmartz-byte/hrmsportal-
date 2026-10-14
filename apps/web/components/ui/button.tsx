@@ -8,19 +8,19 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white font-semibold shadow-[0_4px_16px_rgba(255,122,112,0.3)] hover:opacity-95 active:scale-[0.98]",
+          "bg-[#5D3EBC] text-white font-semibold hover:opacity-95 active:scale-[0.98]",
         destructive: "bg-rose-600 text-white hover:bg-rose-700 shadow-none",
         outline:
           "border border-neutral-200/90 bg-white text-neutral-800 hover:bg-neutral-50 shadow-2xs hover:border-neutral-300",
         secondary:
           "bg-[#181926] text-white hover:bg-[#252836] shadow-sm",
         ghost: "hover:bg-neutral-100 hover:text-neutral-900 shadow-none",
-        link: "text-[#FF7A70] underline-offset-4 hover:underline shadow-none",
+        link: "text-[#5D3EBC] underline-offset-4 hover:underline shadow-none",
       },
       size: {
         default: "h-10 rounded-xl px-4 py-2",
         sm: "h-8.5 rounded-xl px-3 text-xs font-semibold",
-        lg: "h-11 rounded-2xl px-8",
+        lg: "h-11 rounded-lg px-8",
         icon: "h-10 w-10 rounded-xl",
       },
     },

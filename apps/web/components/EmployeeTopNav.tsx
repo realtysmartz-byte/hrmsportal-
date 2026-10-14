@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
+  Home,
   Clock,
   CalendarDays,
   Users,
@@ -60,16 +61,16 @@ export function EmployeeTopNav() {
 
   // Mobile Bottom Tabs (5 Core Destinations)
   const bottomTabs = [
-    { href: "/employee-portal/dashboard", label: "Home", icon: LayoutDashboard },
-    { href: "/employee-portal/attendance", label: "Punch", icon: Clock, isPunch: true },
+    { href: "/employee-portal/dashboard", label: "Home", icon: Home },
+    { href: "/employee-portal/attendance", label: "Attendance", icon: Clock },
     { href: "/employee-portal/leave", label: "Leaves", icon: CalendarDays },
     { href: "/employee-portal/directory", label: "Team", icon: Users },
-    { href: "/employee-portal/profile", label: "Profile", icon: User },
+    { href: "/employee-portal/profile", label: "Me", icon: User },
   ];
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white/95 backdrop-blur-md pt-[max(0.5rem,env(safe-area-inset-top))] shadow-2xs">
+      <header className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white pt-[max(0.5rem,env(safe-area-inset-top))] shadow-2xs">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3">
           {/* Brand Logo */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -104,7 +105,7 @@ export function EmployeeTopNav() {
                   {active && (
                     <motion.div
                       layoutId="active-pill-emp"
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] shadow-[0_2px_12px_rgba(255,122,112,0.35)]"
+                      className="absolute inset-0 rounded-full bg-[#5D3EBC]"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
@@ -132,7 +133,7 @@ export function EmployeeTopNav() {
             {/* Search Button */}
             <Link
               href="/employee-portal/directory"
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 transition-colors shadow-2xs"
+              className="hidden lg:flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 transition-colors shadow-2xs"
               title="Search Directory"
             >
               <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -142,10 +143,10 @@ export function EmployeeTopNav() {
             <button
               type="button"
               onClick={() => setShowInstallModal(true)}
-              className="flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-full border border-neutral-200/80 bg-white px-2 sm:px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors shadow-2xs"
+              className="hidden lg:flex h-9 items-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors shadow-2xs"
               title="Install Realty Smartz App"
             >
-              <Download className="h-3.5 w-3.5 text-[#FF7A70]" />
+              <Download className="h-3.5 w-3.5 text-[#5D3EBC]" />
               <span className="hidden sm:inline">Install</span>
             </button>
 
@@ -180,7 +181,7 @@ export function EmployeeTopNav() {
                 href="/employee-portal/profile"
                 className="flex items-center gap-2 rounded-full p-1 hover:bg-neutral-100 transition-colors"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-xs text-white shadow-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-xs text-white shadow-sm">
                   {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
                 </div>
                 <span className="text-xs font-semibold text-neutral-800">
@@ -223,7 +224,7 @@ export function EmployeeTopNav() {
               {/* Drawer Header */}
               <div className="flex items-center justify-between px-5 pb-4 border-b border-neutral-100">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] font-bold text-sm text-white shadow-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-sm text-white shadow-sm">
                     {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
                   </div>
                   <div className="min-w-0">
@@ -261,7 +262,7 @@ export function EmployeeTopNav() {
                       className={cn(
                         "flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-colors",
                         active
-                          ? "bg-gradient-to-r from-[#FF7A70] to-[#FFA07A] text-white shadow-sm"
+                          ? "bg-[#5D3EBC] text-white shadow-sm"
                           : "text-neutral-700 hover:bg-neutral-50"
                       )}
                     >
@@ -302,7 +303,7 @@ export function EmployeeTopNav() {
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 py-2.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-100 transition-colors"
                 >
-                  <Download className="h-3.5 w-3.5 text-[#FF7A70]" />
+                  <Download className="h-3.5 w-3.5 text-[#5D3EBC]" />
                   <span>Install App on Phone</span>
                 </button>
 
@@ -320,9 +321,8 @@ export function EmployeeTopNav() {
         )}
       </AnimatePresence>
 
-      {/* NATIVE MOBILE BOTTOM NAVIGATION BAR */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur-md border-t border-neutral-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] px-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-1.5">
-        <div className="grid grid-cols-5 items-center max-w-md mx-auto">
+      <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white border-t border-neutral-200 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+        <div className="grid grid-cols-5 max-w-md mx-auto">
           {bottomTabs.map((tab) => {
             const active =
               pathname === tab.href ||
@@ -330,50 +330,17 @@ export function EmployeeTopNav() {
                 pathname.startsWith(`${tab.href}/`));
             const Icon = tab.icon;
 
-            if (tab.isPunch) {
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  className="flex flex-col items-center justify-center group -mt-5"
-                >
-                  <div className={cn(
-                    "flex h-12 w-12 items-center justify-center rounded-full shadow-[0_4px_16px_rgba(255,122,112,0.4)] transition-transform active:scale-95",
-                    active
-                      ? "bg-gradient-to-tr from-[#FF7A70] to-[#FFA07A] text-white ring-4 ring-white"
-                      : "bg-[#181C26] text-white hover:bg-black ring-4 ring-white"
-                  )}>
-                    <Clock className="h-5 w-5" />
-                  </div>
-                  <span className={cn(
-                    "text-[10px] font-bold mt-1 tracking-tight",
-                    active ? "text-primary" : "text-neutral-700"
-                  )}>
-                    Punch In
-                  </span>
-                </Link>
-              );
-            }
-
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex flex-col items-center justify-center py-1 transition-colors active:scale-95",
-                  active ? "text-primary" : "text-neutral-500 hover:text-neutral-800"
+                  "flex flex-col items-center justify-center gap-1 pt-2 pb-1",
+                  active ? "text-[#5D3EBC]" : "text-neutral-500"
                 )}
               >
-                <div className="relative">
-                  <Icon className={cn("h-5 w-5", active && "stroke-[2.4px]")} />
-                  {active && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />
-                  )}
-                </div>
-                <span className={cn(
-                  "text-[10px] mt-1 font-medium",
-                  active && "font-bold text-primary"
-                )}>
+                <Icon className={cn("h-5 w-5", active && "fill-[#5D3EBC]/15 stroke-[2.2px]")} />
+                <span className={cn("text-[10px] uppercase", active ? "font-bold" : "font-medium")}>
                   {tab.label}
                 </span>
               </Link>
