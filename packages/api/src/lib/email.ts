@@ -87,13 +87,31 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
+const BRAND = "#5D3EBC";
+const FONT = "'Outfit','Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+function appBaseUrl(): string {
+  const url = process.env.NEXTAUTH_URL;
+  if (url && !url.includes("localhost")) return url.replace(/\/$/, "");
+  return "https://realty-hrms-portal-web-amber.vercel.app";
+}
+
+/** Two-column label/value card used inside email bodies */
+export function detailsTable(rows: [string, string][]): string {
+  const tr = rows
+    .map(
+      ([label, value], i) => `<tr>
+          <td style="padding:10px 16px;font-size:13px;color:#6B7280;width:38%;${i ? "border-top:1px solid #EEF0F4;" : ""}">${label}</td>
+          <td style="padding:10px 16px;font-size:13px;color:#111827;font-weight:600;${i ? "border-top:1px solid #EEF0F4;" : ""}">${value}</td>
+        </tr>`
+    )
+    .join("");
+  return `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="border:1px solid #EEF0F4;border-radius:10px;margin:20px 0;border-collapse:separate;">${tr}</table>`;
+}
+
 /**
- * Anti-Spam Certified Email Layout
- * Designed specifically for high inbox placement (Gmail, Outlook, Apple Mail):
- * 1. Clean inline table structure with exact CSS
- * 2. Proper text-to-code ratio
- * 3. Authentic corporate sender footer with address and contact
- * 4. No external render-blocking fonts or spam-trigger words
+ * Clean, inbox-friendly email layout: inline styles, table structure,
+ * plain-text fallback is generated in sendMail.
  */
 function layout(args: {
   title: string;
@@ -102,20 +120,17 @@ function layout(args: {
   body: string;
   actionButton?: { text: string; url: string };
 }) {
+  const logo = `${appBaseUrl()}/logo.png`;
+  const color = args.badgeColor || BRAND;
+
   const badgeHtml = args.badge
-    ? `<span style="display:inline-block;padding:4px 10px;background:${
-        args.badgeColor || "#0F172A"
-      };color:#ffffff;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">${
-        args.badge
-      }</span>`
+    ? `<span style="display:inline-block;padding:4px 12px;background:${color}1A;color:${color};border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;">${args.badge}</span>`
     : "";
 
   const buttonHtml = args.actionButton
-    ? `<div style="margin:24px 0 12px 0;">
-        <a href="${args.actionButton.url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#FF5A5F;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;letter-spacing:0.2px;box-shadow:0 2px 4px rgba(255,90,95,0.25);">
-          ${args.actionButton.text} &rarr;
-        </a>
-      </div>`
+    ? `<table border="0" cellspacing="0" cellpadding="0" style="margin:24px 0 8px 0;"><tr><td style="background:${BRAND};border-radius:8px;">
+        <a href="${args.actionButton.url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 26px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:14px;font-family:${FONT};">${args.actionButton.text}</a>
+      </td></tr></table>`
     : "";
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -123,69 +138,68 @@ function layout(args: {
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <title>${args.title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1E293B;-webkit-font-smoothing:antialiased;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:#F4F5FA;font-family:${FONT};color:#1F2937;-webkit-font-smoothing:antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F4F5FA;padding:28px 12px;">
     <tr>
       <td align="center">
-        <!-- Main Card -->
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#FFFFFF;border-radius:16px;border:1px solid #E2E8F0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);overflow:hidden;">
-          <!-- Top Brand Header -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:560px;background-color:#FFFFFF;border-radius:14px;border:1px solid #E5E7EB;overflow:hidden;">
+          <tr><td style="height:4px;background:${BRAND};font-size:0;line-height:0;">&nbsp;</td></tr>
+
           <tr>
-            <td style="background-color:#0F172A;padding:24px 28px;border-bottom:3px solid #FF5A5F;">
-              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <td style="padding:22px 28px;border-bottom:1px solid #F0F1F5;">
+              <table border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td>
-                    <div style="color:#FF5A5F;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">REALTY SMARTZ</div>
-                    <div style="color:#FFFFFF;font-size:18px;font-weight:700;margin-top:2px;">Human Resource Management System</div>
+                  <td style="vertical-align:middle;"><img src="${logo}" width="34" height="34" alt="Realty Smartz" style="display:block;border:0;" /></td>
+                  <td style="vertical-align:middle;padding-left:10px;">
+                    <div style="font-size:16px;font-weight:600;color:#111827;line-height:1.2;">Realty Smartz</div>
+                    <div style="font-size:11px;font-weight:500;color:${BRAND};letter-spacing:2px;">HRMS</div>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- Main Content Body -->
           <tr>
-            <td style="padding:32px 28px;">
+            <td style="padding:28px 28px 8px 28px;">
               ${badgeHtml}
-              <h1 style="margin:0 0 16px 0;font-size:20px;font-weight:800;color:#0F172A;line-height:1.3;">
-                ${args.title}
-              </h1>
-              <div style="font-size:14px;line-height:1.6;color:#334155;">
-                ${args.body}
-              </div>
+              <h1 style="margin:14px 0 14px 0;font-size:22px;font-weight:600;color:#111827;line-height:1.3;">${args.title}</h1>
+              <div style="font-size:14px;line-height:1.65;color:#374151;">${args.body}</div>
               ${buttonHtml}
             </td>
           </tr>
 
-          <!-- Essential Policies Card -->
           <tr>
-            <td style="padding:0 28px 24px 28px;">
-              <div style="background-color:#F1F5F9;border-left:4px solid #0F172A;border-radius:8px;padding:14px 16px;font-size:12px;color:#475569;line-height:1.5;">
-                <strong style="color:#0F172A;">Important HR Policy Reminder:</strong><br />
-                &bull; <strong>Weekly Off:</strong> Tuesday (Mon, Wed, Thu, Fri, Sat, Sun are active working days)<br />
-                &bull; <strong>Office Check-in:</strong> Before 10:00 AM (Check-in at or after 10:00 AM is logged as Late)<br />
-                &bull; <strong>Premise Verification:</strong> Attendance must be punched within company office geofence
+            <td style="padding:16px 28px 8px 28px;">
+              <div style="background-color:#F7F5FD;border-radius:10px;padding:14px 16px;font-size:12px;color:#4B5563;line-height:1.6;">
+                <div style="font-weight:600;color:#111827;margin-bottom:4px;">HR Policy Reminder</div>
+                Weekly off: Tuesday &bull; Check-in before 10:00 AM (later is marked Late) &bull; Punch only within the office geofence
               </div>
             </td>
           </tr>
 
-          <!-- Corporate Footer (Anti-Spam CAN-SPAM Compliant) -->
           <tr>
-            <td style="background-color:#F8FAFC;padding:20px 28px;border-top:1px solid #E2E8F0;font-size:11px;color:#64748B;line-height:1.5;">
-              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <td style="padding:24px 28px 26px 28px;">
+              <div style="font-size:14px;color:#374151;">Warm regards,</div>
+              <div style="font-size:14px;font-weight:600;color:#111827;margin:2px 0 14px 0;">HR Team</div>
+              <table border="0" cellspacing="0" cellpadding="0" style="border-top:1px solid #F0F1F5;padding-top:14px;width:100%;">
                 <tr>
-                  <td>
-                    <strong>Realty Smartz Private Limited</strong> &bull; HR & Operations<br />
-                    Official Portal: <a href="https://realtysmartz.in" style="color:#FF5A5F;text-decoration:none;">realtysmartz.in</a> &bull; Support: <a href="mailto:info@realtysmartz.in" style="color:#64748B;">info@realtysmartz.in</a><br />
-                    This is an automated operational notification sent to registered employees.
+                  <td style="width:46px;vertical-align:middle;padding-top:14px;"><img src="${logo}" width="40" height="40" alt="Realty Smartz" style="display:block;border:0;" /></td>
+                  <td style="vertical-align:middle;padding:14px 0 0 10px;">
+                    <div style="font-size:14px;font-weight:600;color:#111827;">Realty Smartz Private Limited</div>
+                    <div style="font-size:12px;margin-top:2px;"><a href="https://realtysmartz.in" style="color:${BRAND};text-decoration:none;">realtysmartz.in</a> <span style="color:#D1D5DB;">|</span> <a href="mailto:info@realtysmartz.in" style="color:${BRAND};text-decoration:none;">info@realtysmartz.in</a></div>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
         </table>
+
+        <div style="max-width:560px;font-size:11px;color:#9CA3AF;line-height:1.5;padding:14px 8px 0 8px;text-align:center;">
+          This is an automated notification from Realty Smartz HRMS sent to registered employees.
+        </div>
       </td>
     </tr>
   </table>
@@ -281,36 +295,36 @@ export async function notifyWelcomeEmployee(args: {
     <p>Dear <strong>${args.employeeName}</strong>,</p>
     <p>Welcome to <strong>Realty Smartz Private Limited</strong>! Your employee account has been created successfully in our company HRMS Portal.</p>
     
-    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px 20px;margin:20px 0;">
-      <h3 style="margin:0 0 12px 0;font-size:13px;color:#0F172A;text-transform:uppercase;letter-spacing:0.5px;">Your Account Credentials</h3>
+    <div style="border:1px solid #EEF0F4;border-radius:10px;padding:14px 18px;margin:20px 0;">
+      <h3 style="margin:0 0 12px 0;font-size:13px;color:#111827;text-transform:uppercase;letter-spacing:0.5px;">Your Account Credentials</h3>
       <table width="100%" border="0" cellspacing="0" cellpadding="4" style="font-size:13px;">
         <tr>
-          <td width="35%" style="color:#64748B;">Employee Code:</td>
-          <td style="font-weight:700;color:#0F172A;">${args.employeeCode}</td>
+          <td width="35%" style="color:#6B7280;">Employee Code:</td>
+          <td style="font-weight:700;color:#111827;">${args.employeeCode}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Official Email:</td>
-          <td style="font-weight:700;color:#0F172A;">${args.employeeEmail}</td>
+          <td style="color:#6B7280;">Official Email:</td>
+          <td style="font-weight:700;color:#111827;">${args.employeeEmail}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Temporary Password:</td>
-          <td style="font-family:monospace;background:#E2E8F0;padding:2px 8px;border-radius:4px;font-weight:700;color:#0F172A;display:inline-block;">${args.rawPassword}</td>
+          <td style="color:#6B7280;">Temporary Password:</td>
+          <td style="font-family:monospace;background:#E2E8F0;padding:2px 8px;border-radius:4px;font-weight:700;color:#111827;display:inline-block;">${args.rawPassword}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Role / Access:</td>
-          <td style="font-weight:600;color:#0F172A;">${args.role}</td>
+          <td style="color:#6B7280;">Role / Access:</td>
+          <td style="font-weight:600;color:#111827;">${args.role}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Department:</td>
-          <td style="color:#0F172A;">${args.departmentName || "General"}</td>
+          <td style="color:#6B7280;">Department:</td>
+          <td style="color:#111827;">${args.departmentName || "General"}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Designation:</td>
-          <td style="color:#0F172A;">${args.designationTitle || "Specialist"}</td>
+          <td style="color:#6B7280;">Designation:</td>
+          <td style="color:#111827;">${args.designationTitle || "Specialist"}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Date of Joining:</td>
-          <td style="color:#0F172A;">${dojFormatted}</td>
+          <td style="color:#6B7280;">Date of Joining:</td>
+          <td style="color:#111827;">${dojFormatted}</td>
         </tr>
       </table>
     </div>
@@ -377,27 +391,27 @@ export async function notifyPunchDetails(args: {
     <p>Hi <strong>${args.employeeName}</strong>,</p>
     <p>Your daily check-in has been recorded in the Realty Smartz HRMS Portal:</p>
 
-    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px 20px;margin:20px 0;">
+    <div style="border:1px solid #EEF0F4;border-radius:10px;padding:14px 18px;margin:20px 0;">
       <table width="100%" border="0" cellspacing="0" cellpadding="6" style="font-size:13px;">
         <tr>
-          <td width="35%" style="color:#64748B;">Employee:</td>
-          <td style="font-weight:700;color:#0F172A;">${args.employeeName} (${args.employeeCode})</td>
+          <td width="35%" style="color:#6B7280;">Employee:</td>
+          <td style="font-weight:700;color:#111827;">${args.employeeName} (${args.employeeCode})</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Date & Time:</td>
-          <td style="font-weight:700;color:#0F172A;">${dateFormatted} at ${timeFormatted}</td>
+          <td style="color:#6B7280;">Date & Time:</td>
+          <td style="font-weight:700;color:#111827;">${dateFormatted} at ${timeFormatted}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Status:</td>
+          <td style="color:#6B7280;">Status:</td>
           <td style="font-weight:700;color:${isLate ? "#EF4444" : "#10B981"};">${args.status}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Geofence:</td>
+          <td style="color:#6B7280;">Geofence:</td>
           <td style="font-weight:600;color:${args.withinGeofence ? "#10B981" : "#EF4444"};">${geoText}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">GPS Location:</td>
-          <td style="color:#0F172A;">${args.address || "Office Premise Coordinates"}</td>
+          <td style="color:#6B7280;">GPS Location:</td>
+          <td style="color:#111827;">${args.address || "Office Premise Coordinates"}</td>
         </tr>
       </table>
     </div>
@@ -455,19 +469,19 @@ export async function notifyCheckOutDetails(args: {
     <p>Hi <strong>${args.employeeName}</strong>,</p>
     <p>Your check-out has been recorded successfully:</p>
 
-    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px 20px;margin:20px 0;">
+    <div style="border:1px solid #EEF0F4;border-radius:10px;padding:14px 18px;margin:20px 0;">
       <table width="100%" border="0" cellspacing="0" cellpadding="6" style="font-size:13px;">
         <tr>
-          <td width="35%" style="color:#64748B;">Check-Out Time:</td>
-          <td style="font-weight:700;color:#0F172A;">${timeFormatted}</td>
+          <td width="35%" style="color:#6B7280;">Check-Out Time:</td>
+          <td style="font-weight:700;color:#111827;">${timeFormatted}</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Total Hours:</td>
+          <td style="color:#6B7280;">Total Hours:</td>
           <td style="font-weight:700;color:#10B981;">${args.totalHours ?? "—"} hrs</td>
         </tr>
         <tr>
-          <td style="color:#64748B;">Check-Out Location:</td>
-          <td style="color:#0F172A;">${args.address || "Office Premise"}</td>
+          <td style="color:#6B7280;">Check-Out Location:</td>
+          <td style="color:#111827;">${args.address || "Office Premise"}</td>
         </tr>
       </table>
     </div>
@@ -562,13 +576,13 @@ export async function notifyLeaveApplied(args: {
 }) {
   const body = `
     <p>Leave request submitted by <strong>${args.employeeName}</strong>.</p>
-    <ul>
-      <li>Type: <strong>${args.leaveType}</strong></li>
-      <li>Dates: ${args.startDate} &rarr; ${args.endDate}</li>
-      <li>Days: <strong>${args.days}</strong> (working days; Tuesday weekly off excluded)</li>
-      <li>Status: <strong>${args.status}</strong></li>
-      <li>Reason: ${args.reason}</li>
-    </ul>
+    ${detailsTable([
+      ["Leave type", args.leaveType],
+      ["Dates", `${args.startDate} &rarr; ${args.endDate}`],
+      ["Days", `${args.days} (Tuesday weekly off excluded)`],
+      ["Status", args.status],
+      ["Reason", args.reason],
+    ])}
   `;
 
   const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
@@ -598,20 +612,20 @@ export async function notifyLeaveDecision(args: {
 }) {
   const body = `
     <p>Hi <strong>${args.employeeName}</strong>,</p>
-    <p>Your leave request has been <strong>${args.action}</strong>.</p>
-    <ul>
-      <li>Type: <strong>${args.leaveType}</strong></li>
-      <li>Dates: ${args.startDate} &rarr; ${args.endDate}</li>
-      <li>Days: <strong>${args.days}</strong></li>
-      ${args.note ? `<li>HR / Manager Note: <em>${args.note}</em></li>` : ""}
-    </ul>
+    <p>Your leave request has been <strong>${args.action === "APPROVED" ? "approved" : "rejected"}</strong>.</p>
+    ${detailsTable([
+      ["Leave type", args.leaveType],
+      ["Dates", `${args.startDate} &rarr; ${args.endDate}`],
+      ["Days", String(args.days)],
+      ...(args.note ? ([["Note", args.note]] as [string, string][]) : []),
+    ])}
   `;
 
   return sendMail({
     to: args.employeeEmail,
     subject: `[HRMS] Leave ${args.action} — ${args.leaveType}`,
     html: layout({
-      title: `Leave Request ${args.action}`,
+      title: `Leave Request ${args.action === "APPROVED" ? "Approved" : "Rejected"}`,
       badge: args.action,
       badgeColor: args.action === "APPROVED" ? "#10B981" : "#EF4444",
       body,
@@ -627,7 +641,7 @@ export async function notifyPolicyUpdate(args: {
   if (args.recipientEmails.length === 0) return;
   const body = `
     <p>A company HR policy update was published:</p>
-    <p style="font-size:16px;font-weight:700;color:#0F172A;">${args.title}</p>
+    <p style="font-size:16px;font-weight:700;color:#111827;">${args.title}</p>
     <p>${args.summary}</p>
   `;
 
@@ -693,7 +707,7 @@ export async function notifyLocationDisabledAlert(args: {
         </tr>
         <tr>
           <td style="color:#7F1D1D;">Incident Timestamp:</td>
-          <td style="font-weight:700;color:#0F172A;">${dateFormatted} at ${timeFormatted} (IST)</td>
+          <td style="font-weight:700;color:#111827;">${dateFormatted} at ${timeFormatted} (IST)</td>
         </tr>
         <tr>
           <td style="color:#7F1D1D;">Reason / Event:</td>
@@ -703,7 +717,7 @@ export async function notifyLocationDisabledAlert(args: {
           args.deviceInfo
             ? `<tr>
                 <td style="color:#7F1D1D;">Device / Browser:</td>
-                <td style="color:#64748B;font-size:11px;">${args.deviceInfo}</td>
+                <td style="color:#6B7280;font-size:11px;">${args.deviceInfo}</td>
               </tr>`
             : ""
         }

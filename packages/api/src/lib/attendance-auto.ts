@@ -14,10 +14,21 @@ import {
  * Computes total hours worked, updates status (HALF_DAY if < 4 hrs, else PRESENT/LATE),
  * records automated checkout timestamp.
  */
+const AUTO_PUNCH_CHECK_INTERVAL_MS = 60_000;
+const lastAutoPunchCheck = new Map<string, number>();
+
 export async function ensureAutoPunchOut(
   prisma: PrismaClient,
   employeeId?: string
 ): Promise<{ updatedCount: number }> {
+  const key = employeeId ?? "*";
+  const nowMs = Date.now();
+  const last = Math.max(lastAutoPunchCheck.get(key) ?? 0, lastAutoPunchCheck.get("*") ?? 0);
+  if (nowMs - last < AUTO_PUNCH_CHECK_INTERVAL_MS) {
+    return { updatedCount: 0 };
+  }
+  lastAutoPunchCheck.set(key, nowMs);
+
   try {
     const now = new Date();
     const today = startOfDayUTC(now);
