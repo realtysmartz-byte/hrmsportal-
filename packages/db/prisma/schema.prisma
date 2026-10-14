@@ -47,6 +47,7 @@ model Employee {
   documents          EmployeeDocument[]   @relation("DocumentOwner")
   uploadedDocuments  EmployeeDocument[]   @relation("DocumentUploader")
   locationPings      LocationPing[]
+  pushSubscriptions  PushSubscription[]
   goals              Goal[]               @relation("EmployeeGoals")
   reviewsReceived    Review[]             @relation("EmployeeReviews")
   reviewsGiven       Review[]             @relation("ReviewsGiven")
@@ -191,6 +192,18 @@ model LocationPing {
   capturedAt     DateTime @default(now())
 
   @@index([employeeId, capturedAt])
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@index([employeeId])
 }
 
 model JobPosting {

@@ -41,6 +41,8 @@ apps/web/public/workbox-*.js
 apps/web/public/workbox-*.js.map
 apps/web/public/fallback-*.js
 apps/web/public/fallback-*.js.map
+apps/web/public/worker-*.js
+apps/web/public/worker-*.js.map
 
 # local scratch scripts
 proxy-3002.js

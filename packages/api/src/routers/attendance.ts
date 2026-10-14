@@ -899,6 +899,24 @@ export const attendanceRouter = router({
       });
     }),
 
+  savePushSubscription: protectedProcedure
+    .input(
+      z.object({
+        endpoint: z.string().url().max(2000),
+        p256dh: z.string().min(1).max(500),
+        auth: z.string().min(1).max(500),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const employeeId = await resolveEmployeeId(ctx);
+      await ctx.prisma.pushSubscription.upsert({
+        where: { endpoint: input.endpoint },
+        update: { employeeId, p256dh: input.p256dh, auth: input.auth },
+        create: { employeeId, ...input },
+      });
+      return { ok: true };
+    }),
+
   myLocationPings: protectedProcedure
     .input(
       z.object({
@@ -1237,7 +1255,6 @@ export const attendanceRouter = router({
         });
       }
 
-      // Auto punch-out has no device fix; only plot a checkout we actually captured.
       if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
         events.push({
           id: `out-${log.id}`,

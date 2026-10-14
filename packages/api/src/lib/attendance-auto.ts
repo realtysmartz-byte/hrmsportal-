@@ -63,11 +63,25 @@ export async function ensureAutoPunchOut(
         status = "PRESENT";
       }
 
+      const lastPing = await prisma.locationPing.findFirst({
+        where: {
+          employeeId: log.employeeId,
+          capturedAt: { gte: log.checkInTime, lte: finalOutTime },
+        },
+        orderBy: { capturedAt: "desc" },
+        select: { lat: true, lng: true, address: true },
+      });
+
       const autoNote = "Auto checked out at 7:00 PM";
       await prisma.attendanceLog.update({
         where: { id: log.id },
         data: {
           checkOutTime: finalOutTime,
+          checkOutLat: lastPing?.lat ?? null,
+          checkOutLng: lastPing?.lng ?? null,
+          checkOutAddress: lastPing
+            ? `Last known location: ${lastPing.address ?? `${lastPing.lat.toFixed(5)}, ${lastPing.lng.toFixed(5)}`}`
+            : null,
           totalHours: roundedHours,
           status,
           notes: log.notes ? `${log.notes} · ${autoNote}` : autoNote,

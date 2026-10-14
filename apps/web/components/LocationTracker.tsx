@@ -6,6 +6,7 @@ import { MapPin } from "lucide-react";
 import { haversineDistanceM, LOCATION_PING_INTERVAL_MS } from "@realty-smartz/shared";
 import { trpc } from "@/lib/trpc";
 import { getCurrentPosition, reverseGeocodePlace } from "@/lib/geolocation";
+import { subscribeToLocationReminders } from "@/lib/push";
 import { cn } from "@/lib/utils";
 
 const MOVE_THRESHOLD_M = 50;
@@ -26,6 +27,10 @@ export function LocationTracker() {
   const pingMutation = trpc.attendance.locationPing.useMutation();
   const pingRef = useRef(pingMutation.mutateAsync);
   pingRef.current = pingMutation.mutateAsync;
+
+  const savePushMutation = trpc.attendance.savePushSubscription.useMutation();
+  const savePushRef = useRef(savePushMutation.mutateAsync);
+  savePushRef.current = savePushMutation.mutateAsync;
 
   const reportDisabledMutation = trpc.attendance.reportLocationDisabled.useMutation();
   const reportRef = useRef(reportDisabledMutation.mutate);
@@ -119,6 +124,7 @@ export function LocationTracker() {
     }
 
     void pingFresh();
+    void subscribeToLocationReminders((input) => savePushRef.current(input), false).catch(() => {});
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -146,7 +152,7 @@ export function LocationTracker() {
       if (document.visibilityState !== "visible") return;
       void requestWakeLock();
       const last = lastPinged.current?.at ?? 0;
-      if (Date.now() - last >= LOCATION_PING_INTERVAL_MS) void pingFresh();
+      if (Date.now() - last >= MIN_MOVE_PING_GAP_MS) void pingFresh();
     };
     document.addEventListener("visibilitychange", onVisibility);
 

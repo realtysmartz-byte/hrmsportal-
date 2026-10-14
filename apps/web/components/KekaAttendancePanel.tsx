@@ -26,6 +26,7 @@ import {
   getCurrentPosition,
   reverseGeocodePlace,
 } from "@/lib/geolocation";
+import { subscribeToLocationReminders } from "@/lib/push";
 import {
   formatDateIST,
   formatTimeIST,
@@ -150,6 +151,8 @@ export function KekaAttendancePanel({
     },
   });
 
+  const savePush = trpc.attendance.savePushSubscription.useMutation();
+
   const checkOutMutation = trpc.attendance.checkOut.useMutation({
     onSuccess: async () => {
       await utils.attendance.today.invalidate();
@@ -177,6 +180,7 @@ export function KekaAttendancePanel({
     : currentUserWorkLoc?.name ?? "Loading work location…";
 
   async function handlePunch(mode: "in" | "out") {
+    if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
     setPunchError("");
     setBusy(true);
 

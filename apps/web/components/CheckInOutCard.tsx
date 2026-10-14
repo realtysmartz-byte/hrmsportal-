@@ -9,6 +9,7 @@ import {
   getCurrentPosition,
   reverseGeocodePlace,
 } from "@/lib/geolocation";
+import { subscribeToLocationReminders } from "@/lib/push";
 import {
   formatTimeIST,
   TIMEZONE_IST,
@@ -28,6 +29,7 @@ export function CheckInOutCard() {
   const { data: today, isLoading } = trpc.attendance.today.useQuery();
   const { data: workLoc } = trpc.attendance.myWorkLocation.useQuery();
   const reportLocationDisabled = trpc.attendance.reportLocationDisabled.useMutation();
+  const savePush = trpc.attendance.savePushSubscription.useMutation();
 
   const [now, setNow] = useState<Date | null>(null);
   const [error, setError] = useState("");
@@ -62,6 +64,7 @@ export function CheckInOutCard() {
   const checkOut = trpc.attendance.checkOut.useMutation({ onSuccess });
 
   async function punch(mode: "in" | "out") {
+    if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
     setError("");
     setBusy(true);
     try {
