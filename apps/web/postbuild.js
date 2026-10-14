@@ -28,6 +28,18 @@ try {
     }
   }
 
+  // 1c. Standalone server: copy static assets + public, and expose server.js at the standalone root
+  const standaloneApp = path.resolve('.next', 'standalone', 'apps', 'web');
+  if (fs.existsSync(path.join(standaloneApp, 'server.js'))) {
+    fs.cpSync(path.resolve('.next', 'static'), path.join(standaloneApp, '.next', 'static'), { recursive: true });
+    fs.cpSync(path.resolve('public'), path.join(standaloneApp, 'public'), { recursive: true });
+    fs.writeFileSync(
+      path.resolve('.next', 'standalone', 'server.js'),
+      "require('./apps/web/server.js');\n"
+    );
+    console.log('[postbuild] Standalone server ready at .next/standalone/server.js');
+  }
+
   // 2. package.json in targetDir:
   // Resolves Vercel's NFT server file tracer looking for apps/web/apps/web/package.json
   const sourcePkg = path.resolve('package.json');
