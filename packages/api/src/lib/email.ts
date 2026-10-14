@@ -277,11 +277,7 @@ export async function notifyWelcomeEmployee(args: {
   dateOfJoining?: Date | string | null;
   loginUrl?: string;
 }) {
-  const loginUrl =
-    args.loginUrl ||
-    process.env.NEXTAUTH_URL
-      ? `${process.env.NEXTAUTH_URL}/login`
-      : "http://localhost:3000/login";
+  const loginUrl = args.loginUrl || `${appBaseUrl()}/login`;
 
   const dojFormatted = args.dateOfJoining
     ? new Date(args.dateOfJoining).toLocaleDateString("en-IN", {
