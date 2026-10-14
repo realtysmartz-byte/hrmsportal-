@@ -93,7 +93,7 @@ const FONT = "'Outfit','Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 function appBaseUrl(): string {
   const url = process.env.NEXTAUTH_URL;
   if (url && !url.includes("localhost")) return url.replace(/\/$/, "");
-  return "https://realty-hrms-portal-web-amber.vercel.app";
+  return "https://rshrms.in";
 }
 
 /** Two-column label/value card used inside email bodies */

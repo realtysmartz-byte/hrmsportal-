@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "prebuild": "node postbuild.js",
-    "build": "next build && node postbuild.js",
-    "start": "next start",
+    "build": "node next-prod.js build && node postbuild.js",
+    "start": "node next-prod.js start",
     "lint": "next lint"
   },
   "dependencies": {
