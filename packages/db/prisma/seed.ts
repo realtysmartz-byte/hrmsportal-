@@ -134,8 +134,8 @@ async function main() {
   console.log("--------------------------------------------------");
   console.log("Production initialization complete!");
   console.log("Database contains ONLY 1 employee:");
-  console.log(`Email:    admin@realtysmartz.com`);
-  console.log(`Password: Admin@123`);
+  console.log(`Email:    hr@realtysmartz.in`);
+  console.log(`Password: HR@realty#$`);
   console.log(`Role:     ADMIN (Full system access)`);
   console.log("All other demo records and seeded test data purged.");
   console.log("--------------------------------------------------");
