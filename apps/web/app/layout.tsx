@@ -1,13 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import { Providers } from "@/components/Providers";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { LocationTracker } from "@/components/LocationTracker";
 import { AppSplash } from "@/components/AppSplash";
 import "./globals.css";
 
-const display = Outfit({
-  subsets: ["latin"],
+const display = localFont({
+  src: "./fonts/Outfit-latin.woff2",
+  weight: "100 900",
+  style: "normal",
   variable: "--font-display",
   display: "swap",
 });
