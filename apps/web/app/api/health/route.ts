@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@realty-smartz/db";
 
+export const dynamic = "force-dynamic";
+
 /** GET /api/health → { status, db, timestamp } */
 export async function GET() {
   let db = false;
