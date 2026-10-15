@@ -126,6 +126,7 @@ function redactEmployeeSensitiveData<T extends Record<string, unknown>>(employee
     address: null,
     emergencyContactName: null,
     emergencyContactPhone: null,
+    bloodGroup: null,
     gender: null,
   };
 }
@@ -522,6 +523,7 @@ export const employeeRouter = router({
           gender: input.gender || null,
           emergencyContactName: input.emergencyContactName || null,
           emergencyContactPhone: input.emergencyContactPhone || null,
+          bloodGroup: input.bloodGroup || null,
           role: input.role,
           designationId: input.designationId || null,
           departmentId: input.departmentId || null,
@@ -792,6 +794,7 @@ export const employeeRouter = router({
         updateData.emergencyContactName = data.emergencyContactName || null;
       if (data.emergencyContactPhone !== undefined)
         updateData.emergencyContactPhone = data.emergencyContactPhone || null;
+      if (data.bloodGroup !== undefined) updateData.bloodGroup = data.bloodGroup || null;
       if (data.role !== undefined) updateData.role = data.role;
       if (data.designationId !== undefined)
         updateData.designationId = data.designationId || null;
@@ -1014,6 +1017,7 @@ export const employeeRouter = router({
         dateOfBirth: true,
         emergencyContactName: true,
         emergencyContactPhone: true,
+        bloodGroup: true,
         address: true,
         department: { select: { name: true } },
         designation: { select: { title: true } },

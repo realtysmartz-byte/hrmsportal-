@@ -54,6 +54,7 @@ export default function EditEmployeePage() {
           gender: emp.gender ?? "",
           emergencyContactName: emp.emergencyContactName ?? "",
           emergencyContactPhone: emp.emergencyContactPhone ?? "",
+          bloodGroup: emp.bloodGroup ?? "",
           role: emp.role,
           designationId: emp.designationId ?? "",
           departmentId: emp.departmentId ?? "",

@@ -21,6 +21,7 @@ type EmployeeFormValues = {
   gender: string;
   emergencyContactName: string;
   emergencyContactPhone: string;
+  bloodGroup: string;
   role: (typeof ROLES)[number];
   designationId: string;
   departmentId: string;
@@ -45,6 +46,7 @@ const emptyValues: EmployeeFormValues = {
   gender: "",
   emergencyContactName: "",
   emergencyContactPhone: "",
+  bloodGroup: "",
   role: "EMPLOYEE",
   designationId: "",
   departmentId: "",
@@ -90,6 +92,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     gender: initial?.gender ?? "",
     emergencyContactName: initial?.emergencyContactName ?? "",
     emergencyContactPhone: initial?.emergencyContactPhone ?? "",
+    bloodGroup: initial?.bloodGroup ?? "",
     designationId: initial?.designationId ?? "",
     departmentId: initial?.departmentId ?? "",
     managerId: initial?.managerId ?? "",
@@ -155,6 +158,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       gender: values.gender || null,
       emergencyContactName: values.emergencyContactName || null,
       emergencyContactPhone: values.emergencyContactPhone || null,
+      bloodGroup: values.bloodGroup || null,
       role: values.role,
       designationId: values.designationId || null,
       departmentId: values.departmentId || null,
@@ -271,6 +275,19 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                 setField("emergencyContactPhone", e.target.value)
               }
             />
+          </Field>
+          <Field label="Blood Group">
+            <Select
+              value={values.bloodGroup}
+              onChange={(e) => setField("bloodGroup", e.target.value)}
+            >
+              <option value="">Select…</option>
+              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </Select>
           </Field>
           <div className="sm:col-span-2">
             <Field label="Address">

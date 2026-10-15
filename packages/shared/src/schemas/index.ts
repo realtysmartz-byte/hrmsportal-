@@ -30,6 +30,7 @@ export const createEmployeeSchema = z.object({
   gender: z.string().trim().max(30).optional().nullable(),
   emergencyContactName: z.string().trim().max(100).optional().nullable(),
   emergencyContactPhone: z.string().trim().max(30).optional().nullable(),
+  bloodGroup: z.string().trim().max(5).optional().nullable(),
   role: z.enum(ROLES).default("EMPLOYEE"),
   designationId: z.string().max(100).optional().nullable(),
   departmentId: z.string().max(100).optional().nullable(),

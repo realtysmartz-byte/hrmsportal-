@@ -4,18 +4,19 @@ import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { Download, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { formatDate, fullName, initials } from "@/lib/utils";
+import { fullName, initials } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/skeleton";
 
-const BRAND = "#5D3EBC";
-const BRAND_LIGHT = "#8B6FE0";
-const BRAND_DARK = "#2E1F66";
+const COMPANY_NUMBER = "80-10-841-841";
+const COMPANY_WEBSITE = "www.realtysmartz.in";
+const COMPANY_ADDRESS = "11th Floor, Spaze Palazo, Golf Course Ext Rd, Sector 69, Gurugram, 122001";
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 export default function IdCardPage() {
   const { data: emp, isLoading, error } = trpc.employee.myIdCard.useQuery();
-  const cardRef = useRef<HTMLDivElement>(null);
+  const frontRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
 
@@ -25,19 +26,30 @@ export default function IdCardPage() {
   }
 
   async function download() {
-    if (!cardRef.current || !emp) return;
+    if (!frontRef.current || !backRef.current || !emp) return;
     setDownloading(true);
     setDownloadError("");
     try {
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 3,
-        cacheBust: true,
-        backgroundColor: "#ffffff",
-        imagePlaceholder: TRANSPARENT_PIXEL,
-      });
+      const options = { pixelRatio: 3, cacheBust: true, imagePlaceholder: TRANSPARENT_PIXEL };
+      const [frontUrl, backUrl] = await Promise.all([
+        toPng(frontRef.current, options),
+        toPng(backRef.current, options),
+      ]);
+      const [front, back] = await Promise.all([loadImage(frontUrl), loadImage(backUrl)]);
+
+      const gap = 60;
+      const canvas = document.createElement("canvas");
+      canvas.width = front.width + back.width + gap * 3;
+      canvas.height = Math.max(front.height, back.height) + gap * 2;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(front, gap, gap);
+      ctx.drawImage(back, gap * 2 + front.width, gap);
+
       const link = document.createElement("a");
       link.download = `ID-Card-${emp.employeeCode}.png`;
-      link.href = dataUrl;
+      link.href = canvas.toDataURL("image/png");
       link.click();
     } catch {
       setDownloadError("Could not create the image. Please try again.");
@@ -46,31 +58,15 @@ export default function IdCardPage() {
     }
   }
 
-  const details: { label: string; value: string | null }[] = [
-    { label: "Department", value: emp.department?.name ?? null },
-    { label: "Phone", value: emp.phone },
-    { label: "Email", value: emp.email },
-    { label: "Joined", value: emp.dateOfJoining ? formatDate(emp.dateOfJoining) : null },
-    { label: "Date of Birth", value: emp.dateOfBirth ? formatDate(emp.dateOfBirth) : null },
-    {
-      label: "Emergency",
-      value: emp.emergencyContactPhone
-        ? [emp.emergencyContactName, emp.emergencyContactPhone].filter(Boolean).join(" · ")
-        : null,
-    },
-    { label: "Address", value: emp.address },
-  ];
-
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-8 flex w-full max-w-[340px] items-center justify-between gap-3">
+      <div className="mb-6 flex w-full max-w-[700px] items-center justify-between gap-3">
         <h1 className="page-title">My ID Card</h1>
         <button
           type="button"
           onClick={download}
           disabled={downloading}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
-          style={{ background: BRAND }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[#5D3EBC] px-3 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
         >
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {downloading ? "Preparing…" : "Download"}
@@ -78,95 +74,184 @@ export default function IdCardPage() {
       </div>
       {downloadError && <p className="mb-4 text-xs text-rose-600">{downloadError}</p>}
 
-      {/* Lanyard */}
-      <div className="relative z-10 -mb-3 flex gap-1.5">
-        <div className="h-12 w-5 -rotate-12 rounded-t-sm" style={{ background: BRAND }} />
-        <div className="h-12 w-5 rotate-12 rounded-t-sm" style={{ background: BRAND_LIGHT }} />
-      </div>
+      <div className="flex flex-wrap justify-center gap-8">
+        {/* Front */}
+        <div className="flex flex-col items-center gap-2">
+          <CardShell cardRef={frontRef}>
+            <img
+              src="/logo.png"
+              alt=""
+              className="absolute -left-14 bottom-20 h-48 w-auto opacity-[0.18]"
+            />
+            <div className="relative flex h-full flex-col items-center px-6 pt-6">
+              <BrandRow />
 
-      <div
-        ref={cardRef}
-        className="relative w-[320px] overflow-hidden rounded-[28px] bg-white shadow-[0_24px_60px_-20px_rgba(93,62,188,0.5)] ring-1 ring-neutral-200"
-      >
-        {/* Header band */}
-        <div
-          className="relative h-[150px]"
-          style={{
-            background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_LIGHT} 100%)`,
-            clipPath: "polygon(0 0, 100% 0, 100% 72%, 0 100%)",
-          }}
-        >
-          <div className="absolute left-1/2 top-3 h-2.5 w-14 -translate-x-1/2 rounded-full bg-white/40" />
-          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full border-[14px] border-white/10" />
-          <div className="absolute -left-8 top-16 h-20 w-20 rounded-full border-[10px] border-white/10" />
-          <div className="pt-9 text-center">
-            <p className="text-lg font-extrabold tracking-[0.18em] text-white">REALTY SMARTZ</p>
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/75">
-              Employee ID Card
-            </p>
-          </div>
-        </div>
+              <div className="mt-6 h-[170px] w-[150px] overflow-hidden rounded-2xl border-[5px] border-[#1F5F7A] bg-white shadow-md">
+                {emp.profilePhotoUrl ? (
+                  <img src={emp.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[#EAF2F8] text-4xl font-bold text-[#1F5F7A]">
+                    {initials(emp.firstName, emp.lastName)}
+                  </div>
+                )}
+              </div>
 
-        {/* Photo */}
-        <div className="relative -mt-[62px] flex justify-center">
-          <div className="rounded-full p-[5px]" style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND_LIGHT})` }}>
-            <div
-              className="flex h-[118px] w-[118px] items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#F3F0FC] text-3xl font-bold"
-              style={{ color: BRAND }}
-            >
-              {emp.profilePhotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={emp.profilePhotoUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                initials(emp.firstName, emp.lastName)
-              )}
+              <p className="mt-5 text-center text-[26px] font-bold leading-tight text-neutral-900">
+                {fullName(emp.firstName, emp.lastName)}
+              </p>
+
+              <div className="mt-9 w-full space-y-1.5 text-[13px] text-neutral-900">
+                <InfoLine label="Employee Code" value={emp.employeeCode} />
+                {emp.bloodGroup && <InfoLine label="Blood Group" value={emp.bloodGroup} />}
+                {emp.emergencyContactPhone && (
+                  <InfoLine label="Emergency No." value={emp.emergencyContactPhone} />
+                )}
+              </div>
             </div>
-          </div>
+          </CardShell>
+          <span className="text-xs font-medium text-neutral-500">Front</span>
         </div>
 
-        {/* Name */}
-        <div className="mt-3 px-5 text-center">
-          <p className="text-[22px] font-extrabold leading-tight" style={{ color: BRAND_DARK }}>
-            {fullName(emp.firstName, emp.lastName)}
-          </p>
-          {emp.designation?.title && (
-            <p className="mt-0.5 text-[13px] font-medium text-neutral-600">{emp.designation.title}</p>
-          )}
-          <span
-            className="mt-2.5 inline-block rounded-full px-4 py-1 text-xs font-bold tracking-wider text-white"
-            style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND_LIGHT})` }}
-          >
-            {emp.employeeCode}
-          </span>
-        </div>
+        {/* Back */}
+        <div className="flex flex-col items-center gap-2">
+          <CardShell cardRef={backRef}>
+            <div className="relative flex h-full flex-col items-center px-6 pt-6">
+              <img src="/logo.png" alt="" className="h-[105px] w-auto opacity-40" />
 
-        {/* Details */}
-        <div className="mx-5 mt-4 rounded-2xl bg-[#F7F5FD] px-4 py-3">
-          <dl className="space-y-1.5 text-[11px] leading-snug">
-            {details
-              .filter((d) => d.value)
-              .map((d) => (
-                <div key={d.label} className="grid grid-cols-[82px_1fr] gap-2">
-                  <dt className="font-semibold text-neutral-500">{d.label}</dt>
-                  <dd className="break-words font-semibold text-neutral-800">{d.value}</dd>
+              <p className="mt-4 text-base font-bold tracking-wide text-neutral-900 underline underline-offset-4">
+                NOTES
+              </p>
+              <p className="mt-2 text-center text-[12px] font-medium leading-snug text-neutral-800">
+                Employees must immediately report a lost or stolen ID card to the issuing
+                authority.
+              </p>
+
+              <div className="mt-6 w-full space-y-2 text-[13px] text-neutral-900">
+                <BackLine label="Number" value={COMPANY_NUMBER} />
+                <BackLine label="Website" value={COMPANY_WEBSITE} />
+                <BackLine label="Address" value={COMPANY_ADDRESS} />
+              </div>
+
+              <div className="mt-auto flex w-full flex-col items-center pb-5 pt-8">
+                <div className="w-40 border-t border-neutral-900" />
+                <p className="mt-1 text-sm font-semibold tracking-wide text-neutral-900">SIGNATURE</p>
+                <div className="mt-3">
+                  <BrandRow />
                 </div>
-              ))}
-          </dl>
+              </div>
+            </div>
+          </CardShell>
+          <span className="text-xs font-medium text-neutral-500">Back</span>
         </div>
-
-        {/* Logo */}
-        <div className="flex justify-center pb-4 pt-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Realty Smartz" className="h-9 w-auto object-contain" />
-        </div>
-
-        {/* Bottom band */}
-        <div className="h-2.5" style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND_LIGHT})` }} />
       </div>
+    </div>
+  );
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function CardShell({
+  cardRef,
+  children,
+}: {
+  cardRef: React.RefObject<HTMLDivElement>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      ref={cardRef}
+      className="relative h-[540px] w-[310px] overflow-hidden rounded-[28px] shadow-[0_18px_45px_-18px_rgba(31,95,122,0.45)] ring-1 ring-neutral-200"
+      style={{
+        background:
+          "radial-gradient(circle at 85% 12%, #F8E8EE 0%, transparent 45%), radial-gradient(circle at 10% 90%, #E3EEF6 0%, transparent 50%), linear-gradient(165deg, #FFFFFF 0%, #F7F3F6 45%, #E6EEF4 100%)",
+      }}
+    >
+      <Waves />
+      {children}
+    </div>
+  );
+}
+
+function Waves() {
+  const lines = Array.from({ length: 16 }, (_, i) => i);
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      viewBox="0 0 310 520"
+      preserveAspectRatio="none"
+    >
+      {lines.map((i) => (
+        <path
+          key={i}
+          d={`M -20 ${250 + i * 2} C 60 ${150 + i * 6}, 160 ${330 - i * 4}, 330 ${170 + i * 3}`}
+          fill="none"
+          stroke="#7CC0E4"
+          strokeWidth="0.6"
+          opacity={0.35}
+        />
+      ))}
+    </svg>
+  );
+}
+
+function BrandRow() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex flex-col items-center">
+        <img src="/logo.png" alt="Realty Smartz" className="h-9 w-auto" />
+        <span className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#1F5F7A]">
+          REALTY SMARTZ
+        </span>
+      </div>
+      <div className="h-14 w-[3px] rounded-full bg-gradient-to-b from-[#C8323C] to-[#7CC0E4]" />
+      <GreatPlaceToWork />
+    </div>
+  );
+}
+
+function GreatPlaceToWork() {
+  return (
+    <div className="flex w-[42px] flex-col overflow-hidden text-white">
+      <div className="bg-[#E3343E] px-1 pb-1 pt-1 text-[7px] font-bold leading-[1.05]">
+        Great
+        <br />
+        Place
+        <br />
+        To
+        <br />
+        Work.
+      </div>
+      <div
+        className="bg-[#1D3B8F] px-1 pb-3 pt-0.5 text-center"
+        style={{ clipPath: "polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%)" }}
+      >
+        <p className="text-[7px] font-bold leading-tight">Certified</p>
+        <p className="text-[4px] leading-tight opacity-80">INDIA</p>
+      </div>
+    </div>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <p>
+      <span className="font-bold">{label}:</span> <span className="font-semibold">{value}</span>
+    </p>
+  );
+}
+
+function BackLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[72px_1fr] gap-1">
+      <span className="font-bold">{label} :</span>
+      <span className="font-medium leading-snug">{value}</span>
     </div>
   );
 }
