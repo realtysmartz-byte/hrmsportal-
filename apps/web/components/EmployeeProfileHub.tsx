@@ -26,7 +26,9 @@ import {
   Clock,
   ExternalLink,
   RefreshCw,
+  ImageUp,
 } from "lucide-react";
+import { compressImage } from "@/lib/image-compress";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageSkeleton } from "@/components/ui/skeleton";
@@ -111,6 +113,22 @@ export function EmployeeProfileHub({
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoInputUrl, setPhotoInputUrl] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  async function onPhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      setPhotoPreview(await compressImage(file));
+      setPhotoInputUrl("");
+    } catch {
+      alert("Could not process this photo. Please try another image.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   const deleteMutation = trpc.employee.delete.useMutation({
     onSuccess: () => {
@@ -490,30 +508,26 @@ export function EmployeeProfileHub({
                 </div>
               </div>
 
-              {/* Upload file */}
-              <div>
-                <Label className="text-xs font-semibold">Upload Image File</Label>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/jpg"
-                  className="mt-1.5 block w-full text-xs text-neutral-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:opacity-90 cursor-pointer"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    if (file.size > 5 * 1024 * 1024) {
-                      alert("File size exceeds 5MB limit");
-                      return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      if (typeof reader.result === "string") {
-                        setPhotoPreview(reader.result);
-                      }
-                    };
-                    reader.readAsDataURL(file);
-                  }}
-                />
+              {/* Camera / Upload file */}
+              <div className="flex gap-2">
+                <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#5D3EBC] px-3 py-2.5 text-xs font-semibold text-white">
+                  <Camera className="h-4 w-4" />
+                  Take Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    className="hidden"
+                    onChange={onPhotoFile}
+                  />
+                </label>
+                <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-xs font-semibold text-neutral-700">
+                  <ImageUp className="h-4 w-4" />
+                  Upload
+                  <input type="file" accept="image/*" className="hidden" onChange={onPhotoFile} />
+                </label>
               </div>
+              {photoBusy && <p className="text-xs text-neutral-500">Compressing photo…</p>}
 
               {/* Or Photo URL */}
               <div>

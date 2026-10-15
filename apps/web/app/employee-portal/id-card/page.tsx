@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { Download, Loader2 } from "lucide-react";
+import { Camera, Download, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { compressImage } from "@/lib/image-compress";
 import { fullName, initials } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/skeleton";
 
@@ -20,6 +21,25 @@ export default function IdCardPage() {
   const [flipped, setFlipped] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const utils = trpc.useUtils();
+  const updatePhoto = trpc.employee.updateMyPhoto.useMutation({
+    onSuccess: () => utils.employee.myIdCard.invalidate(),
+  });
+
+  async function onPhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      await updatePhoto.mutateAsync({ profilePhotoUrl: await compressImage(file) });
+    } catch {
+      alert("Could not save this photo. Please try again.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   if (isLoading) return <PageSkeleton />;
   if (error || !emp) {
@@ -94,7 +114,7 @@ export default function IdCardPage() {
         >
           <div className="absolute inset-0 [backface-visibility:hidden]">
             <CardShell>
-              <FrontContent emp={emp} />
+              <FrontContent emp={emp} onPhotoFile={onPhotoFile} photoBusy={photoBusy} />
             </CardShell>
           </div>
           <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
@@ -126,7 +146,15 @@ type IdCardEmployee = {
   emergencyContactPhone: string | null;
 };
 
-function FrontContent({ emp }: { emp: IdCardEmployee }) {
+function FrontContent({
+  emp,
+  onPhotoFile,
+  photoBusy,
+}: {
+  emp: IdCardEmployee;
+  onPhotoFile?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  photoBusy?: boolean;
+}) {
   return (
     <>
       <img
@@ -137,13 +165,32 @@ function FrontContent({ emp }: { emp: IdCardEmployee }) {
       <div className="relative flex h-full flex-col items-center px-6 pt-6 text-left">
         <BrandRow />
 
-        <div className="mt-6 h-[170px] w-[150px] overflow-hidden rounded-2xl border-[5px] border-[#1F5F7A] bg-white shadow-md">
-          {emp.profilePhotoUrl ? (
-            <img src={emp.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#EAF2F8] text-4xl font-bold text-[#1F5F7A]">
-              {initials(emp.firstName, emp.lastName)}
-            </div>
+        <div className="relative mt-6">
+          <div className="h-[170px] w-[150px] overflow-hidden rounded-2xl border-[5px] border-[#1F5F7A] bg-white shadow-md">
+            {emp.profilePhotoUrl ? (
+              <img src={emp.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-[#EAF2F8] text-4xl font-bold text-[#1F5F7A]">
+                {initials(emp.firstName, emp.lastName)}
+              </div>
+            )}
+          </div>
+          {onPhotoFile && (
+            <label
+              onClick={(e) => e.stopPropagation()}
+              className="absolute -bottom-3 -right-3 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[#1F5F7A] text-white shadow-lg ring-4 ring-white"
+              title={emp.profilePhotoUrl ? "Change photo" : "Add photo"}
+            >
+              {photoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              <input
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                disabled={photoBusy}
+                onChange={onPhotoFile}
+              />
+            </label>
           )}
         </div>
 

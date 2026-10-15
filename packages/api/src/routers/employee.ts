@@ -984,7 +984,13 @@ export const employeeRouter = router({
   updateMyPhoto: protectedProcedure
     .input(
       z.object({
-        profilePhotoUrl: z.string().min(1),
+        profilePhotoUrl: z.union([
+          z.string().url().max(2048),
+          z
+            .string()
+            .max(200_000)
+            .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/),
+        ]),
       })
     )
     .mutation(async ({ ctx, input }) => {
