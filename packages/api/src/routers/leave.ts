@@ -136,7 +136,14 @@ export const leaveRouter = router({
 
       const startDate = startOfDayUTC(input.startDate);
       const endDate = startOfDayUTC(input.endDate);
-      const numberOfDays = countWeekdays(startDate, endDate);
+      if (input.isHalfDay && startDate.getTime() !== endDate.getTime()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Half day can only be applied for a single date",
+        });
+      }
+      const weekdays = countWeekdays(startDate, endDate);
+      const numberOfDays = input.isHalfDay && weekdays > 0 ? 0.5 : weekdays;
 
       if (numberOfDays <= 0) {
         throw new TRPCError({
@@ -185,6 +192,7 @@ export const leaveRouter = router({
           startDate,
           endDate,
           numberOfDays,
+          isHalfDay: input.isHalfDay,
           reason:
             exceedsBalance
               ? `${input.reason}\n\n[Note: Request exceeds available balance]`
@@ -416,7 +424,7 @@ export const leaveRouter = router({
           });
         }
 
-        const days = listWeekdayDates(req.startDate, req.endDate);
+        const days = req.isHalfDay ? [] : listWeekdayDates(req.startDate, req.endDate);
         for (const day of days) {
           await tx.attendanceLog.upsert({
             where: {

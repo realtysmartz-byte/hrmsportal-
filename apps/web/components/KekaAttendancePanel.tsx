@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Clock,
@@ -37,6 +37,7 @@ import {
   haversineDistanceM,
 } from "@realty-smartz/shared";
 import { KekaMapViewModal } from "@/components/KekaMapViewModal";
+import { PunchList } from "@/components/PunchList";
 import { Button } from "@/components/ui/button";
 
 interface KekaAttendancePanelProps {
@@ -78,6 +79,7 @@ export function KekaAttendancePanel({
 
   // State for Keka Map View Modal
   const [mapModalDate, setMapModalDate] = useState<string | null>(null);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const isTargetMode = Boolean(
     targetEmployeeId && targetEmployeeId !== session?.user?.id
@@ -479,6 +481,12 @@ export function KekaAttendancePanel({
                 {punchError}
               </p>
             )}
+
+            {todayAttendance?.punches && todayAttendance.punches.length > 0 && (
+              <div className="mt-3">
+                <PunchList punches={todayAttendance.punches} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -622,22 +630,37 @@ export function KekaAttendancePanel({
                   const barWidthPercent = Math.min(100, Math.round((hoursVal / 9) * 100));
 
                   const rawDateStr = new Date(log.date).toISOString().slice(0, 10);
+                  const punches = log.punches ?? [];
+                  const firstIn = punches[0]?.checkInTime ?? log.checkInTime;
+                  const isExpanded = expandedLogId === log.id;
 
                   return (
+                    <Fragment key={log.id}>
                     <tr
-                      key={log.id}
                       className="hover:bg-neutral-50/70 transition-colors"
                     >
                       {/* Date */}
                       <td className="py-3 px-4 font-semibold text-neutral-900 whitespace-nowrap">
                         {dateStr}
+                        {punches.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                            className="mt-1 flex items-center gap-0.5 text-[10px] font-bold text-[#5D3EBC] hover:underline"
+                          >
+                            {punches.length} punches
+                            <ChevronRight
+                              className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
+                            />
+                          </button>
+                        )}
                       </td>
 
                       {/* Visual Timeline Bar matching Screenshot 2 */}
                       <td className="py-3 px-4">
                         <div className="w-full max-w-[240px]">
                           <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-1">
-                            <span>{log.checkInTime ? formatTimeIST(log.checkInTime) : "—"}</span>
+                            <span>{firstIn ? formatTimeIST(firstIn) : "—"}</span>
                             <span>{log.checkOutTime ? formatTimeIST(log.checkOutTime) : isCheckedIn ? "Active" : "—"}</span>
                           </div>
                           <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
@@ -665,7 +688,7 @@ export function KekaAttendancePanel({
                       <td className="py-3 px-4 whitespace-nowrap">
                         {isCheckedIn ? (
                           <span className="font-semibold text-neutral-900">
-                            {formatTimeIST(log.checkInTime)}
+                            {formatTimeIST(firstIn)}
                           </span>
                         ) : (
                           <span className="text-neutral-400">—</span>
@@ -726,6 +749,16 @@ export function KekaAttendancePanel({
                         )}
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr className="bg-neutral-50/70">
+                        <td colSpan={8} className="px-4 py-3">
+                          <div className="max-w-md">
+                            <PunchList punches={punches} />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })
               )}

@@ -21,6 +21,14 @@ import { istDateTime, parseExcelDate, parseExcelTime } from "../lib/excel-import
 import { assertCanViewSensitive } from "../lib/employee-access";
 import { ensureAutoPunchOut } from "../lib/attendance-auto";
 import {
+  formatClock,
+  hasApprovedHalfDayLeave,
+  isEarlyCheckOut,
+  shiftEndFor,
+  statusAfterCheckOut,
+  statusFromFirstCheckIn,
+} from "../lib/attendance-rules";
+import {
   getEffectiveWorkLocation,
   distanceToWorkLocationM,
 } from "../lib/work-location";
@@ -140,6 +148,7 @@ export const attendanceRouter = router({
       where: {
         employeeId_date: { employeeId, date: today },
       },
+      include: { punches: { orderBy: { checkInTime: "asc" } } },
     });
   }),
 
@@ -240,6 +249,7 @@ export const attendanceRouter = router({
           date: { gte: start, lte: end },
         },
         orderBy: { date: "asc" },
+        include: { punches: { orderBy: { checkInTime: "asc" } } },
       });
 
       return { logs, summary: summarizeLogs(logs) };
@@ -258,6 +268,7 @@ export const attendanceRouter = router({
           date: { gte: start, lte: end },
         },
         orderBy: { date: "asc" },
+        include: { punches: { orderBy: { checkInTime: "asc" } } },
       });
 
       return { logs, summary: summarizeLogs(logs) };
@@ -355,8 +366,17 @@ export const attendanceRouter = router({
       }
 
       const now = new Date();
-      // On initial punch of the day calculate late status; on re-punch keep existing status
-      const status = existing?.status || attendanceStatusFromCheckIn(now);
+      const isFirstPunch = !existing?.checkInTime;
+      const halfDayLeave = isFirstPunch
+        ? await hasApprovedHalfDayLeave(ctx.prisma, employeeId, today)
+        : false;
+      // On initial punch of the day calculate status; on re-punch keep existing status
+      const status =
+        !isFirstPunch && existing
+          ? existing.status
+          : halfDayLeave
+            ? "HALF_DAY"
+            : statusFromFirstCheckIn(now);
 
       const finalAddress = workLocation.name;
       let logNotes: string | null =
@@ -383,16 +403,20 @@ export const attendanceRouter = router({
         notes: logNotes,
       };
 
+      const punch = {
+        create: { checkInTime: now, checkInAddress: finalAddress },
+      };
       const log = existing
         ? await ctx.prisma.attendanceLog.update({
             where: { id: existing.id },
-            data: locationData,
+            data: { ...locationData, punches: punch },
           })
         : await ctx.prisma.attendanceLog.create({
             data: {
               employeeId,
               date: today,
               ...locationData,
+              punches: punch,
             },
           });
 
@@ -438,7 +462,7 @@ export const attendanceRouter = router({
               employeeEmail: emp.email,
               employeeCode: emp.employeeCode,
               checkInTime: now,
-              status,
+              status: isFirstPunch ? status : "RE-PUNCH IN",
               address: finalAddress,
               withinGeofence,
               managerEmail: emp.manager?.email,
@@ -494,12 +518,23 @@ export const attendanceRouter = router({
         (now.getTime() - existing.checkInTime.getTime()) / (1000 * 60 * 60);
       const cumulativeHours = (existing.totalHours || 0) + sessionHours;
 
-      let status = existing.status;
-      if (cumulativeHours < 4 && status !== "ON_LEAVE") {
-        status = "HALF_DAY";
-      } else if (cumulativeHours >= 8 && status === "HALF_DAY") {
-        status = "PRESENT";
-      }
+      const [firstPunch, halfDayLeave] = await Promise.all([
+        ctx.prisma.attendancePunch.findFirst({
+          where: { attendanceLogId: existing.id },
+          orderBy: { checkInTime: "asc" },
+          select: { checkInTime: true },
+        }),
+        hasApprovedHalfDayLeave(ctx.prisma, employeeId, today),
+      ]);
+      const status =
+        existing.status === "ON_LEAVE"
+          ? existing.status
+          : statusAfterCheckOut({
+              firstCheckIn: firstPunch?.checkInTime ?? existing.checkInTime,
+              cumulativeHours,
+              halfDayLeave,
+            });
+      const earlyCheckOut = isEarlyCheckOut(now, halfDayLeave);
 
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
@@ -539,6 +574,10 @@ export const attendanceRouter = router({
           notes: logNotes,
         },
       });
+      await ctx.prisma.attendancePunch.updateMany({
+        where: { attendanceLogId: existing.id, checkOutTime: null },
+        data: { checkOutTime: now, checkOutAddress: finalOutAddress },
+      });
 
       try {
         await ctx.prisma.locationPing.create({
@@ -571,6 +610,9 @@ export const attendanceRouter = router({
               totalHours: roundedHours,
               address: finalOutAddress,
               managerEmail: emp.manager?.email,
+              expectedOutTime: earlyCheckOut
+                ? formatClock(shiftEndFor(halfDayLeave))
+                : undefined,
             });
           }
         } catch (err) {

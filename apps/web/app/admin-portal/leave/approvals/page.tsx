@@ -141,7 +141,7 @@ export default function LeaveApprovalsPage() {
 
                     <TableCell>
                       <span className="font-bold text-neutral-900">
-                        {r.numberOfDays} {r.numberOfDays === 1 ? "day" : "days"}
+                        {r.isHalfDay ? "Half Day (till 2:30 PM)" : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
                       </span>
                     </TableCell>
 
@@ -238,7 +238,7 @@ export default function LeaveApprovalsPage() {
                   <div className="flex items-center justify-between text-neutral-700">
                     <span className="text-neutral-400 font-medium">Duration:</span>
                     <span className="font-bold text-[#5D3EBC]">
-                      {r.numberOfDays} {r.numberOfDays === 1 ? "day" : "days"}
+                      {r.isHalfDay ? "Half Day (till 2:30 PM)" : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
                     </span>
                   </div>
                   {r.reason && (

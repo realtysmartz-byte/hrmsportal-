@@ -387,12 +387,13 @@ export async function notifyPunchDetails(args: {
     year: "numeric",
   });
 
-  const isLate = args.status === "LATE";
+  const isHalfDay = args.status === "HALF_DAY";
+  const isLate = args.status === "LATE" || isHalfDay;
   const geoText = args.withinGeofence
     ? "Verified Inside Office Geofence"
     : "Outside Office Geofence Boundary";
 
-  const badge = isLate ? "LATE PUNCH ALERT" : "ATTENDANCE VERIFIED";
+  const badge = isHalfDay ? "HALF DAY MARKED" : isLate ? "LATE PUNCH ALERT" : "ATTENDANCE VERIFIED";
   const badgeColor = isLate ? "#EF4444" : "#10B981";
 
   const body = `
@@ -425,7 +426,11 @@ export async function notifyPunchDetails(args: {
     </div>
 
     ${
-      isLate
+      isHalfDay
+        ? `<div style="background:#FEF2F2;border-left:4px solid #EF4444;padding:12px 16px;border-radius:6px;color:#991B1B;font-size:13px;margin-bottom:16px;">
+            <strong>Half Day Notice:</strong> You punched in after 11:30 AM, so today has been marked as a HALF DAY in your attendance. Please coordinate with HR if this was pre-approved.
+          </div>`
+        : isLate
         ? `<div style="background:#FEF2F2;border-left:4px solid #EF4444;padding:12px 16px;border-radius:6px;color:#991B1B;font-size:13px;margin-bottom:16px;">
             <strong>Late Check-In Notice:</strong> Standard check-in time is before 10:00 AM. This punch has been logged as LATE in attendance audit logs. Please coordinate with HR if this was pre-approved.
           </div>`
@@ -434,7 +439,7 @@ export async function notifyPunchDetails(args: {
   `;
 
   const html = layout({
-    title: isLate ? "Late Punch Recorded" : "Check-In Confirmed",
+    title: isHalfDay ? "Half Day Marked" : isLate ? "Late Punch Recorded" : "Check-In Confirmed",
     badge,
     badgeColor,
     body,
@@ -443,7 +448,9 @@ export async function notifyPunchDetails(args: {
   const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
   if (args.managerEmail) recipients.push(args.managerEmail);
 
-  const subject = isLate
+  const subject = isHalfDay
+    ? `⚠️ [Attendance Alert] Half Day Marked — ${args.employeeName} (${timeFormatted})`
+    : isLate
     ? `⚠️ [Attendance Alert] Late Punch — ${args.employeeName} (${timeFormatted})`
     : `✅ [Attendance] Check-In Confirmed — ${args.employeeName} (${timeFormatted})`;
 
@@ -465,6 +472,8 @@ export async function notifyCheckOutDetails(args: {
   totalHours?: number | string | null;
   address?: string | null;
   managerEmail?: string | null;
+  /** Set when the employee clocked out before the end of their working day. */
+  expectedOutTime?: string;
 }) {
   const timeFormatted = args.checkOutTime.toLocaleTimeString("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -472,6 +481,7 @@ export async function notifyCheckOutDetails(args: {
     minute: "2-digit",
     hour12: true,
   });
+  const isEarly = Boolean(args.expectedOutTime);
 
   const body = `
     <p>Hi <strong>${args.employeeName}</strong>,</p>
@@ -493,12 +503,19 @@ export async function notifyCheckOutDetails(args: {
         </tr>
       </table>
     </div>
+    ${
+      isEarly
+        ? `<div style="background:#FEF2F2;border-left:4px solid #EF4444;padding:12px 16px;border-radius:6px;color:#991B1B;font-size:13px;margin-bottom:16px;">
+            <strong>Early Clock-Out Notice:</strong> You clocked out at ${timeFormatted}, before the end of your working day (${args.expectedOutTime}). Please coordinate with HR if this was pre-approved.
+          </div>`
+        : ""
+    }
   `;
 
   const html = layout({
-    title: "Check-Out Confirmed",
-    badge: "WORKDAY COMPLETED",
-    badgeColor: "#6366F1",
+    title: isEarly ? "Early Clock-Out Recorded" : "Check-Out Confirmed",
+    badge: isEarly ? "EARLY CLOCK-OUT" : "WORKDAY COMPLETED",
+    badgeColor: isEarly ? "#EF4444" : "#6366F1",
     body,
   });
 
@@ -507,7 +524,9 @@ export async function notifyCheckOutDetails(args: {
 
   return sendMail({
     to: [...new Set(recipients)],
-    subject: `[Attendance] Check-Out Recorded — ${args.employeeName} (${timeFormatted})`,
+    subject: isEarly
+      ? `⚠️ [Attendance Alert] Early Clock-Out — ${args.employeeName} (${timeFormatted})`
+      : `[Attendance] Check-Out Recorded — ${args.employeeName} (${timeFormatted})`,
     html,
   });
 }

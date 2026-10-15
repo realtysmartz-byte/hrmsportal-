@@ -108,9 +108,22 @@ model AttendanceLog {
   totalHours      Float?
   notes           String?
   createdAt       DateTime         @default(now())
+  punches         AttendancePunch[]
 
   @@unique([employeeId, date])
   @@index([date])
+}
+
+model AttendancePunch {
+  id              String        @id @default(cuid())
+  attendanceLogId String
+  attendanceLog   AttendanceLog @relation(fields: [attendanceLogId], references: [id], onDelete: Cascade)
+  checkInTime     DateTime
+  checkInAddress  String?
+  checkOutTime    DateTime?
+  checkOutAddress String?
+
+  @@index([attendanceLogId])
 }
 
 enum AttendanceStatus {
@@ -156,6 +169,7 @@ model LeaveRequest {
   startDate    DateTime    @db.Date
   endDate      DateTime    @db.Date
   numberOfDays Float
+  isHalfDay    Boolean     @default(false)
   reason       String
   status       LeaveStatus @default(PENDING)
   approvedById String?

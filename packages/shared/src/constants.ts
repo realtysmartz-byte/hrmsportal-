@@ -77,6 +77,15 @@ export const HR_ADMIN_ROLES: Role[] = ["ADMIN", "HR"];
 /** Check-in after this local hour is marked LATE */
 export const LATE_CHECK_IN_HOUR = 10;
 
+/** First punch-in after this IST time (hour, minute) marks the day HALF_DAY */
+export const HALF_DAY_CHECK_IN_AFTER = { hour: 11, minute: 30 } as const;
+
+/** Punch-out before this IST time sends an early clock-out mail */
+export const SHIFT_END_TIME = { hour: 17, minute: 0 } as const;
+
+/** On an approved half-day, the working day ends at this IST time */
+export const HALF_DAY_END_TIME = { hour: 14, minute: 30 } as const;
+
 export function canManageEmployees(role: Role): boolean {
   return HR_ADMIN_ROLES.includes(role);
 }

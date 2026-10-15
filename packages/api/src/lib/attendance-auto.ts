@@ -4,6 +4,7 @@ import {
   getISTDateParts,
   getAutoPunchOutTimeIST,
 } from "@realty-smartz/shared";
+import { hasApprovedHalfDayLeave, statusAfterCheckOut } from "./attendance-rules";
 
 /**
  * Automatically stamps punch-out at 7:00 PM IST (19:00 IST / 13:30 UTC)
@@ -67,12 +68,22 @@ export async function ensureAutoPunchOut(
       const cumulativeHours = (log.totalHours || 0) + sessionHours;
       const roundedHours = Math.max(0.25, Math.round(cumulativeHours * 100) / 100);
 
-      let status = log.status;
-      if (roundedHours < 4 && status !== "ON_LEAVE") {
-        status = "HALF_DAY";
-      } else if (roundedHours >= 8 && status === "HALF_DAY") {
-        status = "PRESENT";
-      }
+      const [firstPunch, halfDayLeave] = await Promise.all([
+        prisma.attendancePunch.findFirst({
+          where: { attendanceLogId: log.id },
+          orderBy: { checkInTime: "asc" },
+          select: { checkInTime: true },
+        }),
+        hasApprovedHalfDayLeave(prisma, log.employeeId, log.date),
+      ]);
+      const status =
+        log.status === "ON_LEAVE"
+          ? log.status
+          : statusAfterCheckOut({
+              firstCheckIn: firstPunch?.checkInTime ?? log.checkInTime,
+              cumulativeHours: roundedHours,
+              halfDayLeave,
+            });
 
       const lastPing = await prisma.locationPing.findFirst({
         where: {
@@ -97,6 +108,10 @@ export async function ensureAutoPunchOut(
           status,
           notes: log.notes ? `${log.notes} · ${autoNote}` : autoNote,
         },
+      });
+      await prisma.attendancePunch.updateMany({
+        where: { attendanceLogId: log.id, checkOutTime: null },
+        data: { checkOutTime: finalOutTime, checkOutAddress: autoNote },
       });
 
       updatedCount++;

@@ -18,6 +18,7 @@ import {
   haversineDistanceM,
 } from "@realty-smartz/shared";
 import { cn } from "@/lib/utils";
+import { PunchList } from "@/components/PunchList";
 
 function formatDuration(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -210,6 +211,12 @@ export function CheckInOutCard() {
         <MapPin className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{workLoc?.name ?? "Loading work location…"}</span>
       </div>
+
+      {today?.punches && today.punches.length > 1 && (
+        <div className="mt-3">
+          <PunchList punches={today.punches} />
+        </div>
+      )}
     </div>
   );
 }

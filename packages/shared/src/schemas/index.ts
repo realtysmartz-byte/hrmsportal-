@@ -146,6 +146,7 @@ export const applyLeaveSchema = z
     leaveTypeId: z.string().min(1).max(100),
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
+    isHalfDay: z.boolean().optional().default(false),
     reason: z.string().trim().min(3, "Reason must be at least 3 characters").max(1000),
   })
   .refine((d) => d.endDate >= d.startDate, {

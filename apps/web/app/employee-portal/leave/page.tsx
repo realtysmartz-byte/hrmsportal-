@@ -32,6 +32,7 @@ export default function EmployeeLeavePage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
+  const [isHalfDay, setIsHalfDay] = useState(false);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
@@ -40,6 +41,7 @@ export default function EmployeeLeavePage() {
       setReason("");
       setStartDate("");
       setEndDate("");
+      setIsHalfDay(false);
       setShowForm(false);
       setError("");
       utils.leave.myRequests.invalidate();
@@ -67,6 +69,7 @@ export default function EmployeeLeavePage() {
       leaveTypeId,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
+      isHalfDay,
       reason: reason.trim(),
     });
   }
@@ -121,28 +124,45 @@ export default function EmployeeLeavePage() {
                   })}
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 rounded-lg border bg-neutral-50 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={isHalfDay}
+                  onChange={(e) => {
+                    setIsHalfDay(e.target.checked);
+                    if (e.target.checked) setEndDate(startDate);
+                  }}
+                />
+                <span className="font-medium">Half Day</span>
+                <span className="text-xs text-muted-foreground">(work till 2:30 PM)</span>
+              </label>
+              <div className={isHalfDay ? "space-y-1" : "grid grid-cols-2 gap-2"}>
                 <div className="space-y-1">
-                  <Label>From</Label>
+                  <Label>{isHalfDay ? "Date" : "From"}</Label>
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      if (isHalfDay) setEndDate(e.target.value);
+                    }}
                     required
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>To</Label>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    required
-                  />
-                </div>
+                {!isHalfDay && (
+                  <div className="space-y-1">
+                    <Label>To</Label>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Working days: {days || "—"}
+                Working days: {isHalfDay && days ? "0.5" : days || "—"}
               </p>
               <div className="space-y-1">
                 <Label>Reason</Label>
@@ -173,8 +193,9 @@ export default function EmployeeLeavePage() {
               <div>
                 <p className="font-medium">{r.leaveType.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(r.startDate)} – {formatDate(r.endDate)} ·{" "}
-                  {r.numberOfDays}d
+                  {r.isHalfDay
+                    ? `${formatDate(r.startDate)} · Half Day (till 2:30 PM)`
+                    : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
                 </p>
               </div>
               <Badge variant={STATUS_VARIANT[r.status] ?? "secondary"}>
