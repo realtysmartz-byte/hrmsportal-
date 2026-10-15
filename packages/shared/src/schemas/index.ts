@@ -39,7 +39,15 @@ export const createEmployeeSchema = z.object({
   dateOfBirth: z.coerce.date().optional().nullable(),
   address: z.string().trim().max(500).optional().nullable(),
   profilePhotoUrl: z
-    .union([z.string().url().max(2048), z.literal(""), z.null()])
+    .union([
+      z.string().url().max(2048),
+      z
+        .string()
+        .max(200_000, "Photo is too large")
+        .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, "Invalid photo"),
+      z.literal(""),
+      z.null(),
+    ])
     .optional()
     .transform((v) => (v === "" || v === undefined ? null : v)),
   status: z.enum(EMPLOYEE_STATUSES).default("ACTIVE"),

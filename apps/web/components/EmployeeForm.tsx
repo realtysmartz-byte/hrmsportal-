@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { EMPLOYEE_STATUSES, ROLES } from "@realty-smartz/shared";
+import { Camera, ImageUp } from "lucide-react";
+import { compressImage } from "@/lib/image-compress";
 
 type EmployeeFormValues = {
   employeeCode: string;
@@ -81,6 +83,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
   const router = useRouter();
   const [managerSearch, setManagerSearch] = useState("");
   const [error, setError] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [values, setValues] = useState<EmployeeFormValues>({
     ...emptyValues,
     ...initial,
@@ -129,6 +132,21 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     onSuccess: (emp) => router.push(`/admin-portal/employees/${emp.id}`),
     onError: (err) => setError(err.message),
   });
+
+  async function onPhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    setError("");
+    try {
+      setField("profilePhotoUrl", await compressImage(file));
+    } catch {
+      setError("Could not process this photo. Please try another image.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   function setField<K extends keyof EmployeeFormValues>(
     key: K,
@@ -298,12 +316,50 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
             </Field>
           </div>
           <div className="sm:col-span-2">
-            <Field label="Profile Photo URL">
+            <Field label="Profile Photo">
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-neutral-200 bg-neutral-50 text-xs text-neutral-400">
+                  {values.profilePhotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={values.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    "No photo"
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#5D3EBC] px-3 py-2 text-xs font-semibold text-white">
+                    <Camera className="h-4 w-4" />
+                    Take Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={onPhotoSelected}
+                    />
+                  </label>
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700">
+                    <ImageUp className="h-4 w-4" />
+                    Upload
+                    <input type="file" accept="image/*" className="hidden" onChange={onPhotoSelected} />
+                  </label>
+                  {values.profilePhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setField("profilePhotoUrl", "")}
+                      className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              {photoBusy && <p className="text-xs text-neutral-500">Compressing photo…</p>}
               <Input
                 type="url"
-                value={values.profilePhotoUrl}
+                value={values.profilePhotoUrl.startsWith("data:") ? "" : values.profilePhotoUrl}
                 onChange={(e) => setField("profilePhotoUrl", e.target.value)}
-                placeholder="https://..."
+                placeholder="Or paste an image URL (https://...)"
               />
               <div className="mt-1.5 flex items-center gap-2">
                 <span className="text-xs text-neutral-500 font-medium">Photo source:</span>

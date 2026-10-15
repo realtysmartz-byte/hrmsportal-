@@ -17,6 +17,7 @@ export default function IdCardPage() {
   const { data: emp, isLoading, error } = trpc.employee.myIdCard.useQuery();
   const frontRef = useRef<HTMLDivElement>(null);
   const backRef = useRef<HTMLDivElement>(null);
+  const [flipped, setFlipped] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
 
@@ -60,7 +61,7 @@ export default function IdCardPage() {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-6 flex w-full max-w-[700px] items-center justify-between gap-3">
+      <div className="mb-6 flex w-full max-w-[400px] items-center justify-between gap-3">
         <h1 className="page-title">My ID Card</h1>
         <button
           type="button"
@@ -74,74 +75,117 @@ export default function IdCardPage() {
       </div>
       {downloadError && <p className="mb-4 text-xs text-rose-600">{downloadError}</p>}
 
-      <div className="flex flex-wrap justify-center gap-8">
-        {/* Front */}
-        <div className="flex flex-col items-center gap-2">
-          <CardShell cardRef={frontRef}>
-            <img
-              src="/logo.png"
-              alt=""
-              className="absolute -left-14 bottom-20 h-48 w-auto opacity-[0.18]"
-            />
-            <div className="relative flex h-full flex-col items-center px-6 pt-6">
-              <BrandRow />
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setFlipped((f) => !f)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setFlipped((f) => !f);
+          }
+        }}
+        className="h-[540px] w-[310px] cursor-pointer select-none outline-none [perspective:1400px]"
+        aria-label="Flip ID card"
+      >
+        <div
+          className="relative h-full w-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d]"
+          style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+        >
+          <div className="absolute inset-0 [backface-visibility:hidden]">
+            <CardShell>
+              <FrontContent emp={emp} />
+            </CardShell>
+          </div>
+          <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+            <CardShell>
+              <BackContent />
+            </CardShell>
+          </div>
+        </div>
+      </div>
 
-              <div className="mt-6 h-[170px] w-[150px] overflow-hidden rounded-2xl border-[5px] border-[#1F5F7A] bg-white shadow-md">
-                {emp.profilePhotoUrl ? (
-                  <img src={emp.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-[#EAF2F8] text-4xl font-bold text-[#1F5F7A]">
-                    {initials(emp.firstName, emp.lastName)}
-                  </div>
-                )}
-              </div>
+      <div aria-hidden className="pointer-events-none fixed -left-[10000px] top-0 flex gap-4">
+        <CardShell cardRef={frontRef}>
+          <FrontContent emp={emp} />
+        </CardShell>
+        <CardShell cardRef={backRef}>
+          <BackContent />
+        </CardShell>
+      </div>
+    </div>
+  );
+}
 
-              <p className="mt-5 text-center text-[26px] font-bold leading-tight text-neutral-900">
-                {fullName(emp.firstName, emp.lastName)}
-              </p>
+type IdCardEmployee = {
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  profilePhotoUrl: string | null;
+  bloodGroup: string | null;
+  emergencyContactPhone: string | null;
+};
 
-              <div className="mt-9 w-full space-y-1.5 text-[13px] text-neutral-900">
-                <InfoLine label="Employee Code" value={emp.employeeCode} />
-                {emp.bloodGroup && <InfoLine label="Blood Group" value={emp.bloodGroup} />}
-                {emp.emergencyContactPhone && (
-                  <InfoLine label="Emergency No." value={emp.emergencyContactPhone} />
-                )}
-              </div>
+function FrontContent({ emp }: { emp: IdCardEmployee }) {
+  return (
+    <>
+      <img
+        src="/logo.png"
+        alt=""
+        className="absolute -left-14 bottom-20 h-48 w-auto opacity-[0.18]"
+      />
+      <div className="relative flex h-full flex-col items-center px-6 pt-6 text-left">
+        <BrandRow />
+
+        <div className="mt-6 h-[170px] w-[150px] overflow-hidden rounded-2xl border-[5px] border-[#1F5F7A] bg-white shadow-md">
+          {emp.profilePhotoUrl ? (
+            <img src={emp.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[#EAF2F8] text-4xl font-bold text-[#1F5F7A]">
+              {initials(emp.firstName, emp.lastName)}
             </div>
-          </CardShell>
-          <span className="text-xs font-medium text-neutral-500">Front</span>
+          )}
         </div>
 
-        {/* Back */}
-        <div className="flex flex-col items-center gap-2">
-          <CardShell cardRef={backRef}>
-            <div className="relative flex h-full flex-col items-center px-6 pt-6">
-              <img src="/logo.png" alt="" className="h-[105px] w-auto opacity-40" />
+        <p className="mt-5 text-center text-[26px] font-bold leading-tight text-neutral-900">
+          {fullName(emp.firstName, emp.lastName)}
+        </p>
 
-              <p className="mt-4 text-base font-bold tracking-wide text-neutral-900 underline underline-offset-4">
-                NOTES
-              </p>
-              <p className="mt-2 text-center text-[12px] font-medium leading-snug text-neutral-800">
-                Employees must immediately report a lost or stolen ID card to the issuing
-                authority.
-              </p>
+        <div className="mt-9 w-full space-y-1.5 text-[13px] text-neutral-900">
+          <InfoLine label="Employee Code" value={emp.employeeCode} />
+          {emp.bloodGroup && <InfoLine label="Blood Group" value={emp.bloodGroup} />}
+          {emp.emergencyContactPhone && (
+            <InfoLine label="Emergency No." value={emp.emergencyContactPhone} />
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
 
-              <div className="mt-6 w-full space-y-2 text-[13px] text-neutral-900">
-                <BackLine label="Number" value={COMPANY_NUMBER} />
-                <BackLine label="Website" value={COMPANY_WEBSITE} />
-                <BackLine label="Address" value={COMPANY_ADDRESS} />
-              </div>
+function BackContent() {
+  return (
+    <div className="relative flex h-full flex-col items-center px-6 pt-6 text-left">
+      <img src="/logo.png" alt="" className="h-[105px] w-auto opacity-40" />
 
-              <div className="mt-auto flex w-full flex-col items-center pb-5 pt-8">
-                <div className="w-40 border-t border-neutral-900" />
-                <p className="mt-1 text-sm font-semibold tracking-wide text-neutral-900">SIGNATURE</p>
-                <div className="mt-3">
-                  <BrandRow />
-                </div>
-              </div>
-            </div>
-          </CardShell>
-          <span className="text-xs font-medium text-neutral-500">Back</span>
+      <p className="mt-4 text-base font-bold tracking-wide text-neutral-900 underline underline-offset-4">
+        NOTES
+      </p>
+      <p className="mt-2 text-center text-[12px] font-medium leading-snug text-neutral-800">
+        Employees must immediately report a lost or stolen ID card to the issuing authority.
+      </p>
+
+      <div className="mt-6 w-full space-y-2 text-[13px] text-neutral-900">
+        <BackLine label="Number" value={COMPANY_NUMBER} />
+        <BackLine label="Website" value={COMPANY_WEBSITE} />
+        <BackLine label="Address" value={COMPANY_ADDRESS} />
+      </div>
+
+      <div className="mt-auto flex w-full flex-col items-center pb-5 pt-8">
+        <div className="w-40 border-t border-neutral-900" />
+        <p className="mt-1 text-sm font-semibold tracking-wide text-neutral-900">SIGNATURE</p>
+        <div className="mt-3">
+          <BrandRow />
         </div>
       </div>
     </div>
@@ -161,7 +205,7 @@ function CardShell({
   cardRef,
   children,
 }: {
-  cardRef: React.RefObject<HTMLDivElement>;
+  cardRef?: React.RefObject<HTMLDivElement>;
   children: React.ReactNode;
 }) {
   return (
