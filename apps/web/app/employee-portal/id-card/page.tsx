@@ -8,7 +8,6 @@ import { compressImage } from "@/lib/image-compress";
 import { fullName, initials } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/skeleton";
 
-const COMPANY_NUMBER = "80-10-841-841";
 const COMPANY_WEBSITE = "www.realtysmartz.in";
 const COMPANY_ADDRESS = "11th Floor, Spaze Palazo, Golf Course Ext Rd, Sector 69, Gurugram, 122001";
 const TRANSPARENT_PIXEL =
@@ -119,7 +118,7 @@ export default function IdCardPage() {
           </div>
           <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
             <CardShell>
-              <BackContent />
+              <BackContent phone={emp.phone} />
             </CardShell>
           </div>
         </div>
@@ -130,7 +129,7 @@ export default function IdCardPage() {
           <FrontContent emp={emp} />
         </CardShell>
         <CardShell cardRef={backRef}>
-          <BackContent />
+          <BackContent phone={emp.phone} />
         </CardShell>
       </div>
     </div>
@@ -143,7 +142,7 @@ type IdCardEmployee = {
   lastName: string;
   profilePhotoUrl: string | null;
   bloodGroup: string | null;
-  emergencyContactPhone: string | null;
+  phone: string | null;
 };
 
 function FrontContent({
@@ -201,16 +200,14 @@ function FrontContent({
         <div className="mt-9 w-full space-y-1.5 text-[13px] text-neutral-900">
           <InfoLine label="Employee Code" value={emp.employeeCode} />
           {emp.bloodGroup && <InfoLine label="Blood Group" value={emp.bloodGroup} />}
-          {emp.emergencyContactPhone && (
-            <InfoLine label="Emergency No." value={emp.emergencyContactPhone} />
-          )}
+          {emp.phone && <InfoLine label="Mobile No." value={emp.phone} />}
         </div>
       </div>
     </>
   );
 }
 
-function BackContent() {
+function BackContent({ phone }: { phone: string | null }) {
   return (
     <div className="relative flex h-full flex-col items-center px-6 pt-6 text-left">
       <img src="/logo.png" alt="" className="h-[105px] w-auto opacity-40" />
@@ -223,7 +220,7 @@ function BackContent() {
       </p>
 
       <div className="mt-6 w-full space-y-2 text-[13px] text-neutral-900">
-        <BackLine label="Number" value={COMPANY_NUMBER} />
+        {phone && <BackLine label="Mobile" value={phone} />}
         <BackLine label="Website" value={COMPANY_WEBSITE} />
         <BackLine label="Address" value={COMPANY_ADDRESS} />
       </div>
