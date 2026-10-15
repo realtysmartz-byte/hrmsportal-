@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BellRing } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { subscribeToLocationReminders } from "@/lib/push";
+import { LOCATION_REMINDERS_ENABLED, subscribeToLocationReminders } from "@/lib/push";
 
 export function NotificationPrompt() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported" | null>(null);
@@ -18,7 +18,14 @@ export function NotificationPrompt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (permission === null || permission === "granted" || permission === "unsupported") return null;
+  if (
+    !LOCATION_REMINDERS_ENABLED ||
+    permission === null ||
+    permission === "granted" ||
+    permission === "unsupported"
+  ) {
+    return null;
+  }
 
   async function enable() {
     setBusy(true);

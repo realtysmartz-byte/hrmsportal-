@@ -5,12 +5,15 @@ import {
   getISTDateParts,
   startOfDayUTC,
 } from "@realty-smartz/shared";
+import { LOCATION_REMINDERS_ENABLED } from "./push";
 
 /**
  * Every run (30 min) asks punched-in employees to update their location.
  * Tapping the notification records the location without opening the app.
  */
 export async function sendLocationReminders(prisma: PrismaClient) {
+  if (!LOCATION_REMINDERS_ENABLED) return { onDuty: 0, sent: 0, removed: 0 };
+
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;

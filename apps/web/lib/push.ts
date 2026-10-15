@@ -1,3 +1,5 @@
+export const LOCATION_REMINDERS_ENABLED = false;
+
 type SaveSubscription = (input: { endpoint: string; p256dh: string; auth: string }) => Promise<unknown>;
 
 function urlBase64ToUint8Array(base64: string) {
@@ -13,6 +15,7 @@ function urlBase64ToUint8Array(base64: string) {
 export async function subscribeToLocationReminders(save: SaveSubscription, prompt = true) {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (
+    !LOCATION_REMINDERS_ENABLED ||
     !publicKey ||
     typeof window === "undefined" ||
     !("Notification" in window) ||
