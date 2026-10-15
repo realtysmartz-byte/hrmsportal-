@@ -1,24 +1,56 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { toPng } from "html-to-image";
+import { Download, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { formatDate, fullName, initials } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/skeleton";
 
 const BRAND = "#5D3EBC";
+const BRAND_LIGHT = "#8B6FE0";
+const BRAND_DARK = "#2E1F66";
+const TRANSPARENT_PIXEL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 export default function IdCardPage() {
   const { data: emp, isLoading, error } = trpc.employee.myIdCard.useQuery();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
 
   if (isLoading) return <PageSkeleton />;
   if (error || !emp) {
     return <p className="text-sm text-rose-600">{error?.message ?? "ID card not available"}</p>;
   }
 
+  async function download() {
+    if (!cardRef.current || !emp) return;
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 3,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+        imagePlaceholder: TRANSPARENT_PIXEL,
+      });
+      const link = document.createElement("a");
+      link.download = `ID-Card-${emp.employeeCode}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      setDownloadError("Could not create the image. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   const details: { label: string; value: string | null }[] = [
     { label: "Department", value: emp.department?.name ?? null },
     { label: "Phone", value: emp.phone },
     { label: "Email", value: emp.email },
-    { label: "Date of Joining", value: emp.dateOfJoining ? formatDate(emp.dateOfJoining) : null },
+    { label: "Joined", value: emp.dateOfJoining ? formatDate(emp.dateOfJoining) : null },
     { label: "Date of Birth", value: emp.dateOfBirth ? formatDate(emp.dateOfBirth) : null },
     {
       label: "Emergency",
@@ -30,100 +62,110 @@ export default function IdCardPage() {
   ];
 
   return (
-    <div className="flex flex-col items-center py-2">
-      <h1 className="page-title mb-6 self-start">My ID Card</h1>
+    <div className="flex flex-col items-center">
+      <div className="mb-8 flex w-full max-w-[340px] items-center justify-between gap-3">
+        <h1 className="page-title">My ID Card</h1>
+        <button
+          type="button"
+          onClick={download}
+          disabled={downloading}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
+          style={{ background: BRAND }}
+        >
+          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {downloading ? "Preparing…" : "Download"}
+        </button>
+      </div>
+      {downloadError && <p className="mb-4 text-xs text-rose-600">{downloadError}</p>}
 
-      <div className="relative w-full max-w-[340px]">
-        {/* Lanyard */}
-        <div className="absolute -top-10 left-1/2 flex -translate-x-1/2 gap-1">
-          <div className="h-16 w-6 -rotate-[14deg] rounded-sm" style={{ background: BRAND }} />
-          <div className="h-16 w-6 rotate-[14deg] rounded-sm" style={{ background: "#7B5FD6" }} />
+      {/* Lanyard */}
+      <div className="relative z-10 -mb-3 flex gap-1.5">
+        <div className="h-12 w-5 -rotate-12 rounded-t-sm" style={{ background: BRAND }} />
+        <div className="h-12 w-5 rotate-12 rounded-t-sm" style={{ background: BRAND_LIGHT }} />
+      </div>
+
+      <div
+        ref={cardRef}
+        className="relative w-[320px] overflow-hidden rounded-[28px] bg-white shadow-[0_24px_60px_-20px_rgba(93,62,188,0.5)] ring-1 ring-neutral-200"
+      >
+        {/* Header band */}
+        <div
+          className="relative h-[150px]"
+          style={{
+            background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_LIGHT} 100%)`,
+            clipPath: "polygon(0 0, 100% 0, 100% 72%, 0 100%)",
+          }}
+        >
+          <div className="absolute left-1/2 top-3 h-2.5 w-14 -translate-x-1/2 rounded-full bg-white/40" />
+          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full border-[14px] border-white/10" />
+          <div className="absolute -left-8 top-16 h-20 w-20 rounded-full border-[10px] border-white/10" />
+          <div className="pt-9 text-center">
+            <p className="text-lg font-extrabold tracking-[0.18em] text-white">REALTY SMARTZ</p>
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/75">
+              Employee ID Card
+            </p>
+          </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl bg-white shadow-[0_20px_50px_-15px_rgba(93,62,188,0.45)] ring-1 ring-neutral-200">
-          {/* Clip slot */}
-          <div className="absolute left-1/2 top-3 z-20 h-2.5 w-14 -translate-x-1/2 rounded-full bg-neutral-200" />
-
-          {/* Diagonal tint */}
-          <div
-            className="absolute inset-x-0 top-0 h-64"
-            style={{
-              background: "linear-gradient(160deg, #F3F0FC 0%, #EAE4FB 100%)",
-              clipPath: "polygon(0 0, 100% 0, 100% 45%, 0 100%)",
-            }}
-          />
-
-          {/* Company */}
-          <div className="relative z-10 flex items-center justify-center gap-2 pt-10">
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-full border-[5px]"
-              style={{ borderColor: BRAND }}
-            />
-            <span className="text-lg font-extrabold tracking-wide text-neutral-900">
-              REALTY SMARTZ
-            </span>
-          </div>
-
-          {/* Photo with arc */}
-          <div className="relative z-10 mx-auto mt-6 h-44 w-44">
+        {/* Photo */}
+        <div className="relative -mt-[62px] flex justify-center">
+          <div className="rounded-full p-[5px]" style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND_LIGHT})` }}>
             <div
-              className="absolute -inset-4 rounded-full"
-              style={{
-                background: `conic-gradient(from 200deg, transparent 0deg, transparent 150deg, ${BRAND} 150deg, #8B6FE0 330deg, transparent 330deg)`,
-                WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 22px), #000 calc(100% - 21px))",
-                mask: "radial-gradient(farthest-side, transparent calc(100% - 22px), #000 calc(100% - 21px))",
-              }}
-            />
-            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#F3F0FC] text-4xl font-bold shadow-md" style={{ color: BRAND }}>
+              className="flex h-[118px] w-[118px] items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#F3F0FC] text-3xl font-bold"
+              style={{ color: BRAND }}
+            >
               {emp.profilePhotoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={emp.profilePhotoUrl} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={emp.profilePhotoUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 initials(emp.firstName, emp.lastName)
               )}
             </div>
           </div>
+        </div>
 
-          {/* Name */}
-          <div className="relative z-10 mt-7 px-6 text-center">
-            <p className="text-2xl font-extrabold leading-tight" style={{ color: "#2E1F66" }}>
-              {fullName(emp.firstName, emp.lastName)}
-            </p>
-            {emp.designation?.title && (
-              <p className="mt-1 text-sm font-medium text-neutral-700">{emp.designation.title}</p>
-            )}
-            <span
-              className="mt-3 inline-block rounded-full px-5 py-1 text-sm font-bold tracking-wider text-white"
-              style={{ background: `linear-gradient(90deg, ${BRAND}, #8B6FE0)` }}
-            >
-              {emp.employeeCode}
-            </span>
-          </div>
+        {/* Name */}
+        <div className="mt-3 px-5 text-center">
+          <p className="text-[22px] font-extrabold leading-tight" style={{ color: BRAND_DARK }}>
+            {fullName(emp.firstName, emp.lastName)}
+          </p>
+          {emp.designation?.title && (
+            <p className="mt-0.5 text-[13px] font-medium text-neutral-600">{emp.designation.title}</p>
+          )}
+          <span
+            className="mt-2.5 inline-block rounded-full px-4 py-1 text-xs font-bold tracking-wider text-white"
+            style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND_LIGHT})` }}
+          >
+            {emp.employeeCode}
+          </span>
+        </div>
 
-          {/* Details */}
-          <dl className="relative z-10 mx-6 mt-5 space-y-1.5 border-t border-neutral-100 pt-4 text-xs">
+        {/* Details */}
+        <div className="mx-5 mt-4 rounded-2xl bg-[#F7F5FD] px-4 py-3">
+          <dl className="space-y-1.5 text-[11px] leading-snug">
             {details
               .filter((d) => d.value)
               .map((d) => (
-                <div key={d.label} className="flex gap-3">
-                  <dt className="w-24 shrink-0 font-semibold text-neutral-500">{d.label}</dt>
-                  <dd className="min-w-0 break-words font-medium text-neutral-800">{d.value}</dd>
+                <div key={d.label} className="grid grid-cols-[82px_1fr] gap-2">
+                  <dt className="font-semibold text-neutral-500">{d.label}</dt>
+                  <dd className="break-words font-semibold text-neutral-800">{d.value}</dd>
                 </div>
               ))}
           </dl>
-
-          {/* Corner arc */}
-          <div
-            className="absolute -bottom-16 -left-16 h-40 w-40 rounded-full border-[22px]"
-            style={{ borderColor: BRAND, opacity: 0.9 }}
-          />
-
-          {/* Logo */}
-          <div className="relative z-10 flex justify-center pb-6 pt-6">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Realty Smartz" className="h-10 w-auto object-contain" />
-          </div>
         </div>
+
+        {/* Logo */}
+        <div className="flex justify-center pb-4 pt-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Realty Smartz" className="h-9 w-auto object-contain" />
+        </div>
+
+        {/* Bottom band */}
+        <div className="h-2.5" style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND_LIGHT})` }} />
       </div>
     </div>
   );
