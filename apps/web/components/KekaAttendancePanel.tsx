@@ -128,11 +128,17 @@ export function KekaAttendancePanel({
   const isTodayLoading = isTargetMode ? isTargetMonthLoading : isSelfTodayLoading;
 
   // If admin viewing specific employee:
+  const { data: selfProfile } = trpc.employee.myIdCard.useQuery(undefined, {
+    enabled: !isTargetMode,
+    staleTime: 5 * 60 * 1000,
+  });
   const empId = targetEmployeeId ?? session?.user?.id ?? "";
-  const displayName = propName ?? session?.user?.name ?? "Sapna Mishra";
-  const displayRole = propDesignation ?? "Senior Portfolio Manager";
-  const displayDept = propDepartment ?? "Sales & Portfolio";
-  const displayCode = propCode ?? "EMP-RS01";
+  const displayName =
+    propName ??
+    (selfProfile ? `${selfProfile.firstName} ${selfProfile.lastName}` : session?.user?.name ?? "");
+  const displayRole = propDesignation ?? selfProfile?.designation?.title ?? "";
+  const displayDept = propDepartment ?? selfProfile?.department?.name ?? "";
+  const displayCode = propCode ?? selfProfile?.employeeCode ?? "";
 
   // Check in/out state
   const [busy, setBusy] = useState(false);
@@ -290,7 +296,7 @@ export function KekaAttendancePanel({
                   </span>
                 </div>
                 <p className="text-xs text-neutral-500 font-medium mt-0.5">
-                  {displayRole} · {displayDept} · {displayCode}
+                  {[displayRole, displayDept, displayCode].filter(Boolean).join(" · ")}
                 </p>
               </div>
             </div>
