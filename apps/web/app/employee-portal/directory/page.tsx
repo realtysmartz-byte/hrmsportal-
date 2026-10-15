@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,16 +20,21 @@ import {
 import { trpc } from "@/lib/trpc";
 import { fullName, initials } from "@/lib/utils";
 
-export default function DirectoryPage({
-  searchParams,
-}: {
-  searchParams: { q?: string };
-}) {
-  const [search, setSearch] = useState(searchParams.q ?? "");
+export default function DirectoryPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <DirectoryInner />
+    </Suspense>
+  );
+}
+
+function DirectoryInner() {
+  const q = useSearchParams().get("q");
+  const [search, setSearch] = useState(q ?? "");
 
   useEffect(() => {
-    if (searchParams.q !== undefined) setSearch(searchParams.q);
-  }, [searchParams.q]);
+    if (q !== null) setSearch(q);
+  }, [q]);
   const [departmentId, setDepartmentId] = useState("");
   const { data: departments } = trpc.department.list.useQuery();
   const { data, isLoading } = trpc.employee.list.useQuery({

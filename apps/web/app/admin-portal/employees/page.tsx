@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -36,21 +37,26 @@ import { fullName, initials } from "@/lib/utils";
 import { canManageEmployees, EMPLOYEE_STATUSES } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 
-export default function EmployeesPage({
-  searchParams,
-}: {
-  searchParams: { q?: string };
-}) {
+export default function EmployeesPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <EmployeesInner />
+    </Suspense>
+  );
+}
+
+function EmployeesInner() {
+  const q = useSearchParams().get("q");
   const { data: session } = useSession();
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
   const canManage = canManageEmployees(role);
 
-  const [search, setSearch] = useState(searchParams.q ?? "");
+  const [search, setSearch] = useState(q ?? "");
   const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
-    if (searchParams.q !== undefined) setSearch(searchParams.q);
-  }, [searchParams.q]);
+    if (q !== null) setSearch(q);
+  }, [q]);
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
