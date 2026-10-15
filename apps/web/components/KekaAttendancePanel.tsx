@@ -200,9 +200,17 @@ export function KekaAttendancePanel({
         }
       }
 
-      const place = await reverseGeocodePlace(lat, lng);
-      const label =
-        place.name === place.address ? place.address : `${place.name} — ${place.address}`;
+      const needsAddress =
+        mode === "out" &&
+        (!currentUserWorkLoc ||
+          haversineDistanceM(lat, lng, currentUserWorkLoc.lat, currentUserWorkLoc.lng) >
+            currentUserWorkLoc.radiusM);
+      let label = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (needsAddress) {
+        const place = await reverseGeocodePlace(lat, lng);
+        label =
+          place.name === place.address ? place.address : `${place.name} — ${place.address}`;
+      }
 
       if (mode === "in") {
         await checkInMutation.mutateAsync({ lat, lng, address: label });

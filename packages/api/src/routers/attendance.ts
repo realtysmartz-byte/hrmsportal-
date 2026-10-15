@@ -29,6 +29,35 @@ import {
 const MAX_PING_AGE_MS = 10 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 2 * 60 * 1000;
 
+let sheetSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Many punches at once collapse into one Google Sheet sync per minute. */
+function scheduleSheetSync(prisma: Context["prisma"], date: Date) {
+  if (sheetSyncTimer) return;
+  sheetSyncTimer = setTimeout(async () => {
+    sheetSyncTimer = null;
+    try {
+      const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import("./googleSheets");
+      const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
+        "../lib/google-sheets"
+      );
+      const sheetConfig = getActiveGoogleSheetConfig();
+      if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
+        const reportData = await generateDailyAttendanceData(prisma, date);
+        const res = await syncReportToGoogleSheet(sheetConfig, reportData);
+        setLastSyncMetadata({
+          date: reportData.dateStr,
+          sheetTitle: res.sheetTitle,
+          rowCount: res.rowCount,
+          syncedAt: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.error("[attendance] Google Sheet sync error:", err);
+    }
+  }, 60_000);
+}
+
 function attendanceStatusFromCheckIn(
   checkInTime: Date
 ): "LATE" | "PRESENT" {
@@ -430,30 +459,8 @@ export const attendanceRouter = router({
           console.error("[attendance.checkIn] email notify failed:", err);
         }
 
-        // 2. Real-time Google Sheet sync
-        try {
-          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
-            "./googleSheets"
-          );
-          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
-            "../lib/google-sheets"
-          );
-          const sheetConfig = getActiveGoogleSheetConfig();
-          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
-            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
-            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
-            setLastSyncMetadata({
-              date: reportData.dateStr,
-              sheetTitle: res.sheetTitle,
-              rowCount: res.rowCount,
-              syncedAt: new Date().toISOString(),
-            });
-            console.info("[attendance.checkIn] Background Google Sheet sync succeeded:", res.sheetTitle);
-          }
-        } catch (err) {
-          console.error("[attendance.checkIn] Background Google Sheet sync error:", err);
-        }
       })();
+      scheduleSheetSync(ctx.prisma, today);
 
       return log;
     }),
@@ -570,30 +577,8 @@ export const attendanceRouter = router({
           console.error("[attendance.checkOut] email notify failed:", err);
         }
 
-        // 2. Real-time Google Sheet sync on checkout
-        try {
-          const { getActiveGoogleSheetConfig, setLastSyncMetadata } = await import(
-            "./googleSheets"
-          );
-          const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
-            "../lib/google-sheets"
-          );
-          const sheetConfig = getActiveGoogleSheetConfig();
-          if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
-            const reportData = await generateDailyAttendanceData(ctx.prisma, today);
-            const res = await syncReportToGoogleSheet(sheetConfig, reportData);
-            setLastSyncMetadata({
-              date: reportData.dateStr,
-              sheetTitle: res.sheetTitle,
-              rowCount: res.rowCount,
-              syncedAt: new Date().toISOString(),
-            });
-            console.info("[attendance.checkOut] Background Google Sheet sync succeeded:", res.sheetTitle);
-          }
-        } catch (err) {
-          console.error("[attendance.checkOut] Background Google Sheet sync error:", err);
-        }
       })();
+      scheduleSheetSync(ctx.prisma, today);
 
       return updated;
     }),

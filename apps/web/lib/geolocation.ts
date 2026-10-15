@@ -58,8 +58,8 @@ export function getCurrentPosition(): Promise<GeolocationPosition> {
         if (err.code === 3) {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: false,
-            timeout: 15000,
-            maximumAge: 0,
+            timeout: 8000,
+            maximumAge: 120000,
           });
         } else {
           reject(err);
@@ -67,8 +67,8 @@ export function getCurrentPosition(): Promise<GeolocationPosition> {
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
+        timeout: 7000,
+        maximumAge: 30000,
       }
     );
   });

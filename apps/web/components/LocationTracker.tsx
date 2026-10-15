@@ -116,7 +116,7 @@ export function LocationTracker() {
       navigator.geolocation.getCurrentPosition(
         () => !cancelled && setStatus("on"),
         handleError,
-        { enableHighAccuracy: false, timeout: 15_000, maximumAge: 0 }
+        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 }
       );
       return () => {
         cancelled = true;

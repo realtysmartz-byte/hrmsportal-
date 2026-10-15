@@ -8,6 +8,24 @@ import {
 } from "@/lib/places-registry";
 
 const MAX_QUERY_LENGTH = 600;
+
+type ReversePlace = { name: string; address: string; lat: number; lng: number };
+const REVERSE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const REVERSE_CACHE_MAX = 5000;
+const reverseCache = new Map<string, { value: ReversePlace; at: number }>();
+
+function reverseCacheKey(lat: number, lng: number) {
+  return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+}
+
+function cacheReverse(key: string, value: ReversePlace) {
+  if (reverseCache.size >= REVERSE_CACHE_MAX) {
+    const oldest = reverseCache.keys().next().value;
+    if (oldest !== undefined) reverseCache.delete(oldest);
+  }
+  reverseCache.set(key, { value, at: Date.now() });
+  return NextResponse.json(value);
+}
 const SHORT_MAPS_URL =
   /^https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+(?:\?[^\s#]*)?$/i;
 const MAPS_LINK =
@@ -506,6 +524,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
   }
 
+  const cacheKey = reverseCacheKey(numLat, numLng);
+  const cached = reverseCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < REVERSE_CACHE_TTL_MS) {
+    return NextResponse.json({ ...cached.value, lat: numLat, lng: numLng });
+  }
+
   // If Google Maps API key is configured, use Google Reverse Geocoding
   const apiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
@@ -529,7 +553,7 @@ export async function GET(req: NextRequest) {
             first.address_components?.[0]?.long_name ||
             first.formatted_address?.split(",")[0] ||
             "Location";
-          return NextResponse.json({
+          return cacheReverse(cacheKey, {
             name: name.slice(0, 80),
             address: (first.formatted_address || `${numLat}, ${numLng}`).slice(0, 160),
             lat: numLat,
@@ -587,7 +611,7 @@ export async function GET(req: NextRequest) {
 
     const address = data.display_name || `${numLat}, ${numLng}`;
 
-    return NextResponse.json({
+    return cacheReverse(cacheKey, {
       name: placeName.slice(0, 80),
       address: address.slice(0, 160),
       lat: numLat,

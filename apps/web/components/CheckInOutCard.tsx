@@ -91,9 +91,15 @@ export function CheckInOutCard() {
         }
       }
 
-      const place = await reverseGeocodePlace(lat, lng);
-      const address =
-        place.name === place.address ? place.address : `${place.name} — ${place.address}`;
+      const needsAddress =
+        mode === "out" &&
+        (!workLoc || haversineDistanceM(lat, lng, workLoc.lat, workLoc.lng) > workLoc.radiusM);
+      let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (needsAddress) {
+        const place = await reverseGeocodePlace(lat, lng);
+        address =
+          place.name === place.address ? place.address : `${place.name} — ${place.address}`;
+      }
 
       if (mode === "in") {
         await checkIn.mutateAsync({ lat, lng, address });

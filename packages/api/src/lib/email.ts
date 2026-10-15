@@ -40,11 +40,21 @@ export function isSmtpConfigured(): boolean {
   return Boolean(cfg.host && cfg.user && cfg.pass);
 }
 
+let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+let cachedTransporterKey = "";
+
 function getTransporter() {
   const cfg = getSmtpConfig();
   if (!cfg.host || !cfg.user || !cfg.pass) return null;
 
-  return nodemailer.createTransport({
+  const key = `${cfg.host}|${cfg.port}|${cfg.secure}|${cfg.user}|${cfg.pass}`;
+  if (cachedTransporter && cachedTransporterKey === key) return cachedTransporter;
+  cachedTransporter?.close();
+
+  cachedTransporter = nodemailer.createTransport({
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,
@@ -57,6 +67,8 @@ function getTransporter() {
       rejectUnauthorized: false,
     },
   });
+  cachedTransporterKey = key;
+  return cachedTransporter;
 }
 
 export type MailPayload = {
