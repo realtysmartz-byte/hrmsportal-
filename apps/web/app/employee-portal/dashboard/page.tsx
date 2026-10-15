@@ -58,7 +58,7 @@ export default function EmployeeDashboardPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <CheckInOutCard />
 
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-neutral-900">Wish them</h2>
           {birthdays && birthdays.length > 0 ? (
             <div className="mt-3 flex gap-5 overflow-x-auto pb-1">
