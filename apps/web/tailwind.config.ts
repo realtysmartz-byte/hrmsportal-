@@ -11,7 +11,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-display)", "system-ui", "sans-serif"],
       },
       fontSize: {
         display: ["2.25rem", { lineHeight: "2.5rem", fontWeight: "700" }],

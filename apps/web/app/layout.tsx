@@ -12,12 +12,6 @@ const display = Outfit({
   display: "swap",
 });
 
-const sans = Outfit({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "Realty Smartz Private Limited HRMS",
   description: "Internal HR management system — Realty Smartz Private Limited",
@@ -55,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={display.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
           <AppSplash />
