@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Search, PlaneTakeoff, ListChecks, ChevronRight } from "lucide-react";
+import { Search, PlaneTakeoff, ListChecks, ChevronRight, IdCard } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn, initials } from "@/lib/utils";
 import { CheckInOutCard } from "@/components/CheckInOutCard";
+import { NotificationPrompt } from "@/components/NotificationPrompt";
 import { formatTimeIST } from "@realty-smartz/shared";
 
 const quickActions = [
   { href: "/employee-portal/leave", label: "Apply Leave", icon: PlaneTakeoff },
   { href: "/employee-portal/leave", label: "Leave Balance", icon: ListChecks },
+  { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
 ];
 
 export default function EmployeeDashboardPage() {
@@ -54,6 +56,8 @@ export default function EmployeeDashboardPage() {
           );
         })}
       </div>
+
+      <NotificationPrompt />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <CheckInOutCard />

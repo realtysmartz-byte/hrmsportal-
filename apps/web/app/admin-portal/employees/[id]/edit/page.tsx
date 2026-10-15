@@ -46,6 +46,7 @@ export default function EditEmployeePage() {
         mode="edit"
         employeeId={emp.id}
         initial={{
+          employeeCode: emp.employeeCode,
           firstName: emp.firstName,
           lastName: emp.lastName,
           email: emp.email,

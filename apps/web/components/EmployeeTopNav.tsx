@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  IdCard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
@@ -51,6 +52,7 @@ export function EmployeeTopNav() {
         ]
       : []),
     { href: "/employee-portal/profile", label: "Profile", icon: User },
+    { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
   ];
 
 

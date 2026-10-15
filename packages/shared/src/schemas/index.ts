@@ -15,6 +15,13 @@ export const DOCUMENT_TYPES = [
 ] as const;
 
 export const createEmployeeSchema = z.object({
+  employeeCode: z
+    .string()
+    .trim()
+    .max(30)
+    .regex(/^[A-Za-z0-9_-]*$/, "Employee ID can only contain letters, numbers, - and _")
+    .optional()
+    .transform((v) => (v ? v.toUpperCase() : undefined)),
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
   email: z.string().trim().email("Invalid email address").max(255),

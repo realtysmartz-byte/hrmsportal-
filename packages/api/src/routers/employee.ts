@@ -496,7 +496,19 @@ export const employeeRouter = router({
         });
       }
 
-      const employeeCode = await nextEmployeeCode(ctx.prisma);
+      if (input.employeeCode) {
+        const codeTaken = await ctx.prisma.employee.findUnique({
+          where: { employeeCode: input.employeeCode },
+        });
+        if (codeTaken) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Employee ID ${input.employeeCode} is already in use`,
+          });
+        }
+      }
+
+      const employeeCode = input.employeeCode || (await nextEmployeeCode(ctx.prisma));
       const passwordHash = await bcrypt.hash(input.password, 12);
 
       const employee = await ctx.prisma.employee.create({
@@ -755,9 +767,22 @@ export const employeeRouter = router({
         });
       }
 
+      if (data.employeeCode && data.employeeCode !== existing.employeeCode) {
+        const codeTaken = await ctx.prisma.employee.findUnique({
+          where: { employeeCode: data.employeeCode },
+        });
+        if (codeTaken) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Employee ID ${data.employeeCode} is already in use`,
+          });
+        }
+      }
+
       const actor = await resolveActorId(ctx);
 
       const updateData: Record<string, unknown> = {};
+      if (data.employeeCode) updateData.employeeCode = data.employeeCode;
       if (data.firstName !== undefined) updateData.firstName = data.firstName;
       if (data.lastName !== undefined) updateData.lastName = data.lastName;
       if (data.email !== undefined) updateData.email = data.email;
@@ -973,6 +998,32 @@ export const employeeRouter = router({
       });
       return updated;
     }),
+
+  myIdCard: protectedProcedure.query(async ({ ctx }) => {
+    const actor = await resolveActorId(ctx);
+    const employee = await ctx.prisma.employee.findUnique({
+      where: { id: actor.id },
+      select: {
+        employeeCode: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        profilePhotoUrl: true,
+        dateOfJoining: true,
+        dateOfBirth: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        address: true,
+        department: { select: { name: true } },
+        designation: { select: { title: true } },
+      },
+    });
+    if (!employee) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+    }
+    return employee;
+  }),
 
   getUpcomingBirthdays: protectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.prisma.employee.findMany({

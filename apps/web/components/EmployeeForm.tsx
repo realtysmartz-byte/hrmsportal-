@@ -12,6 +12,7 @@ import { trpc } from "@/lib/trpc";
 import { EMPLOYEE_STATUSES, ROLES } from "@realty-smartz/shared";
 
 type EmployeeFormValues = {
+  employeeCode: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -35,6 +36,7 @@ type EmployeeFormValues = {
 };
 
 const emptyValues: EmployeeFormValues = {
+  employeeCode: "",
   firstName: "",
   lastName: "",
   email: "",
@@ -83,6 +85,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     dateOfJoining: toDateInput(initial?.dateOfJoining),
     dateOfBirth: toDateInput(initial?.dateOfBirth),
     password: "",
+    employeeCode: initial?.employeeCode ?? "",
     phone: initial?.phone ?? "",
     gender: initial?.gender ?? "",
     emergencyContactName: initial?.emergencyContactName ?? "",
@@ -144,6 +147,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     }
 
     const payload = {
+      employeeCode: values.employeeCode.trim() || undefined,
       firstName: values.firstName,
       lastName: values.lastName,
       email: values.email,
@@ -306,6 +310,14 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
           <CardTitle className="text-base">Work Details</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Field label="Employee ID">
+            <Input
+              value={values.employeeCode}
+              onChange={(e) => setField("employeeCode", e.target.value.toUpperCase())}
+              placeholder={mode === "create" ? "Leave blank to auto-generate (e.g. RS-0061)" : ""}
+              maxLength={30}
+            />
+          </Field>
           <Field label="Role">
             <Select
               value={values.role}
