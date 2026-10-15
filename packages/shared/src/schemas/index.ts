@@ -147,6 +147,7 @@ export const applyLeaveSchema = z
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
     isHalfDay: z.boolean().optional().default(false),
+    halfDaySlot: z.enum(["FIRST_HALF", "SECOND_HALF"]).optional().nullable(),
     reason: z.string().trim().min(3, "Reason must be at least 3 characters").max(1000),
   })
   .refine((d) => d.endDate >= d.startDate, {

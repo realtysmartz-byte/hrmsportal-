@@ -170,6 +170,8 @@ model LeaveRequest {
   endDate      DateTime    @db.Date
   numberOfDays Float
   isHalfDay    Boolean     @default(false)
+  /// FIRST_HALF = works till 2:30 PM, SECOND_HALF = works from 2:30 PM
+  halfDaySlot  String?
   reason       String
   status       LeaveStatus @default(PENDING)
   approvedById String?

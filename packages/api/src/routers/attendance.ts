@@ -22,7 +22,7 @@ import { assertCanViewSensitive } from "../lib/employee-access";
 import { ensureAutoPunchOut } from "../lib/attendance-auto";
 import {
   formatClock,
-  hasApprovedHalfDayLeave,
+  getApprovedHalfDaySlot,
   isEarlyCheckOut,
   shiftEndFor,
   statusAfterCheckOut,
@@ -367,14 +367,14 @@ export const attendanceRouter = router({
 
       const now = new Date();
       const isFirstPunch = !existing?.checkInTime;
-      const halfDayLeave = isFirstPunch
-        ? await hasApprovedHalfDayLeave(ctx.prisma, employeeId, today)
-        : false;
+      const halfDaySlot = isFirstPunch
+        ? await getApprovedHalfDaySlot(ctx.prisma, employeeId, today)
+        : null;
       // On initial punch of the day calculate status; on re-punch keep existing status
       const status =
         !isFirstPunch && existing
           ? existing.status
-          : halfDayLeave
+          : halfDaySlot
             ? "HALF_DAY"
             : statusFromFirstCheckIn(now);
 
@@ -462,7 +462,11 @@ export const attendanceRouter = router({
               employeeEmail: emp.email,
               employeeCode: emp.employeeCode,
               checkInTime: now,
-              status: isFirstPunch ? status : "RE-PUNCH IN",
+              status: !isFirstPunch
+                ? "RE-PUNCH IN"
+                : halfDaySlot
+                  ? "HALF DAY (APPROVED LEAVE)"
+                  : status,
               address: finalAddress,
               withinGeofence,
               managerEmail: emp.manager?.email,
@@ -518,13 +522,13 @@ export const attendanceRouter = router({
         (now.getTime() - existing.checkInTime.getTime()) / (1000 * 60 * 60);
       const cumulativeHours = (existing.totalHours || 0) + sessionHours;
 
-      const [firstPunch, halfDayLeave] = await Promise.all([
+      const [firstPunch, halfDaySlot] = await Promise.all([
         ctx.prisma.attendancePunch.findFirst({
           where: { attendanceLogId: existing.id },
           orderBy: { checkInTime: "asc" },
           select: { checkInTime: true },
         }),
-        hasApprovedHalfDayLeave(ctx.prisma, employeeId, today),
+        getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
       ]);
       const status =
         existing.status === "ON_LEAVE"
@@ -532,9 +536,9 @@ export const attendanceRouter = router({
           : statusAfterCheckOut({
               firstCheckIn: firstPunch?.checkInTime ?? existing.checkInTime,
               cumulativeHours,
-              halfDayLeave,
+              halfDaySlot,
             });
-      const earlyCheckOut = isEarlyCheckOut(now, halfDayLeave);
+      const earlyCheckOut = isEarlyCheckOut(now, halfDaySlot);
 
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
@@ -574,10 +578,21 @@ export const attendanceRouter = router({
           notes: logNotes,
         },
       });
-      await ctx.prisma.attendancePunch.updateMany({
+      const closed = await ctx.prisma.attendancePunch.updateMany({
         where: { attendanceLogId: existing.id, checkOutTime: null },
         data: { checkOutTime: now, checkOutAddress: finalOutAddress },
       });
+      if (closed.count === 0) {
+        await ctx.prisma.attendancePunch.create({
+          data: {
+            attendanceLogId: existing.id,
+            checkInTime: existing.checkInTime,
+            checkInAddress: existing.checkInAddress,
+            checkOutTime: now,
+            checkOutAddress: finalOutAddress,
+          },
+        });
+      }
 
       try {
         await ctx.prisma.locationPing.create({
@@ -611,7 +626,7 @@ export const attendanceRouter = router({
               address: finalOutAddress,
               managerEmail: emp.manager?.email,
               expectedOutTime: earlyCheckOut
-                ? formatClock(shiftEndFor(halfDayLeave))
+                ? formatClock(shiftEndFor(halfDaySlot))
                 : undefined,
             });
           }

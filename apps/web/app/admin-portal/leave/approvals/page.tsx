@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { formatDate, fullName } from "@/lib/utils";
-import { canApproveLeave } from "@realty-smartz/shared";
+import { canApproveLeave, HALF_DAY_SLOT_LABELS } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 
 export default function LeaveApprovalsPage() {
@@ -141,7 +141,7 @@ export default function LeaveApprovalsPage() {
 
                     <TableCell>
                       <span className="font-bold text-neutral-900">
-                        {r.isHalfDay ? "Half Day (till 2:30 PM)" : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
+                        {r.isHalfDay ? (r.halfDaySlot === "SECOND_HALF" ? HALF_DAY_SLOT_LABELS.SECOND_HALF : HALF_DAY_SLOT_LABELS.FIRST_HALF) : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
                       </span>
                     </TableCell>
 
@@ -238,7 +238,7 @@ export default function LeaveApprovalsPage() {
                   <div className="flex items-center justify-between text-neutral-700">
                     <span className="text-neutral-400 font-medium">Duration:</span>
                     <span className="font-bold text-[#5D3EBC]">
-                      {r.isHalfDay ? "Half Day (till 2:30 PM)" : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
+                      {r.isHalfDay ? (r.halfDaySlot === "SECOND_HALF" ? HALF_DAY_SLOT_LABELS.SECOND_HALF : HALF_DAY_SLOT_LABELS.FIRST_HALF) : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
                     </span>
                   </div>
                   {r.reason && (

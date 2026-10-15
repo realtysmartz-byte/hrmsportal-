@@ -83,8 +83,13 @@ export const HALF_DAY_CHECK_IN_AFTER = { hour: 11, minute: 30 } as const;
 /** Punch-out before this IST time sends an early clock-out mail */
 export const SHIFT_END_TIME = { hour: 17, minute: 0 } as const;
 
-/** On an approved half-day, the working day ends at this IST time */
+/** Half days split at this IST time: first half works till it, second half works from it */
 export const HALF_DAY_END_TIME = { hour: 14, minute: 30 } as const;
+
+export const HALF_DAY_SLOT_LABELS = {
+  FIRST_HALF: "First Half (work till 2:30 PM)",
+  SECOND_HALF: "Second Half (work from 2:30 PM)",
+} as const;
 
 export function canManageEmployees(role: Role): boolean {
   return HR_ADMIN_ROLES.includes(role);

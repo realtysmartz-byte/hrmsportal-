@@ -32,34 +32,38 @@ export function statusFromFirstCheckIn(checkIn: Date): DayStatus {
   return istMinutes(checkIn) > LATE_CHECK_IN_HOUR * 60 ? "LATE" : "PRESENT";
 }
 
-export async function hasApprovedHalfDayLeave(
+export type HalfDaySlot = "FIRST_HALF" | "SECOND_HALF";
+
+/** Slot of the employee's approved half-day leave on this date, or null if none. */
+export async function getApprovedHalfDaySlot(
   prisma: PrismaClient,
   employeeId: string,
   date: Date
-) {
+): Promise<HalfDaySlot | null> {
   const leave = await prisma.leaveRequest.findFirst({
     where: { employeeId, isHalfDay: true, status: "APPROVED", startDate: date },
-    select: { id: true },
+    select: { halfDaySlot: true },
   });
-  return Boolean(leave);
+  if (!leave) return null;
+  return leave.halfDaySlot === "SECOND_HALF" ? "SECOND_HALF" : "FIRST_HALF";
 }
 
 /** Expected end of the working day; punching out before it is an early clock-out. */
-export function shiftEndFor(halfDayLeave: boolean) {
-  return halfDayLeave ? HALF_DAY_END_TIME : SHIFT_END_TIME;
+export function shiftEndFor(halfDaySlot: HalfDaySlot | null) {
+  return halfDaySlot === "FIRST_HALF" ? HALF_DAY_END_TIME : SHIFT_END_TIME;
 }
 
-export function isEarlyCheckOut(checkOut: Date, halfDayLeave: boolean) {
-  return istMinutes(checkOut) < toMinutes(shiftEndFor(halfDayLeave));
+export function isEarlyCheckOut(checkOut: Date, halfDaySlot: HalfDaySlot | null) {
+  return istMinutes(checkOut) < toMinutes(shiftEndFor(halfDaySlot));
 }
 
 /** Final day status after a punch-out, based on the FIRST punch-in and total hours worked. */
 export function statusAfterCheckOut(args: {
   firstCheckIn: Date;
   cumulativeHours: number;
-  halfDayLeave: boolean;
+  halfDaySlot: HalfDaySlot | null;
 }): DayStatus {
-  if (args.halfDayLeave) return "HALF_DAY";
+  if (args.halfDaySlot) return "HALF_DAY";
   if (args.cumulativeHours < 4) return "HALF_DAY";
   return statusFromFirstCheckIn(args.firstCheckIn);
 }

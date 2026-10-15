@@ -193,6 +193,7 @@ export const leaveRouter = router({
           endDate,
           numberOfDays,
           isHalfDay: input.isHalfDay,
+          halfDaySlot: input.isHalfDay ? (input.halfDaySlot ?? "FIRST_HALF") : null,
           reason:
             exceedsBalance
               ? `${input.reason}\n\n[Note: Request exceeds available balance]`

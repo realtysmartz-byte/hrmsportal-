@@ -10,7 +10,13 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
-import { countWeekdays } from "@realty-smartz/shared";
+import { countWeekdays, HALF_DAY_SLOT_LABELS } from "@realty-smartz/shared";
+
+type HalfDaySlot = keyof typeof HALF_DAY_SLOT_LABELS;
+
+function halfDayLabel(slot: string | null) {
+  return slot === "SECOND_HALF" ? HALF_DAY_SLOT_LABELS.SECOND_HALF : HALF_DAY_SLOT_LABELS.FIRST_HALF;
+}
 
 const STATUS_VARIANT: Record<
   string,
@@ -33,6 +39,7 @@ export default function EmployeeLeavePage() {
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [isHalfDay, setIsHalfDay] = useState(false);
+  const [halfDaySlot, setHalfDaySlot] = useState<HalfDaySlot>("FIRST_HALF");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
@@ -70,6 +77,7 @@ export default function EmployeeLeavePage() {
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       isHalfDay,
+      halfDaySlot: isHalfDay ? halfDaySlot : null,
       reason: reason.trim(),
     });
   }
@@ -134,8 +142,25 @@ export default function EmployeeLeavePage() {
                   }}
                 />
                 <span className="font-medium">Half Day</span>
-                <span className="text-xs text-muted-foreground">(work till 2:30 PM)</span>
               </label>
+              {isHalfDay && (
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(HALF_DAY_SLOT_LABELS) as HalfDaySlot[]).map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setHalfDaySlot(slot)}
+                      className={
+                        halfDaySlot === slot
+                          ? "rounded-lg border-2 border-[#5D3EBC] bg-[#F3F0FC] px-2 py-2 text-xs font-semibold text-[#5D3EBC]"
+                          : "rounded-lg border bg-white px-2 py-2 text-xs font-medium text-neutral-600"
+                      }
+                    >
+                      {HALF_DAY_SLOT_LABELS[slot]}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={isHalfDay ? "space-y-1" : "grid grid-cols-2 gap-2"}>
                 <div className="space-y-1">
                   <Label>{isHalfDay ? "Date" : "From"}</Label>
@@ -194,7 +219,7 @@ export default function EmployeeLeavePage() {
                 <p className="font-medium">{r.leaveType.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {r.isHalfDay
-                    ? `${formatDate(r.startDate)} · Half Day (till 2:30 PM)`
+                    ? `${formatDate(r.startDate)} · ${halfDayLabel(r.halfDaySlot)}`
                     : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
                 </p>
               </div>

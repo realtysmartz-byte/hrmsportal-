@@ -4,7 +4,7 @@ import {
   getISTDateParts,
   getAutoPunchOutTimeIST,
 } from "@realty-smartz/shared";
-import { hasApprovedHalfDayLeave, statusAfterCheckOut } from "./attendance-rules";
+import { getApprovedHalfDaySlot, statusAfterCheckOut } from "./attendance-rules";
 
 /**
  * Automatically stamps punch-out at 7:00 PM IST (19:00 IST / 13:30 UTC)
@@ -68,13 +68,13 @@ export async function ensureAutoPunchOut(
       const cumulativeHours = (log.totalHours || 0) + sessionHours;
       const roundedHours = Math.max(0.25, Math.round(cumulativeHours * 100) / 100);
 
-      const [firstPunch, halfDayLeave] = await Promise.all([
+      const [firstPunch, halfDaySlot] = await Promise.all([
         prisma.attendancePunch.findFirst({
           where: { attendanceLogId: log.id },
           orderBy: { checkInTime: "asc" },
           select: { checkInTime: true },
         }),
-        hasApprovedHalfDayLeave(prisma, log.employeeId, log.date),
+        getApprovedHalfDaySlot(prisma, log.employeeId, log.date),
       ]);
       const status =
         log.status === "ON_LEAVE"
@@ -82,7 +82,7 @@ export async function ensureAutoPunchOut(
           : statusAfterCheckOut({
               firstCheckIn: firstPunch?.checkInTime ?? log.checkInTime,
               cumulativeHours: roundedHours,
-              halfDayLeave,
+              halfDaySlot,
             });
 
       const lastPing = await prisma.locationPing.findFirst({
@@ -109,10 +109,21 @@ export async function ensureAutoPunchOut(
           notes: log.notes ? `${log.notes} · ${autoNote}` : autoNote,
         },
       });
-      await prisma.attendancePunch.updateMany({
+      const closed = await prisma.attendancePunch.updateMany({
         where: { attendanceLogId: log.id, checkOutTime: null },
         data: { checkOutTime: finalOutTime, checkOutAddress: autoNote },
       });
+      if (closed.count === 0) {
+        await prisma.attendancePunch.create({
+          data: {
+            attendanceLogId: log.id,
+            checkInTime: log.checkInTime,
+            checkInAddress: log.checkInAddress,
+            checkOutTime: finalOutTime,
+            checkOutAddress: autoNote,
+          },
+        });
+      }
 
       updatedCount++;
     }
