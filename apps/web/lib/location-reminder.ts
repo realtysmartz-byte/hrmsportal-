@@ -6,11 +6,9 @@ import {
   startOfDayUTC,
 } from "@realty-smartz/shared";
 
-const STALE_AFTER_MS = 25 * 60 * 1000;
-
 /**
- * Reminds punched-in employees whose last location is older than 25 minutes
- * to open the app so a fresh GPS fix is recorded.
+ * Every run (30 min) asks punched-in employees to update their location.
+ * Tapping the notification records the location without opening the app.
  */
 export async function sendLocationReminders(prisma: PrismaClient) {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -34,41 +32,41 @@ export async function sendLocationReminders(prisma: PrismaClient) {
     },
     select: { employeeId: true },
   });
+  if (onDuty.length === 0) return { onDuty: 0, sent: 0, removed: 0 };
+
+  const subscriptions = await prisma.pushSubscription.findMany({
+    where: { employeeId: { in: onDuty.map((l) => l.employeeId) } },
+  });
+
+  const payload = JSON.stringify({
+    title: "Update your location",
+    body: "You are punched in. Tap to update your location.",
+    url: "/employee-portal/dashboard",
+    type: "location-ping",
+  });
 
   let sent = 0;
   let removed = 0;
-  for (const { employeeId } of onDuty) {
-    const lastPing = await prisma.locationPing.findFirst({
-      where: { employeeId },
-      orderBy: { capturedAt: "desc" },
-      select: { capturedAt: true },
-    });
-    if (lastPing && now.getTime() - lastPing.capturedAt.getTime() < STALE_AFTER_MS) continue;
-
-    const subscriptions = await prisma.pushSubscription.findMany({ where: { employeeId } });
-    for (const sub of subscriptions) {
+  await Promise.all(
+    subscriptions.map(async (sub) => {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify({
-            title: "Update your location",
-            body: "You are punched in. Tap to share your current location.",
-            url: "/employee-portal/dashboard",
-          }),
+          payload,
           { TTL: 5 * 60 }
         );
         sent++;
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) {
-          await prisma.pushSubscription.delete({ where: { id: sub.id } });
+          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
           removed++;
         } else {
           console.error("[location-reminder] push failed:", status, err);
         }
       }
-    }
-  }
+    })
+  );
 
   return { onDuty: onDuty.length, sent, removed };
 }

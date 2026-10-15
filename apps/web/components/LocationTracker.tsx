@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { haversineDistanceM, LOCATION_PING_INTERVAL_MS } from "@realty-smartz/shared";
 import { trpc } from "@/lib/trpc";
@@ -14,8 +15,9 @@ const MIN_MOVE_PING_GAP_MS = 5 * 60 * 1000;
 
 export function LocationTracker() {
   const { status: authStatus } = useSession();
+  const isPingPage = usePathname() === "/location-ping";
   const { data: todayAttendance } = trpc.attendance.today.useQuery(undefined, {
-    enabled: authStatus === "authenticated",
+    enabled: authStatus === "authenticated" && !isPingPage,
     refetchInterval: 60_000,
   });
 
@@ -42,7 +44,7 @@ export function LocationTracker() {
   );
 
   useEffect(() => {
-    if (authStatus !== "authenticated") return;
+    if (authStatus !== "authenticated" || isPingPage) return;
     if (typeof window === "undefined" || !navigator.geolocation) {
       setStatus("error");
       return;
@@ -82,17 +84,20 @@ export function LocationTracker() {
           setLastAt(new Date(pos.timestamp));
           setStatus("on");
         }
+        return true;
       } catch {
         if (!cancelled) setStatus("error");
+        return false;
       }
     }
 
     async function pingFresh() {
       try {
         const pos = await getCurrentPosition();
-        if (!cancelled) await sendPing(pos);
+        return cancelled ? false : await sendPing(pos);
       } catch (err) {
         handleError(err as GeolocationPositionError);
+        return false;
       }
     }
 
@@ -156,16 +161,23 @@ export function LocationTracker() {
     };
     document.addEventListener("visibilitychange", onVisibility);
 
+    const onWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "LOCATION_PING_REQUEST") return;
+      void pingFresh().then((ok) => event.ports[0]?.postMessage({ ok }));
+    };
+    navigator.serviceWorker?.addEventListener("message", onWorkerMessage);
+
     return () => {
       cancelled = true;
       clearInterval(intervalId);
       navigator.geolocation.clearWatch(watchId);
       document.removeEventListener("visibilitychange", onVisibility);
+      navigator.serviceWorker?.removeEventListener("message", onWorkerMessage);
       void wakeLock.current?.release();
     };
-  }, [authStatus, isOnDuty]);
+  }, [authStatus, isOnDuty, isPingPage]);
 
-  if (authStatus !== "authenticated") return null;
+  if (authStatus !== "authenticated" || isPingPage) return null;
 
   return (
     <div

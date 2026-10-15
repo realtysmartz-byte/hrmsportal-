@@ -190,7 +190,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
         />
 
         {/* Dashboard Main Content */}
-        <main className="flex-1 w-full max-w-full min-w-0">
+        <main className="flex-1 w-full max-w-full min-w-0 pb-32 lg:pb-20">
           <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-6 lg:p-8">
             {children}
           </div>
