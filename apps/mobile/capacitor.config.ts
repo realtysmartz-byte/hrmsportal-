@@ -2,7 +2,7 @@
 
 const config: CapacitorConfig = {
   appId: "in.realtysmartz.hrms",
-  appName: "Realty Smartz HRMS",
+  appName: "RS HRMS",
   webDir: "www",
   server: {
     url: "https://rshrms.in",
@@ -21,6 +21,11 @@ const config: CapacitorConfig = {
       launchShowDuration: 1500,
       backgroundColor: "#5D3EBC",
       showSpinner: false,
+    },
+    StatusBar: {
+      overlaysWebView: false,
+      style: "DARK",
+      backgroundColor: "#0c0d14",
     },
     Geolocation: {
       permissions: ["location"],

@@ -4,6 +4,7 @@ import { Providers } from "@/components/Providers";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { LocationTracker } from "@/components/LocationTracker";
 import { AppSplash } from "@/components/AppSplash";
+import { NativeAppBoot } from "@/components/NativeAppBoot";
 import "./globals.css";
 
 const display = localFont({
@@ -54,6 +55,7 @@ export default function RootLayout({
     <html lang="en" className={display.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
+          <NativeAppBoot />
           <AppSplash />
           <PwaInstallBanner />
           {children}

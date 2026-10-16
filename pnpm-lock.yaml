@@ -53,6 +53,9 @@ importers:
       '@capacitor/core':
         specifier: ^7.4.3
         version: 7.6.9
+      '@capacitor/status-bar':
+        specifier: ^7.0.3
+        version: 7.0.6(@capacitor/core@7.6.9)
       '@ducanh2912/next-pwa':
         specifier: ^10.2.9
         version: 10.2.9(next@15.5.28(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(webpack@5.111.1(postcss@8.5.30)(sharp@0.35.5(@types/node@22.20.4)))

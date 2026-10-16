@@ -170,10 +170,10 @@ function LoginForm() {
   const currentTestimonial = TESTIMONIALS[activeTestimonialIdx];
 
   return (
-    <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[36px] bg-[#181926]/95 backdrop-blur-2xl border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white">
+    <div className="relative z-10 w-full max-w-5xl rounded-[24px] sm:rounded-[36px] bg-[#181926]/95 backdrop-blur-2xl border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white">
       {/* LEFT COLUMN: Modern Login Form (~6.5/12 cols) */}
-      <div className="p-7 sm:p-10 lg:p-12 lg:col-span-7 flex flex-col justify-between">
-        <div>
+      <div className="p-5 sm:p-10 lg:p-12 lg:col-span-7 flex flex-col justify-between min-h-0">
+        <div className="min-w-0">
           {/* Top Brand Logo */}
           <div className="flex items-center gap-3">
             <img
@@ -194,8 +194,8 @@ function LoginForm() {
           </div>
 
           {/* Heading */}
-          <div className="mt-8">
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+          <div className="mt-5 sm:mt-8">
+            <h1 className="font-display text-xl sm:text-3xl font-extrabold tracking-tight text-white">
               Welcome back
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">
@@ -204,16 +204,16 @@ function LoginForm() {
           </div>
 
           {/* Universal Single Sign-In Capsule */}
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#11121A] px-3.5 py-1.5 border border-white/10">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-medium text-neutral-300">
+          <div className="mt-4 sm:mt-5 inline-flex max-w-full items-center gap-2 rounded-full bg-[#11121A] px-3 py-1.5 border border-white/10">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] sm:text-xs font-medium text-neutral-300 truncate">
               Universal Sign-In · Employee, Candidate & Admin
             </span>
           </div>
 
           {/* Error Banner */}
           {error && (
-            <div className="mt-5 rounded-xl border border-rose-500/30 bg-rose-950/40 p-3 text-xs text-rose-300 flex items-start gap-2.5 transition-all">
+            <div className="mt-4 sm:mt-5 rounded-xl border border-rose-500/30 bg-rose-950/40 p-3 text-xs text-rose-300 flex items-start gap-2.5 transition-all">
               <div className="h-4 w-4 shrink-0 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">
                 !
               </div>
@@ -222,7 +222,7 @@ function LoginForm() {
           )}
 
           {/* Form */}
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <form onSubmit={onSubmit} className="mt-5 sm:mt-6 space-y-3.5 sm:space-y-4">
             {/* Email Field */}
             <div className="space-y-1.5">
               <label
@@ -344,7 +344,7 @@ function LoginForm() {
         </div>
 
         {/* Footer Note */}
-        <div className="mt-8 text-center lg:text-left text-[11px] text-neutral-500">
+        <div className="mt-6 sm:mt-8 pb-1 text-center lg:text-left text-[11px] text-neutral-500">
           Realty Smartz Private Limited · Corporate Attendance & HRMS
         </div>
       </div>
@@ -457,7 +457,15 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden bg-[#0c0d14]">
+    <div
+      className="relative min-h-dvh w-full flex flex-col items-center justify-start sm:justify-center overflow-x-hidden overflow-y-auto bg-[#0c0d14]"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+        paddingLeft: "max(1rem, env(safe-area-inset-left))",
+        paddingRight: "max(1rem, env(safe-area-inset-right))",
+      }}
+    >
       {/* 1. BACKGROUND VIDEO ANIMATION */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <video
@@ -475,24 +483,25 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#0C0D14] via-transparent to-[#0C0D14]/70" />
       </div>
 
-      {/* 2. CENTER FLOATING CARD CONTAINER */}
-      <Suspense
-        fallback={
-          <div className="relative z-10 text-xs font-semibold text-neutral-400 animate-pulse">
-            Loading workspace...
-          </div>
-        }
-      >
-        <LoginForm />
-      </Suspense>
+      {/* 2. CENTER FLOATING CARD — scrolls on short / APK screens */}
+      <div className="relative z-10 w-full max-w-5xl flex flex-col items-center py-2 sm:py-4">
+        <Suspense
+          fallback={
+            <div className="text-xs font-semibold text-neutral-400 animate-pulse">
+              Loading workspace...
+            </div>
+          }
+        >
+          <LoginForm />
+        </Suspense>
 
-      {/* Footer */}
-      <footer
-        suppressHydrationWarning
-        className="relative z-10 mt-6 text-center text-xs text-neutral-400 font-medium"
-      >
-        © 2026 Realty Smartz Private Limited · All rights reserved.
-      </footer>
+        <footer
+          suppressHydrationWarning
+          className="mt-4 sm:mt-6 mb-2 text-center text-[11px] sm:text-xs text-neutral-400 font-medium px-2"
+        >
+          © 2026 Realty Smartz Private Limited · All rights reserved.
+        </footer>
+      </div>
     </div>
   );
 }

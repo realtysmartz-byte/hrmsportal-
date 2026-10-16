@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Realty Smartz HRMS</string>
-    <string name="title_activity_main">Realty Smartz HRMS</string>
+    <string name="app_name">RS HRMS</string>
+    <string name="title_activity_main">RS HRMS</string>
     <string name="package_name">in.realtysmartz.hrms</string>
     <string name="custom_url_scheme">in.realtysmartz.hrms</string>
 </resources>

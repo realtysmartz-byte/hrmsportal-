@@ -200,7 +200,7 @@ public class DutyTrackingService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
     return new NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("Realty Smartz HRMS")
+        .setContentTitle("RS HRMS")
         .setContentText("On duty — location tracking active")
         .setSmallIcon(R.mipmap.ic_launcher)
         .setOngoing(true)

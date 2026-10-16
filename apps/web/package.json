@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3",
+    "@capacitor/status-bar": "^7.0.3",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@realty-smartz/api": "workspace:*",
     "@realty-smartz/db": "workspace:*",
