@@ -41,27 +41,33 @@ const employeeInclude = {
 async function nextEmployeeCode(
   prisma: {
     employee: {
-      findFirst: (args: {
-        orderBy: { employeeCode: "desc" };
+      findMany: (args: {
+        where: { employeeCode: { startsWith: string } };
         select: { employeeCode: true };
-      }) => Promise<{ employeeCode: string } | null>;
+      }) => Promise<{ employeeCode: string }[]>;
     };
   }
 ) {
-  const latest = await prisma.employee.findFirst({
-    orderBy: { employeeCode: "desc" },
+  // Only consider pure numeric codes (RS-0001, RS-3327). Codes like RS-CS3024
+  // must not drive the sequence — string DESC was returning those and
+  // falling back to RS-0001, which already exists.
+  const rows = await prisma.employee.findMany({
+    where: { employeeCode: { startsWith: EMPLOYEE_CODE_PREFIX } },
     select: { employeeCode: true },
   });
 
-  let nextNum = 1;
-  if (latest?.employeeCode) {
-    const match = latest.employeeCode.match(/RS-(\d+)/);
+  let max = 0;
+  const re = new RegExp(`^${EMPLOYEE_CODE_PREFIX}(\\d+)$`, "i");
+  for (const row of rows) {
+    const match = re.exec(row.employeeCode);
     if (match) {
-      nextNum = parseInt(match[1], 10) + 1;
+      max = Math.max(max, parseInt(match[1], 10));
     }
   }
 
-  return `${EMPLOYEE_CODE_PREFIX}${String(nextNum).padStart(4, "0")}`;
+  const nextNum = max + 1;
+  const width = Math.max(4, String(nextNum).length);
+  return `${EMPLOYEE_CODE_PREFIX}${String(nextNum).padStart(width, "0")}`;
 }
 
 async function labelForJobField(

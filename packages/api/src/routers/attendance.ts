@@ -30,7 +30,7 @@ import {
 } from "../lib/attendance-rules";
 import {
   getEffectiveWorkLocation,
-  distanceToWorkLocationM,
+  resolvePunchGeofence,
 } from "../lib/work-location";
 
 /** Reject pings whose GPS fix is older than this or stamped in the future. */
@@ -328,7 +328,6 @@ export const attendanceRouter = router({
     .input(checkInOutSchema)
     .mutation(async ({ ctx, input }) => {
       const employeeId = await resolveEmployeeId(ctx);
-      const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
 
       const today = startOfDayUTC(new Date());
       const existing = await ctx.prisma.attendanceLog.findUnique({
@@ -351,17 +350,11 @@ export const attendanceRouter = router({
         });
       }
 
-      const distanceM = distanceToWorkLocationM(workLocation, input.lat, input.lng);
-      const withinGeofence = distanceM <= workLocation.radiusM;
-
-      if (!withinGeofence) {
-        const where =
-          workLocation.source === "ASSIGNED"
-            ? `your assigned site (${workLocation.name})`
-            : `the office (${workLocation.name})`;
+      const geo = await resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng);
+      if (!geo.allowed) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Punch-in blocked: you are ~${Math.round(distanceM)}m from ${where}. You must be within ${workLocation.radiusM}m to punch in.`,
+          message: `Punch-in blocked: you are ~${Math.round(geo.distanceM)}m from ${geo.nearestName}. You must be within ${geo.radiusM}m of your assigned site or the company office.`,
         });
       }
 
@@ -378,10 +371,10 @@ export const attendanceRouter = router({
             ? "HALF_DAY"
             : statusFromFirstCheckIn(now);
 
-      const finalAddress = workLocation.name;
+      const finalAddress = geo.name;
       let logNotes: string | null =
-        workLocation.source === "ASSIGNED"
-          ? `Site punch-in: ${workLocation.name}`
+        geo.source === "ASSIGNED"
+          ? `Site punch-in: ${geo.name}`
           : "Office punch-in";
 
       if (existing?.checkOutTime) {
@@ -398,7 +391,7 @@ export const attendanceRouter = router({
         checkOutLat: null,
         checkOutLng: null,
         checkOutAddress: null,
-        withinGeofence,
+        withinGeofence: true,
         status,
         notes: logNotes,
       };
@@ -428,7 +421,7 @@ export const attendanceRouter = router({
             lng: input.lng,
             address: finalAddress,
             accuracyM: null,
-            withinGeofence,
+            withinGeofence: true,
             capturedAt: now,
           },
         });
@@ -440,9 +433,7 @@ export const attendanceRouter = router({
       void (async () => {
         // 1. Send punching details & policy emails
         try {
-          const { notifyPunchDetails, notifyOutsideGeofence } = await import(
-            "../lib/email"
-          );
+          const { notifyPunchDetails } = await import("../lib/email");
           const emp = await ctx.prisma.employee.findUnique({
             where: { id: employeeId },
             select: {
@@ -468,20 +459,9 @@ export const attendanceRouter = router({
                   ? "HALF DAY (APPROVED LEAVE)"
                   : status,
               address: finalAddress,
-              withinGeofence,
+              withinGeofence: true,
               managerEmail: emp.manager?.email,
             });
-
-            if (!withinGeofence) {
-              await notifyOutsideGeofence({
-                employeeName: name,
-                employeeEmail: emp.email,
-                employeeCode: emp.employeeCode,
-                checkInTime: now,
-                address: finalAddress,
-                managerEmail: emp.manager?.email,
-              });
-            }
           }
         } catch (err) {
           console.error("[attendance.checkIn] email notify failed:", err);
@@ -542,8 +522,8 @@ export const attendanceRouter = router({
 
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
-      const [workLocation, emp] = await Promise.all([
-        getEffectiveWorkLocation(ctx.prisma, employeeId),
+      const [outGeo, emp] = await Promise.all([
+        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
         ctx.prisma.employee.findUnique({
           where: { id: employeeId },
           select: {
@@ -557,9 +537,8 @@ export const attendanceRouter = router({
         }),
       ]);
 
-      const outWithinGeofence =
-        distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
-      const finalOutAddress = outWithinGeofence ? workLocation.name : input.address;
+      const outWithinGeofence = outGeo.allowed;
+      const finalOutAddress = outGeo.allowed ? outGeo.name : input.address;
 
       const outNote = `Punch out at ${formatTimeIST(now)}`;
       const logNotes = existing.notes
@@ -925,18 +904,16 @@ export const attendanceRouter = router({
       });
       if (duplicate) return duplicate;
 
-      const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
-      const withinGeofence =
-        distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
+      const geo = await resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng);
 
       return ctx.prisma.locationPing.create({
         data: {
           employeeId,
           lat: input.lat,
           lng: input.lng,
-          address: withinGeofence ? workLocation.name : input.address || null,
+          address: geo.allowed ? geo.name : input.address || null,
           accuracyM: input.accuracyM ?? null,
-          withinGeofence,
+          withinGeofence: geo.allowed,
           capturedAt: input.capturedAt,
         },
       });

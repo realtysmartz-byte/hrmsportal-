@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
-import { haversineDistanceM, startOfDayUTC } from "@realty-smartz/shared";
+import { startOfDayUTC } from "@realty-smartz/shared";
 import { authOptions } from "@/lib/auth";
+import { resolvePunchGeofence } from "@realty-smartz/api";
 
 export const dynamic = "force-dynamic";
 
@@ -44,17 +45,12 @@ export async function POST(req: Request) {
   const employee =
     (await prisma.employee.findUnique({
       where: { id: session.user.id },
-      select: { id: true, workLocationName: true, workLocationLat: true, workLocationLng: true },
+      select: { id: true },
     })) ??
     (session.user.email
       ? await prisma.employee.findUnique({
           where: { email: session.user.email.toLowerCase() },
-          select: {
-            id: true,
-            workLocationName: true,
-            workLocationLat: true,
-            workLocationLng: true,
-          },
+          select: { id: true },
         })
       : null);
 
@@ -72,24 +68,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not on duty", stopTracking: true }, { status: 400 });
   }
 
-  const settings = await prisma.companySettings.findUnique({ where: { id: "singleton" } });
-  const workLat =
-    employee.workLocationLat != null ? employee.workLocationLat : settings?.officeLat ?? null;
-  const workLng =
-    employee.workLocationLng != null ? employee.workLocationLng : settings?.officeLng ?? null;
-  const workName =
-    employee.workLocationLat != null
-      ? employee.workLocationName || "Assigned site"
-      : settings?.officeName || "Office";
-  const radiusM = settings?.geofenceRadiusM ?? 200;
-
-  const withinGeofence =
-    workLat != null && workLng != null
-      ? haversineDistanceM(lat, lng, workLat, workLng) <= radiusM
-      : false;
-
-  const address = withinGeofence
-    ? workName
+  const geo = await resolvePunchGeofence(prisma, employee.id, lat, lng);
+  const address = geo.allowed
+    ? geo.name
     : body.address?.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
   const ping = await prisma.locationPing.create({
@@ -102,7 +83,7 @@ export async function POST(req: Request) {
         body.accuracyM != null && Number.isFinite(Number(body.accuracyM))
           ? Number(body.accuracyM)
           : null,
-      withinGeofence,
+      withinGeofence: geo.allowed,
       capturedAt: new Date(),
     },
   });

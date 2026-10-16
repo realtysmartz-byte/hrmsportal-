@@ -26,6 +26,12 @@ export const appRouter = router({
 export type AppRouter = typeof appRouter;
 
 export { createContext } from "./context";
+export {
+  getEffectiveWorkLocation,
+  distanceToWorkLocationM,
+  resolvePunchGeofence,
+} from "./lib/work-location";
+export type { EffectiveWorkLocation, PunchGeofenceResult } from "./lib/work-location";
 export type {
   Context,
   Session,
