@@ -86,7 +86,15 @@ export function CheckInOutCard() {
       const pos = await getCurrentPosition();
       const { latitude: lat, longitude: lng } = pos.coords;
 
-      // Server allows assigned site OR company office — do not block here on site alone.
+      if (mode === "in" && workLoc) {
+        const dist = haversineDistanceM(lat, lng, workLoc.lat, workLoc.lng);
+        if (dist > workLoc.radiusM) {
+          const message = `You are ${Math.round(dist)} m away from ${workLoc.name}. Move within ${workLoc.radiusM} m to punch in.`;
+          setError(message);
+          toast("error", message);
+          return;
+        }
+      }
 
       const needsAddress =
         mode === "out" &&

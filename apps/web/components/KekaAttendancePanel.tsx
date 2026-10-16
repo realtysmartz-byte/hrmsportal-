@@ -203,7 +203,14 @@ export function KekaAttendancePanel({
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
 
-      // Server allows assigned site OR company office — do not block here on site alone.
+      if (mode === "in" && currentUserWorkLoc) {
+        const dist = haversineDistanceM(lat, lng, currentUserWorkLoc.lat, currentUserWorkLoc.lng);
+        if (dist > currentUserWorkLoc.radiusM) {
+          throw new Error(
+            `Punch-in blocked: you are ~${Math.round(dist)}m from ${currentUserWorkLoc.name}. You must be within ${currentUserWorkLoc.radiusM}m to punch in.`
+          );
+        }
+      }
 
       const needsAddress =
         mode === "out" &&

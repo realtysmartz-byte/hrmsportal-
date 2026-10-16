@@ -10,23 +10,10 @@ export type EffectiveWorkLocation = {
   radiusM: number;
 };
 
-export type PunchGeofenceResult =
-  | {
-      allowed: true;
-      name: string;
-      source: "ASSIGNED" | "OFFICE";
-      distanceM: number;
-      radiusM: number;
-    }
-  | {
-      allowed: false;
-      nearestName: string;
-      distanceM: number;
-      radiusM: number;
-    };
-
 /**
- * Primary workplace for labels / maps: assigned site if set, else company office.
+ * The single place an employee is allowed to punch in from:
+ * their HR-assigned site if one is set, otherwise the company office.
+ * Geofence radius comes from company settings (default 200m).
  */
 export async function getEffectiveWorkLocation(
   prisma: PrismaClient,
@@ -76,88 +63,4 @@ export function distanceToWorkLocationM(
   lng: number
 ): number {
   return haversineDistanceM(lat, lng, loc.lat, loc.lng);
-}
-
-/**
- * Punch / live tracking: employee may be at their assigned site OR the company HQ.
- * This stops HQ staff with a field site from showing as "far / outside" when they are in office.
- */
-export async function resolvePunchGeofence(
-  prisma: PrismaClient,
-  employeeId: string,
-  lat: number,
-  lng: number
-): Promise<PunchGeofenceResult> {
-  const [emp, settings] = await Promise.all([
-    prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: {
-        workLocationName: true,
-        workLocationLat: true,
-        workLocationLng: true,
-      },
-    }),
-    prisma.companySettings.findUnique({ where: { id: "singleton" } }),
-  ]);
-
-  if (!settings) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message: "Company office location is not configured",
-    });
-  }
-
-  const radiusM = settings.geofenceRadiusM;
-  const officeDist = haversineDistanceM(lat, lng, settings.officeLat, settings.officeLng);
-  const atOffice = officeDist <= radiusM;
-
-  if (emp?.workLocationLat != null && emp.workLocationLng != null) {
-    const siteName = emp.workLocationName || "Assigned site";
-    const siteDist = haversineDistanceM(lat, lng, emp.workLocationLat, emp.workLocationLng);
-    const atSite = siteDist <= radiusM;
-
-    if (atSite) {
-      return {
-        allowed: true,
-        name: siteName,
-        source: "ASSIGNED",
-        distanceM: siteDist,
-        radiusM,
-      };
-    }
-    if (atOffice) {
-      return {
-        allowed: true,
-        name: settings.officeName,
-        source: "OFFICE",
-        distanceM: officeDist,
-        radiusM,
-      };
-    }
-
-    const nearerIsSite = siteDist <= officeDist;
-    return {
-      allowed: false,
-      nearestName: nearerIsSite ? siteName : settings.officeName,
-      distanceM: nearerIsSite ? siteDist : officeDist,
-      radiusM,
-    };
-  }
-
-  if (atOffice) {
-    return {
-      allowed: true,
-      name: settings.officeName,
-      source: "OFFICE",
-      distanceM: officeDist,
-      radiusM,
-    };
-  }
-
-  return {
-    allowed: false,
-    nearestName: settings.officeName,
-    distanceM: officeDist,
-    radiusM,
-  };
 }

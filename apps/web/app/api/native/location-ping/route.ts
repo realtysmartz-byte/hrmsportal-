@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
 import { startOfDayUTC } from "@realty-smartz/shared";
 import { authOptions } from "@/lib/auth";
-import { resolvePunchGeofence } from "@realty-smartz/api";
+import {
+  distanceToWorkLocationM,
+  getEffectiveWorkLocation,
+} from "@realty-smartz/api";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +71,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not on duty", stopTracking: true }, { status: 400 });
   }
 
-  const geo = await resolvePunchGeofence(prisma, employee.id, lat, lng);
-  const address = geo.allowed
-    ? geo.name
+  const workLocation = await getEffectiveWorkLocation(prisma, employee.id);
+  const withinGeofence =
+    distanceToWorkLocationM(workLocation, lat, lng) <= workLocation.radiusM;
+  const address = withinGeofence
+    ? workLocation.name
     : body.address?.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
   const ping = await prisma.locationPing.create({
@@ -83,7 +88,7 @@ export async function POST(req: Request) {
         body.accuracyM != null && Number.isFinite(Number(body.accuracyM))
           ? Number(body.accuracyM)
           : null,
-      withinGeofence: geo.allowed,
+      withinGeofence,
       capturedAt: new Date(),
     },
   });
