@@ -23,17 +23,22 @@ export function PwaInstallBanner() {
   const [guideTab, setGuideTab] = useState<"android" | "ios">("android");
 
   useEffect(() => {
+    // Native Android/iOS Capacitor app — never show the PWA install banner
+    const isNativeApp = Boolean(
+      (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+        ?.isNativePlatform?.()
+    );
+
     // 1. Comprehensive standalone detection across iOS WebClip and modern Chromium
     const isStandalone =
-      (typeof window !== "undefined" && (
-        window.matchMedia("(display-mode: standalone)").matches ||
-        window.matchMedia("(display-mode: fullscreen)").matches ||
-        window.matchMedia("(display-mode: minimal-ui)").matches ||
-        (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
-        document.referrer.includes("android-app://") ||
-        window.location.search.includes("source=pwa") ||
-        sessionStorage.getItem("rs_is_pwa_standalone") === "true"
-      ));
+      isNativeApp ||
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches ||
+      window.matchMedia("(display-mode: minimal-ui)").matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+      document.referrer.includes("android-app://") ||
+      window.location.search.includes("source=pwa") ||
+      sessionStorage.getItem("rs_is_pwa_standalone") === "true";
 
     if (isStandalone) {
       try {
