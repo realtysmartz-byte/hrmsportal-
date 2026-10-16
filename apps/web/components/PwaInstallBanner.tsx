@@ -19,7 +19,8 @@ export function PwaInstallBanner() {
   const [isIosDevice, setIsIosDevice] = useState(false);
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideTab, setGuideTab] = useState<"android" | "ios">("android");
 
   useEffect(() => {
     // 1. Comprehensive standalone detection across iOS WebClip and modern Chromium
@@ -75,7 +76,10 @@ export function PwaInstallBanner() {
       return;
     }
 
-    // 4. Capture standard beforeinstallprompt (Chrome / Edge / Android)
+    // 4. Always show banner on Android/desktop so users without Install prompt
+    //    can open the manual "Add to Home screen" guide.
+    setIsVisible(true);
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -104,7 +108,7 @@ export function PwaInstallBanner() {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    setShowIosGuide(false);
+    setShowGuide(false);
     try {
       localStorage.setItem(DISMISS_STORAGE_KEY, Date.now().toString());
       sessionStorage.setItem(SESSION_DISMISS_KEY, "true");
@@ -115,25 +119,32 @@ export function PwaInstallBanner() {
 
   const handleInstallClick = async () => {
     if (isIosDevice) {
-      setShowIosGuide(true);
+      setGuideTab("ios");
+      setShowGuide(true);
       return;
     }
 
-    if (!deferredPrompt) return;
-
-    try {
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === "accepted") {
-        setIsVisible(false);
-        setDeferredPrompt(null);
-      } else {
-        sessionStorage.setItem(SESSION_DISMISS_KEY, "true");
-        setIsVisible(false);
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+        if (choiceResult.outcome === "accepted") {
+          setIsVisible(false);
+          setDeferredPrompt(null);
+        } else {
+          setGuideTab("android");
+          setShowGuide(true);
+        }
+      } catch {
+        setGuideTab("android");
+        setShowGuide(true);
       }
-    } catch {
-      setIsVisible(false);
+      return;
     }
+
+    // No browser Install prompt (common on many Android phones) — show manual steps
+    setGuideTab("android");
+    setShowGuide(true);
   };
 
   // Do not render if app is running in standalone mode or not visible
@@ -201,8 +212,9 @@ export function PwaInstallBanner() {
 
       {/* Installation Instructions Modal */}
       <InstallGuideModal
-        isOpen={showIosGuide}
-        onClose={() => setShowIosGuide(false)}
+        isOpen={showGuide}
+        initialTab={guideTab}
+        onClose={() => setShowGuide(false)}
       />
     </>
   );
