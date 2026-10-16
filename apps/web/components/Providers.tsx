@@ -6,6 +6,7 @@ import { useState } from "react";
 import { getTRPCClient, trpc } from "@/lib/trpc";
 import { toast } from "@/lib/toast";
 import { Toaster } from "@/components/Toaster";
+import { AccountStatusGuard } from "@/components/AccountStatusGuard";
 
 const SILENT = new Set([
   "attendance.locationPing",
@@ -115,7 +116,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() => getTRPCClient());
 
   return (
-    <SessionProvider refetchOnWindowFocus>
+    <SessionProvider refetchOnWindowFocus refetchInterval={60}>
+      <AccountStatusGuard />
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           {children}

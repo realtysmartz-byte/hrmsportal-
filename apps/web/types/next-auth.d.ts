@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: string;
       employeeCode: string;
     } & DefaultSession["user"];
+    error?: "AccountInactive";
   }
 
   interface User {
@@ -17,8 +18,10 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    role: string;
-    employeeCode: string;
+    id?: string;
+    role?: string;
+    employeeCode?: string;
+    status?: string;
+    error?: "AccountInactive";
   }
 }

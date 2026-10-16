@@ -3,7 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@realty-smartz/db";
-import { canAccessAdminPortal, loginSchema } from "@realty-smartz/shared";
+import {
+  canAccessAdminPortal,
+  canEmployeeLogin,
+  loginSchema,
+} from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 
 const googleConfigured = Boolean(
@@ -27,7 +31,6 @@ if (process.env.NEXTAUTH_URL) {
 
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "./rate-limit";
 
-// Validate NEXTAUTH_SECRET strength on server initialization
 const secret = process.env.NEXTAUTH_SECRET;
 if (!secret || secret === "generate-a-long-random-secret-here" || secret.length < 32) {
   console.warn(
@@ -71,7 +74,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60, // 7 days expiration
+    maxAge: 7 * 24 * 60 * 60,
   },
   pages: {
     signIn: "/login",
@@ -94,11 +97,14 @@ export const authOptions: NextAuthOptions = {
 
           const emailKey = parsed.data.email;
 
-          // Rate limit check: max 5 failed attempts per 15 min
           const rateCheck = checkRateLimit(emailKey);
           if (!rateCheck.allowed) {
-            console.warn(`[auth:rate-limit] Lockout active for ${emailKey} (${rateCheck.retryAfterSeconds}s remaining)`);
-            throw new Error(`Too many failed login attempts. Locked out for ${Math.ceil(rateCheck.retryAfterSeconds / 60)} minutes.`);
+            console.warn(
+              `[auth:rate-limit] Lockout active for ${emailKey} (${rateCheck.retryAfterSeconds}s remaining)`
+            );
+            throw new Error(
+              `Too many failed login attempts. Locked out for ${Math.ceil(rateCheck.retryAfterSeconds / 60)} minutes.`
+            );
           }
 
           const employee = await prisma.employee.findUnique({
@@ -110,11 +116,10 @@ export const authOptions: NextAuthOptions = {
             console.warn("[auth] no employee for", emailKey);
             return null;
           }
-          if (
-            employee.status === "RESIGNED" ||
-            employee.status === "TERMINATED"
-          ) {
-            return null;
+
+          // EXIT / TERMINATED / RESIGNED — no login until status is ACTIVE (or ON_LEAVE)
+          if (!canEmployeeLogin(employee.status)) {
+            throw new Error("AccountInactive");
           }
 
           let valid = await bcrypt.compare(
@@ -126,14 +131,17 @@ export const authOptions: NextAuthOptions = {
           }
           if (!valid) {
             const attempt = recordFailedAttempt(emailKey);
-            console.warn(`[auth] bad password for ${emailKey} (attempts left: ${attempt.remaining})`);
+            console.warn(
+              `[auth] bad password for ${emailKey} (attempts left: ${attempt.remaining})`
+            );
             if (attempt.locked) {
-              throw new Error("Too many failed login attempts. Account temporarily locked for 15 minutes.");
+              throw new Error(
+                "Too many failed login attempts. Account temporarily locked for 15 minutes."
+              );
             }
             return null;
           }
 
-          // Successful login: reset failed attempts
           resetRateLimit(emailKey);
 
           return {
@@ -144,13 +152,14 @@ export const authOptions: NextAuthOptions = {
             employeeCode: employee.employeeCode,
           };
         } catch (error) {
-          if (error instanceof Error && error.message.includes("Too many failed")) {
+          if (
+            error instanceof Error &&
+            (error.message.includes("Too many failed") ||
+              error.message === "AccountInactive")
+          ) {
             throw error;
           }
           console.error("[auth] authorize failed:", error);
-          // Surface the real error so it's visible on the login page instead of
-          // a generic "Invalid credentials" message. Common causes: DB connection
-          // timeout, Prisma client not generated, DNS resolution failure.
           const msg =
             error instanceof Error ? error.message : "Internal authentication error";
           throw new Error(msg);
@@ -175,9 +184,7 @@ export const authOptions: NextAuthOptions = {
           ? `https://${host}`
           : baseUrl;
 
-      // Allows relative callback URLs
       if (url.startsWith("/")) return `${effectiveBaseUrl}${url}`;
-      // Allows callback URLs on the same origin
       try {
         const parsedUrl = new URL(url);
         if (parsedUrl.origin === effectiveBaseUrl || parsedUrl.origin === baseUrl) {
@@ -198,18 +205,13 @@ export const authOptions: NextAuthOptions = {
         if (!employee) {
           return "/login?error=GoogleNotLinked";
         }
-        if (
-          employee.status === "RESIGNED" ||
-          employee.status === "TERMINATED"
-        ) {
+        if (!canEmployeeLogin(employee.status)) {
           return "/login?error=AccountInactive";
         }
         if (canAccessAdminPortal(employee.role as Role)) {
           return "/login?error=GoogleEmployeeOnly";
         }
 
-        // Auto-fetch profile photo from Google account if not already set
-        // Do NOT overwrite an existing profilePhotoUrl if the employee has already manually set one
         if (!employee.profilePhotoUrl && user.image) {
           try {
             await prisma.employee.update({
@@ -236,6 +238,7 @@ export const authOptions: NextAuthOptions = {
             token.role = employee.role;
             token.employeeCode = employee.employeeCode;
             token.email = employee.email;
+            token.status = employee.status;
           }
         } else {
           token.id = user.id;
@@ -243,23 +246,62 @@ export const authOptions: NextAuthOptions = {
           token.employeeCode = (user as { employeeCode: string }).employeeCode;
           token.email = user.email;
         }
+        delete token.error;
       }
 
-      // Repair incomplete tokens (common after OAuth / env restarts)
-      if ((!token.id || !token.role) && token.email) {
-        const employee = await prisma.employee.findUnique({
-          where: { email: String(token.email).toLowerCase().trim() },
-        });
-        if (employee) {
-          token.id = employee.id;
+      // Live status check — EXIT / TERMINATED / RESIGNED forces session invalidation
+      if (token.id && !token.error) {
+        try {
+          const employee = await prisma.employee.findUnique({
+            where: { id: String(token.id) },
+            select: {
+              status: true,
+              role: true,
+              employeeCode: true,
+              email: true,
+            },
+          });
+          if (!employee || !canEmployeeLogin(employee.status)) {
+            return { error: "AccountInactive" };
+          }
           token.role = employee.role;
           token.employeeCode = employee.employeeCode;
+          token.email = employee.email;
+          token.status = employee.status;
+        } catch (err) {
+          console.error("[auth] jwt status check failed:", err);
         }
+      }
+
+      if ((!token.id || !token.role) && token.email && !token.error) {
+        const employee = await prisma.employee.findUnique({
+          where: { email: String(token.email).toLowerCase().trim() },
+          select: {
+            id: true,
+            status: true,
+            role: true,
+            employeeCode: true,
+          },
+        });
+        if (!employee || !canEmployeeLogin(employee.status)) {
+          return { error: "AccountInactive" };
+        }
+        token.id = employee.id;
+        token.role = employee.role;
+        token.employeeCode = employee.employeeCode;
+        token.status = employee.status;
       }
 
       return token;
     },
     async session({ session, token }) {
+      if (token.error === "AccountInactive") {
+        return {
+          ...session,
+          user: undefined as unknown as typeof session.user,
+          error: "AccountInactive",
+        };
+      }
       if (session.user && token.id) {
         session.user.id = token.id as string;
         session.user.role = (token.role as string) || "EMPLOYEE";

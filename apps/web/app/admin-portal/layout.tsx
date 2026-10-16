@@ -12,7 +12,10 @@ export default async function AdminPortalLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
+  if (session.error === "AccountInactive") {
+    redirect("/login?error=AccountInactive");
+  }
 
   if (!canAccessAdminPortal(session.user.role as Role)) {
     redirect("/employee-portal/dashboard");

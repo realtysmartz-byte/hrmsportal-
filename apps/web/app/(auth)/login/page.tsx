@@ -30,7 +30,8 @@ const GOOGLE_ERRORS: Record<string, string> = {
     "No employee account matches this Google email. Ask HR to add you first.",
   GoogleEmployeeOnly:
     "Google sign-in is for employees only. Admin/HR must use email & password.",
-  AccountInactive: "This account is inactive. Contact HR.",
+  AccountInactive:
+    "Your account is inactive (Terminated / Resigned / Exit). You cannot log in until HR sets status to Active.",
   OAuthAccountNotLinked:
     "This Google account could not be linked. Use your company email.",
   AccessDenied: "Google sign-in was denied.",
@@ -124,12 +125,14 @@ function LoginForm() {
 
     if (result?.error) {
       setLoading(false);
-      // NextAuth returns the actual error message from authorize() in result.error
-      // For CredentialsSignin, the error is the generic type; real message is in result.error
-      if (result.error === "CredentialsSignin") {
+      if (
+        result.error === "AccountInactive" ||
+        result.error.includes("AccountInactive")
+      ) {
+        setError(GOOGLE_ERRORS.AccountInactive);
+      } else if (result.error === "CredentialsSignin") {
         setError("Invalid email or password. Please verify and try again.");
       } else {
-        // Surface the real error (e.g. DB connection failure, rate limit, etc.)
         setError(result.error);
       }
       return;

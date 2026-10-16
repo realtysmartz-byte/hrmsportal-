@@ -10,6 +10,13 @@ export const EMPLOYEE_STATUSES = [
 ] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 
+/** Statuses that may still use the portal (login + session). */
+export const LOGIN_ALLOWED_STATUSES = ["ACTIVE", "ON_LEAVE"] as const;
+
+export function canEmployeeLogin(status: string): boolean {
+  return (LOGIN_ALLOWED_STATUSES as readonly string[]).includes(status);
+}
+
 export const ATTENDANCE_STATUSES = [
   "PRESENT",
   "LATE",

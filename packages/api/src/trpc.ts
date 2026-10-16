@@ -1,7 +1,11 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { Role } from "@realty-smartz/shared";
-import { canManageEmployees, canManageOrg } from "@realty-smartz/shared";
+import {
+  canEmployeeLogin,
+  canManageEmployees,
+  canManageOrg,
+} from "@realty-smartz/shared";
 import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
@@ -11,10 +15,23 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-const isAuthed = t.middleware(({ ctx, next }) => {
+const isAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
+
+  // Block API use after EXIT / TERMINATED / RESIGNED (even if JWT not refreshed yet)
+  const employee = await ctx.prisma.employee.findUnique({
+    where: { id: ctx.session.user.id },
+    select: { status: true },
+  });
+  if (!employee || !canEmployeeLogin(employee.status)) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Account inactive. Contact HR.",
+    });
+  }
+
   return next({
     ctx: {
       session: { ...ctx.session, user: ctx.session.user },

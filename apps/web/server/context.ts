@@ -7,8 +7,12 @@ import { authOptions } from "@/lib/auth";
 export async function createTRPCContext() {
   const session = await getServerSession(authOptions);
 
-  // Incomplete JWT (e.g. Google login without employee id) → treat as logged out
-  if (!session?.user?.id || !session.user.email) {
+  // Incomplete JWT or inactive account (EXIT / TERMINATED / RESIGNED)
+  if (
+    !session?.user?.id ||
+    !session.user.email ||
+    session.error === "AccountInactive"
+  ) {
     return createContext({ prisma, session: null });
   }
 

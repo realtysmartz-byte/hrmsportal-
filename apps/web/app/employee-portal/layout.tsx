@@ -9,7 +9,10 @@ export default async function EmployeePortalLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
+  if (session.error === "AccountInactive") {
+    redirect("/login?error=AccountInactive");
+  }
 
   return (
     <div className="min-h-dvh bg-white lg:bg-[#F4F5FA]">
