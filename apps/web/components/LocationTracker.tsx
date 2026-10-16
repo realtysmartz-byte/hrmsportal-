@@ -4,18 +4,35 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { MapPin } from "lucide-react";
-import { haversineDistanceM, LOCATION_PING_INTERVAL_MS } from "@realty-smartz/shared";
+import { LOCATION_PING_INTERVAL_MS } from "@realty-smartz/shared";
 import { trpc } from "@/lib/trpc";
 import { getCurrentPosition, reverseGeocodePlace } from "@/lib/geolocation";
-import { subscribeToLocationReminders } from "@/lib/push";
 import {
+  isNativeAndroidApp,
   startNativeDutyTracking,
   stopNativeDutyTracking,
 } from "@/lib/native-duty-tracking";
 import { cn } from "@/lib/utils";
 
-const MOVE_THRESHOLD_M = 50;
-const MIN_MOVE_PING_GAP_MS = 5 * 60 * 1000;
+const LAST_PING_KEY = "rs_last_location_ping_at";
+
+function readLastPingAt() {
+  try {
+    const raw = localStorage.getItem(LAST_PING_KEY);
+    const n = raw ? parseInt(raw, 10) : 0;
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeLastPingAt(at: number) {
+  try {
+    localStorage.setItem(LAST_PING_KEY, String(at));
+  } catch {
+    // ignore
+  }
+}
 
 export function LocationTracker() {
   const { status: authStatus } = useSession();
@@ -27,16 +44,11 @@ export function LocationTracker() {
 
   const [status, setStatus] = useState<"on" | "denied" | "error" | "idle">("idle");
   const [lastAt, setLastAt] = useState<Date | null>(null);
-  const lastPinged = useRef<{ lat: number; lng: number; at: number } | null>(null);
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null);
 
   const pingMutation = trpc.attendance.locationPing.useMutation();
   const pingRef = useRef(pingMutation.mutateAsync);
   pingRef.current = pingMutation.mutateAsync;
-
-  const savePushMutation = trpc.attendance.savePushSubscription.useMutation();
-  const savePushRef = useRef(savePushMutation.mutateAsync);
-  savePushRef.current = savePushMutation.mutateAsync;
 
   const reportDisabledMutation = trpc.attendance.reportLocationDisabled.useMutation();
   const reportRef = useRef(reportDisabledMutation.mutate);
@@ -55,6 +67,7 @@ export function LocationTracker() {
     }
 
     let cancelled = false;
+    const nativeApp = isNativeAndroidApp();
 
     function handleError(err: GeolocationPositionError) {
       if (cancelled) return;
@@ -84,7 +97,8 @@ export function LocationTracker() {
           capturedAt: new Date(pos.timestamp),
         });
         if (!cancelled) {
-          lastPinged.current = { lat: latitude, lng: longitude, at: Date.now() };
+          const now = Date.now();
+          writeLastPingAt(now);
           setLastAt(new Date(pos.timestamp));
           setStatus("on");
         }
@@ -105,6 +119,19 @@ export function LocationTracker() {
       }
     }
 
+    /** Only ping if a full 30 minutes have passed since the last saved ping. */
+    async function pingIfDue() {
+      const last = readLastPingAt();
+      if (Date.now() - last < LOCATION_PING_INTERVAL_MS) {
+        if (!cancelled) {
+          setStatus("on");
+          if (last > 0) setLastAt(new Date(last));
+        }
+        return false;
+      }
+      return pingFresh();
+    }
+
     async function requestWakeLock() {
       try {
         const nav = navigator as Navigator & {
@@ -120,9 +147,9 @@ export function LocationTracker() {
       }
     }
 
+    // Permission / badge only — never record a ping while off duty
     if (!isOnDuty) {
       void stopNativeDutyTracking();
-      // Only check permission state so the badge is accurate; nothing is recorded off duty.
       navigator.geolocation.getCurrentPosition(
         () => !cancelled && setStatus("on"),
         handleError,
@@ -133,52 +160,35 @@ export function LocationTracker() {
       };
     }
 
-    void pingFresh();
-    void startNativeDutyTracking();
-    void subscribeToLocationReminders((input) => savePushRef.current(input), false).catch(() => {});
+    // Android APK: native foreground service owns the 30-min pings — do not also ping from WebView on every open
+    if (nativeApp) {
+      void startNativeDutyTracking();
+      navigator.geolocation.getCurrentPosition(
+        () => !cancelled && setStatus("on"),
+        handleError,
+        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 }
+      );
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (cancelled) return;
-        setStatus("on");
-        const prev = lastPinged.current;
-        if (!prev || Date.now() - prev.at < MIN_MOVE_PING_GAP_MS) return;
-        const moved = haversineDistanceM(
-          prev.lat,
-          prev.lng,
-          pos.coords.latitude,
-          pos.coords.longitude
-        );
-        if (moved > MOVE_THRESHOLD_M) void sendPing(pos);
-      },
-      handleError,
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 }
-    );
+    // Web browser: never ping just because the page opened.
+    // Ping only when 30 minutes have actually elapsed (interval + optional due-check).
+    const last = readLastPingAt();
+    if (last > 0) setLastAt(new Date(last));
+    setStatus("on");
 
     void requestWakeLock();
 
-    const intervalId = setInterval(() => void pingFresh(), LOCATION_PING_INTERVAL_MS);
+    const intervalId = setInterval(() => void pingIfDue(), LOCATION_PING_INTERVAL_MS);
 
-    const onVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      void requestWakeLock();
-      const last = lastPinged.current?.at ?? 0;
-      if (Date.now() - last >= MIN_MOVE_PING_GAP_MS) void pingFresh();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    const onWorkerMessage = (event: MessageEvent) => {
-      if (event.data?.type !== "LOCATION_PING_REQUEST") return;
-      void pingFresh().then((ok) => event.ports[0]?.postMessage({ ok }));
-    };
-    navigator.serviceWorker?.addEventListener("message", onWorkerMessage);
+    // If already past due (e.g. tab left open overnight), one catch-up — still respects 30m gap
+    void pingIfDue();
 
     return () => {
       cancelled = true;
       clearInterval(intervalId);
-      navigator.geolocation.clearWatch(watchId);
-      document.removeEventListener("visibilitychange", onVisibility);
-      navigator.serviceWorker?.removeEventListener("message", onWorkerMessage);
       void wakeLock.current?.release();
     };
   }, [authStatus, isOnDuty, isPingPage]);
@@ -193,7 +203,7 @@ export function LocationTracker() {
         status === "denied" && "border-rose-200 text-rose-700 bg-rose-50/90",
         (status === "error" || status === "idle") && "border-neutral-200 text-neutral-600"
       )}
-      title="While punched in, your live GPS location is recorded every 30 minutes."
+      title="While punched in, location is recorded every 30 minutes (not on every page open)."
     >
       <span
         className={cn(
