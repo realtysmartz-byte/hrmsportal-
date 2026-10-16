@@ -53,14 +53,9 @@ pnpm dev
 
 ### 3. Open the app
 
-[http://localhost:3000](http://localhost:3000)
+rshrms.in/
 
-### Seed logins
 
-| Role     | Email                         | Password       |
-|----------|-------------------------------|----------------|
-| Admin    | `admin@realtysmartz.com`      | `Admin@123`    |
-| HR / Emp | any other `@realtysmartz.com` | `Employee@123` |
 
 ## Scripts
 
