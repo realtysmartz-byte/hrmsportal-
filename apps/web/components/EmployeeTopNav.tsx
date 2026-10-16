@@ -74,7 +74,7 @@ export function EmployeeTopNav() {
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
                 <Logo showText={false} size={26} />
               </span>
-              <span className="text-sm font-semibold">Realty Smartz</span>
+              <span className="text-sm font-semibold">RS HRMS</span>
             </Link>
 
             <form
@@ -282,7 +282,10 @@ export function EmployeeTopNav() {
         )}
       </AnimatePresence>
 
-      <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white border-t border-neutral-200 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+      <nav
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white border-t border-neutral-200"
+        style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}
+      >
         <div className="grid grid-cols-5 max-w-md mx-auto">
           {bottomTabs.map((tab) => {
             const active =
@@ -296,7 +299,7 @@ export function EmployeeTopNav() {
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 pt-2 pb-1",
+                  "flex flex-col items-center justify-center gap-1 pt-2.5 pb-1.5 min-h-[3.25rem]",
                   active ? "text-[#5D3EBC]" : "text-neutral-500"
                 )}
               >

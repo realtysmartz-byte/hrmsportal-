@@ -14,7 +14,7 @@ export function NativeAppBoot() {
       try {
         const { StatusBar, Style } = await import("@capacitor/status-bar");
         await StatusBar.setOverlaysWebView({ overlay: false });
-        await StatusBar.setBackgroundColor({ color: "#0c0d14" });
+        await StatusBar.setBackgroundColor({ color: "#5D3EBC" });
         await StatusBar.setStyle({ style: Style.Dark });
       } catch {
         // StatusBar plugin may be unavailable on web
