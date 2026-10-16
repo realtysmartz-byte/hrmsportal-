@@ -1,0 +1,22 @@
+﻿{
+  "name": "@realty-smartz/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android app wrapper for Realty Smartz HRMS",
+  "scripts": {
+    "sync": "npx cap sync android",
+    "open": "npx cap open android",
+    "build:apk": "cd android && .\\gradlew.bat assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/geolocation": "^7.1.5",
+    "@capacitor/splash-screen": "^7.0.3",
+    "@capacitor/status-bar": "^7.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  }
+}

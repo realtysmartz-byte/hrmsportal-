@@ -53,6 +53,17 @@ android-app/keystore.properties
 android-app/*.keystore
 android-app/*.apk
 
+# Capacitor Android wrapper
+apps/mobile/node_modules
+apps/mobile/android/.gradle
+apps/mobile/android/build
+apps/mobile/android/app/build
+apps/mobile/android/local.properties
+apps/mobile/android/keystore.properties
+apps/mobile/android/app/*.keystore
+apps/mobile/dist/*.apk
+apps/mobile/android/capacitor-cordova-android-plugins/build
+
 # local scratch scripts
 proxy-3002.js
 check-db-url.js
