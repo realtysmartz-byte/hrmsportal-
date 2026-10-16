@@ -8,6 +8,10 @@ import { haversineDistanceM, LOCATION_PING_INTERVAL_MS } from "@realty-smartz/sh
 import { trpc } from "@/lib/trpc";
 import { getCurrentPosition, reverseGeocodePlace } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
+import {
+  startNativeDutyTracking,
+  stopNativeDutyTracking,
+} from "@/lib/native-duty-tracking";
 import { cn } from "@/lib/utils";
 
 const MOVE_THRESHOLD_M = 50;
@@ -117,6 +121,7 @@ export function LocationTracker() {
     }
 
     if (!isOnDuty) {
+      void stopNativeDutyTracking();
       // Only check permission state so the badge is accurate; nothing is recorded off duty.
       navigator.geolocation.getCurrentPosition(
         () => !cancelled && setStatus("on"),
@@ -129,6 +134,7 @@ export function LocationTracker() {
     }
 
     void pingFresh();
+    void startNativeDutyTracking();
     void subscribeToLocationReminders((input) => savePushRef.current(input), false).catch(() => {});
 
     const watchId = navigator.geolocation.watchPosition(

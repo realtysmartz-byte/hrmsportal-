@@ -9,6 +9,10 @@ import {
   reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
+import {
+  startNativeDutyTracking,
+  stopNativeDutyTracking,
+} from "@/lib/native-duty-tracking";
 import { toast } from "@/lib/toast";
 import { TRPCClientError } from "@trpc/client";
 import {
@@ -104,8 +108,10 @@ export function CheckInOutCard() {
 
       if (mode === "in") {
         await checkIn.mutateAsync({ lat, lng, address });
+        void startNativeDutyTracking();
       } else {
         await checkOut.mutateAsync({ lat, lng, address });
+        void stopNativeDutyTracking();
       }
     } catch (err: unknown) {
       if ((err as { code?: number })?.code === 1) {

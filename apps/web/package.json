@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/core": "^7.4.3",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@realty-smartz/api": "workspace:*",
     "@realty-smartz/db": "workspace:*",

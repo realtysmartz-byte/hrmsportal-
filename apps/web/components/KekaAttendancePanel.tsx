@@ -27,6 +27,10 @@ import {
   reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
+import {
+  startNativeDutyTracking,
+  stopNativeDutyTracking,
+} from "@/lib/native-duty-tracking";
 import { toast } from "@/lib/toast";
 import { TRPCClientError } from "@trpc/client";
 import {
@@ -222,8 +226,10 @@ export function KekaAttendancePanel({
 
       if (mode === "in") {
         await checkInMutation.mutateAsync({ lat, lng, address: label });
+        void startNativeDutyTracking();
       } else {
         await checkOutMutation.mutateAsync({ lat, lng, address: label });
+        void stopNativeDutyTracking();
       }
     } catch (err: unknown) {
       const message = geolocationErrorMessage(err);
