@@ -8,6 +8,7 @@ const STATUS_VARIANT: Record<
   ON_LEAVE: "warning",
   RESIGNED: "secondary",
   TERMINATED: "danger",
+  EXIT: "danger",
 };
 
 export function StatusBadge({ status }: { status: string }) {

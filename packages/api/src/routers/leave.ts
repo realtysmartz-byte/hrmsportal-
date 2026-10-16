@@ -56,9 +56,9 @@ export const leaveRouter = router({
 
       void (async () => {
         try {
-          const { notifyPolicyUpdate, getHrNotifyEmails } = await import("../lib/email");
+          const { notifyPolicyUpdate, getStaffNotifyEmails } = await import("../lib/email");
           const emails: string[] = employees.map((e) => e.email);
-          emails.push(...getHrNotifyEmails());
+          emails.push(...getStaffNotifyEmails());
           await notifyPolicyUpdate({
             title: `New leave type: ${leaveType.name}`,
             summary: `Annual quota: ${leaveType.annualQuota} days. Approval required: ${leaveType.requiresApproval ? "Yes" : "No"}. Carry forward: ${leaveType.carryForwardAllowed ? "Allowed" : "Not allowed"}.`,
@@ -256,10 +256,34 @@ export const leaveRouter = router({
           message: "Only pending requests can be cancelled",
         });
       }
-      return ctx.prisma.leaveRequest.update({
+      const updated = await ctx.prisma.leaveRequest.update({
         where: { id: input.id },
         data: { status: "CANCELLED", respondedAt: new Date() },
+        include: { leaveType: true },
       });
+
+      void (async () => {
+        try {
+          const { notifyLeaveCancelled } = await import("../lib/email");
+          const emp = await ctx.prisma.employee.findUnique({
+            where: { id: ctx.session.user.id },
+            select: { email: true, firstName: true, lastName: true },
+          });
+          if (!emp) return;
+          await notifyLeaveCancelled({
+            employeeName: `${emp.firstName} ${emp.lastName}`,
+            employeeEmail: emp.email,
+            leaveType: updated.leaveType.name,
+            startDate: updated.startDate.toISOString().slice(0, 10),
+            endDate: updated.endDate.toISOString().slice(0, 10),
+            days: updated.numberOfDays,
+          });
+        } catch (err) {
+          console.error("[leave] cancel email failed:", err);
+        }
+      })();
+
+      return updated;
     }),
 
   pendingApprovals: protectedProcedure.query(async ({ ctx }) => {

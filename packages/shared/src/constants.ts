@@ -6,6 +6,7 @@ export const EMPLOYEE_STATUSES = [
   "ON_LEAVE",
   "RESIGNED",
   "TERMINATED",
+  "EXIT",
 ] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 

@@ -11,6 +11,7 @@ import {
   canViewSensitiveEmployeeData,
   getEmployeeVisibilityLevel,
   isWorkingDay,
+  EMPLOYEE_STATUSES,
 } from "@realty-smartz/shared";
 import {
   type Role,
@@ -612,7 +613,7 @@ export const employeeRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const ROLES = ["ADMIN", "HR", "MANAGER", "EMPLOYEE"] as const;
-      const STATUSES = ["ACTIVE", "ON_LEAVE", "RESIGNED", "TERMINATED"] as const;
+      const STATUSES = EMPLOYEE_STATUSES;
       const departmentIds = new Map<string, string>();
       const designationIds = new Map<string, string>();
       const leaveTypes = await ctx.prisma.leaveType.findMany();
@@ -854,6 +855,7 @@ export const employeeRouter = router({
         }
       }
 
+      const previousStatus = existing.status;
       const employee = await ctx.prisma.$transaction(async (tx) => {
         const updated = await tx.employee.update({
           where: { id },
@@ -866,8 +868,87 @@ export const employeeRouter = router({
         return updated;
       });
 
+      if (data.status && data.status !== previousStatus) {
+        void (async () => {
+          try {
+            const { notifyEmployeeStatusChange } = await import("../lib/email");
+            const name = [employee.firstName, employee.lastName]
+              .filter(Boolean)
+              .join(" ");
+            await notifyEmployeeStatusChange({
+              employeeName: name,
+              employeeEmail: employee.email,
+              employeeCode: employee.employeeCode,
+              previousStatus,
+              newStatus: employee.status as
+                | "ACTIVE"
+                | "ON_LEAVE"
+                | "RESIGNED"
+                | "TERMINATED"
+                | "EXIT",
+              departmentName: employee.department?.name,
+              designationTitle: employee.designation?.title,
+              dateOfJoining: employee.dateOfJoining,
+              effectiveDate: new Date(),
+            });
+          } catch (err) {
+            console.error("[employee.update] status email failed:", err);
+          }
+        })();
+      }
+
       const { passwordHash: _, ...safe } = employee;
       return safe;
+    }),
+
+  /** Flat roster rows for Excel export (Active / Terminated / Exit / Resigned / All) */
+  exportRoster: hrAdminProcedure
+    .input(
+      z.object({
+        status: z
+          .enum(["ACTIVE", "ON_LEAVE", "RESIGNED", "TERMINATED", "EXIT", "ALL"])
+          .default("ACTIVE"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const where =
+        input.status === "ALL" ? {} : { status: input.status as (typeof EMPLOYEE_STATUSES)[number] };
+
+      const rows = await ctx.prisma.employee.findMany({
+        where,
+        include: {
+          department: { select: { name: true } },
+          designation: { select: { title: true } },
+          manager: {
+            select: { firstName: true, lastName: true, employeeCode: true },
+          },
+        },
+        orderBy: [{ status: "asc" }, { employeeCode: "asc" }],
+      });
+
+      return rows.map((e) => ({
+        employeeCode: e.employeeCode,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        email: e.email,
+        phone: e.phone ?? "",
+        role: e.role,
+        status: e.status,
+        department: e.department?.name ?? "",
+        designation: e.designation?.title ?? "",
+        manager: e.manager
+          ? `${e.manager.firstName} ${e.manager.lastName} (${e.manager.employeeCode})`
+          : "",
+        dateOfJoining: e.dateOfJoining
+          ? e.dateOfJoining.toISOString().slice(0, 10)
+          : "",
+        dateOfBirth: e.dateOfBirth
+          ? e.dateOfBirth.toISOString().slice(0, 10)
+          : "",
+        gender: e.gender ?? "",
+        address: e.address ?? "",
+        updatedAt: e.updatedAt.toISOString().slice(0, 10),
+      }));
     }),
 
   delete: hrAdminProcedure

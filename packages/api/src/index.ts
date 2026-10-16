@@ -55,8 +55,15 @@ export {
   notifyCheckOutDetails,
   notifyLatePunch,
   notifyOutsideGeofence,
+  notifyEmployeeStatusChange,
+  notifyLeaveApplied,
+  notifyLeaveDecision,
+  notifyLeaveCancelled,
   testSmtpConnection,
   getSmtpConfig,
+  getAdminNotifyEmails,
+  getHrNotifyEmails,
+  getStaffNotifyEmails,
 } from "./lib/email";
 
 export { ensureAutoPunchOut } from "./lib/attendance-auto";

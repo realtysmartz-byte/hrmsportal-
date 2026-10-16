@@ -16,6 +16,7 @@ import {
   Phone,
   Sparkles,
   FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ExcelImportModal } from "@/components/ExcelImportModal";
@@ -60,6 +61,10 @@ function EmployeesInner() {
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [exportStatus, setExportStatus] = useState<
+    "ACTIVE" | "TERMINATED" | "EXIT" | "RESIGNED" | "ON_LEAVE" | "ALL"
+  >("ACTIVE");
+  const [exporting, setExporting] = useState(false);
 
   const { data: departments } = trpc.department.list.useQuery();
   const { data, isLoading } = trpc.employee.list.useQuery({
@@ -71,8 +76,30 @@ function EmployeesInner() {
     page,
     pageSize: 20,
   });
+  const utils = trpc.useUtils();
 
   const rows = useMemo(() => data?.items ?? [], [data]);
+
+  async function exportSheet() {
+    setExporting(true);
+    try {
+      const dataRows = await utils.employee.exportRoster.fetch({
+        status: exportStatus,
+      });
+      const XLSX = await import("xlsx");
+      const sheet = XLSX.utils.json_to_sheet(dataRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, sheet, exportStatus);
+      XLSX.writeFile(
+        wb,
+        `realty-smartz-employees-${exportStatus.toLowerCase()}-${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -88,7 +115,34 @@ function EmployeesInner() {
         </div>
 
         {canManage && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white p-1">
+              <Select
+                value={exportStatus}
+                onChange={(e) =>
+                  setExportStatus(
+                    e.target.value as typeof exportStatus
+                  )
+                }
+                className="h-9 border-0 bg-transparent text-xs font-semibold shadow-none focus:ring-0"
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="TERMINATED">Terminated</option>
+                <option value="EXIT">Exit (no resign)</option>
+                <option value="RESIGNED">Resigned</option>
+                <option value="ON_LEAVE">On Leave</option>
+                <option value="ALL">All</option>
+              </Select>
+              <button
+                type="button"
+                onClick={() => void exportSheet()}
+                disabled={exporting}
+                className="flex items-center gap-1.5 rounded-md bg-neutral-900 px-3 py-2 text-xs font-bold text-white hover:bg-neutral-800 disabled:opacity-60"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {exporting ? "Exporting…" : "Export Sheet"}
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => setImportOpen(true)}

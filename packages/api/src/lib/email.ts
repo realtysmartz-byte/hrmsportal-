@@ -29,10 +29,51 @@ export function getSmtpConfig(): ActiveSmtpConfig {
   return { host, port, secure, user, pass, from };
 }
 
-export function getHrNotifyEmails(): string[] {
-  const raw = process.env.HR_NOTIFY_EMAIL;
-  if (!raw) return ["hr@realtysmartz.in"];
+function splitEmails(raw: string | undefined, fallback: string[]): string[] {
+  if (!raw?.trim()) return fallback;
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/** Admin inbox — default realtysmartz@gmail.com */
+export function getAdminNotifyEmails(): string[] {
+  return splitEmails(process.env.ADMIN_NOTIFY_EMAIL, ["realtysmartz@gmail.com"]);
+}
+
+/** HR inbox — default hr@realtysmartz.in */
+export function getHrNotifyEmails(): string[] {
+  return splitEmails(process.env.HR_NOTIFY_EMAIL, ["hr@realtysmartz.in"]);
+}
+
+/** Admin + HR (unique), used as CC on employee activity mails */
+export function getStaffNotifyEmails(): string[] {
+  return [...new Set([...getAdminNotifyEmails(), ...getHrNotifyEmails()])];
+}
+
+function uniqueEmails(list: (string | null | undefined)[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of list) {
+    const e = item?.trim();
+    if (!e) continue;
+    const key = e.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+/** Employee in To; Admin + HR (+ optional manager) in CC */
+function employeeWithStaffCc(
+  employeeEmail: string,
+  extra?: (string | null | undefined)[]
+): { to: string[]; cc: string[] } {
+  const to = uniqueEmails([employeeEmail]);
+  const staff = getStaffNotifyEmails();
+  const cc = uniqueEmails([...staff, ...(extra ?? [])]).filter(
+    (e) => !to.some((t) => t.toLowerCase() === e.toLowerCase())
+  );
+  return { to, cc };
 }
 
 export function isSmtpConfigured(): boolean {
@@ -73,6 +114,7 @@ function getTransporter() {
 
 export type MailPayload = {
   to: string | string[];
+  cc?: string | string[];
   subject: string;
   html: string;
   text?: string;
@@ -251,10 +293,17 @@ export async function sendMail(
   const textContent = payload.text || stripHtmlToText(payload.html);
 
   try {
+    const to = Array.isArray(payload.to) ? payload.to.join(", ") : payload.to;
+    const ccRaw = payload.cc
+      ? Array.isArray(payload.cc)
+        ? payload.cc.join(", ")
+        : payload.cc
+      : undefined;
     await transporter.sendMail({
       from,
       replyTo: user,
-      to: Array.isArray(payload.to) ? payload.to.join(", ") : payload.to,
+      to,
+      ...(ccRaw ? { cc: ccRaw } : {}),
       subject: payload.subject,
       html: payload.html,
       text: textContent,
@@ -267,12 +316,28 @@ export async function sendMail(
         "X-Entity-Ref-ID": messageId,
       },
     });
-    console.info("[email] Successfully sent email to:", payload.to, "| Subject:", payload.subject);
+    console.info(
+      "[email] Sent:",
+      payload.subject,
+      "| to:",
+      to,
+      ccRaw ? `| cc: ${ccRaw}` : ""
+    );
     return { success: true };
   } catch (err: any) {
     console.error("[email] send failed:", err);
     return { success: false, error: err?.message || String(err) };
   }
+}
+
+function formatInDate(value?: Date | string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /**
@@ -301,61 +366,37 @@ export async function notifyWelcomeEmployee(args: {
 
   const body = `
     <p>Dear <strong>${args.employeeName}</strong>,</p>
-    <p>Welcome to <strong>Realty Smartz Private Limited</strong>! Your employee account has been created successfully in our company HRMS Portal.</p>
-    
-    <div style="border:1px solid #EEF0F4;border-radius:10px;padding:14px 18px;margin:20px 0;">
-      <h3 style="margin:0 0 12px 0;font-size:13px;color:#111827;text-transform:uppercase;letter-spacing:0.5px;">Your Account Credentials</h3>
-      <table width="100%" border="0" cellspacing="0" cellpadding="4" style="font-size:13px;">
-        <tr>
-          <td width="35%" style="color:#6B7280;">Employee Code:</td>
-          <td style="font-weight:700;color:#111827;">${args.employeeCode}</td>
-        </tr>
-        <tr>
-          <td style="color:#6B7280;">Official Email:</td>
-          <td style="font-weight:700;color:#111827;">${args.employeeEmail}</td>
-        </tr>
-        <tr>
-          <td style="color:#6B7280;">Temporary Password:</td>
-          <td style="font-family:monospace;background:#E2E8F0;padding:2px 8px;border-radius:4px;font-weight:700;color:#111827;display:inline-block;">${args.rawPassword}</td>
-        </tr>
-        <tr>
-          <td style="color:#6B7280;">Role / Access:</td>
-          <td style="font-weight:600;color:#111827;">${args.role}</td>
-        </tr>
-        <tr>
-          <td style="color:#6B7280;">Department:</td>
-          <td style="color:#111827;">${args.departmentName || "General"}</td>
-        </tr>
-        <tr>
-          <td style="color:#6B7280;">Designation:</td>
-          <td style="color:#111827;">${args.designationTitle || "Specialist"}</td>
-        </tr>
-        <tr>
-          <td style="color:#6B7280;">Date of Joining:</td>
-          <td style="color:#111827;">${dojFormatted}</td>
-        </tr>
-      </table>
-    </div>
-
-    <p style="margin:16px 0 8px 0;">Please log into the portal to complete your profile, submit onboarding documents, and mark your daily attendance:</p>
+    <p>Welcome to <strong>Realty Smartz Private Limited</strong>. Your HRMS account is ready — please save these details and sign in to complete your profile.</p>
+    ${detailsTable([
+      ["Employee Code", args.employeeCode],
+      ["Work Email", args.employeeEmail],
+      ["Temporary Password", args.rawPassword],
+      ["Role", args.role],
+      ["Department", args.departmentName || "General"],
+      ["Designation", args.designationTitle || "—"],
+      ["Date of Joining", dojFormatted],
+    ])}
+    <p style="margin:16px 0 8px 0;font-size:13px;color:#4B5563;">Change your password after first login. Use this portal for attendance, leave, and company updates.</p>
+    <p style="font-size:12px;color:#6B7280;margin-top:12px;"><strong>Note for Admin / HR (CC):</strong> New employee <strong>${args.employeeName}</strong> (${args.employeeCode}) was added on ${formatInDate(new Date())}.</p>
   `;
 
   const html = layout({
     title: `Welcome to Realty Smartz, ${args.employeeName}!`,
-    badge: "ACCOUNT CREATED",
+    badge: "NEW EMPLOYEE",
     badgeColor: "#10B981",
     body,
     actionButton: {
-      text: "Log In to Employee Portal",
+      text: "Open Employee Portal",
       url: loginUrl,
     },
   });
 
-  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail);
 
   return sendMail({
-    to: [...new Set(recipients)],
-    subject: `Welcome to Realty Smartz — Your Portal Login & Employee Details (${args.employeeCode})`,
+    to,
+    cc,
+    subject: `Welcome — ${args.employeeName} (${args.employeeCode}) | Realty Smartz HRMS`,
     html,
   });
 }
@@ -445,8 +486,7 @@ export async function notifyPunchDetails(args: {
     body,
   });
 
-  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
-  if (args.managerEmail) recipients.push(args.managerEmail);
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail, [args.managerEmail]);
 
   const subject = isHalfDay
     ? `⚠️ [Attendance Alert] Half Day Marked — ${args.employeeName} (${timeFormatted})`
@@ -455,7 +495,8 @@ export async function notifyPunchDetails(args: {
     : `✅ [Attendance] Check-In Confirmed — ${args.employeeName} (${timeFormatted})`;
 
   return sendMail({
-    to: [...new Set(recipients)],
+    to,
+    cc,
     subject,
     html,
   });
@@ -519,11 +560,11 @@ export async function notifyCheckOutDetails(args: {
     body,
   });
 
-  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
-  if (args.managerEmail) recipients.push(args.managerEmail);
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail, [args.managerEmail]);
 
   return sendMail({
-    to: [...new Set(recipients)],
+    to,
+    cc,
     subject: isEarly
       ? `⚠️ [Attendance Alert] Early Clock-Out — ${args.employeeName} (${timeFormatted})`
       : `[Attendance] Check-Out Recorded — ${args.employeeName} (${timeFormatted})`,
@@ -575,11 +616,11 @@ export async function notifyOutsideGeofence(args: {
     <p>Company attendance policy requires all employees to mark attendance within company premise boundaries unless assigned to off-site field duty.</p>
   `;
 
-  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
-  if (args.managerEmail) recipients.push(args.managerEmail);
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail, [args.managerEmail]);
 
   return sendMail({
-    to: [...new Set(recipients)],
+    to,
+    cc,
     subject: `⚠️ [HRMS Alert] Outside Geofence Punch — ${args.employeeName}`,
     html: layout({
       title: "Outside Geofence Punch Recorded",
@@ -604,20 +645,24 @@ export async function notifyLeaveApplied(args: {
   const body = `
     <p>Leave request submitted by <strong>${args.employeeName}</strong>.</p>
     ${detailsTable([
+      ["Employee", args.employeeName],
+      ["Email", args.employeeEmail],
       ["Leave type", args.leaveType],
-      ["Dates", `${args.startDate} &rarr; ${args.endDate}`],
-      ["Days", `${args.days} (Tuesday weekly off excluded)`],
+      ["From", args.startDate],
+      ["To", args.endDate],
+      ["Days", `${args.days}`],
       ["Status", args.status],
-      ["Reason", args.reason],
+      ["Reason", args.reason || "—"],
     ])}
+    <p style="font-size:12px;color:#6B7280;">Admin and HR are copied for review.</p>
   `;
 
-  const recipients = [args.employeeEmail, ...getHrNotifyEmails()];
-  if (args.managerEmail) recipients.push(args.managerEmail);
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail, [args.managerEmail]);
 
   return sendMail({
-    to: [...new Set(recipients)],
-    subject: `[HRMS] Leave ${args.status.toLowerCase()} — ${args.employeeName}`,
+    to,
+    cc,
+    subject: `[Leave] ${args.status} — ${args.employeeName} (${args.startDate} → ${args.endDate})`,
     html: layout({
       title: "Leave Request Submitted",
       badge: args.status,
@@ -642,20 +687,151 @@ export async function notifyLeaveDecision(args: {
     <p>Your leave request has been <strong>${args.action === "APPROVED" ? "approved" : "rejected"}</strong>.</p>
     ${detailsTable([
       ["Leave type", args.leaveType],
-      ["Dates", `${args.startDate} &rarr; ${args.endDate}`],
+      ["From", args.startDate],
+      ["To", args.endDate],
       ["Days", String(args.days)],
       ...(args.note ? ([["Note", args.note]] as [string, string][]) : []),
     ])}
   `;
 
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail);
+
   return sendMail({
-    to: args.employeeEmail,
-    subject: `[HRMS] Leave ${args.action} — ${args.leaveType}`,
+    to,
+    cc,
+    subject: `[Leave] ${args.action} — ${args.employeeName} | ${args.leaveType}`,
     html: layout({
       title: `Leave Request ${args.action === "APPROVED" ? "Approved" : "Rejected"}`,
       badge: args.action,
       badgeColor: args.action === "APPROVED" ? "#10B981" : "#EF4444",
       body,
+    }),
+  });
+}
+
+export async function notifyLeaveCancelled(args: {
+  employeeName: string;
+  employeeEmail: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+}) {
+  const body = `
+    <p><strong>${args.employeeName}</strong> cancelled a leave request.</p>
+    ${detailsTable([
+      ["Leave type", args.leaveType],
+      ["From", args.startDate],
+      ["To", args.endDate],
+      ["Days", String(args.days)],
+    ])}
+  `;
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail);
+  return sendMail({
+    to,
+    cc,
+    subject: `[Leave] Cancelled — ${args.employeeName} (${args.startDate} → ${args.endDate})`,
+    html: layout({
+      title: "Leave Request Cancelled",
+      badge: "CANCELLED",
+      badgeColor: "#6B7280",
+      body,
+    }),
+  });
+}
+
+/**
+ * Status change: Active / Terminated / Resigned / Exit
+ */
+export async function notifyEmployeeStatusChange(args: {
+  employeeName: string;
+  employeeEmail: string;
+  employeeCode: string;
+  previousStatus: string;
+  newStatus: "ACTIVE" | "ON_LEAVE" | "RESIGNED" | "TERMINATED" | "EXIT";
+  departmentName?: string | null;
+  designationTitle?: string | null;
+  dateOfJoining?: Date | string | null;
+  effectiveDate?: Date | string | null;
+  note?: string | null;
+}) {
+  const effective = formatInDate(args.effectiveDate || new Date());
+  const meta: [string, string][] = [
+    ["Employee", `${args.employeeName} (${args.employeeCode})`],
+    ["Work Email", args.employeeEmail],
+    ["Department", args.departmentName || "—"],
+    ["Designation", args.designationTitle || "—"],
+    ["Date of Joining", formatInDate(args.dateOfJoining)],
+    ["Previous Status", args.previousStatus.replace("_", " ")],
+    ["New Status", args.newStatus.replace("_", " ")],
+    ["Effective Date", effective],
+  ];
+  if (args.note) meta.push(["Note", args.note]);
+
+  const configs: Record<
+    string,
+    { title: string; badge: string; color: string; intro: string; subject: string }
+  > = {
+    ACTIVE: {
+      title: "Employee Activated",
+      badge: "ACTIVE",
+      color: "#10B981",
+      intro: `Your account has been <strong>activated</strong>. You can sign in to the Realty Smartz HRMS portal and mark attendance.`,
+      subject: `[HRMS] Activated — ${args.employeeName} (${args.employeeCode})`,
+    },
+    TERMINATED: {
+      title: "Employment Terminated",
+      badge: "TERMINATED",
+      color: "#EF4444",
+      intro: `Your employment status has been marked as <strong>Terminated</strong> effective <strong>${effective}</strong>. Portal access for attendance will be restricted as per company policy.`,
+      subject: `[HRMS] Terminated — ${args.employeeName} (${args.employeeCode}) | ${effective}`,
+    },
+    RESIGNED: {
+      title: "Resignation Recorded",
+      badge: "RESIGNED",
+      color: "#6B7280",
+      intro: `Your status has been updated to <strong>Resigned</strong> effective <strong>${effective}</strong>.`,
+      subject: `[HRMS] Resigned — ${args.employeeName} (${args.employeeCode}) | ${effective}`,
+    },
+    EXIT: {
+      title: "Exit Recorded (Left Without Resignation)",
+      badge: "EXIT",
+      color: "#B45309",
+      intro: `Your status has been marked as <strong>Exit</strong> (left without formal resignation) effective <strong>${effective}</strong>.`,
+      subject: `[HRMS] Exit — ${args.employeeName} (${args.employeeCode}) | ${effective}`,
+    },
+    ON_LEAVE: {
+      title: "On Leave Status",
+      badge: "ON LEAVE",
+      color: "#F59E0B",
+      intro: `Your employment status is now <strong>On Leave</strong> effective <strong>${effective}</strong>.`,
+      subject: `[HRMS] On Leave — ${args.employeeName} (${args.employeeCode})`,
+    },
+  };
+
+  const cfg = configs[args.newStatus] || configs.ACTIVE;
+  const body = `
+    <p>Hi <strong>${args.employeeName}</strong>,</p>
+    <p>${cfg.intro}</p>
+    ${detailsTable(meta)}
+    <p style="font-size:12px;color:#6B7280;margin-top:12px;">Admin and HR are copied on this notice (${getStaffNotifyEmails().join(", ")}).</p>
+  `;
+
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail);
+
+  return sendMail({
+    to,
+    cc,
+    subject: cfg.subject,
+    html: layout({
+      title: cfg.title,
+      badge: cfg.badge,
+      badgeColor: cfg.color,
+      body,
+      actionButton:
+        args.newStatus === "ACTIVE"
+          ? { text: "Open Employee Portal", url: `${appBaseUrl()}/login` }
+          : undefined,
     }),
   });
 }
@@ -764,11 +940,11 @@ export async function notifyLocationDisabledAlert(args: {
     body,
   });
 
-  const recipients = [...getHrNotifyEmails(), args.employeeEmail];
-  if (args.managerEmail) recipients.push(args.managerEmail);
+  const { to, cc } = employeeWithStaffCc(args.employeeEmail, [args.managerEmail]);
 
   return sendMail({
-    to: [...new Set(recipients)],
+    to,
+    cc,
     subject: `🚨 [HRMS Alert] Location Services Disabled — ${args.employeeName} (${args.employeeCode})`,
     html,
   });

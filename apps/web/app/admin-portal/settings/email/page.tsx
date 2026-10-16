@@ -255,10 +255,10 @@ export default function EmailSettingsPage() {
                 <UserCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-neutral-900 block font-semibold">
-                    New Employee Welcome
+                    New Employee / Activate
                   </strong>
                   <span className="text-neutral-500 text-[11px]">
-                    Sends initial portal login credentials and company guidelines upon employee onboarding.
+                    Welcome credentials + status change (Active / Terminated / Exit / Resigned) to employee, Admin &amp; HR.
                   </span>
                 </div>
               </div>
@@ -267,10 +267,10 @@ export default function EmailSettingsPage() {
                 <Clock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-neutral-900 block font-semibold">
-                    Daily Punch Confirmation
+                    Attendance &amp; Leave
                   </strong>
                   <span className="text-neutral-500 text-[11px]">
-                    Sends instant check-in confirmation with time and office boundary verification.
+                    Check-in/out, late, leave apply / approve / reject / cancel — employee To, Admin + HR on CC.
                   </span>
                 </div>
               </div>
@@ -279,10 +279,13 @@ export default function EmailSettingsPage() {
                 <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-neutral-900 block font-semibold">
-                    Late Attendance Alert
+                    Hostinger SMTP
                   </strong>
                   <span className="text-neutral-500 text-[11px]">
-                    Automatic notification when check-in occurs after shift start time.
+                    Uses <code className="text-[10px]">smtp.hostinger.com</code>. Set{" "}
+                    <code className="text-[10px]">SMTP_PASS</code>,{" "}
+                    <code className="text-[10px]">ADMIN_NOTIFY_EMAIL=realtysmartz@gmail.com</code>,{" "}
+                    <code className="text-[10px]">HR_NOTIFY_EMAIL=hr@realtysmartz.in</code> on the server.
                   </span>
                 </div>
               </div>

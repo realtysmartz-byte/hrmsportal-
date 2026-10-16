@@ -73,6 +73,7 @@ enum EmployeeStatus {
   ON_LEAVE
   RESIGNED
   TERMINATED
+  EXIT // left without formal resignation
 }
 
 model Department {
