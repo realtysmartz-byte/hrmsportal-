@@ -18,6 +18,9 @@ const DutyTracking = registerPlugin<DutyTrackingPlugin>("DutyTracking", {
 
 const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
 
+/** Avoid restarting the native service on every page navigation. */
+let nativeTrackingStarted = false;
+
 export function isNativeAndroidApp() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
@@ -25,11 +28,13 @@ export function isNativeAndroidApp() {
 /** Start Android foreground location tracking (every 30 min while on duty). */
 export async function startNativeDutyTracking() {
   if (!isNativeAndroidApp()) return;
+  if (nativeTrackingStarted) return;
   try {
     await DutyTracking.start({
       intervalMs: DEFAULT_INTERVAL_MS,
       apiUrl: `${window.location.origin}/api/native/location-ping`,
     });
+    nativeTrackingStarted = true;
   } catch (err) {
     console.error("[duty-tracking] start failed:", err);
   }
@@ -38,6 +43,7 @@ export async function startNativeDutyTracking() {
 /** Stop Android foreground location tracking (on clock-out). */
 export async function stopNativeDutyTracking() {
   if (!isNativeAndroidApp()) return;
+  nativeTrackingStarted = false;
   try {
     await DutyTracking.stop();
   } catch (err) {

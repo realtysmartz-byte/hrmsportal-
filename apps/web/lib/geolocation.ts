@@ -45,12 +45,13 @@ export async function reverseGeocodePlace(
   return { name: coords, address: coords, lat, lng };
 }
 
-export function getCurrentPosition(): Promise<GeolocationPosition> {
+export function getCurrentPosition(fresh = false): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported by this browser"));
       return;
     }
+    const maxAge = fresh ? 0 : 30_000;
     navigator.geolocation.getCurrentPosition(
       resolve,
       (err) => {
@@ -59,7 +60,7 @@ export function getCurrentPosition(): Promise<GeolocationPosition> {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: false,
             timeout: 8000,
-            maximumAge: 120000,
+            maximumAge: fresh ? 0 : 120000,
           });
         } else {
           reject(err);
@@ -67,8 +68,8 @@ export function getCurrentPosition(): Promise<GeolocationPosition> {
       },
       {
         enableHighAccuracy: true,
-        timeout: 7000,
-        maximumAge: 30000,
+        timeout: fresh ? 15_000 : 7000,
+        maximumAge: maxAge,
       }
     );
   });

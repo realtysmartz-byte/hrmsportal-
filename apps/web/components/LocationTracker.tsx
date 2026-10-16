@@ -111,7 +111,7 @@ export function LocationTracker() {
 
     async function pingFresh() {
       try {
-        const pos = await getCurrentPosition();
+        const pos = await getCurrentPosition(true);
         return cancelled ? false : await sendPing(pos);
       } catch (err) {
         handleError(err as GeolocationPositionError);

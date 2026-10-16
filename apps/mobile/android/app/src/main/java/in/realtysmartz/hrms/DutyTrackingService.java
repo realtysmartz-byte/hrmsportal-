@@ -7,30 +7,35 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
+import android.location.Criteria;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.webkit.CookieManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONObject;
 
 /**
- * Foreground service: while the employee is on duty, send GPS to the HRMS API
- * every 30 minutes. Android requires a persistent notification for this —
- * it is not a push reminder, only a system "location in use" indicator.
+ * On-duty location: at most one fresh GPS ping every 30 minutes.
+ * Uses a real location fix (not cached lastKnownLocation).
  */
 public class DutyTrackingService extends Service {
   public static final String ACTION_START = "in.realtysmartz.hrms.DUTY_START";
@@ -39,11 +44,16 @@ public class DutyTrackingService extends Service {
   public static final String EXTRA_API_URL = "apiUrl";
 
   private static final String CHANNEL_ID = "duty_location";
+  private static final String PREFS = "duty_tracking";
+  private static final String KEY_LAST_PING_AT = "last_ping_at";
   private static final int NOTIFICATION_ID = 4401;
+  private static final long MIN_INTERVAL_MS = 30 * 60 * 1000L;
+  private static final long LOCATION_TIMEOUT_MS = 25_000L;
+  private static final long MAX_FIX_AGE_MS = 2 * 60 * 1000L;
 
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
-  private long intervalMs = 30 * 60 * 1000L;
+  private long intervalMs = MIN_INTERVAL_MS;
   private String apiUrl = "https://rshrms.in/api/native/location-ping";
   private boolean running = false;
 
@@ -52,8 +62,10 @@ public class DutyTrackingService extends Service {
         @Override
         public void run() {
           if (!running) return;
-          executor.execute(() -> sendLocationPing());
-          handler.postDelayed(this, intervalMs);
+          executor.execute(() -> {
+            sendLocationPingIfDue();
+            handler.postDelayed(tick, intervalMs);
+          });
         }
       };
 
@@ -76,10 +88,8 @@ public class DutyTrackingService extends Service {
     }
 
     if (ACTION_START.equals(action)) {
-      intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, 30 * 60 * 1000L);
-      if (intervalMs < 5 * 60 * 1000L) {
-        intervalMs = 5 * 60 * 1000L;
-      }
+      long requested = intent.getLongExtra(EXTRA_INTERVAL_MS, MIN_INTERVAL_MS);
+      intervalMs = Math.max(MIN_INTERVAL_MS, requested);
       String url = intent.getStringExtra(EXTRA_API_URL);
       if (url != null && url.length() > 0) {
         apiUrl = url;
@@ -104,9 +114,16 @@ public class DutyTrackingService extends Service {
     }
     running = true;
     handler.removeCallbacks(tick);
-    // Immediate ping, then every interval
-    executor.execute(this::sendLocationPing);
-    handler.postDelayed(tick, intervalMs);
+
+    // Do not ping on every app reopen — only when 30 minutes have elapsed.
+    long last = getLastPingAt();
+    long elapsed = System.currentTimeMillis() - last;
+    if (last <= 0 || elapsed >= intervalMs) {
+      executor.execute(this::sendLocationPingIfDue);
+      handler.postDelayed(tick, intervalMs);
+    } else {
+      handler.postDelayed(tick, intervalMs - elapsed);
+    }
   }
 
   private void stopTracking() {
@@ -114,6 +131,24 @@ public class DutyTrackingService extends Service {
     handler.removeCallbacks(tick);
     stopForeground(true);
     stopSelf();
+  }
+
+  private long getLastPingAt() {
+    SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+    return prefs.getLong(KEY_LAST_PING_AT, 0L);
+  }
+
+  private void setLastPingAt(long at) {
+    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putLong(KEY_LAST_PING_AT, at).apply();
+  }
+
+  private void sendLocationPingIfDue() {
+    long last = getLastPingAt();
+    long now = System.currentTimeMillis();
+    if (last > 0 && now - last < intervalMs - 5_000L) {
+      return;
+    }
+    sendLocationPing();
   }
 
   private void sendLocationPing() {
@@ -125,14 +160,7 @@ public class DutyTrackingService extends Service {
         return;
       }
 
-      LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
-      Location loc = null;
-      if (lm != null) {
-        loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        if (loc == null) {
-          loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        }
-      }
+      Location loc = getFreshLocation();
       if (loc == null) {
         return;
       }
@@ -169,14 +197,114 @@ public class DutyTrackingService extends Service {
       }
 
       int code = conn.getResponseCode();
-      if (code == 400) {
-        // Not on duty anymore — stop service
+      // Always advance local gate on success (including server "skipped" throttle)
+      if (code >= 200 && code < 300) {
+        setLastPingAt(System.currentTimeMillis());
+      } else if (code == 400) {
         handler.post(this::stopTracking);
       }
       conn.disconnect();
     } catch (Exception e) {
       // Keep service alive; retry on next interval
     }
+  }
+
+  /** Request a fresh GPS/network fix; ignore stale lastKnownLocation. */
+  private Location getFreshLocation() {
+    final LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
+    if (lm == null) return null;
+
+    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+      return null;
+    }
+
+    final AtomicReference<Location> result = new AtomicReference<>();
+    final CountDownLatch latch = new CountDownLatch(1);
+
+    final LocationListener listener =
+        new LocationListener() {
+          @Override
+          public void onLocationChanged(Location location) {
+            if (location == null) return;
+            Location prev = result.get();
+            if (prev == null || location.getAccuracy() <= prev.getAccuracy()) {
+              result.set(location);
+            }
+            if (location.getAccuracy() > 0 && location.getAccuracy() <= 50) {
+              latch.countDown();
+            }
+          }
+
+          @Override
+          public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+          @Override
+          public void onProviderEnabled(String provider) {}
+
+          @Override
+          public void onProviderDisabled(String provider) {}
+        };
+
+    handler.post(
+        () -> {
+          try {
+            Criteria criteria = new Criteria();
+            criteria.setAccuracy(Criteria.ACCURACY_FINE);
+            criteria.setAltitudeRequired(false);
+            criteria.setBearingRequired(false);
+            criteria.setSpeedRequired(false);
+            String best = lm.getBestProvider(criteria, true);
+            if (best != null) {
+              lm.requestLocationUpdates(best, 0L, 0f, listener, Looper.getMainLooper());
+            }
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+              lm.requestLocationUpdates(
+                  LocationManager.GPS_PROVIDER, 0L, 0f, listener, Looper.getMainLooper());
+            }
+            if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+              lm.requestLocationUpdates(
+                  LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, Looper.getMainLooper());
+            }
+          } catch (SecurityException e) {
+            latch.countDown();
+          }
+        });
+
+    try {
+      latch.await(LOCATION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    handler.post(
+        () -> {
+          try {
+            lm.removeUpdates(listener);
+          } catch (Exception ignored) {
+          }
+        });
+
+    Location fresh = result.get();
+    if (fresh != null) {
+      return fresh;
+    }
+
+    // Fallback only if last known is recent (< 2 min)
+    try {
+      Location gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+      Location net = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+      Location best = null;
+      if (gps != null) best = gps;
+      if (net != null && (best == null || net.getAccuracy() < best.getAccuracy())) best = net;
+      if (best != null && System.currentTimeMillis() - best.getTime() <= MAX_FIX_AGE_MS) {
+        return best;
+      }
+    } catch (SecurityException ignored) {
+    }
+    return null;
   }
 
   private void createChannel() {
@@ -201,7 +329,7 @@ public class DutyTrackingService extends Service {
 
     return new NotificationCompat.Builder(this, CHANNEL_ID)
         .setContentTitle("RS HRMS")
-        .setContentText("On duty — location tracking active")
+        .setContentText("On duty — location every 30 min")
         .setSmallIcon(R.mipmap.ic_launcher)
         .setOngoing(true)
         .setOnlyAlertOnce(true)

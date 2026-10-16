@@ -10,9 +10,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const MIN_TRACKING_PING_GAP_MS = 28 * 60 * 1000;
+
 /**
  * Authenticated endpoint for the Android app duty-location service.
- * Uses the website session cookie — no push notifications.
+ * At most one saved ping per ~30 minutes while on duty.
  */
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -69,6 +71,17 @@ export async function POST(req: Request) {
 
   if (!todayLog?.checkInTime || todayLog.checkOutTime) {
     return NextResponse.json({ error: "Not on duty", stopTracking: true }, { status: 400 });
+  }
+
+  const recent = await prisma.locationPing.findFirst({
+    where: {
+      employeeId: employee.id,
+      capturedAt: { gte: new Date(Date.now() - MIN_TRACKING_PING_GAP_MS) },
+    },
+    orderBy: { capturedAt: "desc" },
+  });
+  if (recent) {
+    return NextResponse.json({ ok: true, id: recent.id, skipped: true });
   }
 
   const workLocation = await getEffectiveWorkLocation(prisma, employee.id);

@@ -36,6 +36,8 @@ import {
 /** Reject pings whose GPS fix is older than this or stamped in the future. */
 const MAX_PING_AGE_MS = 10 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 2 * 60 * 1000;
+/** Ignore duplicate tracking pings closer than this (30 min cadence). */
+const MIN_TRACKING_PING_GAP_MS = 28 * 60 * 1000;
 
 let sheetSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -924,6 +926,16 @@ export const attendanceRouter = router({
         where: { employeeId, capturedAt: input.capturedAt },
       });
       if (duplicate) return duplicate;
+
+      // App/browser must not spam — keep ~30 minute spacing between tracking pings
+      const recent = await ctx.prisma.locationPing.findFirst({
+        where: {
+          employeeId,
+          capturedAt: { gte: new Date(Date.now() - MIN_TRACKING_PING_GAP_MS) },
+        },
+        orderBy: { capturedAt: "desc" },
+      });
+      if (recent) return recent;
 
       const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
       const withinGeofence =
