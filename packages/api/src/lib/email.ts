@@ -501,7 +501,7 @@ export async function notifyPunchDetails(args: {
 
   return sendMail({
     to,
-    cc,
+    bcc,
     subject,
     html,
   });
