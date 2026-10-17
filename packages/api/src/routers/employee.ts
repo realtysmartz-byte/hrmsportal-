@@ -12,6 +12,7 @@ import {
   getEmployeeVisibilityLevel,
   isWorkingDay,
   EMPLOYEE_STATUSES,
+  startOfDayUTC,
 } from "@realty-smartz/shared";
 import {
   type Role,
@@ -1087,23 +1088,72 @@ export const employeeRouter = router({
   }),
 
   dashboardStats: protectedProcedure.query(async ({ ctx }) => {
-    const [totalEmployees, departmentCount, recentJoiners] = await Promise.all([
-      ctx.prisma.employee.count({
-        where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-      }),
-      ctx.prisma.department.count(),
-      ctx.prisma.employee.findMany({
-        where: { dateOfJoining: { not: null } },
-        include: employeeInclude,
-        orderBy: { dateOfJoining: "desc" },
-        take: 5,
-      }),
-    ]);
+    const today = startOfDayUTC(new Date());
+    const [totalEmployees, departmentCount, recentJoiners, todayLogs] =
+      await Promise.all([
+        ctx.prisma.employee.count({
+          where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+        }),
+        ctx.prisma.department.count(),
+        ctx.prisma.employee.findMany({
+          where: { dateOfJoining: { not: null } },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            profilePhotoUrl: true,
+            dateOfJoining: true,
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+          },
+          orderBy: { dateOfJoining: "desc" },
+          take: 5,
+        }),
+        ctx.prisma.attendanceLog.findMany({
+          where: { date: today },
+          select: {
+            status: true,
+            checkInTime: true,
+            employee: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        }),
+      ]);
+
+    const onLeave = todayLogs
+      .filter((l) => l.status === "ON_LEAVE")
+      .map((l) => l.employee);
+    const checkedIn = todayLogs.filter((l) => Boolean(l.checkInTime));
+    const late = checkedIn
+      .filter((l) => l.status === "LATE")
+      .map((l) => l.employee);
+    const onTime = checkedIn
+      .filter((l) => l.status !== "LATE")
+      .map((l) => l.employee);
+    const checkedIds = new Set(todayLogs.map((l) => l.employee.id));
+    const notInSample = await ctx.prisma.employee.findMany({
+      where: {
+        status: { in: ["ACTIVE", "ON_LEAVE"] },
+        id: { notIn: [...checkedIds] },
+      },
+      select: { id: true, firstName: true, lastName: true },
+      take: 4,
+      orderBy: { firstName: "asc" },
+    });
+    const notInCount = Math.max(0, totalEmployees - checkedIds.size);
 
     return {
       totalEmployees,
       departmentCount,
-      recentJoiners: recentJoiners.map(({ passwordHash: _, ...rest }) => rest),
+      recentJoiners,
+      presence: {
+        onTime: { count: onTime.length, sample: onTime.slice(0, 4) },
+        late: { count: late.length, sample: late.slice(0, 4) },
+        onLeave: { count: onLeave.length, sample: onLeave.slice(0, 4) },
+        notIn: { count: notInCount, sample: notInSample },
+      },
     };
   }),
 

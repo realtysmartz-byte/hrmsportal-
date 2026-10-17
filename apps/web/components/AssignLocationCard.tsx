@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocationMap } from "@/components/LocationMap";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { isGoogleMapsLink, isUnnamedPin, reverseGeocodePlace } from "@/lib/geolocation";
 
 interface SearchResult {
@@ -29,6 +30,7 @@ interface AssignLocationCardProps {
   currentSites?: { name: string; lat: number; lng: number }[] | null;
   canManage: boolean;
   onUpdated?: () => void;
+  className?: string;
 }
 
 const LINK_ERROR =
@@ -76,6 +78,7 @@ export function AssignLocationCard({
   currentSites,
   canManage,
   onUpdated,
+  className,
 }: AssignLocationCardProps) {
   const utils = trpc.useUtils();
   const { data: office } = trpc.companySettings.get.useQuery(undefined, {
@@ -228,7 +231,12 @@ export function AssignLocationCard({
     (filled.length ? "Assigned site" : office?.officeName ?? "Company office");
 
   return (
-    <div className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 md:p-6">
+    <div
+      className={cn(
+        "space-y-4 rounded-lg border border-neutral-200 bg-white p-4 md:p-6",
+        className
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold text-neutral-900">Work locations</h3>

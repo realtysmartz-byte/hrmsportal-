@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import {
   geolocationErrorMessage,
   getPunchPosition,
-  reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
 import {
@@ -89,8 +88,12 @@ export function KekaAttendancePanel({
     targetEmployeeId && targetEmployeeId !== session?.user?.id
   );
 
-  // Queries
-  const { data: currentUserWorkLoc } = trpc.attendance.myWorkLocation.useQuery();
+  // Queries — keep punch path lean
+  const { data: currentUserWorkLoc } = trpc.attendance.myWorkLocation.useQuery(undefined, {
+    enabled: !isTargetMode,
+    staleTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   const { data: targetMonthData, isLoading: isTargetMonthLoading } =
     trpc.attendance.forEmployeeMonth.useQuery(
@@ -99,7 +102,7 @@ export function KekaAttendancePanel({
         year: selectedYear,
         month: selectedMonth,
       },
-      { enabled: isTargetMode }
+      { enabled: isTargetMode, staleTime: 60_000 }
     );
 
   const { data: selfMonthData, isLoading: isSelfMonthLoading } =
@@ -108,7 +111,7 @@ export function KekaAttendancePanel({
         year: selectedYear,
         month: selectedMonth,
       },
-      { enabled: !isTargetMode }
+      { enabled: !isTargetMode, staleTime: 60_000 }
     );
 
   const monthData = isTargetMode ? targetMonthData : selfMonthData;
@@ -117,11 +120,11 @@ export function KekaAttendancePanel({
   const { data: selfTodayAttendance, isLoading: isSelfTodayLoading } =
     trpc.attendance.today.useQuery(undefined, {
       enabled: !isTargetMode,
-      staleTime: 30_000,
-      refetchOnWindowFocus: true,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
       refetchInterval: (data) => {
         const onDuty = Boolean(data?.checkInTime && !data?.checkOutTime);
-        return onDuty && getISTDateParts(new Date()).hour >= 19 ? 30_000 : false;
+        return onDuty && getISTDateParts(new Date()).hour >= 19 ? 60_000 : false;
       },
     });
 
@@ -141,10 +144,9 @@ export function KekaAttendancePanel({
   const todayAttendance = isTargetMode ? targetTodayAttendance : selfTodayAttendance;
   const isTodayLoading = isTargetMode ? isTargetMonthLoading : isSelfTodayLoading;
 
-  // If admin viewing specific employee:
   const { data: selfProfile } = trpc.employee.myIdCard.useQuery(undefined, {
-    enabled: !isTargetMode,
-    staleTime: 5 * 60 * 1000,
+    enabled: !isTargetMode && !propName,
+    staleTime: 10 * 60_000,
   });
   const empId = targetEmployeeId ?? session?.user?.id ?? "";
   const displayName =
@@ -233,12 +235,7 @@ export function KekaAttendancePanel({
         );
       }
 
-      let label = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      if (mode === "out" && !matchedSite) {
-        const place = await reverseGeocodePlace(lat, lng);
-        label =
-          place.name === place.address ? place.address : `${place.name} — ${place.address}`;
-      }
+      const label = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
       if (mode === "in") {
         await checkInMutation.mutateAsync({ lat, lng, address: label });
@@ -657,7 +654,8 @@ export function KekaAttendancePanel({
                   const barWidthPercent = Math.min(100, Math.round((hoursVal / 9) * 100));
 
                   const rawDateStr = new Date(log.date).toISOString().slice(0, 10);
-                  const punches = log.punches ?? [];
+                  const punches =
+                    "punches" in log && Array.isArray(log.punches) ? log.punches : [];
                   const firstIn = punches[0]?.checkInTime ?? log.checkInTime;
                   const isExpanded = expandedLogId === log.id;
 

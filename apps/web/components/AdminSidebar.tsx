@@ -77,7 +77,7 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "relative flex h-full max-h-screen shrink-0 flex-col bg-[#1E1A3C] text-white border-r border-white/10 transition-all duration-300 ease-in-out select-none overflow-x-hidden",
+        "relative flex h-full max-h-[100dvh] w-full shrink-0 flex-col select-none overflow-x-hidden border-r border-white/10 bg-[#1E1A3C] text-white transition-all duration-300 ease-in-out",
         isCollapsed ? "w-[76px]" : "w-[260px]"
       )}
     >

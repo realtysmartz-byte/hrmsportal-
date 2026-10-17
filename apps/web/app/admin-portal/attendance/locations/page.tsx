@@ -95,17 +95,20 @@ export default function LocationTracingPage() {
     isLoading: isPingsLoading,
     refetch: refetchPings,
     isFetching: isPingsFetching,
-  } = trpc.attendance.allLocationPings.useQuery({
-    date: new Date(date),
-    employeeId: selectedEmployeeId || undefined,
-    limit: 150,
-  });
+  } = trpc.attendance.allLocationPings.useQuery(
+    {
+      date: new Date(date),
+      employeeId: selectedEmployeeId || undefined,
+      limit: 150,
+    },
+    { enabled: viewMode === "traces", staleTime: 60_000 }
+  );
 
-  const isRefreshing = isStaffFetching || isPingsFetching;
+  const isRefreshing = isStaffFetching || (viewMode === "traces" && isPingsFetching);
 
   const handleRefresh = () => {
     void refetchStaff();
-    void refetchPings();
+    if (viewMode === "traces") void refetchPings();
   };
 
   // Filter staff by search query & selected employee
@@ -130,11 +133,17 @@ export default function LocationTracingPage() {
     return name.includes(query) || code.includes(query) || addr.includes(query);
   });
 
-  // KPI Calculations
+  // KPI Calculations — overview uses staff data only (no heavy ping list)
   const totalEmployees = allStaff?.length ?? 0;
   const presentToday = (allStaff ?? []).filter((s) => Boolean(s.todayAttendance?.checkInTime)).length;
-  const totalPings = pings?.length ?? 0;
-  const activeGpsPinging = new Set((pings ?? []).map((p) => p.employeeId)).size;
+  const totalPings =
+    viewMode === "traces"
+      ? pings?.length ?? 0
+      : (allStaff ?? []).filter((s) => Boolean(s.latestPing)).length;
+  const activeGpsPinging =
+    viewMode === "traces"
+      ? new Set((pings ?? []).map((p) => p.employeeId)).size
+      : (allStaff ?? []).filter((s) => Boolean(s.latestPing)).length;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-1 sm:px-0">

@@ -40,13 +40,12 @@ export function LocationTracker() {
   const isPingPage = pathname === "/location-ping";
   const onEmployeeRoute = pathname?.startsWith("/employee-portal") ?? false;
 
+  // Share cache with CheckInOutCard — no extra polling from tracker
   const { data: todayAttendance } = trpc.attendance.today.useQuery(undefined, {
     enabled: authStatus === "authenticated" && onEmployeeRoute && !isPingPage,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
-    // Only poll while on duty — idle users should not hit the API every minute
-    refetchInterval: (data) =>
-      data?.checkInTime && !data?.checkOutTime ? 5 * 60_000 : false,
+    refetchInterval: false,
   });
 
   const [status, setStatus] = useState<"on" | "denied" | "error" | "idle">("idle");

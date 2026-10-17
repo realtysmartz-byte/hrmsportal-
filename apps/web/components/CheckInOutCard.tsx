@@ -6,7 +6,6 @@ import { trpc } from "@/lib/trpc";
 import {
   geolocationErrorMessage,
   getPunchPosition,
-  reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
 import {
@@ -22,7 +21,6 @@ import {
   haversineDistanceM,
 } from "@realty-smartz/shared";
 import { cn } from "@/lib/utils";
-import { PunchList } from "@/components/PunchList";
 
 function formatDuration(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -45,11 +43,12 @@ export function CheckInOutCard() {
     refetchInterval: (data) => {
       const onDuty = Boolean(data?.checkInTime && !data?.checkOutTime);
       if (!onDuty) return false;
-      return getISTDateParts(new Date()).hour >= 19 ? 15_000 : false;
+      return getISTDateParts(new Date()).hour >= 19 ? 60_000 : false;
     },
   });
   const { data: workLoc } = trpc.attendance.myWorkLocation.useQuery(undefined, {
     staleTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
   });
   const reportLocationDisabled = trpc.attendance.reportLocationDisabled.useMutation();
   const savePush = trpc.attendance.savePushSubscription.useMutation();
@@ -109,12 +108,8 @@ export function CheckInOutCard() {
         return;
       }
 
-      let address = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      if (mode === "out" && !matchedSite) {
-        const place = await reverseGeocodePlace(lat, lng);
-        address =
-          place.name === place.address ? place.address : `${place.name} — ${place.address}`;
-      }
+      // Skip reverse-geocode on punch — keeps clock-in/out under ~5s
+      const address = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
       if (mode === "in") {
         await checkIn.mutateAsync({ lat, lng, address });
@@ -252,11 +247,6 @@ export function CheckInOutCard() {
         <span className="truncate">{locationLabel}</span>
       </div>
 
-      {today?.punches && today.punches.length > 1 && (
-        <div className="mt-3">
-          <PunchList punches={today.punches} />
-        </div>
-      )}
     </div>
   );
 }

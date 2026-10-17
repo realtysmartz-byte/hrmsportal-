@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
@@ -62,13 +63,23 @@ function Panel({
 
 export default function AdminDashboardPage() {
   const { data: session } = useSession();
-  const { data, isLoading } = trpc.employee.dashboardStats.useQuery();
-  const { data: pendingLeave } = trpc.leave.pendingApprovals.useQuery();
+  const { data, isLoading } = trpc.employee.dashboardStats.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+  const [loadExtra, setLoadExtra] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLoadExtra(true), 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  const { data: pendingLeave } = trpc.leave.pendingApprovals.useQuery(undefined, {
+    enabled: loadExtra,
+    staleTime: 60_000,
+  });
   const { data: jobs } = trpc.recruitment.jobList.useQuery(
     { status: "OPEN" },
-    { retry: false }
+    { enabled: loadExtra, retry: false, staleTime: 5 * 60_000 }
   );
-  const { data: team } = trpc.attendance.team.useQuery({}, { retry: false });
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -78,13 +89,7 @@ export default function AdminDashboardPage() {
   const deptCount = data?.departmentCount ?? 0;
   const pendingLeaveCount = pendingLeave?.length ?? 0;
   const openJobsCount = jobs?.length ?? 0;
-
-  const rows = team?.rows ?? [];
-  const onLeave = rows.filter((r) => r.log?.status === "ON_LEAVE");
-  const checkedIn = rows.filter((r) => r.log?.checkInTime);
-  const late = checkedIn.filter((r) => r.log?.status === "LATE");
-  const onTime = checkedIn.filter((r) => r.log?.status !== "LATE");
-  const notIn = rows.filter((r) => !r.log?.checkInTime && r.log?.status !== "ON_LEAVE");
+  const presence = data?.presence;
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "Admin";
   const today = new Date().toLocaleDateString("en-IN", {
@@ -102,10 +107,30 @@ export default function AdminDashboardPage() {
   ];
 
   const whoIsIn = [
-    { label: "Not in yet", list: notIn, color: "bg-neutral-400" },
-    { label: "On time", list: onTime, color: "bg-emerald-500" },
-    { label: "Late arrivals", list: late, color: "bg-amber-500" },
-    { label: "On leave", list: onLeave, color: "bg-sky-500" },
+    {
+      label: "Not in yet",
+      count: presence?.notIn.count ?? 0,
+      list: presence?.notIn.sample ?? [],
+      color: "bg-neutral-400",
+    },
+    {
+      label: "On time",
+      count: presence?.onTime.count ?? 0,
+      list: presence?.onTime.sample ?? [],
+      color: "bg-emerald-500",
+    },
+    {
+      label: "Late arrivals",
+      count: presence?.late.count ?? 0,
+      list: presence?.late.sample ?? [],
+      color: "bg-amber-500",
+    },
+    {
+      label: "On leave",
+      count: presence?.onLeave.count ?? 0,
+      list: presence?.onLeave.sample ?? [],
+      color: "bg-sky-500",
+    },
   ];
 
   return (
@@ -158,22 +183,20 @@ export default function AdminDashboardPage() {
                     <span className={`h-2 w-2 rounded-full ${g.color}`} />
                     {g.label}
                   </div>
-                  <p className="mt-1 text-lg font-semibold text-neutral-900">
-                    {g.list.length}
-                  </p>
+                  <p className="mt-1 text-lg font-semibold text-neutral-900">{g.count}</p>
                   <div className="mt-2 flex -space-x-1.5">
-                    {g.list.slice(0, 4).map((r) => (
+                    {g.list.slice(0, 4).map((emp) => (
                       <div
-                        key={r.employee.id}
-                        title={`${r.employee.firstName} ${r.employee.lastName ?? ""}`}
+                        key={emp.id}
+                        title={`${emp.firstName} ${emp.lastName ?? ""}`}
                         className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-700 ring-2 ring-white"
                       >
-                        {initials(r.employee.firstName, r.employee.lastName)}
+                        {initials(emp.firstName, emp.lastName)}
                       </div>
                     ))}
-                    {g.list.length > 4 && (
+                    {g.count > 4 && (
                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-semibold text-neutral-700 ring-2 ring-white">
-                        +{g.list.length - 4}
+                        +{g.count - 4}
                       </div>
                     )}
                   </div>

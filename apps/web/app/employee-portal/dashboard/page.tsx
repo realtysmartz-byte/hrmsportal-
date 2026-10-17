@@ -24,7 +24,7 @@ export default function EmployeeDashboardPage() {
   // Load Clock In first — secondary widgets after 1.5s so they don't batch-block punch
   const [loadSecondary, setLoadSecondary] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setLoadSecondary(true), 1500);
+    const t = setTimeout(() => setLoadSecondary(true), 2500);
     return () => clearTimeout(t);
   }, []);
 

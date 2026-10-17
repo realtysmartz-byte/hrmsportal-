@@ -870,94 +870,78 @@ export default function TeamAttendancePage() {
               return (
                 <TableRow
                   key={log?.id ?? `${row.employee.id}-${index}`}
-                  className="hover:bg-neutral-50/70 transition-colors border-b border-neutral-100"
+                  className="border-b border-neutral-100 transition-colors hover:bg-[#F8F7FC]"
                 >
-                  {/* 1. Employee Name */}
-                  <TableCell className="align-middle">
-                    <p className="font-bold text-neutral-900 text-xs">{empName}</p>
-                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                  <TableCell className="py-3 align-middle">
+                    <p className="text-sm font-semibold text-neutral-900">{empName}</p>
+                    <p className="mt-0.5 text-[11px] text-neutral-500">
                       {row.employee.employeeCode}
                       {row.employee.department?.name ? ` · ${row.employee.department.name}` : ""}
                     </p>
                   </TableCell>
 
-                  {/* 2. Date */}
-                  <TableCell className="align-middle whitespace-nowrap text-xs font-semibold text-neutral-800">
+                  <TableCell className="py-3 align-middle whitespace-nowrap text-xs font-medium text-neutral-700">
                     {dateStr}
                   </TableCell>
 
-                  {/* 3. Punch In time */}
-                  <TableCell className="align-middle whitespace-nowrap text-xs">
+                  <TableCell className="py-3 align-middle whitespace-nowrap text-xs">
                     {hasCheckedIn ? (
                       <div className="flex items-center gap-1.5 font-medium text-neutral-900">
-                        <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-[#5D3EBC]" />
                         <span>{formatTimeIST(log!.checkInTime)}</span>
                       </div>
                     ) : (
-                      <span className="text-neutral-400 font-medium">—</span>
+                      <span className="font-medium text-neutral-400">—</span>
                     )}
                   </TableCell>
 
-                  {/* 4. Punch Out time */}
-                  <TableCell className="align-middle whitespace-nowrap text-xs">
+                  <TableCell className="py-3 align-middle whitespace-nowrap text-xs">
                     {hasCheckedOut ? (
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1.5 font-medium text-neutral-900">
-                          <Clock className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
                           <span>{formatTimeIST(log!.checkOutTime)}</span>
                         </div>
                         {isAuto && (
-                          <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                            ⚡ Auto 7:00 PM
+                          <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-1.5 text-[10px] font-bold text-emerald-700">
+                            Auto 7:00 PM
                           </span>
                         )}
                       </div>
                     ) : hasCheckedIn ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-primary border border-indigo-200">
+                      <span className="inline-flex items-center rounded-full border border-[#5D3EBC]/25 bg-[#F3F0FC] px-2.5 py-0.5 text-[11px] font-semibold text-[#5D3EBC]">
                         On Duty
                       </span>
                     ) : (
-                      <span className="text-neutral-400 font-medium">—</span>
+                      <span className="font-medium text-neutral-400">—</span>
                     )}
                   </TableCell>
 
-                  {/* 5. Location (map link) */}
-                  <TableCell className="align-middle text-xs">
+                  <TableCell className="py-3 align-middle text-xs">
                     {hasCheckedIn ? (
-                      <div className="space-y-1">
-                        <p className="text-neutral-700 text-xs line-clamp-2" title={addressText}>
+                      <div className="flex max-w-[280px] items-center gap-2">
+                        <p className="min-w-0 flex-1 truncate text-neutral-700" title={addressText}>
                           {addressText}
                         </p>
                         {hasGps ? (
-                          <div className="flex items-center gap-2 pt-0.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMapModalTarget({
-                                  employeeId: row.employee.id,
-                                  employeeName: empName,
-                                  date: parseDateParam(log?.date, selectedDate),
-                                });
-                              }}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-800 hover:text-black bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-2 py-0.5 rounded transition-colors"
-                            >
-                              <MapPin className="h-3 w-3 text-[#1AB3B6]" />
-                              <span>Map View</span>
-                            </button>
-                            <a
-                              href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#5D3EBC] hover:underline"
-                            >
-                              <span>Google Maps</span>
-                              <ExternalLink className="h-2.5 w-2.5" />
-                            </a>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMapModalTarget({
+                                employeeId: row.employee.id,
+                                employeeName: empName,
+                                date: parseDateParam(log?.date, selectedDate),
+                              });
+                            }}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-[11px] font-semibold text-teal-800 hover:bg-teal-100"
+                          >
+                            <MapPin className="h-3 w-3" />
+                            Map
+                          </button>
                         ) : null}
                       </div>
                     ) : (
-                      <span className="text-neutral-400 font-medium">—</span>
+                      <span className="font-medium text-neutral-400">—</span>
                     )}
                   </TableCell>
 
