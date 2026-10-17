@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import type { PrismaClient } from "@realty-smartz/db";
+import { Prisma, type PrismaClient } from "@realty-smartz/db";
 import { haversineDistanceM } from "@realty-smartz/shared";
 
 export type EffectiveWorkLocation = {
@@ -95,11 +95,13 @@ export function parseAssignedSites(emp: {
 /** Keep legacy columns in sync with first assigned site (or clear). */
 export function syncLegacyWorkLocation(sites: AssignedSite[] | null | undefined) {
   const first = sites?.[0];
+  const list = sites && sites.length > 0 ? sites.slice(0, 3) : null;
   return {
     workLocationName: first?.name ?? null,
     workLocationLat: first?.lat ?? null,
     workLocationLng: first?.lng ?? null,
-    assignedLocations: sites && sites.length > 0 ? sites.slice(0, 3) : null,
+    // Prisma Json? needs DbNull for SQL NULL — plain `null` fails tsc
+    assignedLocations: list === null ? Prisma.DbNull : (list as Prisma.InputJsonValue),
   };
 }
 
