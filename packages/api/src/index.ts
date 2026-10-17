@@ -28,9 +28,11 @@ export type AppRouter = typeof appRouter;
 export { createContext } from "./context";
 export {
   getEffectiveWorkLocation,
+  getPunchGeofenceSites,
+  resolvePunchGeofence,
   distanceToWorkLocationM,
 } from "./lib/work-location";
-export type { EffectiveWorkLocation } from "./lib/work-location";
+export type { EffectiveWorkLocation, PunchGeofenceMatch } from "./lib/work-location";
 export type {
   Context,
   Session,

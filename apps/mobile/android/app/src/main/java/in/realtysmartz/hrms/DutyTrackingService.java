@@ -47,7 +47,7 @@ public class DutyTrackingService extends Service {
   private static final String PREFS = "duty_tracking";
   private static final String KEY_LAST_PING_AT = "last_ping_at";
   private static final int NOTIFICATION_ID = 4401;
-  private static final long MIN_INTERVAL_MS = 30 * 60 * 1000L;
+  private static final long MIN_INTERVAL_MS = 60 * 60 * 1000L; // 1 hour
   private static final long LOCATION_TIMEOUT_MS = 25_000L;
   private static final long MAX_FIX_AGE_MS = 2 * 60 * 1000L;
 
@@ -329,7 +329,7 @@ public class DutyTrackingService extends Service {
 
     return new NotificationCompat.Builder(this, CHANNEL_ID)
         .setContentTitle("RS HRMS")
-        .setContentText("On duty — location every 30 min")
+        .setContentText("On duty — location every 1 hour")
         .setSmallIcon(R.mipmap.ic_launcher)
         .setOngoing(true)
         .setOnlyAlertOnce(true)

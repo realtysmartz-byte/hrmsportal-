@@ -25,6 +25,7 @@ import {
   resolveActorId,
 } from "../lib/employee-access";
 import { parseExcelDate } from "../lib/excel-import";
+import { syncLegacyWorkLocation } from "../lib/work-location";
 
 const employeeInclude = {
   department: { select: { id: true, name: true } },
@@ -540,9 +541,22 @@ export const employeeRouter = router({
           address: input.address || null,
           profilePhotoUrl: input.profilePhotoUrl || null,
           status: input.status,
-          workLocationLat: input.workLocationLat ?? null,
-          workLocationLng: input.workLocationLng ?? null,
-          workLocationName: input.workLocationName || null,
+          ...(() => {
+            if (input.assignedLocations !== undefined) {
+              return syncLegacyWorkLocation(input.assignedLocations ?? []);
+            }
+            const single =
+              input.workLocationLat != null && input.workLocationLng != null
+                ? [
+                    {
+                      name: input.workLocationName || "Assigned site",
+                      lat: input.workLocationLat,
+                      lng: input.workLocationLng,
+                    },
+                  ]
+                : [];
+            return syncLegacyWorkLocation(single);
+          })(),
         },
         include: employeeInclude,
       });
@@ -817,12 +831,37 @@ export const employeeRouter = router({
       if (data.profilePhotoUrl !== undefined)
         updateData.profilePhotoUrl = data.profilePhotoUrl || null;
       if (data.status !== undefined) updateData.status = data.status;
-      if (data.workLocationLat !== undefined)
-        updateData.workLocationLat = data.workLocationLat ?? null;
-      if (data.workLocationLng !== undefined)
-        updateData.workLocationLng = data.workLocationLng ?? null;
-      if (data.workLocationName !== undefined)
-        updateData.workLocationName = data.workLocationName || null;
+      if (data.assignedLocations !== undefined) {
+        Object.assign(
+          updateData,
+          syncLegacyWorkLocation(data.assignedLocations ?? [])
+        );
+      } else if (
+        data.workLocationLat !== undefined ||
+        data.workLocationLng !== undefined ||
+        data.workLocationName !== undefined
+      ) {
+        const lat =
+          data.workLocationLat !== undefined
+            ? data.workLocationLat
+            : existing.workLocationLat;
+        const lng =
+          data.workLocationLng !== undefined
+            ? data.workLocationLng
+            : existing.workLocationLng;
+        const name =
+          data.workLocationName !== undefined
+            ? data.workLocationName
+            : existing.workLocationName;
+        Object.assign(
+          updateData,
+          syncLegacyWorkLocation(
+            lat != null && lng != null
+              ? [{ name: name || "Assigned site", lat, lng }]
+              : []
+          )
+        );
+      }
       if (password) {
         updateData.passwordHash = await bcrypt.hash(password, 12);
       }
@@ -1134,18 +1173,18 @@ export const employeeRouter = router({
         lastName: true,
         profilePhotoUrl: true,
         dateOfBirth: true,
-        department: { select: { id: true, name: true } },
-        designation: { select: { id: true, title: true } },
+        department: { select: { name: true } },
+        designation: { select: { title: true } },
       },
+      take: 200,
     });
 
     const now = new Date();
     const currentYear = now.getFullYear();
     const today = new Date(currentYear, now.getMonth(), now.getDate());
-
     const monthNames = [
       "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
+      "July", "August", "September", "October", "November", "December",
     ];
 
     const upcoming: {
@@ -1166,36 +1205,30 @@ export const employeeRouter = router({
       const dob = new Date(emp.dateOfBirth);
       const birthMonth = dob.getMonth();
       const birthDay = dob.getDate();
-
-      // Check current year birthday
       let nextBirthday = new Date(currentYear, birthMonth, birthDay);
-      // If birthday has already passed this year, wrap to next year (handles year wrap-around like Dec 20 to Jan 19)
       if (nextBirthday.getTime() < today.getTime()) {
         nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
       }
-
-      const diffTime = nextBirthday.getTime() - today.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays >= 0 && diffDays <= 30) {
-        upcoming.push({
-          id: emp.id,
-          name: `${emp.firstName} ${emp.lastName}`.trim(),
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          profilePhotoUrl: emp.profilePhotoUrl,
-          department: emp.department?.name ?? null,
-          designation: emp.designation?.title ?? null,
-          birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
-          isToday: diffDays === 0,
-          daysUntil: diffDays,
-        });
-      }
+      const diffDays = Math.round(
+        (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      if (diffDays < 0 || diffDays > 30) continue;
+      upcoming.push({
+        id: emp.id,
+        name: `${emp.firstName} ${emp.lastName}`.trim(),
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        profilePhotoUrl: emp.profilePhotoUrl,
+        department: emp.department?.name ?? null,
+        designation: emp.designation?.title ?? null,
+        birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
+        isToday: diffDays === 0,
+        daysUntil: diffDays,
+      });
     }
 
-    // Sort by how soon the birthday is
     upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
-    return upcoming;
+    return upcoming.slice(0, 12);
   }),
 });
 

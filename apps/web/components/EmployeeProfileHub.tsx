@@ -1783,6 +1783,23 @@ function PerformanceTab({ employeeId }: { employeeId: string }) {
   );
 }
 
+function parseAssignedSitesJson(
+  raw: unknown
+): { name: string; lat: number; lng: number }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { name: string; lat: number; lng: number }[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const lat = Number(o.lat);
+    const lng = Number(o.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    out.push({ name: String(o.name || "Assigned site"), lat, lng });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 function GpsTrailTab({
   emp,
   canManage,
@@ -1795,6 +1812,7 @@ function GpsTrailTab({
     workLocationName: string | null;
     workLocationLat: number | null;
     workLocationLng: number | null;
+    assignedLocations?: unknown;
   };
   canManage: boolean;
 }) {
@@ -1845,6 +1863,7 @@ function GpsTrailTab({
           currentLocationName={emp.workLocationName}
           currentLat={emp.workLocationLat}
           currentLng={emp.workLocationLng}
+          currentSites={parseAssignedSitesJson(emp.assignedLocations)}
           canManage={canManage}
         />
       ) : (

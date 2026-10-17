@@ -7,47 +7,66 @@ import {
 import { getApprovedHalfDaySlot, statusAfterCheckOut } from "./attendance-rules";
 
 /**
- * Automatically stamps punch-out at 7:00 PM IST (19:00 IST / 13:30 UTC)
- * for any unclosed check-in records:
- * 1. For any past date (date < today in IST).
- * 2. For today (if current IST time >= 19:00 / 7:00 PM).
- *
- * Computes total hours worked, updates status (HALF_DAY if < 4 hrs, else PRESENT/LATE),
- * records automated checkout timestamp.
+ * Auto punch-out at 7:00 PM IST.
+ * Fast path: throttle + empty check so dashboard/API stays snappy.
  */
 const AUTO_PUNCH_CHECK_INTERVAL_MS = 60_000;
+/** Per-employee checks after 7 PM can run more often so UI updates without refresh */
+const AUTO_PUNCH_EMPLOYEE_INTERVAL_MS = 10_000;
 const lastAutoPunchCheck = new Map<string, number>();
+/** After a successful close for an employee today, skip re-work until next day. */
+const closedCleanCache = new Map<string, string>(); // employeeId -> YYYY-MM-DD
 
 export async function ensureAutoPunchOut(
   prisma: PrismaClient,
   employeeId?: string
 ): Promise<{ updatedCount: number }> {
+  const now = new Date();
+  const today = startOfDayUTC(now);
+  const todayKey = today.toISOString().slice(0, 10);
+  const isPastSevenPMToday = getISTDateParts(now).hour >= 19;
   const key = employeeId ?? "*";
+
+  if (employeeId && closedCleanCache.get(employeeId) === todayKey) {
+    return { updatedCount: 0 };
+  }
+
   const nowMs = Date.now();
-  const last = Math.max(lastAutoPunchCheck.get(key) ?? 0, lastAutoPunchCheck.get("*") ?? 0);
-  if (nowMs - last < AUTO_PUNCH_CHECK_INTERVAL_MS) {
+  const last = lastAutoPunchCheck.get(key) ?? 0;
+  const gap =
+    employeeId && isPastSevenPMToday
+      ? AUTO_PUNCH_EMPLOYEE_INTERVAL_MS
+      : AUTO_PUNCH_CHECK_INTERVAL_MS;
+  if (nowMs - last < gap) {
     return { updatedCount: 0 };
   }
   lastAutoPunchCheck.set(key, nowMs);
 
   try {
-    const now = new Date();
-    const today = startOfDayUTC(now);
-    const istNow = getISTDateParts(now);
-    const isPastSevenPMToday = istNow.hour >= 19;
-
-    const condition = isPastSevenPMToday ? { lte: today } : { lt: today };
+    const dateFilter = isPastSevenPMToday ? { lte: today } : { lt: today };
 
     const unclosedLogs = await prisma.attendanceLog.findMany({
       where: {
         checkInTime: { not: null },
         checkOutTime: null,
-        date: condition,
+        date: dateFilter,
         ...(employeeId ? { employeeId } : {}),
+      },
+      // Keep payload small — only fields needed to close
+      select: {
+        id: true,
+        employeeId: true,
+        date: true,
+        checkInTime: true,
+        checkInAddress: true,
+        totalHours: true,
+        status: true,
+        notes: true,
       },
     });
 
     if (unclosedLogs.length === 0) {
+      if (employeeId) closedCleanCache.set(employeeId, todayKey);
       return { updatedCount: 0 };
     }
 
@@ -56,8 +75,6 @@ export async function ensureAutoPunchOut(
       if (!log.checkInTime) continue;
 
       const targetAutoOut = getAutoPunchOutTimeIST(log.date);
-
-      // If user checked in after 7 PM, punch them out after 30 min
       let finalOutTime = targetAutoOut;
       if (finalOutTime <= log.checkInTime) {
         finalOutTime = new Date(log.checkInTime.getTime() + 30 * 60 * 1000);
@@ -85,25 +102,11 @@ export async function ensureAutoPunchOut(
               halfDaySlot,
             });
 
-      const lastPing = await prisma.locationPing.findFirst({
-        where: {
-          employeeId: log.employeeId,
-          capturedAt: { gte: log.checkInTime, lte: finalOutTime },
-        },
-        orderBy: { capturedAt: "desc" },
-        select: { lat: true, lng: true, address: true },
-      });
-
       const autoNote = "Auto checked out at 7:00 PM";
       await prisma.attendanceLog.update({
         where: { id: log.id },
         data: {
           checkOutTime: finalOutTime,
-          checkOutLat: lastPing?.lat ?? null,
-          checkOutLng: lastPing?.lng ?? null,
-          checkOutAddress: lastPing
-            ? `Last known location: ${lastPing.address ?? `${lastPing.lat.toFixed(5)}, ${lastPing.lng.toFixed(5)}`}`
-            : null,
           totalHours: roundedHours,
           status,
           notes: log.notes ? `${log.notes} · ${autoNote}` : autoNote,
@@ -128,6 +131,7 @@ export async function ensureAutoPunchOut(
       updatedCount++;
     }
 
+    if (employeeId) closedCleanCache.set(employeeId, todayKey);
     return { updatedCount };
   } catch (err) {
     console.error("[ensureAutoPunchOut] Error running auto punch-out:", err);

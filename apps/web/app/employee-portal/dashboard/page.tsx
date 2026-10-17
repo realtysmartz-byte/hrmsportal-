@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Search, PlaneTakeoff, ListChecks, ChevronRight, IdCard } from "lucide-react";
@@ -20,9 +21,20 @@ export default function EmployeeDashboardPage() {
   const userName = session?.user?.name ?? "";
   const [first = "", last = ""] = userName.split(" ");
 
-  const { data: recentWeek } = trpc.attendance.myRecentWeek.useQuery();
+  // Load Clock In first — secondary widgets after 1.5s so they don't batch-block punch
+  const [loadSecondary, setLoadSecondary] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLoadSecondary(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const { data: recentWeek } = trpc.attendance.myRecentWeek.useQuery(undefined, {
+    enabled: loadSecondary,
+    staleTime: 5 * 60_000,
+  });
   const { data: birthdays } = trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
-    staleTime: 1000 * 60 * 15,
+    enabled: loadSecondary,
+    staleTime: 15 * 60_000,
   });
 
   return (
@@ -64,7 +76,11 @@ export default function EmployeeDashboardPage() {
 
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-neutral-900">Wish them</h2>
-          {birthdays && birthdays.length > 0 ? (
+          {!loadSecondary ? (
+            <p className="mt-3 rounded-xl border border-neutral-100 p-4 text-center text-xs text-neutral-400">
+              …
+            </p>
+          ) : birthdays && birthdays.length > 0 ? (
             <div className="mt-3 flex gap-5 overflow-x-auto pb-1">
               {birthdays.map((b) => (
                 <Link

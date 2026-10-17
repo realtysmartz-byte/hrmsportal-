@@ -23,7 +23,7 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   geolocationErrorMessage,
-  getCurrentPosition,
+  getPunchPosition,
   reverseGeocodePlace,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
@@ -115,7 +115,15 @@ export function KekaAttendancePanel({
   const isMonthLoading = isTargetMode ? isTargetMonthLoading : isSelfMonthLoading;
 
   const { data: selfTodayAttendance, isLoading: isSelfTodayLoading } =
-    trpc.attendance.today.useQuery(undefined, { enabled: !isTargetMode });
+    trpc.attendance.today.useQuery(undefined, {
+      enabled: !isTargetMode,
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      refetchInterval: (data) => {
+        const onDuty = Boolean(data?.checkInTime && !data?.checkOutTime);
+        return onDuty && getISTDateParts(new Date()).hour >= 19 ? 30_000 : false;
+      },
+    });
 
   const targetTodayAttendance = useMemo(() => {
     if (!isTargetMode || !targetMonthData?.logs) return null;
@@ -152,7 +160,7 @@ export function KekaAttendancePanel({
 
   const checkInMutation = trpc.attendance.checkIn.useMutation({
     onSuccess: async () => {
-      await utils.attendance.today.invalidate();
+      await utils.attendance.today.refetch();
       await utils.attendance.myMonth.invalidate();
       await utils.attendance.myRecentWeek.invalidate();
       if (targetEmployeeId) {
@@ -169,7 +177,7 @@ export function KekaAttendancePanel({
 
   const checkOutMutation = trpc.attendance.checkOut.useMutation({
     onSuccess: async () => {
-      await utils.attendance.today.invalidate();
+      await utils.attendance.today.refetch();
       await utils.attendance.myMonth.invalidate();
       await utils.attendance.myRecentWeek.invalidate();
       if (targetEmployeeId) {
@@ -191,34 +199,42 @@ export function KekaAttendancePanel({
 
   const displaySiteName = isTargetMode
     ? propSiteName || "Company office (default)"
-    : currentUserWorkLoc?.name ?? "Loading work location…";
+    : currentUserWorkLoc?.sites && currentUserWorkLoc.sites.length > 1
+      ? `Office or ${currentUserWorkLoc.assigned?.name ?? "assigned site"}`
+      : currentUserWorkLoc?.name ?? "Loading work location…";
 
   async function handlePunch(mode: "in" | "out") {
+    if (busy) return;
     if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
     setPunchError("");
     setBusy(true);
 
     try {
-      const pos = await getCurrentPosition();
+      const pos = await getPunchPosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
 
-      if (mode === "in" && currentUserWorkLoc) {
-        const dist = haversineDistanceM(lat, lng, currentUserWorkLoc.lat, currentUserWorkLoc.lng);
-        if (dist > currentUserWorkLoc.radiusM) {
-          throw new Error(
-            `Punch-in blocked: you are ~${Math.round(dist)}m from ${currentUserWorkLoc.name}. You must be within ${currentUserWorkLoc.radiusM}m to punch in.`
-          );
-        }
+      const sites = currentUserWorkLoc?.sites?.length
+        ? currentUserWorkLoc.sites
+        : currentUserWorkLoc
+          ? [currentUserWorkLoc]
+          : [];
+      const matchedSite = sites.find(
+        (s) => haversineDistanceM(lat, lng, s.lat, s.lng) <= s.radiusM
+      );
+
+      if (mode === "in" && sites.length > 0 && !matchedSite) {
+        const nearest = sites
+          .map((s) => ({ s, d: haversineDistanceM(lat, lng, s.lat, s.lng) }))
+          .sort((a, b) => a.d - b.d)[0];
+        const names = sites.map((s) => s.name).join(" or ");
+        throw new Error(
+          `Punch-in blocked: you are ~${Math.round(nearest.d)}m from ${nearest.s.name}. You must be within ${nearest.s.radiusM}m of ${names}.`
+        );
       }
 
-      const needsAddress =
-        mode === "out" &&
-        (!currentUserWorkLoc ||
-          haversineDistanceM(lat, lng, currentUserWorkLoc.lat, currentUserWorkLoc.lng) >
-            currentUserWorkLoc.radiusM);
-      let label = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      if (needsAddress) {
+      let label = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (mode === "out" && !matchedSite) {
         const place = await reverseGeocodePlace(lat, lng);
         label =
           place.name === place.address ? place.address : `${place.name} — ${place.address}`;
@@ -455,6 +471,11 @@ export function KekaAttendancePanel({
                 <p className="text-[10px] text-neutral-400 italic text-center">
                   Staff punch in directly via employee portal
                 </p>
+              </div>
+            ) : isOnDuty && getISTDateParts(new Date()).hour >= 19 ? (
+              <div className="w-full h-10 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-semibold text-xs flex items-center justify-center gap-2">
+                <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                Shift ended 7:00 PM — auto clock-out…
               </div>
             ) : isOnDuty ? (
               <Button

@@ -174,7 +174,7 @@ export function isManager(role: Role): boolean {
  */
 export const WEEKLY_OFF_DAY = 2; // Tuesday
 
-export const LOCATION_PING_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+export const LOCATION_PING_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export function isWeeklyOffDay(dayOfWeek: number): boolean {
   return dayOfWeek === WEEKLY_OFF_DAY;

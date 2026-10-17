@@ -16,7 +16,7 @@ const DutyTracking = registerPlugin<DutyTrackingPlugin>("DutyTracking", {
   }),
 });
 
-const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
+const DEFAULT_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /** Avoid restarting the native service on every page navigation. */
 let nativeTrackingStarted = false;

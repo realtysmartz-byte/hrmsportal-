@@ -6,26 +6,17 @@ import {
 import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
 
+/** Session already has id + role — avoid a DB round-trip on every call. */
 export async function resolveActorId(ctx: Context) {
-  const byId = await ctx.prisma.employee.findUnique({
-    where: { id: ctx.session!.user.id },
-    select: { id: true, role: true },
-  });
-  if (byId) return byId;
-
-  const email = ctx.session!.user.email?.toLowerCase();
-  if (email) {
-    const byEmail = await ctx.prisma.employee.findUnique({
-      where: { email },
-      select: { id: true, role: true },
-    });
-    if (byEmail) return byEmail;
+  const id = ctx.session?.user?.id;
+  const role = ctx.session?.user?.role;
+  if (id && role) {
+    return { id, role };
   }
 
   throw new TRPCError({
     code: "UNAUTHORIZED",
-    message:
-      "Your session is out of date (database was reseeded). Sign out and sign in again, then retry.",
+    message: "Not signed in. Please sign in again.",
   });
 }
 

@@ -99,6 +99,7 @@ function LoginForm() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
 
@@ -113,53 +114,56 @@ function LoginForm() {
 
     const callbackParam = searchParams.get("callbackUrl");
 
-    const result = await signIn("credentials", {
-      email: cleanEmail,
-      password: cleanPassword,
-      redirect: false,
-      callbackUrl:
-        callbackParam && callbackParam.startsWith("/") && !callbackParam.includes("/login")
-          ? callbackParam
-          : "/employee-portal/dashboard",
-    });
-
-    if (result?.error) {
-      setLoading(false);
-      if (
-        result.error === "AccountInactive" ||
-        result.error.includes("AccountInactive")
-      ) {
-        setError(GOOGLE_ERRORS.AccountInactive);
-      } else if (result.error === "CredentialsSignin") {
-        setError("Invalid email or password. Please verify and try again.");
-      } else {
-        setError(result.error);
-      }
-      return;
-    }
-
-    // Determine target destination
-    let destination = "/";
-    if (callbackParam && callbackParam.startsWith("/") && !callbackParam.startsWith("//") && !callbackParam.includes("/login")) {
-      destination = callbackParam;
-    }
-
     try {
-      const session = await waitForSession(3);
+      const result = await signIn("credentials", {
+        email: cleanEmail,
+        password: cleanPassword,
+        redirect: false,
+        callbackUrl:
+          callbackParam && callbackParam.startsWith("/") && !callbackParam.includes("/login")
+            ? callbackParam
+            : "/employee-portal/dashboard",
+      });
+
+      if (result?.error) {
+        setLoading(false);
+        if (
+          result.error === "AccountInactive" ||
+          result.error.includes("AccountInactive")
+        ) {
+          setError(GOOGLE_ERRORS.AccountInactive);
+        } else if (result.error === "CredentialsSignin") {
+          setError("Invalid email or password. Please verify and try again.");
+        } else {
+          setError(result.error);
+        }
+        return;
+      }
+
+      let destination = "/";
+      if (
+        callbackParam &&
+        callbackParam.startsWith("/") &&
+        !callbackParam.startsWith("//") &&
+        !callbackParam.includes("/login")
+      ) {
+        destination = callbackParam;
+      }
+
+      const session = await waitForSession(2);
       if (session?.user?.role) {
         const role = session.user.role as Role;
         if (destination === "/" || destination.includes("/login")) {
           destination = homePathForRole(role);
         }
       }
-    } catch {
-      // Destination will fallback to "/" which handles server-side role redirection
-    }
 
-    setLoading(false);
-    // Top-level document navigation ensures Safari/iOS WebKit flushes session cookies
-    // to the HTTP request headers for Next.js middleware and RSC layouts
-    window.location.href = destination;
+      // Keep loading=true until navigation — prevents double-clicks making login slower
+      window.location.href = destination;
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+    }
   }
 
   async function onGoogleSignIn() {

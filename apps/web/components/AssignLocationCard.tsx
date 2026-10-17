@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { MapPin, Search, Loader2, ExternalLink } from "lucide-react";
+import { MapPin, Search, Loader2, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocationMap } from "@/components/LocationMap";
@@ -17,18 +17,43 @@ interface SearchResult {
   tag?: string;
 }
 
+type SiteSlot = { name: string; lat: number | null; lng: number | null };
+
 interface AssignLocationCardProps {
   employeeId: string;
   employeeName: string;
   currentLocationName: string | null;
   currentLat: number | null;
   currentLng: number | null;
+  /** Up to 3 sites from assignedLocations JSON */
+  currentSites?: { name: string; lat: number; lng: number }[] | null;
   canManage: boolean;
   onUpdated?: () => void;
 }
 
 const LINK_ERROR =
   "Couldn't read a location from this link. Open the place in Google Maps and copy the link again.";
+
+const EMPTY_SLOT: SiteSlot = { name: "", lat: null, lng: null };
+
+function sitesFromProps(
+  currentSites: AssignLocationCardProps["currentSites"],
+  name: string | null,
+  lat: number | null,
+  lng: number | null
+): SiteSlot[] {
+  if (currentSites && currentSites.length > 0) {
+    return currentSites.slice(0, 3).map((s) => ({
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+    }));
+  }
+  if (lat != null && lng != null) {
+    return [{ name: name || "Assigned site", lat, lng }];
+  }
+  return [{ ...EMPTY_SLOT }];
+}
 
 async function fetchPlaces(q: string): Promise<SearchResult[]> {
   const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
@@ -48,6 +73,7 @@ export function AssignLocationCard({
   currentLocationName,
   currentLat,
   currentLng,
+  currentSites,
   canManage,
   onUpdated,
 }: AssignLocationCardProps) {
@@ -56,32 +82,33 @@ export function AssignLocationCard({
     enabled: canManage,
   });
 
+  const [slots, setSlots] = useState<SiteSlot[]>(() =>
+    sitesFromProps(currentSites, currentLocationName, currentLat, currentLng)
+  );
+  const [activeSlot, setActiveSlot] = useState(0);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-
-  // Empty name + null coords means "no assignment": employee punches in at the company office.
-  const [name, setName] = useState(currentLocationName ?? "");
-  const [lat, setLat] = useState<number | null>(currentLat);
-  const [lng, setLng] = useState<number | null>(currentLng);
-  const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-
+  const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(
+    null
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setName(currentLocationName ?? "");
-    setLat(currentLat);
-    setLng(currentLng);
+    setSlots(sitesFromProps(currentSites, currentLocationName, currentLat, currentLng));
     setQuery("");
     setSuggestions([]);
     setMessage(null);
-  }, [employeeId, currentLocationName, currentLat, currentLng]);
+    setActiveSlot(0);
+  }, [employeeId, currentLocationName, currentLat, currentLng, currentSites]);
 
   function select(item: SearchResult, itemName: string) {
-    setName(itemName);
-    setLat(item.lat);
-    setLng(item.lng);
+    setSlots((prev) => {
+      const next = [...prev];
+      next[activeSlot] = { name: itemName, lat: item.lat, lng: item.lng };
+      return next;
+    });
     setQuery("");
     setSuggestions([]);
     setIsOpen(false);
@@ -115,6 +142,7 @@ export function AssignLocationCard({
     }, 300);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   useEffect(() => {
@@ -129,12 +157,17 @@ export function AssignLocationCard({
 
   const updateMutation = trpc.employee.update.useMutation({
     onSuccess: async (updated) => {
-      const assigned = updated.workLocationLat != null && updated.workLocationLng != null;
+      const n = Array.isArray(updated.assignedLocations)
+        ? updated.assignedLocations.length
+        : updated.workLocationLat != null
+          ? 1
+          : 0;
       setMessage({
         type: "ok",
-        text: assigned
-          ? `Saved. ${employeeName} can punch in only at ${updated.workLocationName || "this site"}.`
-          : `Saved. ${employeeName} will punch in at the company office.`,
+        text:
+          n > 0
+            ? `Saved. ${employeeName} can punch at office + ${n} assigned site(s) (200m each).`
+            : `Saved. ${employeeName} punches at company office only.`,
       });
       await Promise.allSettled([
         utils.employee.list.invalidate(),
@@ -147,71 +180,109 @@ export function AssignLocationCard({
     onError: (err) => setMessage({ type: "error", text: err.message }),
   });
 
-  async function handleSave() {
-    let saveName = name.trim();
-    let saveLat = lat;
-    let saveLng = lng;
-
-    // Resolve text still sitting in the search box
-    const q = query.trim();
-    if (q.length >= 2) {
-      const results = suggestions.length > 0 ? suggestions : await fetchPlaces(q);
-      const top = results[0];
-      if (!top) {
-        setMessage({ type: "error", text: isGoogleMapsLink(q) ? LINK_ERROR : "No place found for this search." });
-        return;
-      }
-      saveName = await nameForResult(top);
-      saveLat = top.lat;
-      saveLng = top.lng;
-      select(top, saveName);
-    }
-
-    const hasSite = saveLat != null && saveLng != null;
-    if (!hasSite && (saveLat != null || saveLng != null || saveName)) {
-      setMessage({ type: "error", text: "Pick a place from search or enter both latitude and longitude." });
-      return;
-    }
+  function handleSave() {
+    const sites = slots
+      .filter((s) => s.lat != null && s.lng != null)
+      .map((s) => ({
+        name: s.name.trim() || "Assigned site",
+        lat: s.lat as number,
+        lng: s.lng as number,
+      }))
+      .slice(0, 3);
 
     updateMutation.mutate({
       id: employeeId,
-      workLocationName: hasSite ? saveName || null : null,
-      workLocationLat: hasSite ? saveLat : null,
-      workLocationLng: hasSite ? saveLng : null,
+      assignedLocations: sites,
     });
   }
 
-  function clearToOffice() {
-    setName("");
-    setLat(null);
-    setLng(null);
+  function clearAll() {
+    setSlots([{ ...EMPTY_SLOT }]);
+    setActiveSlot(0);
     setQuery("");
     setMessage(null);
   }
 
-  if (!canManage) {
-    return null;
+  function addSlot() {
+    if (slots.length >= 3) return;
+    setSlots((prev) => [...prev, { ...EMPTY_SLOT }]);
+    setActiveSlot(slots.length);
   }
 
-  const isAssigned = lat != null && lng != null;
-  const previewLat = isAssigned ? lat : office?.officeLat ?? null;
-  const previewLng = isAssigned ? lng : office?.officeLng ?? null;
-  const previewName = isAssigned ? name || "Assigned site" : office?.officeName ?? "Company office";
+  function removeSlot(index: number) {
+    setSlots((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length ? next : [{ ...EMPTY_SLOT }];
+    });
+    setActiveSlot(0);
+  }
+
+  if (!canManage) return null;
+
+  const filled = slots.filter((s) => s.lat != null && s.lng != null);
+  const preview = filled[activeSlot] ?? filled[0] ?? null;
+  const previewLat = preview?.lat ?? office?.officeLat ?? null;
+  const previewLng = preview?.lng ?? office?.officeLng ?? null;
+  const previewName =
+    preview?.name ||
+    (filled.length ? "Assigned site" : office?.officeName ?? "Company office");
 
   return (
     <div className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-neutral-900">Work location</h3>
+          <h3 className="text-base font-semibold text-neutral-900">Work locations</h3>
           <p className="mt-0.5 text-sm text-neutral-500">
-            {isAssigned
-              ? `Punch-in allowed only at ${previewName}.`
-              : `No site assigned. Punch-in at ${previewName}.`}
+            Assign up to 3 sites. Office is always allowed (200m). Assigned sites also allow punch
+            within 200m.
           </p>
         </div>
-        {isAssigned && (
-          <Button type="button" variant="outline" size="sm" onClick={clearToOffice}>
-            Use company office
+        {filled.length > 0 && (
+          <Button type="button" variant="outline" size="sm" onClick={clearAll}>
+            Clear — office only
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {slots.map((slot, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setActiveSlot(i)}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+              activeSlot === i
+                ? "border-[#5D3EBC] bg-[#F3F0FC] text-[#5D3EBC]"
+                : "border-neutral-200 text-neutral-600"
+            }`}
+          >
+            Site {i + 1}
+            {slot.lat != null ? " ✓" : ""}
+            {slots.length > 1 && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSlot(i);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    removeSlot(i);
+                  }
+                }}
+                className="ml-1 text-neutral-400 hover:text-rose-600"
+              >
+                <Trash2 className="h-3 w-3" />
+              </span>
+            )}
+          </button>
+        ))}
+        {slots.length < 3 && (
+          <Button type="button" variant="outline" size="sm" onClick={addSlot} className="gap-1">
+            <Plus className="h-3.5 w-3.5" />
+            Add site
           </Button>
         )}
       </div>
@@ -220,7 +291,7 @@ export function AssignLocationCard({
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
         <Input
           type="text"
-          placeholder="Search a place or paste a Google Maps link"
+          placeholder={`Search place for Site ${activeSlot + 1} or paste Google Maps link`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => suggestions.length > 0 && setIsOpen(true)}
@@ -252,16 +323,37 @@ export function AssignLocationCard({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-neutral-600">Site name</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. M3M Urbana" />
+          <label className="text-xs font-medium text-neutral-600">
+            Site {activeSlot + 1} name
+          </label>
+          <Input
+            value={slots[activeSlot]?.name ?? ""}
+            onChange={(e) =>
+              setSlots((prev) => {
+                const next = [...prev];
+                next[activeSlot] = { ...next[activeSlot], name: e.target.value };
+                return next;
+              })
+            }
+            placeholder="e.g. M3M Urbana"
+          />
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-neutral-600">Latitude</label>
           <Input
             type="number"
             step="any"
-            value={lat ?? ""}
-            onChange={(e) => setLat(e.target.value ? Number(e.target.value) : null)}
+            value={slots[activeSlot]?.lat ?? ""}
+            onChange={(e) =>
+              setSlots((prev) => {
+                const next = [...prev];
+                next[activeSlot] = {
+                  ...next[activeSlot],
+                  lat: e.target.value ? Number(e.target.value) : null,
+                };
+                return next;
+              })
+            }
             className="tabular-nums"
           />
         </div>
@@ -270,8 +362,17 @@ export function AssignLocationCard({
           <Input
             type="number"
             step="any"
-            value={lng ?? ""}
-            onChange={(e) => setLng(e.target.value ? Number(e.target.value) : null)}
+            value={slots[activeSlot]?.lng ?? ""}
+            onChange={(e) =>
+              setSlots((prev) => {
+                const next = [...prev];
+                next[activeSlot] = {
+                  ...next[activeSlot],
+                  lng: e.target.value ? Number(e.target.value) : null,
+                };
+                return next;
+              })
+            }
             className="tabular-nums"
           />
         </div>
@@ -297,7 +398,7 @@ export function AssignLocationCard({
           className="bg-[#5D3EBC] text-white hover:bg-[#FF6559]"
         >
           {updateMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save
+          Save locations
         </Button>
       </div>
 

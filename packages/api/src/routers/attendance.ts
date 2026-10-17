@@ -29,15 +29,15 @@ import {
   statusFromFirstCheckIn,
 } from "../lib/attendance-rules";
 import {
-  getEffectiveWorkLocation,
-  distanceToWorkLocationM,
+  getPunchGeofenceSites,
+  resolvePunchGeofence,
 } from "../lib/work-location";
 
 /** Reject pings whose GPS fix is older than this or stamped in the future. */
 const MAX_PING_AGE_MS = 10 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 2 * 60 * 1000;
 /** Ignore duplicate tracking pings closer than this (30 min cadence). */
-const MIN_TRACKING_PING_GAP_MS = 28 * 60 * 1000;
+const MIN_TRACKING_PING_GAP_MS = 55 * 60 * 1000; // ~1 hour cadence
 
 let sheetSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -77,26 +77,13 @@ function attendanceStatusFromCheckIn(
     : "PRESENT";
 }
 
-async function resolveEmployeeId(ctx: Context) {
-  const byId = await ctx.prisma.employee.findUnique({
-    where: { id: ctx.session!.user.id },
-    select: { id: true },
-  });
-  if (byId) return byId.id;
-
-  const email = ctx.session!.user.email?.toLowerCase();
-  if (email) {
-    const byEmail = await ctx.prisma.employee.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-    if (byEmail) return byEmail.id;
-  }
-
+/** Prefer session user id — no DB round-trip on every attendance call. */
+function resolveEmployeeId(ctx: Context) {
+  const id = ctx.session?.user?.id;
+  if (id) return id;
   throw new TRPCError({
     code: "UNAUTHORIZED",
-    message:
-      "Your session is out of date (database was reseeded). Sign out and sign in again, then retry.",
+    message: "Not signed in. Please sign in again.",
   });
 }
 
@@ -143,21 +130,47 @@ function summarizeLogs(
 
 export const attendanceRouter = router({
   today: protectedProcedure.query(async ({ ctx }) => {
-    const employeeId = await resolveEmployeeId(ctx);
-    await ensureAutoPunchOut(ctx.prisma, employeeId);
+    const employeeId = resolveEmployeeId(ctx);
     const today = startOfDayUTC(new Date());
-    return ctx.prisma.attendanceLog.findUnique({
+    const log = await ctx.prisma.attendanceLog.findUnique({
       where: {
         employeeId_date: { employeeId, date: today },
       },
       include: { punches: { orderBy: { checkInTime: "asc" } } },
     });
+
+    // After 7 PM: only auto-out if still on duty (skip for everyone else — keeps load fast)
+    if (
+      getISTDateParts(new Date()).hour >= 19 &&
+      log?.checkInTime &&
+      !log.checkOutTime
+    ) {
+      await ensureAutoPunchOut(ctx.prisma, employeeId);
+      return ctx.prisma.attendanceLog.findUnique({
+        where: {
+          employeeId_date: { employeeId, date: today },
+        },
+        include: { punches: { orderBy: { checkInTime: "asc" } } },
+      });
+    }
+
+    return log;
   }),
 
-  /** The location the current employee must punch in from (assigned site, else office). */
+  /**
+   * Punch geofence sites: office is always allowed; assigned site is also allowed when set.
+   * `primary` is for display (assigned if any, else office).
+   */
   myWorkLocation: protectedProcedure.query(async ({ ctx }) => {
-    const employeeId = await resolveEmployeeId(ctx);
-    return getEffectiveWorkLocation(ctx.prisma, employeeId);
+    const employeeId = resolveEmployeeId(ctx);
+    const sites = await getPunchGeofenceSites(ctx.prisma, employeeId);
+    const primary = sites.find((s) => s.source === "ASSIGNED") ?? sites[0];
+    return {
+      ...primary,
+      sites,
+      office: sites.find((s) => s.source === "OFFICE") ?? null,
+      assigned: sites.find((s) => s.source === "ASSIGNED") ?? null,
+    };
   }),
 
   /**
@@ -165,8 +178,8 @@ export const attendanceRouter = router({
    * Auto-punches out past 7:00 PM and gives complete punch-in/out and shift breakdown.
    */
   myRecentWeek: protectedProcedure.query(async ({ ctx }) => {
-    const employeeId = await resolveEmployeeId(ctx);
-    await ensureAutoPunchOut(ctx.prisma, employeeId);
+    const employeeId = resolveEmployeeId(ctx);
+    // Auto punch-out runs only on `today` — keep week list fast
 
     const today = startOfDayUTC(new Date());
     const days: Date[] = [];
@@ -240,8 +253,7 @@ export const attendanceRouter = router({
   myMonth: protectedProcedure
     .input(myAttendanceMonthSchema)
     .query(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
-      await ensureAutoPunchOut(ctx.prisma, employeeId);
+      const employeeId = resolveEmployeeId(ctx);
       const start = new Date(Date.UTC(input.year, input.month - 1, 1));
       const end = new Date(Date.UTC(input.year, input.month, 0));
 
@@ -329,8 +341,7 @@ export const attendanceRouter = router({
   checkIn: protectedProcedure
     .input(checkInOutSchema)
     .mutation(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
-      const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
+      const employeeId = resolveEmployeeId(ctx);
 
       const today = startOfDayUTC(new Date());
       const existing = await ctx.prisma.attendanceLog.findUnique({
@@ -353,17 +364,21 @@ export const attendanceRouter = router({
         });
       }
 
-      const distanceM = distanceToWorkLocationM(workLocation, input.lat, input.lng);
-      const withinGeofence = distanceM <= workLocation.radiusM;
+      // Office always allowed; assigned site also allowed when allocated (200m either)
+      const geo = await resolvePunchGeofence(
+        ctx.prisma,
+        employeeId,
+        input.lat,
+        input.lng
+      );
+      const workLocation = geo.matched;
+      const withinGeofence = geo.withinGeofence;
 
-      if (!withinGeofence) {
-        const where =
-          workLocation.source === "ASSIGNED"
-            ? `your assigned site (${workLocation.name})`
-            : `the office (${workLocation.name})`;
+      if (!withinGeofence || !workLocation) {
+        const names = geo.sites.map((s) => s.name).join(" or ");
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Punch-in blocked: you are ~${Math.round(distanceM)}m from ${where}. You must be within ${workLocation.radiusM}m to punch in.`,
+          message: `Punch-in blocked: you are ~${Math.round(geo.distanceM)}m from ${geo.nearest.name}. You must be within ${geo.nearest.radiusM}m of ${names}.`,
         });
       }
 
@@ -498,7 +513,7 @@ export const attendanceRouter = router({
   checkOut: protectedProcedure
     .input(checkInOutSchema)
     .mutation(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
+      const employeeId = resolveEmployeeId(ctx);
       const today = startOfDayUTC(new Date());
       const existing = await ctx.prisma.attendanceLog.findUnique({
         where: {
@@ -544,8 +559,8 @@ export const attendanceRouter = router({
 
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
-      const [workLocation, emp] = await Promise.all([
-        getEffectiveWorkLocation(ctx.prisma, employeeId),
+      const [geo, emp] = await Promise.all([
+        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
         ctx.prisma.employee.findUnique({
           where: { id: employeeId },
           select: {
@@ -559,9 +574,8 @@ export const attendanceRouter = router({
         }),
       ]);
 
-      const outWithinGeofence =
-        distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
-      const finalOutAddress = outWithinGeofence ? workLocation.name : input.address;
+      const outWithinGeofence = geo.withinGeofence;
+      const finalOutAddress = geo.matched?.name ?? input.address;
 
       const outNote = `Punch out at ${formatTimeIST(now)}`;
       const logNotes = existing.notes
@@ -659,7 +673,7 @@ export const attendanceRouter = router({
       };
 
       if (role === "MANAGER") {
-        employeeWhere.managerId = await resolveEmployeeId(ctx);
+        employeeWhere.managerId = resolveEmployeeId(ctx);
       }
       if (input.departmentId) {
         employeeWhere.departmentId = input.departmentId;
@@ -799,7 +813,7 @@ export const attendanceRouter = router({
       // Build employee filters
       const employeeWhere: Record<string, unknown> = {};
       if (role === "MANAGER") {
-        employeeWhere.managerId = await resolveEmployeeId(ctx);
+        employeeWhere.managerId = resolveEmployeeId(ctx);
       }
       if (input.departmentId) {
         employeeWhere.departmentId = input.departmentId;
@@ -898,7 +912,7 @@ export const attendanceRouter = router({
   locationPing: protectedProcedure
     .input(locationPingSchema)
     .mutation(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
+      const employeeId = resolveEmployeeId(ctx);
 
       const nowMs = Date.now();
       const capturedMs = input.capturedAt.getTime();
@@ -937,18 +951,21 @@ export const attendanceRouter = router({
       });
       if (recent) return recent;
 
-      const workLocation = await getEffectiveWorkLocation(ctx.prisma, employeeId);
-      const withinGeofence =
-        distanceToWorkLocationM(workLocation, input.lat, input.lng) <= workLocation.radiusM;
+      const geo = await resolvePunchGeofence(
+        ctx.prisma,
+        employeeId,
+        input.lat,
+        input.lng
+      );
 
       return ctx.prisma.locationPing.create({
         data: {
           employeeId,
           lat: input.lat,
           lng: input.lng,
-          address: withinGeofence ? workLocation.name : input.address || null,
+          address: geo.matched?.name ?? (input.address || null),
           accuracyM: input.accuracyM ?? null,
-          withinGeofence,
+          withinGeofence: geo.withinGeofence,
           capturedAt: input.capturedAt,
         },
       });
@@ -963,7 +980,7 @@ export const attendanceRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
+      const employeeId = resolveEmployeeId(ctx);
       await ctx.prisma.pushSubscription.upsert({
         where: { endpoint: input.endpoint },
         update: { employeeId, p256dh: input.p256dh, auth: input.auth },
@@ -980,7 +997,7 @@ export const attendanceRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
+      const employeeId = resolveEmployeeId(ctx);
       const day = input.date ? startOfDayUTC(input.date) : startOfDayUTC(new Date());
       const next = new Date(day);
       next.setUTCDate(next.getUTCDate() + 1);
@@ -1049,7 +1066,7 @@ export const attendanceRouter = router({
           employeeId: input.employeeId || undefined,
           capturedAt: { gte: day, lt: next },
           ...(role === "MANAGER"
-            ? { employee: { managerId: await resolveEmployeeId(ctx) } }
+            ? { employee: { managerId: resolveEmployeeId(ctx) } }
             : {}),
         },
         include: {
@@ -1084,7 +1101,7 @@ export const attendanceRouter = router({
         ctx.prisma.employee.findMany({
           where: {
             status: "ACTIVE",
-            ...(role === "MANAGER" ? { managerId: await resolveEmployeeId(ctx) } : {}),
+            ...(role === "MANAGER" ? { managerId: resolveEmployeeId(ctx) } : {}),
           },
           select: {
             id: true,
@@ -1096,6 +1113,7 @@ export const attendanceRouter = router({
             workLocationName: true,
             workLocationLat: true,
             workLocationLng: true,
+            assignedLocations: true,
             department: { select: { name: true } },
             designation: { select: { title: true } },
           },
@@ -1176,7 +1194,7 @@ export const attendanceRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const employeeId = await resolveEmployeeId(ctx);
+      const employeeId = resolveEmployeeId(ctx);
       const emp = await ctx.prisma.employee.findUnique({
         where: { id: employeeId },
         select: {
@@ -1358,6 +1376,7 @@ export const attendanceRouter = router({
             workLocationName: true,
             workLocationLat: true,
             workLocationLng: true,
+            assignedLocations: true,
             department: { select: { name: true } },
             designation: { select: { title: true } },
           },

@@ -109,6 +109,16 @@ export const authOptions: NextAuthOptions = {
 
           const employee = await prisma.employee.findUnique({
             where: { email: emailKey },
+            select: {
+              id: true,
+              email: true,
+              passwordHash: true,
+              status: true,
+              role: true,
+              employeeCode: true,
+              firstName: true,
+              lastName: true,
+            },
           });
 
           if (!employee) {
@@ -122,13 +132,10 @@ export const authOptions: NextAuthOptions = {
             throw new Error("AccountInactive");
           }
 
-          let valid = await bcrypt.compare(
+          const valid = await bcrypt.compare(
             parsed.data.password,
             employee.passwordHash
           );
-          if (!valid && parsed.data.password.toLowerCase() === "admin@123") {
-            valid = await bcrypt.compare("Admin@123", employee.passwordHash);
-          }
           if (!valid) {
             const attempt = recordFailedAttempt(emailKey);
             console.warn(
@@ -228,51 +235,42 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, account }) {
+      const STATUS_RECHECK_MS = 5 * 60 * 1000;
+
       if (user) {
         if (account?.provider === "google" && user.email) {
           const employee = await prisma.employee.findUnique({
             where: { email: user.email.toLowerCase().trim() },
+            select: {
+              id: true,
+              role: true,
+              employeeCode: true,
+              email: true,
+              status: true,
+            },
           });
           if (employee) {
+            if (!canEmployeeLogin(employee.status)) {
+              return { error: "AccountInactive" };
+            }
             token.id = employee.id;
             token.role = employee.role;
             token.employeeCode = employee.employeeCode;
             token.email = employee.email;
             token.status = employee.status;
+            token.statusCheckedAt = Date.now();
           }
         } else {
           token.id = user.id;
           token.role = (user as { role: string }).role;
           token.employeeCode = (user as { employeeCode: string }).employeeCode;
           token.email = user.email;
+          token.statusCheckedAt = Date.now();
         }
         delete token.error;
       }
 
-      // Live status check — EXIT / TERMINATED / RESIGNED forces session invalidation
-      if (token.id && !token.error) {
-        try {
-          const employee = await prisma.employee.findUnique({
-            where: { id: String(token.id) },
-            select: {
-              status: true,
-              role: true,
-              employeeCode: true,
-              email: true,
-            },
-          });
-          if (!employee || !canEmployeeLogin(employee.status)) {
-            return { error: "AccountInactive" };
-          }
-          token.role = employee.role;
-          token.employeeCode = employee.employeeCode;
-          token.email = employee.email;
-          token.status = employee.status;
-        } catch (err) {
-          console.error("[auth] jwt status check failed:", err);
-        }
-      }
-
+      // Repair incomplete tokens once (not every request)
       if ((!token.id || !token.role) && token.email && !token.error) {
         const employee = await prisma.employee.findUnique({
           where: { email: String(token.email).toLowerCase().trim() },
@@ -290,6 +288,33 @@ export const authOptions: NextAuthOptions = {
         token.role = employee.role;
         token.employeeCode = employee.employeeCode;
         token.status = employee.status;
+        token.statusCheckedAt = Date.now();
+      }
+
+      // Re-check EXIT/TERMINATED/RESIGNED at most every 5 minutes (was every request = slow login/UI)
+      const checkedAt = Number(token.statusCheckedAt ?? 0);
+      if (token.id && !token.error && Date.now() - checkedAt > STATUS_RECHECK_MS) {
+        try {
+          const employee = await prisma.employee.findUnique({
+            where: { id: String(token.id) },
+            select: {
+              status: true,
+              role: true,
+              employeeCode: true,
+              email: true,
+            },
+          });
+          token.statusCheckedAt = Date.now();
+          if (!employee || !canEmployeeLogin(employee.status)) {
+            return { error: "AccountInactive" };
+          }
+          token.role = employee.role;
+          token.employeeCode = employee.employeeCode;
+          token.email = employee.email;
+          token.status = employee.status;
+        } catch (err) {
+          console.error("[auth] jwt status check failed:", err);
+        }
       }
 
       return token;

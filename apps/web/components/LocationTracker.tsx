@@ -36,10 +36,17 @@ function writeLastPingAt(at: number) {
 
 export function LocationTracker() {
   const { status: authStatus } = useSession();
-  const isPingPage = usePathname() === "/location-ping";
+  const pathname = usePathname();
+  const isPingPage = pathname === "/location-ping";
+  const onEmployeeRoute = pathname?.startsWith("/employee-portal") ?? false;
+
   const { data: todayAttendance } = trpc.attendance.today.useQuery(undefined, {
-    enabled: authStatus === "authenticated" && !isPingPage,
-    refetchInterval: 60_000,
+    enabled: authStatus === "authenticated" && onEmployeeRoute && !isPingPage,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    // Only poll while on duty — idle users should not hit the API every minute
+    refetchInterval: (data) =>
+      data?.checkInTime && !data?.checkOutTime ? 5 * 60_000 : false,
   });
 
   const [status, setStatus] = useState<"on" | "denied" | "error" | "idle">("idle");
@@ -60,7 +67,7 @@ export function LocationTracker() {
   );
 
   useEffect(() => {
-    if (authStatus !== "authenticated" || isPingPage) return;
+    if (authStatus !== "authenticated" || isPingPage || !onEmployeeRoute) return;
     if (typeof window === "undefined" || !navigator.geolocation) {
       setStatus("error");
       return;
@@ -119,7 +126,7 @@ export function LocationTracker() {
       }
     }
 
-    /** Only ping if a full 30 minutes have passed since the last saved ping. */
+    /** Only ping if a full hour has passed since the last saved ping. */
     async function pingIfDue() {
       const last = readLastPingAt();
       if (Date.now() - last < LOCATION_PING_INTERVAL_MS) {
@@ -160,7 +167,7 @@ export function LocationTracker() {
       };
     }
 
-    // Android APK: native foreground service owns the 30-min pings — do not also ping from WebView on every open
+    // Android APK: native foreground service owns the 1-hour pings — do not also ping from WebView on every open
     if (nativeApp) {
       void startNativeDutyTracking();
       navigator.geolocation.getCurrentPosition(
@@ -174,7 +181,7 @@ export function LocationTracker() {
     }
 
     // Web browser: never ping just because the page opened.
-    // Ping only when 30 minutes have actually elapsed (interval + optional due-check).
+    // Ping only when 1 hour has actually elapsed (interval + optional due-check).
     const last = readLastPingAt();
     if (last > 0) setLastAt(new Date(last));
     setStatus("on");
@@ -183,7 +190,7 @@ export function LocationTracker() {
 
     const intervalId = setInterval(() => void pingIfDue(), LOCATION_PING_INTERVAL_MS);
 
-    // If already past due (e.g. tab left open overnight), one catch-up — still respects 30m gap
+    // If already past due (e.g. tab left open overnight), one catch-up — still respects 1h gap
     void pingIfDue();
 
     return () => {
@@ -191,9 +198,9 @@ export function LocationTracker() {
       clearInterval(intervalId);
       void wakeLock.current?.release();
     };
-  }, [authStatus, isOnDuty, isPingPage]);
+  }, [authStatus, isOnDuty, isPingPage, onEmployeeRoute]);
 
-  if (authStatus !== "authenticated" || isPingPage) return null;
+  if (authStatus !== "authenticated" || isPingPage || !onEmployeeRoute) return null;
 
   return (
     <div
@@ -217,7 +224,7 @@ export function LocationTracker() {
       <MapPin className="h-3 w-3 shrink-0" />
       {status === "on" && (
         <span className="truncate max-w-[220px]">
-          {isOnDuty ? "GPS Tracking Active (30m)" : "GPS Ready"}
+          {isOnDuty ? "GPS Tracking Active (1h)" : "GPS Ready"}
           {lastAt
             ? ` · ${lastAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
             : ""}

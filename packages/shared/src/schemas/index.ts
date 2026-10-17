@@ -54,6 +54,17 @@ export const createEmployeeSchema = z.object({
   workLocationLat: z.number().min(-90).max(90).optional().nullable(),
   workLocationLng: z.number().min(-180).max(180).optional().nullable(),
   workLocationName: z.string().trim().max(200).optional().nullable(),
+  assignedLocations: z
+    .array(
+      z.object({
+        name: z.string().trim().max(200),
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+      })
+    )
+    .max(3)
+    .optional()
+    .nullable(),
 });
 
 export const updateEmployeeSchema = createEmployeeSchema

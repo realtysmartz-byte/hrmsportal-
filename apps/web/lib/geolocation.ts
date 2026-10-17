@@ -23,7 +23,7 @@ export async function reverseGeocodePlace(
   const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
     const res = await fetch(
       `/api/geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
       { signal: controller.signal }
@@ -45,22 +45,38 @@ export async function reverseGeocodePlace(
   return { name: coords, address: coords, lat, lng };
 }
 
-export function getCurrentPosition(fresh = false): Promise<GeolocationPosition> {
+/** Fast GPS for punch — target under 5s (no high-accuracy wait). */
+export function getPunchPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported by this browser"));
       return;
     }
-    const maxAge = fresh ? 0 : 30_000;
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 4500,
+      maximumAge: 60_000,
+    });
+  });
+}
+
+export function getCurrentPosition(fresh = false): Promise<GeolocationPosition> {
+  if (!fresh) {
+    return getPunchPosition();
+  }
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      reject(new Error("Geolocation is not supported by this browser"));
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       resolve,
       (err) => {
-        // If high accuracy times out (e.g. indoors or slow mobile GPS lock), retry with standard accuracy
         if (err.code === 3) {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: false,
-            timeout: 8000,
-            maximumAge: fresh ? 0 : 120000,
+            timeout: 4000,
+            maximumAge: 60_000,
           });
         } else {
           reject(err);
@@ -68,8 +84,8 @@ export function getCurrentPosition(fresh = false): Promise<GeolocationPosition> 
       },
       {
         enableHighAccuracy: true,
-        timeout: fresh ? 15_000 : 7000,
-        maximumAge: maxAge,
+        timeout: 5000,
+        maximumAge: 0,
       }
     );
   });

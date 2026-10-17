@@ -13,7 +13,7 @@ public class DutyTrackingPlugin extends Plugin {
 
   @PluginMethod
   public void start(PluginCall call) {
-    int intervalMs = call.getInt("intervalMs", 30 * 60 * 1000);
+    int intervalMs = call.getInt("intervalMs", 60 * 60 * 1000);
     String apiUrl = call.getString("apiUrl", "https://rshrms.in/api/native/location-ping");
 
     Intent intent = new Intent(getContext(), DutyTrackingService.class);

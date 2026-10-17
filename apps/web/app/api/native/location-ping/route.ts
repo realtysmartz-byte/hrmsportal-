@@ -3,14 +3,11 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
 import { startOfDayUTC } from "@realty-smartz/shared";
 import { authOptions } from "@/lib/auth";
-import {
-  distanceToWorkLocationM,
-  getEffectiveWorkLocation,
-} from "@realty-smartz/api";
+import { resolvePunchGeofence } from "@realty-smartz/api";
 
 export const dynamic = "force-dynamic";
 
-const MIN_TRACKING_PING_GAP_MS = 28 * 60 * 1000;
+const MIN_TRACKING_PING_GAP_MS = 55 * 60 * 1000; // ~1 hour
 
 /**
  * Authenticated endpoint for the Android app duty-location service.
@@ -84,11 +81,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id: recent.id, skipped: true });
   }
 
-  const workLocation = await getEffectiveWorkLocation(prisma, employee.id);
-  const withinGeofence =
-    distanceToWorkLocationM(workLocation, lat, lng) <= workLocation.radiusM;
-  const address = withinGeofence
-    ? workLocation.name
+  const geo = await resolvePunchGeofence(prisma, employee.id, lat, lng);
+  const address = geo.matched?.name
+    ? geo.matched.name
     : body.address?.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
   const ping = await prisma.locationPing.create({
@@ -101,7 +96,7 @@ export async function POST(req: Request) {
         body.accuracyM != null && Number.isFinite(Number(body.accuracyM))
           ? Number(body.accuracyM)
           : null,
-      withinGeofence,
+      withinGeofence: geo.withinGeofence,
       capturedAt: new Date(),
     },
   });

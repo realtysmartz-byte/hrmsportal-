@@ -31,10 +31,12 @@ model Employee {
   address          String?
   profilePhotoUrl  String?
   status           EmployeeStatus @default(ACTIVE)
-  // Forward-looking, used starting Phase 2 (Attendance):
+  // Punch sites (legacy single + up to 3 in assignedLocations JSON)
   workLocationLat  Float?
   workLocationLng  Float?
-  workLocationName String? // e.g. "Realty Smartz Private Limited HQ, Gurugram"
+  workLocationName String?
+  /// Up to 3 sites: [{ "name": string, "lat": number, "lng": number }]
+  assignedLocations Json?
   attendanceLogs   AttendanceLog[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]

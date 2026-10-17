@@ -37,6 +37,21 @@ import { AssignLocationCard } from "@/components/AssignLocationCard";
 import { EmployeeDailyTraceModal } from "@/components/EmployeeDailyTraceModal";
 import { cn } from "@/lib/utils";
 
+function parseSites(raw: unknown): { name: string; lat: number; lng: number }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { name: string; lat: number; lng: number }[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const lat = Number(o.lat);
+    const lng = Number(o.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    out.push({ name: String(o.name || "Assigned site"), lat, lng });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 export default function LocationTracingPage() {
   const { data: session } = useSession();
   const { data: office } = trpc.companySettings.get.useQuery();
@@ -57,6 +72,7 @@ export default function LocationTracingPage() {
     locationName: string | null;
     lat: number | null;
     lng: number | null;
+    sites?: { name: string; lat: number; lng: number }[] | null;
   } | null>(null);
   const [traceModalEmployee, setTraceModalEmployee] = useState<{
     id: string;
@@ -362,6 +378,7 @@ export default function LocationTracingPage() {
               currentLocationName={assignStaffTarget.locationName}
               currentLat={assignStaffTarget.lat}
               currentLng={assignStaffTarget.lng}
+              currentSites={assignStaffTarget.sites}
               canManage={true}
               onUpdated={() => {
                 void refetchStaff();
@@ -560,6 +577,7 @@ export default function LocationTracingPage() {
                                     locationName: emp.workLocationName,
                                     lat: emp.workLocationLat,
                                     lng: emp.workLocationLng,
+                                    sites: parseSites(emp.assignedLocations),
                                   })
                                 }
                                 className="h-7 px-2 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg font-semibold"
@@ -688,6 +706,7 @@ export default function LocationTracingPage() {
                               locationName: emp.workLocationName,
                               lat: emp.workLocationLat,
                               lng: emp.workLocationLng,
+                              sites: parseSites(emp.assignedLocations),
                             })
                           }
                           className="h-7 text-xs gap-1 bg-[#5D3EBC] hover:bg-[#FF6559] text-white rounded-lg font-semibold px-2"

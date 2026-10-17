@@ -97,7 +97,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 30_000, refetchOnWindowFocus: false },
+          queries: {
+            staleTime: 60_000,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: true,
+          },
         },
         mutationCache: new MutationCache({
           onSuccess: (_data, variables, _context, mutation) => {
@@ -116,7 +120,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() => getTRPCClient());
 
   return (
-    <SessionProvider refetchOnWindowFocus refetchInterval={60}>
+    <SessionProvider refetchOnWindowFocus={false} refetchInterval={5 * 60}>
       <AccountStatusGuard />
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
