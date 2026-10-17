@@ -132,14 +132,18 @@ export const attendanceRouter = router({
   today: protectedProcedure.query(async ({ ctx }) => {
     const employeeId = resolveEmployeeId(ctx);
     const today = startOfDayUTC(new Date());
-    // Skip punches on this hot path — punch list is rarely needed for clock card
+    const punchInclude = {
+      punches: { orderBy: { checkInTime: "asc" as const } },
+    };
+
     let log = await ctx.prisma.attendanceLog.findUnique({
       where: {
         employeeId_date: { employeeId, date: today },
       },
+      include: punchInclude,
     });
 
-    // After 7 PM: only auto-out if still on duty
+    // After 7 PM: only auto-out if still on duty (cron also runs — no auth/session impact)
     if (
       getISTDateParts(new Date()).hour >= 19 &&
       log?.checkInTime &&
@@ -150,10 +154,11 @@ export const attendanceRouter = router({
         where: {
           employeeId_date: { employeeId, date: today },
         },
+        include: punchInclude,
       });
     }
 
-    return log ? { ...log, punches: [] as never[] } : null;
+    return log;
   }),
 
   /**

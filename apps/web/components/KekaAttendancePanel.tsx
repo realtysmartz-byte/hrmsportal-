@@ -506,11 +506,29 @@ export function KekaAttendancePanel({
               </p>
             )}
 
-            {todayAttendance?.punches && todayAttendance.punches.length > 0 && (
-              <div className="mt-3">
-                <PunchList punches={todayAttendance.punches} />
-              </div>
-            )}
+            {(() => {
+              const todayPunches =
+                todayAttendance &&
+                "punches" in todayAttendance &&
+                Array.isArray((todayAttendance as { punches?: unknown }).punches)
+                  ? (
+                      todayAttendance as {
+                        punches: {
+                          id: string;
+                          checkInTime: Date;
+                          checkOutTime: Date | null;
+                          checkInAddress: string | null;
+                          checkOutAddress: string | null;
+                        }[];
+                      }
+                    ).punches
+                  : [];
+              return todayPunches.length > 0 ? (
+                <div className="mt-3">
+                  <PunchList punches={todayPunches} />
+                </div>
+              ) : null;
+            })()}
           </div>
         </div>
       </div>
