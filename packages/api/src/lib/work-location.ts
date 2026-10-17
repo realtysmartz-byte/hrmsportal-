@@ -10,6 +10,8 @@ export type EffectiveWorkLocation = {
   radiusM: number;
 };
 
+export const OFFICE_PUNCH_LOCATION_NAME = "Realty Smartz Pvt Ltd";
+
 export type AssignedSite = { name: string; lat: number; lng: number };
 
 export type PunchGeofenceMatch = {
@@ -120,7 +122,7 @@ export function syncLegacyWorkLocation(sites: AssignedSite[] | null | undefined)
 }
 
 /**
- * Punch sites: company office ALWAYS + up to 3 assigned sites (200m each).
+ * Punch sites: company office ALWAYS + up to 3 assigned sites.
  */
 export async function getPunchGeofenceSites(
   prisma: PrismaClient,
@@ -148,7 +150,7 @@ export async function getPunchGeofenceSites(
   const sites: EffectiveWorkLocation[] = [
     {
       source: "OFFICE",
-      name: settings.officeName,
+      name: OFFICE_PUNCH_LOCATION_NAME,
       lat: settings.officeLat,
       lng: settings.officeLng,
       radiusM: settings.geofenceRadiusM,

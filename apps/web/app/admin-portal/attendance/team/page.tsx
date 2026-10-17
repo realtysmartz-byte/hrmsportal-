@@ -65,6 +65,21 @@ function parseDateParam(d: unknown, fallback: string): string {
   return String(d).slice(0, 10);
 }
 
+function attendanceLocationLabel(
+  log:
+    | {
+        notes?: string | null;
+        checkInAddress?: string | null;
+        checkOutAddress?: string | null;
+      }
+    | null
+    | undefined,
+  hasGps: boolean
+) {
+  if (log?.notes?.includes("Office punch-in")) return "Realty Smartz Pvt Ltd";
+  return log?.checkInAddress || log?.checkOutAddress || (hasGps ? "Resolving address…" : "—");
+}
+
 export default function TeamAttendancePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -656,10 +671,7 @@ export default function TeamAttendancePage() {
           const hasGps = log?.checkInLat != null && log?.checkInLng != null;
           const mapLat = log?.checkInLat ?? 0;
           const mapLng = log?.checkInLng ?? 0;
-          const addressText =
-            log?.checkInAddress ||
-            log?.checkOutAddress ||
-            (hasGps ? "Resolving address…" : "—");
+          const addressText = attendanceLocationLabel(log, hasGps);
 
           return (
             <div
@@ -875,10 +887,7 @@ export default function TeamAttendancePage() {
               const hasGps = log?.checkInLat != null && log?.checkInLng != null;
               const mapLat = log?.checkInLat ?? 0;
               const mapLng = log?.checkInLng ?? 0;
-              const addressText =
-                log?.checkInAddress ||
-                log?.checkOutAddress ||
-                (hasGps ? "Resolving address…" : "—");
+              const addressText = attendanceLocationLabel(log, hasGps);
 
               return (
                 <TableRow

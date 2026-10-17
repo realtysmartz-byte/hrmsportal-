@@ -103,6 +103,7 @@ function schedulePunchLocationWork(
     capturedAt: Date;
     direction: "in" | "out";
     checkInTime: Date;
+    address: string | null;
   }
 ) {
   scheduleAfterResponse(ctx, async () => {
@@ -112,7 +113,7 @@ function schedulePunchLocationWork(
           employeeId: input.employeeId,
           lat: input.lat,
           lng: input.lng,
-          address: null,
+          address: input.address,
           accuracyM: input.accuracyM,
           withinGeofence: input.withinGeofence,
           capturedAt: input.capturedAt,
@@ -126,15 +127,17 @@ function schedulePunchLocationWork(
         return null;
       });
 
-    const fallbackAddress = `${input.lat.toFixed(5)}, ${input.lng.toFixed(5)}`;
-    let address = fallbackAddress;
-    try {
-      address = await reverseGeocodePunchAddress(input.lat, input.lng);
-    } catch (geocodeErr: unknown) {
-      console.error(
-        `[attendance.check${input.direction === "in" ? "In" : "Out"}] reverse geocoding failed:`,
-        geocodeErr instanceof Error ? geocodeErr.name : "Unknown error"
-      );
+    let address = input.address;
+    if (!address) {
+      address = `${input.lat.toFixed(5)}, ${input.lng.toFixed(5)}`;
+      try {
+        address = await reverseGeocodePunchAddress(input.lat, input.lng);
+      } catch (geocodeErr: unknown) {
+        console.error(
+          `[attendance.check${input.direction === "in" ? "In" : "Out"}] reverse geocoding failed:`,
+          geocodeErr instanceof Error ? geocodeErr.name : "Unknown error"
+        );
+      }
     }
 
     const addressUpdate =
@@ -640,6 +643,7 @@ export const attendanceRouter = router({
         capturedAt: now,
         direction: "in",
         checkInTime: now,
+        address: finalAddress,
       });
 
       scheduleAfterResponse(ctx, async () => {
@@ -804,6 +808,7 @@ export const attendanceRouter = router({
         capturedAt: now,
         direction: "out",
         checkInTime,
+        address: geo.matched?.name ?? null,
       });
 
       scheduleAfterResponse(ctx, async () => {
