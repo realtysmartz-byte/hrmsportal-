@@ -581,20 +581,11 @@ export const attendanceRouter = router({
         withinGeofence,
         status,
         notes: logNotes,
-        accuracyM: input.accuracyM,
-        isMockLocation: input.isMockLocation ?? false,
-        needsReview:
-          Boolean(existing?.needsReview) ||
-          Boolean(input.isMockLocation) ||
-          input.accuracyM > REVIEW_ACCURACY_M ||
-          !withinGeofence,
       };
 
       const punchData = {
         checkInTime: now,
         checkInAddress: null,
-        accuracyM: input.accuracyM,
-        isMockLocation: input.isMockLocation ?? false,
       };
 
       let log: { id: string };
@@ -778,13 +769,6 @@ export const attendanceRouter = router({
             totalHours: roundedHours,
             status,
             notes: logNotes,
-            accuracyM: input.accuracyM,
-            isMockLocation: input.isMockLocation ?? false,
-            needsReview:
-              existing.needsReview ||
-              Boolean(input.isMockLocation) ||
-              input.accuracyM > REVIEW_ACCURACY_M ||
-              !outWithinGeofence,
           },
         });
         if (updatedLog.count === 0) return false;
@@ -793,8 +777,6 @@ export const attendanceRouter = router({
           data: {
             checkOutTime: now,
             checkOutAddress: null,
-            accuracyM: input.accuracyM,
-            isMockLocation: input.isMockLocation ?? false,
           },
         });
         if (closed.count === 0) {
@@ -805,8 +787,6 @@ export const attendanceRouter = router({
               checkInAddress: existing.checkInAddress,
               checkOutTime: now,
               checkOutAddress: null,
-              accuracyM: input.accuracyM,
-              isMockLocation: input.isMockLocation ?? false,
             },
           });
         }

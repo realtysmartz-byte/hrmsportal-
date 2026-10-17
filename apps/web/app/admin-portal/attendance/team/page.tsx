@@ -777,7 +777,7 @@ export default function TeamAttendancePage() {
                     <div className="min-w-0 flex-1 flex items-start gap-1.5 text-xs text-neutral-700">
                       <MapPin className="h-3.5 w-3.5 text-[#5D3EBC] shrink-0 mt-0.5" />
                       <span className="break-words line-clamp-2 text-[11px]">{addressText}</span>
-                      {log?.needsReview && (
+                      {log?.notes?.includes("review:") && (
                         <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
                           Review
                         </span>
@@ -936,7 +936,7 @@ export default function TeamAttendancePage() {
                         <p className="min-w-0 flex-1 truncate text-neutral-700" title={addressText}>
                           {addressText}
                         </p>
-                        {log?.needsReview && (
+                        {log?.notes?.includes("review:") && (
                           <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
                             Review
                           </span>

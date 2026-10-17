@@ -108,12 +108,6 @@ model AttendanceLog {
   checkOutAddress String?
   status          AttendanceStatus @default(PRESENT)
   withinGeofence  Boolean          @default(true)
-  /// GPS accuracy (meters) reported at last punch — nullable until migrated
-  accuracyM       Float?
-  /// True when device reported a mock/fake GPS provider
-  isMockLocation  Boolean          @default(false)
-  /// Set when accuracy is poor or geofence/mock flags need admin review
-  needsReview     Boolean          @default(false)
   totalHours      Float?
   notes           String?
   createdAt       DateTime         @default(now())
@@ -131,8 +125,6 @@ model AttendancePunch {
   checkInAddress  String?
   checkOutTime    DateTime?
   checkOutAddress String?
-  accuracyM       Float?
-  isMockLocation  Boolean       @default(false)
 
   @@index([attendanceLogId])
 }
@@ -466,4 +458,3 @@ enum ReviewStatus {
   PENDING
   SUBMITTED
 }
-
