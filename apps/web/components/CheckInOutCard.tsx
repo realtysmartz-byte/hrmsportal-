@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
+  acquirePunchFix,
   geolocationErrorMessage,
-  getPunchPosition,
+  startPunchLocationPrewarm,
+  stopPunchLocationPrewarm,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
 import {
+  getNativeMockLocationFlag,
   startNativeDutyTracking,
   stopNativeDutyTracking,
 } from "@/lib/native-duty-tracking";
@@ -18,7 +21,6 @@ import {
   formatTimeIST,
   TIMEZONE_IST,
   getISTDateParts,
-  haversineDistanceM,
 } from "@realty-smartz/shared";
 import { cn } from "@/lib/utils";
 
@@ -56,25 +58,28 @@ export function CheckInOutCard() {
   const [tick, setTick] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "locating" | "saving">("idle");
 
   const isOnDuty = Boolean(today?.checkInTime && !today?.checkOutTime);
   const hasCompletedSession = Boolean(today?.checkInTime && today?.checkOutTime);
   const pastShiftEnd = getISTDateParts(new Date()).hour >= 19;
 
-  // Live elapsed clock ONLY while on duty — no timer on page load
+  useEffect(() => {
+    startPunchLocationPrewarm();
+    return () => stopPunchLocationPrewarm();
+  }, []);
+
   useEffect(() => {
     if (!isOnDuty) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, [isOnDuty]);
 
-  const onSuccess = async () => {
+  const onSuccess = () => {
     setError("");
-    await Promise.all([
-      utils.attendance.today.refetch(),
-      utils.attendance.myMonth.invalidate(),
-      utils.attendance.myRecentWeek.invalidate(),
-    ]);
+    void utils.attendance.today.invalidate();
+    void utils.attendance.myMonth.invalidate();
+    void utils.attendance.myRecentWeek.invalidate();
   };
   const checkIn = trpc.attendance.checkIn.useMutation({ onSuccess });
   const checkOut = trpc.attendance.checkOut.useMutation({ onSuccess });
@@ -84,38 +89,28 @@ export function CheckInOutCard() {
     if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
     setError("");
     setBusy(true);
+    setPhase("locating");
     try {
-      const pos = await getPunchPosition();
-      const { latitude: lat, longitude: lng } = pos.coords;
+      const fix = await acquirePunchFix();
+      const lat = fix.lat;
+      const lng = fix.lng;
+      const isMockLocation = await getNativeMockLocationFlag(fix);
+      setPhase("saving");
 
-      const sites = workLoc?.sites?.length
-        ? workLoc.sites
-        : workLoc
-          ? [workLoc]
-          : [];
-      const matchedSite = sites.find(
-        (s) => haversineDistanceM(lat, lng, s.lat, s.lng) <= s.radiusM
-      );
-
-      if (mode === "in" && sites.length > 0 && !matchedSite) {
-        const nearest = sites
-          .map((s) => ({ s, d: haversineDistanceM(lat, lng, s.lat, s.lng) }))
-          .sort((a, b) => a.d - b.d)[0];
-        const names = sites.map((s) => s.name).join(" or ");
-        const message = `You are ${Math.round(nearest.d)} m away from ${nearest.s.name}. Move within ${nearest.s.radiusM} m of ${names} to punch in.`;
-        setError(message);
-        toast("error", message);
-        return;
-      }
-
-      // Skip reverse-geocode on punch — keeps clock-in/out under ~5s
-      const address = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      const payload = {
+        lat,
+        lng,
+        address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        accuracyM: fix.accuracy,
+        fixTimestamp: new Date(fix.timestamp),
+        isMockLocation,
+      };
 
       if (mode === "in") {
-        await checkIn.mutateAsync({ lat, lng, address });
+        await checkIn.mutateAsync(payload);
         void startNativeDutyTracking();
       } else {
-        await checkOut.mutateAsync({ lat, lng, address });
+        await checkOut.mutateAsync(payload);
         void stopNativeDutyTracking();
       }
     } catch (err: unknown) {
@@ -130,10 +125,11 @@ export function CheckInOutCard() {
       if (!(err instanceof TRPCClientError)) toast("error", message);
     } finally {
       setBusy(false);
+      setPhase("idle");
     }
   }
 
-  void tick; // drive re-render while on duty
+  void tick;
   const now = new Date();
   const elapsed =
     isOnDuty && today?.checkInTime
@@ -154,6 +150,9 @@ export function CheckInOutCard() {
     assignedSites.length > 0
       ? `Office or ${assignedSites.map((s) => s.name).join(", ")} (200m)`
       : workLoc?.name ?? (isLoading ? "…" : "Company office");
+
+  const busyLabel =
+    phase === "saving" ? "Saving…" : phase === "locating" ? "Getting location…" : null;
 
   return (
     <div className="w-full rounded-xl bg-[#F3F0FC] p-4">
@@ -210,8 +209,8 @@ export function CheckInOutCard() {
             )}
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busy
-              ? "Getting location…"
+            {busyLabel
+              ? busyLabel
               : isOnDuty
                 ? "Clock Out"
                 : hasCompletedSession
@@ -246,7 +245,6 @@ export function CheckInOutCard() {
         <MapPin className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{locationLabel}</span>
       </div>
-
     </div>
   );
 }

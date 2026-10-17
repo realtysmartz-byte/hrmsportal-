@@ -347,7 +347,7 @@ export default function LocationTracingPage() {
                 Coordinates: {activeMapPing.lat.toFixed(5)}, {activeMapPing.lng.toFixed(5)}
               </span>
               <a
-                href={`https://www.google.com/maps?q=${activeMapPing.lat},${activeMapPing.lng}&z=17`}
+                href={`https://www.google.com/maps?q=${activeMapPing.lat},${activeMapPing.lng}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 font-semibold text-[#5D3EBC] hover:underline"
@@ -596,7 +596,7 @@ export default function LocationTracingPage() {
                                 <span>Assign</span>
                               </Button>
                               <a
-                                href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
+                                href={`https://www.google.com/maps?q=${targetLat},${targetLng}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
@@ -724,7 +724,7 @@ export default function LocationTracingPage() {
                           <span>Assign Site</span>
                         </Button>
                         <a
-                          href={`https://www.google.com/maps?q=${targetLat},${targetLng}&z=17`}
+                          href={`https://www.google.com/maps?q=${targetLat},${targetLng}`}
                           target="_blank"
                           rel="noreferrer"
                           className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
@@ -868,7 +868,7 @@ export default function LocationTracingPage() {
                                 <span>Trace</span>
                               </Button>
                               <a
-                                href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
+                                href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center justify-center h-7 px-2 rounded-lg border border-neutral-200 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"
@@ -951,7 +951,7 @@ export default function LocationTracingPage() {
                             <span>Trace</span>
                           </Button>
                           <a
-                            href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}&z=17`}
+                            href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}`}
                             target="_blank"
                             rel="noreferrer"
                             className="h-7 inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 px-2 text-xs font-semibold text-[#5D3EBC] hover:bg-[#5D3EBC]/10 transition-colors"

@@ -127,7 +127,21 @@ export default function TeamAttendancePage() {
     isLoading,
     refetch,
     isFetching,
-  } = trpc.attendance.team.useQuery(queryInput, { enabled: allowed });
+  } = trpc.attendance.team.useQuery(queryInput, {
+    enabled: allowed,
+    refetchInterval: (data) =>
+      data?.rows.some(({ log }) => {
+        if (!log || Date.now() - new Date(log.createdAt).getTime() > 30_000) {
+          return false;
+        }
+        return (
+          (log.checkInLat != null && !log.checkInAddress) ||
+          (log.checkOutLat != null && !log.checkOutAddress)
+        );
+      })
+        ? 1_500
+        : false,
+  });
 
   const syncGoogleSheet = trpc.googleSheets.syncDailyReport.useMutation({
     onSuccess: (res) => {
@@ -642,7 +656,10 @@ export default function TeamAttendancePage() {
           const hasGps = log?.checkInLat != null && log?.checkInLng != null;
           const mapLat = log?.checkInLat ?? 0;
           const mapLng = log?.checkInLng ?? 0;
-          const addressText = log?.checkInAddress || log?.checkOutAddress || "—";
+          const addressText =
+            log?.checkInAddress ||
+            log?.checkOutAddress ||
+            (hasGps ? "Resolving address…" : "—");
 
           return (
             <div
@@ -760,6 +777,11 @@ export default function TeamAttendancePage() {
                     <div className="min-w-0 flex-1 flex items-start gap-1.5 text-xs text-neutral-700">
                       <MapPin className="h-3.5 w-3.5 text-[#5D3EBC] shrink-0 mt-0.5" />
                       <span className="break-words line-clamp-2 text-[11px]">{addressText}</span>
+                      {log?.needsReview && (
+                        <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                          Review
+                        </span>
+                      )}
                     </div>
 
                     {hasGps && (
@@ -790,18 +812,6 @@ export default function TeamAttendancePage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Google Map View */}
-                  {hasGps && (
-                    <div className="w-full h-[160px] rounded-lg overflow-hidden border border-neutral-200/80 bg-neutral-100">
-                      <iframe
-                        title={`Location Map for ${empName}`}
-                        src={`https://www.google.com/maps?q=${mapLat},${mapLng}&z=16&output=embed`}
-                        className="w-full h-full border-0 pointer-events-none"
-                        loading="lazy"
-                      />
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -865,7 +875,10 @@ export default function TeamAttendancePage() {
               const hasGps = log?.checkInLat != null && log?.checkInLng != null;
               const mapLat = log?.checkInLat ?? 0;
               const mapLng = log?.checkInLng ?? 0;
-              const addressText = log?.checkInAddress || log?.checkOutAddress || "—";
+              const addressText =
+                log?.checkInAddress ||
+                log?.checkOutAddress ||
+                (hasGps ? "Resolving address…" : "—");
 
               return (
                 <TableRow
@@ -919,10 +932,15 @@ export default function TeamAttendancePage() {
 
                   <TableCell className="py-3 align-middle text-xs">
                     {hasCheckedIn ? (
-                      <div className="flex max-w-[280px] items-center gap-2">
+                      <div className="flex max-w-[360px] items-center gap-2">
                         <p className="min-w-0 flex-1 truncate text-neutral-700" title={addressText}>
                           {addressText}
                         </p>
+                        {log?.needsReview && (
+                          <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                            Review
+                          </span>
+                        )}
                         {hasGps ? (
                           <button
                             type="button"
@@ -938,6 +956,18 @@ export default function TeamAttendancePage() {
                             <MapPin className="h-3 w-3" />
                             Map
                           </button>
+                        ) : null}
+                        {hasGps ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-[11px] font-semibold text-[#5D3EBC] hover:bg-neutral-50"
+                            title="Open in Google Maps"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Maps
+                          </a>
                         ) : null}
                       </div>
                     ) : (

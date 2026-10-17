@@ -5,6 +5,7 @@ import {
   canManageCompanySettings,
 } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
+import { invalidatePunchGeofenceCache } from "../lib/work-location";
 
 export const companySettingsRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
@@ -24,7 +25,7 @@ export const companySettingsRouter = router({
         });
       }
 
-      return ctx.prisma.companySettings.upsert({
+      const settings = await ctx.prisma.companySettings.upsert({
         where: { id: "singleton" },
         create: {
           id: "singleton",
@@ -32,5 +33,7 @@ export const companySettingsRouter = router({
         },
         update: input,
       });
+      invalidatePunchGeofenceCache();
+      return settings;
     }),
 });

@@ -26,7 +26,10 @@ import {
   resolveActorId,
 } from "../lib/employee-access";
 import { parseExcelDate } from "../lib/excel-import";
-import { syncLegacyWorkLocation } from "../lib/work-location";
+import {
+  invalidatePunchGeofenceCache,
+  syncLegacyWorkLocation,
+} from "../lib/work-location";
 
 const employeeInclude = {
   department: { select: { id: true, name: true } },
@@ -907,6 +910,7 @@ export const employeeRouter = router({
         }
         return updated;
       });
+      invalidatePunchGeofenceCache(id);
 
       if (data.status && data.status !== previousStatus) {
         void (async () => {
@@ -1281,4 +1285,3 @@ export const employeeRouter = router({
     return upcoming.slice(0, 12);
   }),
 });
-

@@ -69,4 +69,4 @@ export {
 } from "./lib/email";
 
 export { ensureAutoPunchOut } from "./lib/attendance-auto";
-
+export { assertRateLimit } from "./lib/rate-limit";

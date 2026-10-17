@@ -20,6 +20,7 @@ import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import { istDateTime, parseExcelDate, parseExcelTime } from "../lib/excel-import";
 import { assertCanViewSensitive } from "../lib/employee-access";
 import { ensureAutoPunchOut } from "../lib/attendance-auto";
+import { reverseGeocodePunchAddress } from "../lib/punch-address";
 import {
   formatClock,
   getApprovedHalfDaySlot,
@@ -32,12 +33,170 @@ import {
   getPunchGeofenceSites,
   resolvePunchGeofence,
 } from "../lib/work-location";
+import { assertRateLimit } from "../lib/rate-limit";
 
 /** Reject pings whose GPS fix is older than this or stamped in the future. */
-const MAX_PING_AGE_MS = 10 * 60 * 1000;
-const MAX_CLOCK_SKEW_MS = 2 * 60 * 1000;
+const MAX_PING_AGE_MS = 5 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 0;
 /** Ignore duplicate tracking pings closer than this (30 min cadence). */
 const MIN_TRACKING_PING_GAP_MS = 55 * 60 * 1000; // ~1 hour cadence
+/** Flag for admin review when GPS accuracy is worse than this (meters). */
+const REVIEW_ACCURACY_M = 100;
+const PUNCH_RATE_LIMIT = 10;
+const PUNCH_RATE_WINDOW_MS = 60_000;
+
+function enforcePunchRateLimit(employeeId: string, ip?: string | null) {
+  enforceEmployeeAndIpRateLimit("punch", employeeId, ip);
+}
+
+function enforceEmployeeAndIpRateLimit(
+  namespace: string,
+  employeeId: string,
+  ip?: string | null
+) {
+  const empHit = assertRateLimit(
+    `${namespace}:emp:${employeeId}`,
+    PUNCH_RATE_LIMIT,
+    PUNCH_RATE_WINDOW_MS
+  );
+  const ipHit = assertRateLimit(
+    `${namespace}:ip:${ip || "unknown"}`,
+    PUNCH_RATE_LIMIT,
+    PUNCH_RATE_WINDOW_MS
+  );
+  if (!empHit.ok || !ipHit.ok) {
+    const retry = Math.max(empHit.ok ? 0 : empHit.retryAfterSec, ipHit.ok ? 0 : ipHit.retryAfterSec);
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `Too many ${namespace === "punch" ? "punch attempts" : "location reports"}. Try again in ${retry}s.`,
+    });
+  }
+}
+
+function scheduleAfterResponse(
+  ctx: Context,
+  task: () => Promise<void>
+) {
+  const run = () =>
+    task().catch((err: unknown) => {
+      console.error(
+        "[attendance] post-response task failed:",
+        err instanceof Error ? err.name : "Unknown error"
+      );
+    });
+  if (ctx.afterResponse) {
+    ctx.afterResponse(run);
+  } else {
+    setTimeout(() => void run(), 0);
+  }
+}
+
+function schedulePunchLocationWork(
+  ctx: Context,
+  input: {
+    employeeId: string;
+    logId: string;
+    lat: number;
+    lng: number;
+    accuracyM: number;
+    withinGeofence: boolean;
+    capturedAt: Date;
+    direction: "in" | "out";
+    checkInTime: Date;
+  }
+) {
+  scheduleAfterResponse(ctx, async () => {
+    const pingPromise = ctx.prisma.locationPing
+      .create({
+        data: {
+          employeeId: input.employeeId,
+          lat: input.lat,
+          lng: input.lng,
+          address: null,
+          accuracyM: input.accuracyM,
+          withinGeofence: input.withinGeofence,
+          capturedAt: input.capturedAt,
+        },
+      })
+      .catch((pingErr: unknown) => {
+        console.error(
+          `[attendance.check${input.direction === "in" ? "In" : "Out"}] locationPing failed:`,
+          pingErr instanceof Error ? pingErr.name : "Unknown error"
+        );
+        return null;
+      });
+
+    const fallbackAddress = `${input.lat.toFixed(5)}, ${input.lng.toFixed(5)}`;
+    let address = fallbackAddress;
+    try {
+      address = await reverseGeocodePunchAddress(input.lat, input.lng);
+    } catch (geocodeErr: unknown) {
+      console.error(
+        `[attendance.check${input.direction === "in" ? "In" : "Out"}] reverse geocoding failed:`,
+        geocodeErr instanceof Error ? geocodeErr.name : "Unknown error"
+      );
+    }
+
+    const addressUpdate =
+      input.direction === "in"
+        ? Promise.all([
+            ctx.prisma.attendanceLog.updateMany({
+              where: { id: input.logId, checkInTime: input.capturedAt },
+              data: { checkInAddress: address },
+            }),
+            ctx.prisma.attendancePunch.updateMany({
+              where: {
+                attendanceLogId: input.logId,
+                checkInTime: input.checkInTime,
+              },
+              data: { checkInAddress: address },
+            }),
+          ])
+        : Promise.all([
+            ctx.prisma.attendanceLog.updateMany({
+              where: { id: input.logId, checkOutTime: input.capturedAt },
+              data: { checkOutAddress: address },
+            }),
+            ctx.prisma.attendancePunch.updateMany({
+              where: {
+                attendanceLogId: input.logId,
+                checkInTime: input.checkInTime,
+                checkOutTime: input.capturedAt,
+              },
+              data: { checkOutAddress: address },
+            }),
+          ]);
+
+    await Promise.all([
+      addressUpdate,
+      pingPromise.then((ping) =>
+        ping
+          ? ctx.prisma.locationPing.update({
+              where: { id: ping.id },
+              data: { address },
+            })
+          : null
+      ),
+    ]);
+  });
+}
+
+function reviewNotes(opts: {
+  accuracyM: number | null | undefined;
+  isMock?: boolean;
+  withinGeofence: boolean;
+}): string | null {
+  const parts: string[] = [];
+  if (opts.isMock) parts.push("review:mock-gps");
+  if (opts.accuracyM != null && opts.accuracyM > REVIEW_ACCURACY_M) {
+    parts.push(`review:low-accuracy(${Math.round(opts.accuracyM)}m)`);
+  }
+  if (!opts.withinGeofence) parts.push("review:outside-geofence");
+  if (opts.accuracyM != null && Number.isFinite(opts.accuracyM)) {
+    parts.push(`gps:${Math.round(opts.accuracyM)}m`);
+  }
+  return parts.length ? parts.join(" · ") : null;
+}
 
 let sheetSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -63,7 +222,10 @@ function scheduleSheetSync(prisma: Context["prisma"], date: Date) {
         });
       }
     } catch (err) {
-      console.error("[attendance] Google Sheet sync error:", err);
+      console.error(
+        "[attendance] Google Sheet sync error:",
+        err instanceof Error ? err.name : "Unknown error"
+      );
     }
   }, 60_000);
 }
@@ -344,21 +506,23 @@ export const attendanceRouter = router({
   checkIn: protectedProcedure
     .input(checkInOutSchema)
     .mutation(async ({ ctx, input }) => {
+      // Session employee only — never trust a client-supplied employee id
       const employeeId = resolveEmployeeId(ctx);
+      enforcePunchRateLimit(employeeId, ctx.ip);
 
       const today = startOfDayUTC(new Date());
-      const existing = await ctx.prisma.attendanceLog.findUnique({
-        where: {
-          employeeId_date: { employeeId, date: today },
-        },
-      });
+      // Parallel independent reads (geofence uses Haversine + cached office)
+      const [existing, geo, firstHalfDaySlot] = await Promise.all([
+        ctx.prisma.attendanceLog.findUnique({
+          where: { employeeId_date: { employeeId, date: today } },
+        }),
+        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
+        getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
+      ]);
 
-      // Block only if employee is CURRENTLY punched in (active on duty without checkout)
+      // Idempotent: already on duty → acknowledge the repeated tap.
       if (existing?.checkInTime && !existing.checkOutTime) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "You are already punched in. Please punch out first before punching in again.",
-        });
+        return { success: true };
       }
       if (existing?.status === "ON_LEAVE") {
         throw new TRPCError({
@@ -367,13 +531,7 @@ export const attendanceRouter = router({
         });
       }
 
-      // Office always allowed; assigned site also allowed when allocated (200m either)
-      const geo = await resolvePunchGeofence(
-        ctx.prisma,
-        employeeId,
-        input.lat,
-        input.lng
-      );
+      // Server-computed geofence only — ignore any client withinGeofence/distance/address
       const workLocation = geo.matched;
       const withinGeofence = geo.withinGeofence;
 
@@ -385,12 +543,9 @@ export const attendanceRouter = router({
         });
       }
 
-      const now = new Date();
+      const now = new Date(); // SERVER time
       const isFirstPunch = !existing?.checkInTime;
-      const halfDaySlot = isFirstPunch
-        ? await getApprovedHalfDaySlot(ctx.prisma, employeeId, today)
-        : null;
-      // On initial punch of the day calculate status; on re-punch keep existing status
+      const halfDaySlot = isFirstPunch ? firstHalfDaySlot : null;
       const status =
         !isFirstPunch && existing
           ? existing.status
@@ -399,66 +554,104 @@ export const attendanceRouter = router({
             : statusFromFirstCheckIn(now);
 
       const finalAddress = workLocation.name;
+      const meta = reviewNotes({
+        accuracyM: input.accuracyM,
+        isMock: input.isMockLocation,
+        withinGeofence,
+      });
       let logNotes: string | null =
         workLocation.source === "ASSIGNED"
           ? `Site punch-in: ${workLocation.name}`
           : "Office punch-in";
-
       if (existing?.checkOutTime) {
         const reNote = `Re-punch in at ${formatTimeIST(now)}`;
         logNotes = existing.notes ? `${existing.notes} · ${reNote}` : reNote;
       }
+      if (meta) logNotes = logNotes ? `${logNotes} · ${meta}` : meta;
 
       const locationData = {
         checkInTime: now,
         checkInLat: input.lat,
         checkInLng: input.lng,
-        checkInAddress: finalAddress,
-        checkOutTime: null,
-        checkOutLat: null,
-        checkOutLng: null,
-        checkOutAddress: null,
+        checkInAddress: null,
+        checkOutTime: null as Date | null,
+        checkOutLat: null as number | null,
+        checkOutLng: null as number | null,
+        checkOutAddress: null as string | null,
         withinGeofence,
         status,
         notes: logNotes,
+        accuracyM: input.accuracyM,
+        isMockLocation: input.isMockLocation ?? false,
+        needsReview:
+          Boolean(existing?.needsReview) ||
+          Boolean(input.isMockLocation) ||
+          input.accuracyM > REVIEW_ACCURACY_M ||
+          !withinGeofence,
       };
 
-      const punch = {
-        create: { checkInTime: now, checkInAddress: finalAddress },
+      const punchData = {
+        checkInTime: now,
+        checkInAddress: null,
+        accuracyM: input.accuracyM,
+        isMockLocation: input.isMockLocation ?? false,
       };
-      const log = existing
-        ? await ctx.prisma.attendanceLog.update({
-            where: { id: existing.id },
-            data: { ...locationData, punches: punch },
-          })
-        : await ctx.prisma.attendanceLog.create({
-            data: {
-              employeeId,
-              date: today,
-              ...locationData,
-              punches: punch,
-            },
-          });
 
+      let log: { id: string };
       try {
-        await ctx.prisma.locationPing.create({
-          data: {
-            employeeId,
-            lat: input.lat,
-            lng: input.lng,
-            address: finalAddress,
-            accuracyM: null,
-            withinGeofence,
-            capturedAt: now,
-          },
+        if (existing) {
+          const claimed = await ctx.prisma.$transaction(async (tx) => {
+            const updated = await tx.attendanceLog.updateMany({
+              where: { id: existing.id, checkOutTime: existing.checkOutTime },
+              data: locationData,
+            });
+            if (updated.count === 0) return false;
+            await tx.attendancePunch.create({
+              data: { ...punchData, attendanceLogId: existing.id },
+            });
+            return true;
+          });
+          if (!claimed) return { success: true };
+          log = { id: existing.id };
+        } else {
+          log = await ctx.prisma.attendanceLog.create({
+              data: {
+                employeeId,
+                date: today,
+                ...locationData,
+                punches: { create: punchData },
+              },
+              select: { id: true },
+            });
+        }
+      } catch (err: unknown) {
+        const isUniqueConflict =
+          typeof err === "object" &&
+          err !== null &&
+          "code" in err &&
+          err.code === "P2002";
+        if (!isUniqueConflict) throw err;
+        // Unique employee+date race — re-read and treat as idempotent if already in.
+        const again = await ctx.prisma.attendanceLog.findUnique({
+          where: { employeeId_date: { employeeId, date: today } },
         });
-      } catch (pingErr) {
-        console.error("[attendance.checkIn] failed to record initial location ping:", pingErr);
+        if (again?.checkInTime && !again.checkOutTime) return { success: true };
+        throw err;
       }
 
-      // Non-blocking background tasks: Send emails & sync Google Sheets without slowing down punch-in
-      void (async () => {
-        // 1. Send punching details & policy emails
+      schedulePunchLocationWork(ctx, {
+        employeeId,
+        logId: log.id,
+        lat: input.lat,
+        lng: input.lng,
+        accuracyM: input.accuracyM,
+        withinGeofence,
+        capturedAt: now,
+        direction: "in",
+        checkInTime: now,
+      });
+
+      scheduleAfterResponse(ctx, async () => {
         try {
           const { notifyPunchDetails, notifyOutsideGeofence } = await import(
             "../lib/email"
@@ -475,8 +668,6 @@ export const attendanceRouter = router({
           });
           if (emp) {
             const name = `${emp.firstName} ${emp.lastName}`;
-
-            // Always send punching details email to employee (and manager/HR if late)
             await notifyPunchDetails({
               employeeName: name,
               employeeEmail: emp.email,
@@ -491,7 +682,6 @@ export const attendanceRouter = router({
               withinGeofence,
               managerEmail: emp.manager?.email,
             });
-
             if (!withinGeofence) {
               await notifyOutsideGeofence({
                 employeeName: name,
@@ -504,24 +694,26 @@ export const attendanceRouter = router({
             }
           }
         } catch (err) {
-          console.error("[attendance.checkIn] email notify failed:", err);
+          console.error(
+            "[attendance.checkIn] email notify failed:",
+            err instanceof Error ? err.name : "Unknown error"
+          );
         }
+      });
+      scheduleAfterResponse(ctx, async () => scheduleSheetSync(ctx.prisma, today));
 
-      })();
-      scheduleSheetSync(ctx.prisma, today);
-
-      return log;
+      return { success: true };
     }),
 
   checkOut: protectedProcedure
     .input(checkInOutSchema)
     .mutation(async ({ ctx, input }) => {
       const employeeId = resolveEmployeeId(ctx);
+      enforcePunchRateLimit(employeeId, ctx.ip);
+
       const today = startOfDayUTC(new Date());
       const existing = await ctx.prisma.attendanceLog.findUnique({
-        where: {
-          employeeId_date: { employeeId, date: today },
-        },
+        where: { employeeId_date: { employeeId, date: today } },
       });
 
       if (!existing?.checkInTime) {
@@ -530,110 +722,123 @@ export const attendanceRouter = router({
           message: "Check in first before checking out",
         });
       }
+      // Idempotent: already punched out → acknowledge the repeated tap.
       if (existing.checkOutTime) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "You are currently punched out. Please punch in first before checking out again.",
-        });
+        return { success: true };
       }
+      const checkInTime = existing.checkInTime;
 
-      const now = new Date();
+      const now = new Date(); // SERVER time
       const sessionHours =
-        (now.getTime() - existing.checkInTime.getTime()) / (1000 * 60 * 60);
+        (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
       const cumulativeHours = (existing.totalHours || 0) + sessionHours;
 
-      const [firstPunch, halfDaySlot] = await Promise.all([
+      const [firstPunch, halfDaySlot, geo] = await Promise.all([
         ctx.prisma.attendancePunch.findFirst({
           where: { attendanceLogId: existing.id },
           orderBy: { checkInTime: "asc" },
           select: { checkInTime: true },
         }),
         getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
+        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
       ]);
+
       const status =
         existing.status === "ON_LEAVE"
           ? existing.status
           : statusAfterCheckOut({
-              firstCheckIn: firstPunch?.checkInTime ?? existing.checkInTime,
+              firstCheckIn: firstPunch?.checkInTime ?? checkInTime,
               cumulativeHours,
               halfDaySlot,
             });
       const earlyCheckOut = isEarlyCheckOut(now, halfDaySlot);
-
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
-      const [geo, emp] = await Promise.all([
-        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
-        ctx.prisma.employee.findUnique({
-          where: { id: employeeId },
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            manager: { select: { email: true } },
-          },
-        }),
-      ]);
-
+      // Server geofence only — never trust a client-supplied address.
       const outWithinGeofence = geo.withinGeofence;
-      const finalOutAddress = geo.matched?.name ?? input.address;
-
+      const finalOutAddress =
+        geo.matched?.name ?? `${input.lat.toFixed(5)}, ${input.lng.toFixed(5)}`;
       const outNote = `Punch out at ${formatTimeIST(now)}`;
-      const logNotes = existing.notes
-        ? `${existing.notes} · ${outNote}`
-        : outNote;
+      const meta = reviewNotes({
+        accuracyM: input.accuracyM,
+        isMock: input.isMockLocation,
+        withinGeofence: outWithinGeofence,
+      });
+      let logNotes = existing.notes ? `${existing.notes} · ${outNote}` : outNote;
+      if (meta) logNotes = `${logNotes} · ${meta}`;
 
-      const updated = await ctx.prisma.attendanceLog.update({
-        where: { id: existing.id },
-        data: {
-          checkOutTime: now,
-          checkOutLat: input.lat,
-          checkOutLng: input.lng,
-          checkOutAddress: finalOutAddress,
-          totalHours: roundedHours,
-          status,
-          notes: logNotes,
-        },
-      });
-      const closed = await ctx.prisma.attendancePunch.updateMany({
-        where: { attendanceLogId: existing.id, checkOutTime: null },
-        data: { checkOutTime: now, checkOutAddress: finalOutAddress },
-      });
-      if (closed.count === 0) {
-        await ctx.prisma.attendancePunch.create({
+      const punchedOut = await ctx.prisma.$transaction(async (tx) => {
+        const updatedLog = await tx.attendanceLog.updateMany({
+          where: { id: existing.id, checkOutTime: null },
           data: {
-            attendanceLogId: existing.id,
-            checkInTime: existing.checkInTime,
-            checkInAddress: existing.checkInAddress,
             checkOutTime: now,
-            checkOutAddress: finalOutAddress,
+            checkOutLat: input.lat,
+            checkOutLng: input.lng,
+            checkOutAddress: null,
+            totalHours: roundedHours,
+            status,
+            notes: logNotes,
+            accuracyM: input.accuracyM,
+            isMockLocation: input.isMockLocation ?? false,
+            needsReview:
+              existing.needsReview ||
+              Boolean(input.isMockLocation) ||
+              input.accuracyM > REVIEW_ACCURACY_M ||
+              !outWithinGeofence,
           },
         });
-      }
-
-      try {
-        await ctx.prisma.locationPing.create({
+        if (updatedLog.count === 0) return false;
+        const closed = await tx.attendancePunch.updateMany({
+          where: { attendanceLogId: existing.id, checkOutTime: null },
           data: {
-            employeeId,
-            lat: input.lat,
-            lng: input.lng,
-            address: finalOutAddress,
-            accuracyM: null,
-            withinGeofence: outWithinGeofence,
-            capturedAt: now,
+            checkOutTime: now,
+            checkOutAddress: null,
+            accuracyM: input.accuracyM,
+            isMockLocation: input.isMockLocation ?? false,
           },
         });
-      } catch (pingErr) {
-        console.error("[attendance.checkOut] failed to record checkout location ping:", pingErr);
-      }
+        if (closed.count === 0) {
+          await tx.attendancePunch.create({
+            data: {
+              attendanceLogId: existing.id,
+              checkInTime,
+              checkInAddress: existing.checkInAddress,
+              checkOutTime: now,
+              checkOutAddress: null,
+              accuracyM: input.accuracyM,
+              isMockLocation: input.isMockLocation ?? false,
+            },
+          });
+        }
+        return true;
+      });
+      if (!punchedOut) return { success: true };
 
-      // Non-blocking background tasks: Send emails & sync Google Sheets without slowing down punch-out
-      void (async () => {
-        // 1. Check-out email notification
+      schedulePunchLocationWork(ctx, {
+        employeeId,
+        logId: existing.id,
+        lat: input.lat,
+        lng: input.lng,
+        accuracyM: input.accuracyM,
+        withinGeofence: outWithinGeofence,
+        capturedAt: now,
+        direction: "out",
+        checkInTime,
+      });
+
+      scheduleAfterResponse(ctx, async () => {
         try {
           const { notifyCheckOutDetails } = await import("../lib/email");
+          const emp = await ctx.prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              manager: { select: { email: true } },
+            },
+          });
           if (emp) {
             const name = `${emp.firstName} ${emp.lastName}`;
             await notifyCheckOutDetails({
@@ -650,13 +855,15 @@ export const attendanceRouter = router({
             });
           }
         } catch (err) {
-          console.error("[attendance.checkOut] email notify failed:", err);
+          console.error(
+            "[attendance.checkOut] email notify failed:",
+            err instanceof Error ? err.name : "Unknown error"
+          );
         }
+      });
+      scheduleAfterResponse(ctx, async () => scheduleSheetSync(ctx.prisma, today));
 
-      })();
-      scheduleSheetSync(ctx.prisma, today);
-
-      return updated;
+      return { success: true };
     }),
 
   team: protectedProcedure
@@ -916,6 +1123,7 @@ export const attendanceRouter = router({
     .input(locationPingSchema)
     .mutation(async ({ ctx, input }) => {
       const employeeId = resolveEmployeeId(ctx);
+      enforceEmployeeAndIpRateLimit("location-ping", employeeId, ctx.ip);
 
       const nowMs = Date.now();
       const capturedMs = input.capturedAt.getTime();
@@ -942,7 +1150,7 @@ export const attendanceRouter = router({
       const duplicate = await ctx.prisma.locationPing.findFirst({
         where: { employeeId, capturedAt: input.capturedAt },
       });
-      if (duplicate) return duplicate;
+      if (duplicate) return { success: true };
 
       // App/browser must not spam — keep ~30 minute spacing between tracking pings
       const recent = await ctx.prisma.locationPing.findFirst({
@@ -952,7 +1160,7 @@ export const attendanceRouter = router({
         },
         orderBy: { capturedAt: "desc" },
       });
-      if (recent) return recent;
+      if (recent) return { success: true };
 
       const geo = await resolvePunchGeofence(
         ctx.prisma,
@@ -961,7 +1169,7 @@ export const attendanceRouter = router({
         input.lng
       );
 
-      return ctx.prisma.locationPing.create({
+      await ctx.prisma.locationPing.create({
         data: {
           employeeId,
           lat: input.lat,
@@ -972,6 +1180,7 @@ export const attendanceRouter = router({
           capturedAt: input.capturedAt,
         },
       });
+      return { success: true };
     }),
 
   savePushSubscription: protectedProcedure
@@ -1207,10 +1416,11 @@ export const attendanceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const employeeId = resolveEmployeeId(ctx);
+      enforceEmployeeAndIpRateLimit("location-off", employeeId, ctx.ip);
+
       const emp = await ctx.prisma.employee.findUnique({
         where: { id: employeeId },
         select: {
-          id: true,
           firstName: true,
           lastName: true,
           employeeCode: true,
@@ -1224,21 +1434,26 @@ export const attendanceRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
-      try {
-        const { notifyLocationDisabledAlert } = await import("../lib/email");
-        await notifyLocationDisabledAlert({
-          employeeName: `${emp.firstName} ${emp.lastName}`,
-          employeeEmail: emp.email,
-          employeeCode: emp.employeeCode,
-          departmentName: emp.department?.name,
-          attemptTime: new Date(),
-          reason: input.reason || "Device GPS Location Disabled / Permission Denied",
-          deviceInfo: input.deviceInfo || null,
-          managerEmail: emp.manager?.email,
-        });
-      } catch (err) {
-        console.error("[attendance.reportLocationDisabled] email send error:", err);
-      }
+      scheduleAfterResponse(ctx, async () => {
+        try {
+          const { notifyLocationDisabledAlert } = await import("../lib/email");
+          await notifyLocationDisabledAlert({
+            employeeName: `${emp.firstName} ${emp.lastName}`,
+            employeeEmail: emp.email,
+            employeeCode: emp.employeeCode,
+            departmentName: emp.department?.name,
+            attemptTime: new Date(),
+            reason: input.reason || "Device GPS Location Disabled / Permission Denied",
+            deviceInfo: input.deviceInfo || null,
+            managerEmail: emp.manager?.email,
+          });
+        } catch (err) {
+          console.error(
+            "[attendance.reportLocationDisabled] email send error:",
+            err instanceof Error ? err.name : "Unknown error"
+          );
+        }
+      });
 
       return { success: true, notified: true };
     }),

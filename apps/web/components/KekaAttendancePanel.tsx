@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Clock,
@@ -22,11 +22,14 @@ import {
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
+  acquirePunchFix,
   geolocationErrorMessage,
-  getPunchPosition,
+  startPunchLocationPrewarm,
+  stopPunchLocationPrewarm,
 } from "@/lib/geolocation";
 import { subscribeToLocationReminders } from "@/lib/push";
 import {
+  getNativeMockLocationFlag,
   startNativeDutyTracking,
   stopNativeDutyTracking,
 } from "@/lib/native-duty-tracking";
@@ -37,7 +40,6 @@ import {
   formatTimeIST,
   getISTDateString,
   getISTDateParts,
-  haversineDistanceM,
 } from "@realty-smartz/shared";
 import { KekaMapViewModal } from "@/components/KekaMapViewModal";
 import { PunchList } from "@/components/PunchList";
@@ -123,6 +125,14 @@ export function KekaAttendancePanel({
       staleTime: 60_000,
       refetchOnWindowFocus: false,
       refetchInterval: (data) => {
+        const recentlyCreated =
+          data?.createdAt != null &&
+          Date.now() - new Date(data.createdAt).getTime() <= 30_000;
+        const resolvingAddress =
+          recentlyCreated &&
+          ((data.checkInLat != null && !data.checkInAddress) ||
+            (data.checkOutLat != null && !data.checkOutAddress));
+        if (resolvingAddress) return 1_500;
         const onDuty = Boolean(data?.checkInTime && !data?.checkOutTime);
         return onDuty && getISTDateParts(new Date()).hour >= 19 ? 60_000 : false;
       },
@@ -158,15 +168,22 @@ export function KekaAttendancePanel({
 
   // Check in/out state
   const [busy, setBusy] = useState(false);
+  const [punchPhase, setPunchPhase] = useState<"idle" | "locating" | "saving">("idle");
   const [punchError, setPunchError] = useState("");
 
+  useEffect(() => {
+    if (isTargetMode) return;
+    startPunchLocationPrewarm();
+    return () => stopPunchLocationPrewarm();
+  }, [isTargetMode]);
+
   const checkInMutation = trpc.attendance.checkIn.useMutation({
-    onSuccess: async () => {
-      await utils.attendance.today.refetch();
-      await utils.attendance.myMonth.invalidate();
-      await utils.attendance.myRecentWeek.invalidate();
+    onSuccess: () => {
+      void utils.attendance.today.invalidate();
+      void utils.attendance.myMonth.invalidate();
+      void utils.attendance.myRecentWeek.invalidate();
       if (targetEmployeeId) {
-        await utils.attendance.forEmployeeMonth.invalidate({ employeeId: targetEmployeeId });
+        void utils.attendance.forEmployeeMonth.invalidate({ employeeId: targetEmployeeId });
       }
       setPunchError("");
     },
@@ -178,12 +195,12 @@ export function KekaAttendancePanel({
   const savePush = trpc.attendance.savePushSubscription.useMutation();
 
   const checkOutMutation = trpc.attendance.checkOut.useMutation({
-    onSuccess: async () => {
-      await utils.attendance.today.refetch();
-      await utils.attendance.myMonth.invalidate();
-      await utils.attendance.myRecentWeek.invalidate();
+    onSuccess: () => {
+      void utils.attendance.today.invalidate();
+      void utils.attendance.myMonth.invalidate();
+      void utils.attendance.myRecentWeek.invalidate();
       if (targetEmployeeId) {
-        await utils.attendance.forEmployeeMonth.invalidate({ employeeId: targetEmployeeId });
+        void utils.attendance.forEmployeeMonth.invalidate({ employeeId: targetEmployeeId });
       }
       setPunchError("");
     },
@@ -210,38 +227,28 @@ export function KekaAttendancePanel({
     if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
     setPunchError("");
     setBusy(true);
+    setPunchPhase("locating");
 
     try {
-      const pos = await getPunchPosition();
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      const sites = currentUserWorkLoc?.sites?.length
-        ? currentUserWorkLoc.sites
-        : currentUserWorkLoc
-          ? [currentUserWorkLoc]
-          : [];
-      const matchedSite = sites.find(
-        (s) => haversineDistanceM(lat, lng, s.lat, s.lng) <= s.radiusM
-      );
-
-      if (mode === "in" && sites.length > 0 && !matchedSite) {
-        const nearest = sites
-          .map((s) => ({ s, d: haversineDistanceM(lat, lng, s.lat, s.lng) }))
-          .sort((a, b) => a.d - b.d)[0];
-        const names = sites.map((s) => s.name).join(" or ");
-        throw new Error(
-          `Punch-in blocked: you are ~${Math.round(nearest.d)}m from ${nearest.s.name}. You must be within ${nearest.s.radiusM}m of ${names}.`
-        );
-      }
-
-      const label = matchedSite?.name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      const fix = await acquirePunchFix();
+      const lat = fix.lat;
+      const lng = fix.lng;
+      const isMockLocation = await getNativeMockLocationFlag(fix);
+      setPunchPhase("saving");
+      const payload = {
+        lat,
+        lng,
+        address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        accuracyM: fix.accuracy,
+        fixTimestamp: new Date(fix.timestamp),
+        isMockLocation,
+      };
 
       if (mode === "in") {
-        await checkInMutation.mutateAsync({ lat, lng, address: label });
+        await checkInMutation.mutateAsync(payload);
         void startNativeDutyTracking();
       } else {
-        await checkOutMutation.mutateAsync({ lat, lng, address: label });
+        await checkOutMutation.mutateAsync(payload);
         void stopNativeDutyTracking();
       }
     } catch (err: unknown) {
@@ -250,6 +257,7 @@ export function KekaAttendancePanel({
       if (!(err instanceof TRPCClientError)) toast("error", message);
     } finally {
       setBusy(false);
+      setPunchPhase("idle");
     }
   }
 
@@ -481,7 +489,13 @@ export function KekaAttendancePanel({
                 className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-black text-white font-semibold text-xs gap-2"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span>{busy ? "Verifying GPS..." : "Clock Out"}</span>
+                <span>
+                  {punchPhase === "saving"
+                    ? "Saving…"
+                    : punchPhase === "locating"
+                      ? "Getting location…"
+                      : "Clock Out"}
+                </span>
               </Button>
             ) : (
               <Button
@@ -491,11 +505,13 @@ export function KekaAttendancePanel({
               >
                 <LogIn className="h-3.5 w-3.5" />
                 <span>
-                  {busy
-                    ? "Verifying Location..."
-                    : hasCompletedSession
-                    ? "Clock In Again"
-                    : "Clock In"}
+                  {punchPhase === "saving"
+                    ? "Saving…"
+                    : punchPhase === "locating"
+                      ? "Getting location…"
+                      : hasCompletedSession
+                        ? "Clock In Again"
+                        : "Clock In"}
                 </span>
               </Button>
             )}

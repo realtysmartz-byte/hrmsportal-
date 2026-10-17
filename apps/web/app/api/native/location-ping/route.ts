@@ -3,11 +3,41 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
 import { startOfDayUTC } from "@realty-smartz/shared";
 import { authOptions } from "@/lib/auth";
-import { resolvePunchGeofence } from "@realty-smartz/api";
+import { assertRateLimit, resolvePunchGeofence } from "@realty-smartz/api";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
 const MIN_TRACKING_PING_GAP_MS = 55 * 60 * 1000; // ~1 hour
+const locationPingBodySchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  accuracyM: z.number().positive().lt(50_000),
+  fixTimestamp: z.coerce.date(),
+  isMockLocation: z.boolean().optional(),
+}).superRefine((value, ctx) => {
+  const timestamp = value.fixTimestamp.getTime();
+  const now = Date.now();
+  if (timestamp > now) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Location fix timestamp cannot be in the future",
+      path: ["fixTimestamp"],
+    });
+  } else if (now - timestamp > 5 * 60_000) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Location fix is older than 5 minutes",
+      path: ["fixTimestamp"],
+    });
+  }
+});
+
+function clientIp(req: Request) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const values = forwarded?.split(",");
+  return values?.[values.length - 1]?.trim() || req.headers.get("x-real-ip") || "unknown";
+}
 
 /**
  * Authenticated endpoint for the Android app duty-location service.
@@ -15,91 +45,89 @@ const MIN_TRACKING_PING_GAP_MS = 55 * 60 * 1000; // ~1 hour
  */
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id && !session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: {
-    lat?: number;
-    lng?: number;
-    address?: string | null;
-    accuracyM?: number | null;
-  };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  const parsed = locationPingBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: `Invalid location data: ${parsed.error.issues[0]?.message ?? "check GPS fix"}` },
+      { status: 400 }
+    );
+  }
+  const fix = parsed.data;
 
-  const lat = Number(body.lat);
-  const lng = Number(body.lng);
-  if (
-    !Number.isFinite(lat) ||
-    !Number.isFinite(lng) ||
-    lat < -90 ||
-    lat > 90 ||
-    lng < -180 ||
-    lng > 180
-  ) {
-    return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
+  const ip = clientIp(req);
+  const employeeHit = assertRateLimit(`native-location:emp:${session.user.id}`, 10, 60_000);
+  const ipHit = assertRateLimit(`native-location:ip:${ip}`, 10, 60_000);
+  if (!employeeHit.ok || !ipHit.ok) {
+    const retry = Math.max(
+      employeeHit.ok ? 0 : employeeHit.retryAfterSec,
+      ipHit.ok ? 0 : ipHit.retryAfterSec
+    );
+    return NextResponse.json(
+      { error: `Too many location reports. Try again in ${retry}s.` },
+      { status: 429 }
+    );
   }
 
-  const employee =
-    (await prisma.employee.findUnique({
-      where: { id: session.user.id },
-      select: { id: true },
-    })) ??
-    (session.user.email
-      ? await prisma.employee.findUnique({
-          where: { email: session.user.email.toLowerCase() },
-          select: { id: true },
-        })
-      : null);
-
+  const employee = await prisma.employee.findUnique({
+    where: { id: session.user.id },
+    select: { id: true },
+  });
   if (!employee) {
     return NextResponse.json({ error: "Employee not found" }, { status: 401 });
   }
 
   const today = startOfDayUTC(new Date());
-  const todayLog = await prisma.attendanceLog.findUnique({
-    where: { employeeId_date: { employeeId: employee.id, date: today } },
-    select: { checkInTime: true, checkOutTime: true },
-  });
+  const [todayLog, recent] = await Promise.all([
+    prisma.attendanceLog.findUnique({
+      where: { employeeId_date: { employeeId: employee.id, date: today } },
+      select: { checkInTime: true, checkOutTime: true },
+    }),
+    prisma.locationPing.findFirst({
+      where: {
+        employeeId: employee.id,
+        capturedAt: { gte: new Date(Date.now() - MIN_TRACKING_PING_GAP_MS) },
+      },
+      orderBy: { capturedAt: "desc" },
+      select: { id: true },
+    }),
+  ]);
 
   if (!todayLog?.checkInTime || todayLog.checkOutTime) {
     return NextResponse.json({ error: "Not on duty", stopTracking: true }, { status: 400 });
   }
-
-  const recent = await prisma.locationPing.findFirst({
-    where: {
-      employeeId: employee.id,
-      capturedAt: { gte: new Date(Date.now() - MIN_TRACKING_PING_GAP_MS) },
-    },
-    orderBy: { capturedAt: "desc" },
-  });
   if (recent) {
-    return NextResponse.json({ ok: true, id: recent.id, skipped: true });
+    return NextResponse.json({ ok: true, skipped: true });
   }
 
-  const geo = await resolvePunchGeofence(prisma, employee.id, lat, lng);
-  const address = geo.matched?.name
+  const geo = await resolvePunchGeofence(prisma, employee.id, fix.lat, fix.lng);
+  let address = geo.matched?.name
     ? geo.matched.name
-    : body.address?.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    : `${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
+  if (fix.isMockLocation) {
+    address = `${address} · review:mock-gps`;
+  }
 
-  const ping = await prisma.locationPing.create({
+  await prisma.locationPing.create({
     data: {
       employeeId: employee.id,
-      lat,
-      lng,
+      lat: fix.lat,
+      lng: fix.lng,
       address,
-      accuracyM:
-        body.accuracyM != null && Number.isFinite(Number(body.accuracyM))
-          ? Number(body.accuracyM)
-          : null,
+      accuracyM: fix.accuracyM,
       withinGeofence: geo.withinGeofence,
       capturedAt: new Date(),
     },
   });
 
-  return NextResponse.json({ ok: true, id: ping.id });
+  return NextResponse.json({ ok: true, skipped: false });
 }

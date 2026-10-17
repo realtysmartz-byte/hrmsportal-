@@ -29,6 +29,20 @@ type OfficeSettings = {
 
 let officeSettingsCache: { at: number; data: OfficeSettings } | null = null;
 const OFFICE_SETTINGS_TTL_MS = 5 * 60 * 1000;
+const workLocationCache = new Map<
+  string,
+  { at: number; sites: EffectiveWorkLocation[] }
+>();
+const WORK_LOCATION_TTL_MS = 5 * 60 * 1000;
+
+export function invalidatePunchGeofenceCache(employeeId?: string) {
+  if (employeeId) {
+    workLocationCache.delete(employeeId);
+    return;
+  }
+  workLocationCache.clear();
+  officeSettingsCache = null;
+}
 
 async function getOfficeSettings(prisma: PrismaClient): Promise<OfficeSettings> {
   const now = Date.now();
@@ -112,6 +126,12 @@ export async function getPunchGeofenceSites(
   prisma: PrismaClient,
   employeeId: string
 ): Promise<EffectiveWorkLocation[]> {
+  const now = Date.now();
+  const cached = workLocationCache.get(employeeId);
+  if (cached && now - cached.at < WORK_LOCATION_TTL_MS) {
+    return cached.sites;
+  }
+
   const [emp, settings] = await Promise.all([
     prisma.employee.findUnique({
       where: { id: employeeId },
@@ -145,6 +165,7 @@ export async function getPunchGeofenceSites(
     });
   }
 
+  workLocationCache.set(employeeId, { at: now, sites });
   return sites;
 }
 

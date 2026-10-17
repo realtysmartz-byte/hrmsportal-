@@ -16,10 +16,18 @@ export type Session = {
 export type CreateContextOptions = {
   session: Session;
   prisma: PrismaClient;
+  /** Client IP for rate limits only — never logged with secrets */
+  ip?: string | null;
+  afterResponse?: (task: () => void | Promise<void>) => void;
 };
 
-export function createContext({ session, prisma }: CreateContextOptions) {
-  return { session, prisma };
+export function createContext({
+  session,
+  prisma,
+  ip,
+  afterResponse,
+}: CreateContextOptions) {
+  return { session, prisma, ip: ip ?? "unknown", afterResponse };
 }
 
 export type Context = ReturnType<typeof createContext>;

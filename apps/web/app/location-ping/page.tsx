@@ -28,7 +28,7 @@ export default function LocationPingPage() {
           lat,
           lng,
           address: place.address,
-          accuracyM: accuracy ?? null,
+          accuracyM: accuracy,
           capturedAt: new Date(pos.timestamp),
         });
         setState("done");

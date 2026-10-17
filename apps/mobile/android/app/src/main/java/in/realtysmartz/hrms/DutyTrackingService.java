@@ -34,8 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONObject;
 
 /**
- * On-duty location: at most one fresh GPS ping every 30 minutes.
- * Uses a real location fix (not cached lastKnownLocation).
+ * On-duty location: at most one location ping per interval using a recent or fresh fix.
  */
 public class DutyTrackingService extends Service {
   public static final String ACTION_START = "in.realtysmartz.hrms.DUTY_START";
@@ -48,7 +47,7 @@ public class DutyTrackingService extends Service {
   private static final String KEY_LAST_PING_AT = "last_ping_at";
   private static final int NOTIFICATION_ID = 4401;
   private static final long MIN_INTERVAL_MS = 60 * 60 * 1000L; // 1 hour
-  private static final long LOCATION_TIMEOUT_MS = 25_000L;
+  private static final long LOCATION_TIMEOUT_MS = 8_000L;
   private static final long MAX_FIX_AGE_MS = 2 * 60 * 1000L;
 
   private final Handler handler = new Handler(Looper.getMainLooper());
@@ -161,14 +160,19 @@ public class DutyTrackingService extends Service {
       }
 
       Location loc = getFreshLocation();
-      if (loc == null) {
+      if (loc == null
+          || !loc.hasAccuracy()
+          || loc.getAccuracy() <= 0
+          || loc.getAccuracy() >= 50_000) {
         return;
       }
 
       JSONObject body = new JSONObject();
       body.put("lat", loc.getLatitude());
       body.put("lng", loc.getLongitude());
-      body.put("accuracyM", loc.hasAccuracy() ? loc.getAccuracy() : JSONObject.NULL);
+      body.put("accuracyM", loc.getAccuracy());
+      body.put("fixTimestamp", loc.getTime());
+      body.put("isMockLocation", isMockFix(loc));
       body.put(
           "address",
           String.format("%.5f, %.5f", loc.getLatitude(), loc.getLongitude()));
@@ -209,8 +213,54 @@ public class DutyTrackingService extends Service {
     }
   }
 
-  /** Request a fresh GPS/network fix; ignore stale lastKnownLocation. */
+  static boolean isMockFix(Location loc) {
+    if (loc == null) return false;
+    if (Build.VERSION.SDK_INT >= 31) {
+      return loc.isMock();
+    }
+    return loc.isFromMockProvider();
+  }
+
+  /** Last known fix if newer than 2 minutes. Must not run on the UI thread wait. */
+  Location recentLastKnown() {
+    final LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
+    if (lm == null) return null;
+    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+      return null;
+    }
+    try {
+      Location gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+      Location net = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+      long now = System.currentTimeMillis();
+      Location best = isRecentFix(gps, now) ? gps : null;
+      if (isRecentFix(net, now)
+          && (best == null
+              || (net.hasAccuracy()
+                  && (!best.hasAccuracy() || net.getAccuracy() < best.getAccuracy())))) {
+        best = net;
+      }
+      return best;
+    } catch (SecurityException ignored) {
+    }
+    return null;
+  }
+
+  private boolean isRecentFix(Location location, long now) {
+    if (location == null) return false;
+    long age = now - location.getTime();
+    return age >= 0 && age <= MAX_FIX_AGE_MS;
+  }
+
+  /** Prefer last-known (< 2 min), else balanced-power fresh fix. Latch waits on worker thread only. */
   private Location getFreshLocation() {
+    Location recent = recentLastKnown();
+    if (recent != null) {
+      return recent;
+    }
+
     final LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
     if (lm == null) return null;
 
@@ -233,7 +283,7 @@ public class DutyTrackingService extends Service {
             if (prev == null || location.getAccuracy() <= prev.getAccuracy()) {
               result.set(location);
             }
-            if (location.getAccuracy() > 0 && location.getAccuracy() <= 50) {
+            if (location.getAccuracy() > 0 && location.getAccuracy() <= 100) {
               latch.countDown();
             }
           }
@@ -252,21 +302,14 @@ public class DutyTrackingService extends Service {
         () -> {
           try {
             Criteria criteria = new Criteria();
-            criteria.setAccuracy(Criteria.ACCURACY_FINE);
+            criteria.setAccuracy(Criteria.ACCURACY_COARSE);
+            criteria.setPowerRequirement(Criteria.POWER_LOW);
             criteria.setAltitudeRequired(false);
             criteria.setBearingRequired(false);
             criteria.setSpeedRequired(false);
             String best = lm.getBestProvider(criteria, true);
             if (best != null) {
               lm.requestLocationUpdates(best, 0L, 0f, listener, Looper.getMainLooper());
-            }
-            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-              lm.requestLocationUpdates(
-                  LocationManager.GPS_PROVIDER, 0L, 0f, listener, Looper.getMainLooper());
-            }
-            if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-              lm.requestLocationUpdates(
-                  LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, Looper.getMainLooper());
             }
           } catch (SecurityException e) {
             latch.countDown();
@@ -287,24 +330,7 @@ public class DutyTrackingService extends Service {
           }
         });
 
-    Location fresh = result.get();
-    if (fresh != null) {
-      return fresh;
-    }
-
-    // Fallback only if last known is recent (< 2 min)
-    try {
-      Location gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-      Location net = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-      Location best = null;
-      if (gps != null) best = gps;
-      if (net != null && (best == null || net.getAccuracy() < best.getAccuracy())) best = net;
-      if (best != null && System.currentTimeMillis() - best.getTime() <= MAX_FIX_AGE_MS) {
-        return best;
-      }
-    } catch (SecurityException ignored) {
-    }
-    return null;
+    return result.get();
   }
 
   private void createChannel() {

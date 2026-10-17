@@ -33,6 +33,36 @@ public class DutyTrackingPlugin extends Plugin {
   }
 
   @PluginMethod
+  public void lastKnownFix(PluginCall call) {
+    try {
+      android.location.LocationManager lm =
+          (android.location.LocationManager)
+              getContext().getSystemService(android.content.Context.LOCATION_SERVICE);
+      if (lm == null) {
+        call.resolve(new JSObject());
+        return;
+      }
+      android.location.Location gps =
+          lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER);
+      android.location.Location net =
+          lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);
+      android.location.Location best = gps;
+      if (net != null && (best == null || net.getAccuracy() < best.getAccuracy())) best = net;
+      JSObject result = new JSObject();
+      if (best != null) {
+        result.put("lat", best.getLatitude());
+        result.put("lng", best.getLongitude());
+        if (best.hasAccuracy()) result.put("accuracy", best.getAccuracy());
+        result.put("timestamp", best.getTime());
+        result.put("isMockLocation", DutyTrackingService.isMockFix(best));
+      }
+      call.resolve(result);
+    } catch (SecurityException e) {
+      call.resolve(new JSObject());
+    }
+  }
+
+  @PluginMethod
   public void stop(PluginCall call) {
     Intent intent = new Intent(getContext(), DutyTrackingService.class);
     intent.setAction(DutyTrackingService.ACTION_STOP);

@@ -99,7 +99,7 @@ export function LocationTracker() {
           lat: latitude,
           lng: longitude,
           address: place.address,
-          accuracyM: accuracy ?? null,
+          accuracyM: accuracy,
           capturedAt: new Date(pos.timestamp),
         });
         if (!cancelled) {

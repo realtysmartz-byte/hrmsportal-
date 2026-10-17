@@ -109,7 +109,27 @@ export const updateDesignationSchema = createDesignationSchema.extend({
 export const checkInOutSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
+  /** Client hint only — server overwrites with geofence/site name */
   address: z.string().trim().min(1).max(500),
+  accuracyM: z.number().positive().lt(50_000),
+  fixTimestamp: z.coerce.date(),
+  isMockLocation: z.boolean().optional(),
+}).superRefine((val, ctx) => {
+  const t = val.fixTimestamp.getTime();
+  const now = Date.now();
+  if (t > now) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Location fix timestamp cannot be in the future",
+      path: ["fixTimestamp"],
+    });
+  } else if (now - t > 5 * 60_000) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Location fix is older than 5 minutes — refresh GPS and try again",
+      path: ["fixTimestamp"],
+    });
+  }
 });
 
 export const myAttendanceMonthSchema = z.object({
@@ -137,8 +157,24 @@ export const locationPingSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   address: z.string().trim().max(500).optional().nullable(),
-  accuracyM: z.number().min(0).max(50000).optional().nullable(),
+  accuracyM: z.number().positive().lt(50_000),
   capturedAt: z.coerce.date(),
+}).superRefine((val, ctx) => {
+  const timestamp = val.capturedAt.getTime();
+  const now = Date.now();
+  if (timestamp > now) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Location fix timestamp cannot be in the future",
+      path: ["capturedAt"],
+    });
+  } else if (now - timestamp > 5 * 60_000) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Location fix is older than 5 minutes — refresh GPS and try again",
+      path: ["capturedAt"],
+    });
+  }
 });
 
 export const createLeaveTypeSchema = z.object({
