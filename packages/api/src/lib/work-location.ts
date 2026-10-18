@@ -181,8 +181,10 @@ export async function resolvePunchGeofence(
 
   let nearest = sites[0];
   let nearestDist = distanceToWorkLocationM(nearest, lat, lng);
-  let matched: EffectiveWorkLocation | null = null;
-  let matchedDist = Number.POSITIVE_INFINITY;
+  let closestMatched: EffectiveWorkLocation | null = null;
+  let closestMatchedDist = Number.POSITIVE_INFINITY;
+  let officeMatch: EffectiveWorkLocation | null = null;
+  let officeDistance = Number.POSITIVE_INFINITY;
 
   for (const site of sites) {
     const d = distanceToWorkLocationM(site, lat, lng);
@@ -190,11 +192,18 @@ export async function resolvePunchGeofence(
       nearest = site;
       nearestDist = d;
     }
-    if (d <= site.radiusM && d < matchedDist) {
-      matched = site;
-      matchedDist = d;
+    if (site.source === "OFFICE") {
+      officeDistance = d;
+      if (d <= site.radiusM) officeMatch = site;
+    } else if (d <= site.radiusM && d < closestMatchedDist) {
+      closestMatched = site;
+      closestMatchedDist = d;
     }
   }
+
+  // If office and an assigned site overlap, keep the office label; both remain eligible.
+  const matched = officeMatch ?? closestMatched;
+  const matchedDist = officeMatch ? officeDistance : closestMatchedDist;
 
   return {
     withinGeofence: matched != null,
@@ -203,6 +212,31 @@ export async function resolvePunchGeofence(
     distanceM: matched ? matchedDist : nearestDist,
     sites,
   };
+}
+
+export async function canonicalizeOfficeAttendanceLabels<
+  T extends {
+    checkInLat: number | null;
+    checkInLng: number | null;
+    checkInAddress: string | null;
+  },
+>(prisma: PrismaClient, logs: T[]): Promise<T[]> {
+  if (logs.length === 0) return logs;
+  const settings = await getOfficeSettings(prisma);
+  return logs.map((log) => {
+    if (log.checkInLat == null || log.checkInLng == null) return log;
+    if (
+      haversineDistanceM(
+        log.checkInLat,
+        log.checkInLng,
+        settings.officeLat,
+        settings.officeLng
+      ) > settings.geofenceRadiusM
+    ) {
+      return log;
+    }
+    return { ...log, checkInAddress: OFFICE_PUNCH_LOCATION_NAME };
+  });
 }
 
 export async function getEffectiveWorkLocation(

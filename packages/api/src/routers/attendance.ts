@@ -30,6 +30,7 @@ import {
   statusFromFirstCheckIn,
 } from "../lib/attendance-rules";
 import {
+  canonicalizeOfficeAttendanceLabels,
   getPunchGeofenceSites,
   resolvePunchGeofence,
 } from "../lib/work-location";
@@ -323,6 +324,9 @@ export const attendanceRouter = router({
       });
     }
 
+    if (log) {
+      [log] = await canonicalizeOfficeAttendanceLabels(ctx.prisma, [log]);
+    }
     return log;
   }),
 
@@ -366,9 +370,10 @@ export const attendanceRouter = router({
       },
       orderBy: { date: "desc" },
     });
+    const displayLogs = await canonicalizeOfficeAttendanceLabels(ctx.prisma, logs);
 
     const logMap = new Map(
-      logs.map((l) => [l.date.toISOString().slice(0, 10), l])
+      displayLogs.map((l) => [l.date.toISOString().slice(0, 10), l])
     );
 
     const result = days.map((d) => {
@@ -434,8 +439,12 @@ export const attendanceRouter = router({
         },
         orderBy: { date: "asc" },
       });
+      const displayLogs = await canonicalizeOfficeAttendanceLabels(
+        ctx.prisma,
+        logs
+      );
 
-      return { logs, summary: summarizeLogs(logs) };
+      return { logs: displayLogs, summary: summarizeLogs(logs) };
     }),
 
   forEmployeeMonth: protectedProcedure
@@ -452,8 +461,12 @@ export const attendanceRouter = router({
         },
         orderBy: { date: "asc" },
       });
+      const displayLogs = await canonicalizeOfficeAttendanceLabels(
+        ctx.prisma,
+        logs
+      );
 
-      return { logs, summary: summarizeLogs(logs) };
+      return { logs: displayLogs, summary: summarizeLogs(logs) };
     }),
 
   forEmployeeHistory: protectedProcedure
@@ -495,9 +508,13 @@ export const attendanceRouter = router({
           },
         }),
       ]);
+      const displayLogs = await canonicalizeOfficeAttendanceLabels(
+        ctx.prisma,
+        logs
+      );
 
       return {
-        logs,
+        logs: displayLogs,
         total,
         page: input.page,
         pageSize: input.pageSize,
@@ -901,8 +918,12 @@ export const attendanceRouter = router({
           orderBy: [{ date: "desc" }, { checkInTime: "desc" }],
         });
 
+        const displayLogs = await canonicalizeOfficeAttendanceLabels(
+          ctx.prisma,
+          logs
+        );
         const empMap = new Map(employees.map((e) => [e.id, e]));
-        const rows = logs
+        const rows = displayLogs
           .map((log) => {
             const employee = empMap.get(log.employeeId);
             if (!employee) return null;
@@ -911,7 +932,7 @@ export const attendanceRouter = router({
               log,
             };
           })
-          .filter((r): r is { employee: (typeof employees)[number]; log: (typeof logs)[number] } => Boolean(r));
+          .filter((r): r is { employee: (typeof employees)[number]; log: (typeof displayLogs)[number] } => Boolean(r));
 
         return {
           date: start,
@@ -930,7 +951,11 @@ export const attendanceRouter = router({
         },
       });
 
-      const logByEmployee = new Map(logs.map((l) => [l.employeeId, l]));
+      const displayLogs = await canonicalizeOfficeAttendanceLabels(
+        ctx.prisma,
+        logs
+      );
+      const logByEmployee = new Map(displayLogs.map((l) => [l.employeeId, l]));
 
       let rows = employees.map((emp) => ({
         employee: emp,
@@ -1068,6 +1093,10 @@ export const attendanceRouter = router({
           },
         }),
       ]);
+      const displayEntries = await canonicalizeOfficeAttendanceLabels(
+        ctx.prisma,
+        entries
+      );
 
       const presentCount = statsLogs.filter((l) =>
         ["PRESENT", "LATE", "HALF_DAY"].includes(l.status)
@@ -1087,7 +1116,7 @@ export const attendanceRouter = router({
         presentCount > 0 ? Math.round((totalHoursSum / presentCount) * 10) / 10 : 0;
 
       return {
-        entries,
+        entries: displayEntries,
         totalCount,
         page: input.page,
         pageSize: input.pageSize,
