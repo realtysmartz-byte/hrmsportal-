@@ -64,6 +64,7 @@ export default function EditEmployeePage() {
           address: emp.address ?? "",
           profilePhotoUrl: emp.profilePhotoUrl ?? "",
           status: emp.status,
+          statusEffectiveDate: emp.statusEffectiveDate,
           workLocationName: emp.workLocationName ?? "",
           workLocationLat: emp.workLocationLat != null ? String(emp.workLocationLat) : "",
           workLocationLng: emp.workLocationLng != null ? String(emp.workLocationLng) : "",

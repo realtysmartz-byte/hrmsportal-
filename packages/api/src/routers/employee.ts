@@ -222,6 +222,17 @@ export const employeeRouter = router({
         employee
       );
       const canViewSensitive = visibility === "FULL";
+      const statusHistory = canManageEmployees(actor.role as Role)
+        ? await ctx.prisma.employeeJobHistory.findFirst({
+            where: {
+              employeeId: employee.id,
+              fieldChanged: "status",
+              newValue: employee.status,
+            },
+            orderBy: { effectiveDate: "desc" },
+            select: { effectiveDate: true },
+          })
+        : null;
 
       const { passwordHash: _, ...safe } = employee;
       const sanitized = canViewSensitive
@@ -230,6 +241,7 @@ export const employeeRouter = router({
 
       return {
         ...sanitized,
+        statusEffectiveDate: statusHistory?.effectiveDate ?? null,
         profileCompletion: canViewSensitive ? profileCompletionPercent(employee) : 0,
         access: {
           canViewSensitive,
@@ -319,6 +331,17 @@ export const employeeRouter = router({
               })
             : Promise.resolve([]),
         ]);
+      const statusHistory = canViewSensitive
+        ? await ctx.prisma.employeeJobHistory.findFirst({
+            where: {
+              employeeId: employee.id,
+              fieldChanged: "status",
+              newValue: employee.status,
+            },
+            orderBy: { effectiveDate: "desc" },
+            select: { effectiveDate: true },
+          })
+        : null;
 
       let attendancePct: number | null = null;
       if (canViewSensitive) {
@@ -365,6 +388,7 @@ export const employeeRouter = router({
       return {
         employee: {
           ...sanitizedEmployee,
+          statusEffectiveDate: statusHistory?.effectiveDate ?? null,
           profileCompletion: canViewSensitive ? profileCompletionPercent(employee) : 0,
         },
         access: {
@@ -768,7 +792,7 @@ export const employeeRouter = router({
   update: hrAdminProcedure
     .input(updateEmployeeSchema)
     .mutation(async ({ ctx, input }) => {
-      const { id, password, ...data } = input;
+      const { id, password, statusEffectiveDate, ...data } = input;
 
       const existing = await ctx.prisma.employee.findUnique({ where: { id } });
       if (!existing) {
@@ -899,6 +923,28 @@ export const employeeRouter = router({
       }
 
       const previousStatus = existing.status;
+      const nextStatus = data.status ?? previousStatus;
+      const statusChanged = nextStatus !== previousStatus;
+      const effectiveDate = statusEffectiveDate ?? new Date();
+      const latestStatusHistory =
+        data.status !== undefined &&
+        (statusChanged || statusEffectiveDate != null)
+          ? await ctx.prisma.employeeJobHistory.findFirst({
+              where: {
+                employeeId: id,
+                fieldChanged: "status",
+                newValue: nextStatus,
+              },
+              orderBy: { effectiveDate: "desc" },
+              select: { effectiveDate: true },
+            })
+          : null;
+      const shouldWriteStatusHistory =
+        statusChanged ||
+        (statusEffectiveDate != null &&
+          (!latestStatusHistory ||
+            latestStatusHistory.effectiveDate.toISOString().slice(0, 10) !==
+              effectiveDate.toISOString().slice(0, 10)));
       const employee = await ctx.prisma.$transaction(async (tx) => {
         const updated = await tx.employee.update({
           where: { id },
@@ -908,41 +954,65 @@ export const employeeRouter = router({
         if (historyEntries.length > 0) {
           await tx.employeeJobHistory.createMany({ data: historyEntries });
         }
+        if (shouldWriteStatusHistory) {
+          await tx.employeeJobHistory.create({
+            data: {
+              employeeId: id,
+              fieldChanged: "status",
+              oldValue: previousStatus,
+              newValue: nextStatus,
+              effectiveDate,
+              changedById: actor.id,
+            },
+          });
+        }
         return updated;
       });
       invalidatePunchGeofenceCache(id);
 
-      if (data.status && data.status !== previousStatus) {
-        void (async () => {
-          try {
-            const { notifyEmployeeStatusChange } = await import("../lib/email");
-            const name = [employee.firstName, employee.lastName]
-              .filter(Boolean)
-              .join(" ");
-            await notifyEmployeeStatusChange({
-              employeeName: name,
-              employeeEmail: employee.email,
-              employeeCode: employee.employeeCode,
-              previousStatus,
-              newStatus: employee.status as
-                | "ACTIVE"
-                | "ON_LEAVE"
-                | "RESIGNED"
-                | "TERMINATED"
-                | "EXIT",
-              departmentName: employee.department?.name,
-              designationTitle: employee.designation?.title,
-              dateOfJoining: employee.dateOfJoining,
-              effectiveDate: new Date(),
-            });
-          } catch (err) {
-            console.error("[employee.update] status email failed:", err);
+      let statusEmailSent: boolean | null = null;
+      if (statusChanged) {
+        try {
+          const { notifyEmployeeStatusChange } = await import("../lib/email");
+          const name = [employee.firstName, employee.lastName]
+            .filter(Boolean)
+            .join(" ");
+          const result = await notifyEmployeeStatusChange({
+            employeeName: name,
+            employeeEmail: employee.email,
+            employeeCode: employee.employeeCode,
+            previousStatus,
+            newStatus: employee.status as
+              | "ACTIVE"
+              | "ON_LEAVE"
+              | "RESIGNED"
+              | "TERMINATED"
+              | "EXIT",
+            departmentName: employee.department?.name,
+            designationTitle: employee.designation?.title,
+            dateOfJoining: employee.dateOfJoining,
+            effectiveDate,
+          });
+          statusEmailSent = result.success;
+          if (!result.success) {
+            console.error(
+              "[employee.update] Status email was not sent. Check SMTP configuration and server mail logs."
+            );
           }
-        })();
+        } catch (err) {
+          statusEmailSent = false;
+          const errorCode =
+            err && typeof err === "object" && "code" in err
+              ? String(err.code)
+              : "UNKNOWN";
+          console.error(
+            `[employee.update] Status email failed before delivery (code: ${errorCode}).`
+          );
+        }
       }
 
       const { passwordHash: _, ...safe } = employee;
-      return safe;
+      return { ...safe, statusEmailSent };
     }),
 
   /** Flat roster rows for Excel export (Active / Terminated / Exit / Resigned / All) */

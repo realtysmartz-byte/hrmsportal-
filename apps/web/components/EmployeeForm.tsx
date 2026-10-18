@@ -30,6 +30,7 @@ type EmployeeFormValues = {
   managerId: string;
   dateOfJoining: string;
   dateOfBirth: string;
+  statusEffectiveDate: string;
   address: string;
   profilePhotoUrl: string;
   status: (typeof EMPLOYEE_STATUSES)[number];
@@ -55,6 +56,7 @@ const emptyValues: EmployeeFormValues = {
   managerId: "",
   dateOfJoining: "",
   dateOfBirth: "",
+  statusEffectiveDate: "",
   address: "",
   profilePhotoUrl: "",
   status: "ACTIVE",
@@ -72,9 +74,15 @@ function toDateInput(value?: Date | string | null) {
 type EmployeeFormProps = {
   mode: "create" | "edit";
   employeeId?: string;
-  initial?: Partial<Omit<EmployeeFormValues, "dateOfJoining" | "dateOfBirth">> & {
+  initial?: Partial<
+    Omit<
+      EmployeeFormValues,
+      "dateOfJoining" | "dateOfBirth" | "statusEffectiveDate"
+    >
+  > & {
     dateOfJoining?: Date | string | null;
     dateOfBirth?: Date | string | null;
+    statusEffectiveDate?: Date | string | null;
   };
   onCreated?: () => void;
 };
@@ -89,6 +97,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     ...initial,
     dateOfJoining: toDateInput(initial?.dateOfJoining),
     dateOfBirth: toDateInput(initial?.dateOfBirth),
+    statusEffectiveDate: toDateInput(initial?.statusEffectiveDate),
     password: "",
     employeeCode: initial?.employeeCode ?? "",
     phone: initial?.phone ?? "",
@@ -129,7 +138,15 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
   });
 
   const updateMutation = trpc.employee.update.useMutation({
-    onSuccess: (emp) => router.push(`/admin-portal/employees/${emp.id}`),
+    onSuccess: (emp) => {
+      if (emp.statusEmailSent === false) {
+        setError(
+          "Employee details were saved, but the status email could not be sent. Check SMTP configuration and server mail logs."
+        );
+        return;
+      }
+      router.push(`/admin-portal/employees/${emp.id}`);
+    },
     onError: (err) => setError(err.message),
   });
 
@@ -206,6 +223,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     updateMutation.mutate({
       id: employeeId,
       ...payload,
+      statusEffectiveDate: values.statusEffectiveDate
+        ? new Date(values.statusEffectiveDate)
+        : null,
       password: values.password || undefined,
     });
   }
@@ -422,6 +442,24 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
               ))}
             </Select>
           </Field>
+          {mode === "edit" &&
+            ["RESIGNED", "TERMINATED", "EXIT"].includes(values.status) && (
+              <Field
+                label={
+                  values.status === "TERMINATED"
+                    ? "Termination Date"
+                    : "Date of Exit"
+                }
+              >
+                <Input
+                  type="date"
+                  value={values.statusEffectiveDate}
+                  onChange={(e) =>
+                    setField("statusEffectiveDate", e.target.value)
+                  }
+                />
+              </Field>
+            )}
           <Field label="Department">
             <Select
               value={values.departmentId}

@@ -763,6 +763,12 @@ export async function notifyEmployeeStatusChange(args: {
   note?: string | null;
 }) {
   const effective = formatInDate(args.effectiveDate || new Date());
+  const effectiveDateLabel =
+    args.newStatus === "TERMINATED"
+      ? "Termination Date"
+      : args.newStatus === "RESIGNED" || args.newStatus === "EXIT"
+        ? "Date of Exit"
+        : "Effective Date";
   const meta: [string, string][] = [
     ["Employee", `${args.employeeName} (${args.employeeCode})`],
     ["Work Email", args.employeeEmail],
@@ -771,7 +777,7 @@ export async function notifyEmployeeStatusChange(args: {
     ["Date of Joining", formatInDate(args.dateOfJoining)],
     ["Previous Status", args.previousStatus.replace("_", " ")],
     ["New Status", args.newStatus.replace("_", " ")],
-    ["Effective Date", effective],
+    [effectiveDateLabel, effective],
   ];
   if (args.note) meta.push(["Note", args.note]);
 

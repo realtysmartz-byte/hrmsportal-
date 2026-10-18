@@ -799,6 +799,7 @@ function OverviewTab({
       employeeCode: string;
     } | null;
     dateOfJoining: Date | string | null;
+    statusEffectiveDate: Date | string | null;
     status: string;
     directReports: { id: string; firstName: string; lastName: string; employeeCode: string; designation: { title: string } | null }[];
   };
@@ -1024,6 +1025,7 @@ function JobTab({
       employeeCode: string;
     } | null;
     dateOfJoining: Date | string | null;
+    statusEffectiveDate: Date | string | null;
     status: string;
     role: string;
     workLocationName: string | null;
@@ -1068,6 +1070,16 @@ function JobTab({
               label="Employee Status"
               value={emp.status.replace("_", " ")}
             />
+            {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
+              <DetailField
+                label={
+                  emp.status === "TERMINATED"
+                    ? "Termination Date"
+                    : "Date of Exit"
+                }
+                value={formatDate(emp.statusEffectiveDate)}
+              />
+            )}
             <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
           </CardContent>
         </Card>
@@ -2111,4 +2123,3 @@ function GpsTrailTab({
     </div>
   );
 }
-

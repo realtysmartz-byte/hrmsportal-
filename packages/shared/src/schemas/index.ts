@@ -76,6 +76,7 @@ export const updateEmployeeSchema = createEmployeeSchema
       .max(128)
       .optional()
       .or(z.literal("")),
+    statusEffectiveDate: z.coerce.date().optional().nullable(),
   })
   .partial()
   .extend({
