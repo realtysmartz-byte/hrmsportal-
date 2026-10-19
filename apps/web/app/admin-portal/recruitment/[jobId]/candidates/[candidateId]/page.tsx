@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -44,7 +45,7 @@ export default function CandidateDetailPage() {
       setScheduledAt("");
       utils.recruitment.candidateById.invalidate({ id: params.candidateId });
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   if (isLoading || !c) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Network, Sparkles } from "lucide-react";
@@ -34,7 +35,11 @@ function OrgChartInner() {
         </div>
       </div>
 
-      {error && <p className="text-sm font-semibold text-rose-600">{error.message}</p>}
+      {error && (
+        <p className="text-sm font-semibold text-rose-600">
+          {userFacingErrorMessage(error)}
+        </p>
+      )}
 
       {data && data.length > 0 ? (
         <div className="rounded-lg border border-neutral-200/80 bg-white p-6 md:p-10 overflow-hidden">

@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -166,7 +167,7 @@ export default function TeamAttendancePage() {
       setTimeout(() => setGoogleSheetResult(null), 6000);
     },
     onError: (err) => {
-      alert(`Google Sheet Sync Error: ${err.message}`);
+      alert(`Google Sheet Sync Error: ${userFacingErrorMessage(err)}`);
     },
   });
 

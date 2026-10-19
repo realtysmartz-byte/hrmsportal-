@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ export default function NewJobPage() {
 
   const create = trpc.recruitment.createJob.useMutation({
     onSuccess: (job) => router.push(`/admin-portal/recruitment/${job.id}`),
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   function onSubmit(e: FormEvent) {

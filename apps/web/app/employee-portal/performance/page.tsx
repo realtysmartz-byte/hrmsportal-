@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import {
@@ -81,7 +82,7 @@ export default function EmployeePerformancePage() {
       setGoalError("");
       utils.performance.myGoals.invalidate({ cycleId: cycleId! });
     },
-    onError: (err) => setGoalError(err.message),
+    onError: (err) => setGoalError(userFacingErrorMessage(err)),
   });
 
   const updateGoal = trpc.performance.updateGoal.useMutation({
@@ -102,7 +103,7 @@ export default function EmployeePerformancePage() {
       setReviewError("");
       utils.performance.myReviews.invalidate({ cycleId: cycleId! });
     },
-    onError: (err) => setReviewError(err.message),
+    onError: (err) => setReviewError(userFacingErrorMessage(err)),
   });
 
   if (cycleLoading) return <PageSkeleton />;

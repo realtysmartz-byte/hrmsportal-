@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useState } from "react";
 import {
   FileSpreadsheet,
@@ -39,7 +40,7 @@ export default function GoogleSheetsSettingsPage() {
     onError: (err) => {
       setSyncStatusMsg({
         type: "error",
-        text: err.message,
+        text: userFacingErrorMessage(err),
       });
     },
   });
@@ -55,7 +56,7 @@ export default function GoogleSheetsSettingsPage() {
     onError: (err) => {
       setSyncStatusMsg({
         type: "error",
-        text: err.message,
+        text: userFacingErrorMessage(err),
       });
     },
   });

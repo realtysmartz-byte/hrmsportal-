@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export default function EmailSettingsPage() {
     onError: (err) => {
       setTestStatus({
         success: false,
-        message: err.message || "Test email request failed",
+        message: userFacingErrorMessage(err, "Test email request failed"),
       });
     },
   });
@@ -296,4 +297,3 @@ export default function EmailSettingsPage() {
     </div>
   );
 }
-

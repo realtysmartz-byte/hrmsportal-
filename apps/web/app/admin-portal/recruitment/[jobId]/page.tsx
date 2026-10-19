@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -45,7 +46,7 @@ export default function JobDetailPage() {
       });
       utils.recruitment.jobById.invalidate({ id: params.jobId });
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
   const updateStage = trpc.recruitment.updateStage.useMutation({
     onSuccess: () => utils.recruitment.jobById.invalidate({ id: params.jobId }),

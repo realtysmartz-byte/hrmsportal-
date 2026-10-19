@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -134,7 +135,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       onCreated?.();
       router.push(`/admin-portal/employees/${emp.id}`);
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   const updateMutation = trpc.employee.update.useMutation({
@@ -147,7 +148,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       }
       router.push(`/admin-portal/employees/${emp.id}`);
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   async function onPhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {

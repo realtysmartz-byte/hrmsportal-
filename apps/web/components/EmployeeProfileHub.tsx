@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -1251,7 +1252,7 @@ function LeaveTab({
       setError("");
       onAdjusted();
     },
-    onError: (e) => setError(e.message),
+    onError: (e) => setError(userFacingErrorMessage(e)),
   });
 
   if (isLoading) {
@@ -1423,7 +1424,7 @@ function DocumentsTab({
       setError("");
       utils.employee.documents.invalidate({ employeeId });
     },
-    onError: (e) => setError(e.message),
+    onError: (e) => setError(userFacingErrorMessage(e)),
   });
 
   const remove = trpc.employee.deleteDocument.useMutation({

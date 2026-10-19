@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -58,7 +59,7 @@ export default function CompanySettingsPage() {
       utils.companySettings.get.invalidate();
     },
     onError: (err) => {
-      setError(err.message);
+      setError(userFacingErrorMessage(err));
       setSuccess("");
     },
   });

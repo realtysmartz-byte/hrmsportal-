@@ -5,7 +5,9 @@ import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft } from "luci
 import { trpc } from "@/lib/trpc";
 import {
   acquirePunchFix,
+  getServerAdjustedFixTimestamp,
   geolocationErrorMessage,
+  setServerTimeReference,
   startPunchLocationPrewarm,
   stopPunchLocationPrewarm,
 } from "@/lib/geolocation";
@@ -65,6 +67,10 @@ export function CheckInOutCard() {
   const pastShiftEnd = getISTDateParts(new Date()).hour >= 19;
 
   useEffect(() => {
+    if (workLoc?.serverTime) setServerTimeReference(workLoc.serverTime);
+  }, [workLoc?.serverTime]);
+
+  useEffect(() => {
     startPunchLocationPrewarm();
     return () => stopPunchLocationPrewarm();
   }, []);
@@ -102,7 +108,7 @@ export function CheckInOutCard() {
         lng,
         address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
         accuracyM: fix.accuracy,
-        fixTimestamp: new Date(fix.timestamp),
+        fixTimestamp: getServerAdjustedFixTimestamp(fix.timestamp),
         isMockLocation,
       };
 

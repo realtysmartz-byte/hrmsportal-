@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { OrgChartNode } from "@/components/OrgChartNode";
@@ -23,7 +24,11 @@ function OrgChartInner() {
         </p>
       </div>
 
-      {error && <p className="text-sm text-maroon-600">{error.message}</p>}
+      {error && (
+        <p className="text-sm text-maroon-600">
+          {userFacingErrorMessage(error)}
+        </p>
+      )}
 
       {data && data.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white p-6">

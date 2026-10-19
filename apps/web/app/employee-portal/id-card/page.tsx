@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { Camera, Download, Loader2 } from "lucide-react";
@@ -42,7 +43,11 @@ export default function IdCardPage() {
 
   if (isLoading) return <PageSkeleton />;
   if (error || !emp) {
-    return <p className="text-sm text-rose-600">{error?.message ?? "ID card not available"}</p>;
+    return (
+      <p className="text-sm text-rose-600">
+        {userFacingErrorMessage(error, "ID card not available")}
+      </p>
+    );
   }
 
   async function download() {

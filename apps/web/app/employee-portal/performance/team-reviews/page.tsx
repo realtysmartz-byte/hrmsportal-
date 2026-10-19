@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -66,7 +67,10 @@ export default function TeamReviewsPage() {
       utils.performance.teamReviewsForCycle.invalidate();
     },
     onError: (err, variables) => {
-      setErrorMsg((prev) => ({ ...prev, [variables.employeeId]: err.message }));
+      setErrorMsg((prev) => ({
+        ...prev,
+        [variables.employeeId]: userFacingErrorMessage(err),
+      }));
     },
   });
 

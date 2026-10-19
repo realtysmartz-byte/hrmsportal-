@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useRef, useState } from "react";
 import { Download, FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -223,7 +224,7 @@ export function ExcelImportModal({
                   <ul className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-neutral-600">
                     {result.errors.map((e, i) => (
                       <li key={i}>
-                        Row {e.row}: {e.message}
+                        Row {e.row}: {userFacingErrorMessage(e.message)}
                       </li>
                     ))}
                   </ul>

@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { signIn, getSession, getProviders } from "next-auth/react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
@@ -77,7 +78,7 @@ function LoginForm() {
   useEffect(() => {
     const code = searchParams.get("error");
     if (code) {
-      setError(GOOGLE_ERRORS[code] || `Sign-in error: ${code}`);
+      setError(GOOGLE_ERRORS[code] || "Could not sign in. Please try again.");
       router.replace(pathname);
     }
   }, [searchParams, pathname, router]);
@@ -135,7 +136,7 @@ function LoginForm() {
         } else if (result.error === "CredentialsSignin") {
           setError("Invalid email or password. Please verify and try again.");
         } else {
-          setError(result.error);
+          setError(userFacingErrorMessage(result.error));
         }
         return;
       }
@@ -162,7 +163,7 @@ function LoginForm() {
       window.location.href = destination;
     } catch (err) {
       setLoading(false);
-      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+      setError(userFacingErrorMessage(err, "Login failed. Please try again."));
     }
   }
 

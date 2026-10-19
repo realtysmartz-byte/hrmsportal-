@@ -343,6 +343,7 @@ export const attendanceRouter = router({
       sites,
       office: sites.find((s) => s.source === "OFFICE") ?? null,
       assigned: sites.find((s) => s.source === "ASSIGNED") ?? null,
+      serverTime: new Date(),
     };
   }),
 

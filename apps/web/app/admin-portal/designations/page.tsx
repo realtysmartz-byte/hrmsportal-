@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -46,7 +47,7 @@ export default function DesignationsPage() {
       setError("");
       utils.designation.list.invalidate();
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   const updateMutation = trpc.designation.update.useMutation({
@@ -55,12 +56,12 @@ export default function DesignationsPage() {
       setError("");
       utils.designation.list.invalidate();
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   const deleteMutation = trpc.designation.delete.useMutation({
     onSuccess: () => utils.designation.list.invalidate(),
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   if (status === "loading" || !allowed) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -53,7 +54,7 @@ export default function LeaveTypesPage() {
       setError("");
       utils.leave.types.invalidate();
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   const updateMutation = trpc.leave.updateType.useMutation({
@@ -61,12 +62,12 @@ export default function LeaveTypesPage() {
       setEditingId(null);
       utils.leave.types.invalidate();
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   const deleteMutation = trpc.leave.deleteType.useMutation({
     onSuccess: () => utils.leave.types.invalidate(),
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
   function onCreate(e: FormEvent) {

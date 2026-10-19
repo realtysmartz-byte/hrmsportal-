@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
 import { getTRPCClient, trpc } from "@/lib/trpc";
 import { toast } from "@/lib/toast";
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { Toaster } from "@/components/Toaster";
 import { AccountStatusGuard } from "@/components/AccountStatusGuard";
 
@@ -80,16 +81,7 @@ function successMessage(path: string, variables: unknown): string {
 }
 
 function errorMessage(error: unknown): string {
-  const message = (error as { message?: string })?.message ?? "Something went wrong";
-  if (message.startsWith("[")) {
-    try {
-      const issues = JSON.parse(message) as { message?: string }[];
-      if (issues[0]?.message) return issues[0].message;
-    } catch {
-      return message;
-    }
-  }
-  return message;
+  return userFacingErrorMessage(error);
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {

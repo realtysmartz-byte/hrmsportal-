@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
@@ -23,7 +24,9 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   acquirePunchFix,
+  getServerAdjustedFixTimestamp,
   geolocationErrorMessage,
+  setServerTimeReference,
   startPunchLocationPrewarm,
   stopPunchLocationPrewarm,
 } from "@/lib/geolocation";
@@ -96,6 +99,12 @@ export function KekaAttendancePanel({
     staleTime: 10 * 60_000,
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (currentUserWorkLoc?.serverTime) {
+      setServerTimeReference(currentUserWorkLoc.serverTime);
+    }
+  }, [currentUserWorkLoc?.serverTime]);
 
   const { data: targetMonthData, isLoading: isTargetMonthLoading } =
     trpc.attendance.forEmployeeMonth.useQuery(
@@ -188,7 +197,7 @@ export function KekaAttendancePanel({
       setPunchError("");
     },
     onError: (err) => {
-      setPunchError(err.message);
+      setPunchError(userFacingErrorMessage(err));
     },
   });
 
@@ -205,7 +214,7 @@ export function KekaAttendancePanel({
       setPunchError("");
     },
     onError: (err) => {
-      setPunchError(err.message);
+      setPunchError(userFacingErrorMessage(err));
     },
   });
 
@@ -240,7 +249,7 @@ export function KekaAttendancePanel({
         lng,
         address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
         accuracyM: fix.accuracy,
-        fixTimestamp: new Date(fix.timestamp),
+        fixTimestamp: getServerAdjustedFixTimestamp(fix.timestamp),
         isMockLocation,
       };
 

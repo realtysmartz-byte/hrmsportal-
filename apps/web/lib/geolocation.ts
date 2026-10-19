@@ -1,3 +1,5 @@
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
+
 export type GeoPlace = {
   name: string;
   address: string;
@@ -24,8 +26,23 @@ let prewarmStarted = false;
 let prewarmUsers = 0;
 let permissionStatus: PermissionStatus | null = null;
 let permissionChangeHandler: (() => void) | null = null;
+let serverClockOffsetMs = 0;
+let hasServerClockReference = false;
 
 const geocodeCache = new Map<string, GeoPlace>();
+
+export function setServerTimeReference(serverTime: Date | string) {
+  const serverTimestamp = new Date(serverTime).getTime();
+  if (!Number.isFinite(serverTimestamp)) return;
+  serverClockOffsetMs = serverTimestamp - Date.now();
+  hasServerClockReference = true;
+}
+
+export function getServerAdjustedFixTimestamp(fixTimestamp: number): Date {
+  return new Date(
+    fixTimestamp + (hasServerClockReference ? serverClockOffsetMs : 0)
+  );
+}
 
 export function isGoogleMapsLink(text: string): boolean {
   return /^https?:\/\/(?:(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(
@@ -290,6 +307,6 @@ export function geolocationErrorMessage(err: unknown): string {
       return "Location request timed out. Please try again.";
     }
   }
-  if (err instanceof Error) return err.message;
+  if (err instanceof Error) return userFacingErrorMessage(err);
   return "Unable to get your location";
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useState, useEffect, useRef } from "react";
 import { MapPin, Search, Loader2, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -180,7 +181,8 @@ export function AssignLocationCard({
       ]);
       onUpdated?.();
     },
-    onError: (err) => setMessage({ type: "error", text: err.message }),
+    onError: (err) =>
+      setMessage({ type: "error", text: userFacingErrorMessage(err) }),
   });
 
   function handleSave() {

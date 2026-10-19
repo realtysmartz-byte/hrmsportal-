@@ -1,5 +1,6 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +34,7 @@ export default function ReferPage() {
       });
     },
     onError: (err) => {
-      setError(err.message);
+      setError(userFacingErrorMessage(err));
       setSuccess("");
     },
   });
