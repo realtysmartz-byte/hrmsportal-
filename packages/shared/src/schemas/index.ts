@@ -118,10 +118,11 @@ export const checkInOutSchema = z.object({
 }).superRefine((val, ctx) => {
   const t = val.fixTimestamp.getTime();
   const now = Date.now();
-  if (t > now) {
+  const allowedClockSkewMs = 2 * 60_000;
+  if (t > now + allowedClockSkewMs) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Location fix timestamp cannot be in the future",
+      message: "Location fix timestamp is more than 2 minutes in the future",
       path: ["fixTimestamp"],
     });
   } else if (now - t > 5 * 60_000) {
