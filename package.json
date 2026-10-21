@@ -2,7 +2,7 @@
   "name": "realty-smartz-hrms",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
+    "build": "turbo run build --concurrency=1",
     "start": "pnpm --filter @realty-smartz/web start",
     "dev": "turbo run dev",
     "lint": "turbo run lint",

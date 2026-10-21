@@ -4,6 +4,9 @@ const path = require("path");
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  experimental: {
+    cpus: 1,
+  },
   transpilePackages: [
     "@realty-smartz/api",
     "@realty-smartz/db",
