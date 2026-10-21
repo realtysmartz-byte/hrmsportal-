@@ -97,7 +97,7 @@ function getTransporter() {
 
   cachedTransporter = nodemailer.createTransport({
     pool: true,
-    maxConnections: 3,
+    maxConnections: 1,
     maxMessages: 100,
     host: cfg.host,
     port: cfg.port,
@@ -344,9 +344,27 @@ export async function sendMail(
       bccRaw ? `| bcc: ${bccList.length} staff` : ""
     );
     return { success: true };
-  } catch (err: any) {
-    console.error("[email] send failed:", err);
-    return { success: false, error: err?.message || String(err) };
+  } catch (err: unknown) {
+    const details =
+      err && typeof err === "object"
+        ? (err as { code?: unknown; responseCode?: unknown })
+        : {};
+    const code =
+      typeof details.code === "string" ? details.code.slice(0, 40) : "UNKNOWN";
+    const responseCode =
+      typeof details.responseCode === "number" ? details.responseCode : null;
+    console.error(
+      `[email] Delivery failed (code: ${code}${
+        responseCode == null ? "" : `, SMTP response: ${responseCode}`
+      }).`
+    );
+    return {
+      success: false,
+      error:
+        responseCode != null && responseCode >= 400 && responseCode < 500
+          ? "Email provider temporarily refused delivery. Please retry later."
+          : "Email delivery failed. Check the email service configuration.",
+    };
   }
 }
 

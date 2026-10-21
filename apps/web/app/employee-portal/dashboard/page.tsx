@@ -21,10 +21,10 @@ export default function EmployeeDashboardPage() {
   const userName = session?.user?.name ?? "";
   const [first = "", last = ""] = userName.split(" ");
 
-  // Load Clock In first — secondary widgets after 1.5s so they don't batch-block punch
+  // Let the punch card start first, then load secondary dashboard widgets.
   const [loadSecondary, setLoadSecondary] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setLoadSecondary(true), 2500);
+    const t = setTimeout(() => setLoadSecondary(true), 700);
     return () => clearTimeout(t);
   }, []);
 

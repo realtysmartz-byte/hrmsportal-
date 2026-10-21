@@ -33,7 +33,7 @@ export const companySettingsRouter = router({
         },
         update: input,
       });
-      invalidatePunchGeofenceCache();
+      await invalidatePunchGeofenceCache();
       return settings;
     }),
 });

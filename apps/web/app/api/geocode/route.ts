@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getRedisClient, logRedisCacheError } from "@/lib/redis";
 import {
   POPULAR_HUBS,
   matchSectorQuery,
@@ -24,6 +25,14 @@ function cacheReverse(key: string, value: ReversePlace) {
     if (oldest !== undefined) reverseCache.delete(oldest);
   }
   reverseCache.set(key, { value, at: Date.now() });
+  const redis = getRedisClient();
+  if (redis) {
+    void redis
+      .set(`hrms:reverse-geocode:${key}:v1`, value, { ex: 86_400 })
+      .catch((error: unknown) =>
+        logRedisCacheError("reverse geocode write", error)
+      );
+  }
   return NextResponse.json(value);
 }
 const SHORT_MAPS_URL =
@@ -528,6 +537,24 @@ export async function GET(req: NextRequest) {
   const cached = reverseCache.get(cacheKey);
   if (cached && Date.now() - cached.at < REVERSE_CACHE_TTL_MS) {
     return NextResponse.json({ ...cached.value, lat: numLat, lng: numLng });
+  }
+  const redis = getRedisClient();
+  if (redis) {
+    try {
+      const cachedPlace = await redis.get<ReversePlace>(
+        `hrms:reverse-geocode:${cacheKey}:v1`
+      );
+      if (cachedPlace) {
+        reverseCache.set(cacheKey, { value: cachedPlace, at: Date.now() });
+        return NextResponse.json({
+          ...cachedPlace,
+          lat: numLat,
+          lng: numLng,
+        });
+      }
+    } catch (error) {
+      logRedisCacheError("reverse geocode read", error);
+    }
   }
 
   // If Google Maps API key is configured, use Google Reverse Geocoding

@@ -295,7 +295,14 @@ export const employeeRouter = router({
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)
       );
 
-      const [jobHistory, recentAttendance, recentLeave, leaveBalances] =
+      const [
+        jobHistory,
+        recentAttendance,
+        recentLeave,
+        leaveBalances,
+        monthLogs,
+        statusHistory,
+      ] =
         await Promise.all([
           canViewSensitive
             ? ctx.prisma.employeeJobHistory.findMany({
@@ -330,27 +337,30 @@ export const employeeRouter = router({
                 include: { leaveType: true },
               })
             : Promise.resolve([]),
+          canViewSensitive
+            ? ctx.prisma.attendanceLog.findMany({
+                where: {
+                  employeeId: employee.id,
+                  date: { gte: monthStart, lte: monthEnd },
+                },
+                select: { status: true },
+              })
+            : Promise.resolve([]),
+          canViewSensitive
+            ? ctx.prisma.employeeJobHistory.findFirst({
+                where: {
+                  employeeId: employee.id,
+                  fieldChanged: "status",
+                  newValue: employee.status,
+                },
+                orderBy: { effectiveDate: "desc" },
+                select: { effectiveDate: true },
+              })
+            : Promise.resolve(null),
         ]);
-      const statusHistory = canViewSensitive
-        ? await ctx.prisma.employeeJobHistory.findFirst({
-            where: {
-              employeeId: employee.id,
-              fieldChanged: "status",
-              newValue: employee.status,
-            },
-            orderBy: { effectiveDate: "desc" },
-            select: { effectiveDate: true },
-          })
-        : null;
 
       let attendancePct: number | null = null;
       if (canViewSensitive) {
-        const monthLogs = await ctx.prisma.attendanceLog.findMany({
-          where: {
-            employeeId: employee.id,
-            date: { gte: monthStart, lte: monthEnd },
-          },
-        });
         const present = monthLogs.filter((l) =>
           ["PRESENT", "LATE", "HALF_DAY"].includes(l.status)
         ).length;
@@ -968,7 +978,7 @@ export const employeeRouter = router({
         }
         return updated;
       });
-      invalidatePunchGeofenceCache(id);
+      await invalidatePunchGeofenceCache(id);
 
       let statusEmailSent: boolean | null = null;
       if (statusChanged) {

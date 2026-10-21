@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { Prisma, type PrismaClient } from "@realty-smartz/db";
 import { haversineDistanceM } from "@realty-smartz/shared";
+import { getRedisClient, logRedisCacheError } from "./redis";
 
 export type EffectiveWorkLocation = {
   source: "ASSIGNED" | "OFFICE";
@@ -37,13 +38,28 @@ const workLocationCache = new Map<
 >();
 const WORK_LOCATION_TTL_MS = 5 * 60 * 1000;
 
-export function invalidatePunchGeofenceCache(employeeId?: string) {
+export async function invalidatePunchGeofenceCache(employeeId?: string) {
+  const redis = getRedisClient();
   if (employeeId) {
     workLocationCache.delete(employeeId);
+    if (redis) {
+      try {
+        await redis.del(`hrms:work-location:employee:${employeeId}:v1`);
+      } catch (error) {
+        logRedisCacheError("employee work locations invalidation", error);
+      }
+    }
     return;
   }
   workLocationCache.clear();
   officeSettingsCache = null;
+  if (redis) {
+    try {
+      await redis.del("hrms:work-location:office:v1");
+    } catch (error) {
+      logRedisCacheError("office settings invalidation", error);
+    }
+  }
 }
 
 async function getOfficeSettings(prisma: PrismaClient): Promise<OfficeSettings> {
@@ -51,6 +67,19 @@ async function getOfficeSettings(prisma: PrismaClient): Promise<OfficeSettings> 
   if (officeSettingsCache && now - officeSettingsCache.at < OFFICE_SETTINGS_TTL_MS) {
     return officeSettingsCache.data;
   }
+  const redis = getRedisClient();
+  if (redis) {
+    try {
+      const cached = await redis.get<OfficeSettings>("hrms:work-location:office:v1");
+      if (cached) {
+        officeSettingsCache = { at: now, data: cached };
+        return cached;
+      }
+    } catch (error) {
+      logRedisCacheError("office settings read", error);
+    }
+  }
+
   const settings = await prisma.companySettings.findUnique({
     where: { id: "singleton" },
     select: {
@@ -67,6 +96,11 @@ async function getOfficeSettings(prisma: PrismaClient): Promise<OfficeSettings> 
     });
   }
   officeSettingsCache = { at: now, data: settings };
+  if (redis) {
+    void redis
+      .set("hrms:work-location:office:v1", settings, { ex: 300 })
+      .catch((error: unknown) => logRedisCacheError("office settings write", error));
+  }
   return settings;
 }
 
@@ -134,16 +168,38 @@ export async function getPunchGeofenceSites(
     return cached.sites;
   }
 
-  const [emp, settings] = await Promise.all([
-    prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: {
-        workLocationName: true,
-        workLocationLat: true,
-        workLocationLng: true,
-        assignedLocations: true,
-      },
-    }),
+  const redis = getRedisClient();
+  const redisKey = `hrms:work-location:employee:${employeeId}:v1`;
+  const [assignedSites, settings] = await Promise.all([
+    (async () => {
+      if (redis) {
+        try {
+          const cachedSites = await redis.get<AssignedSite[]>(redisKey);
+          if (cachedSites && Array.isArray(cachedSites)) return cachedSites;
+        } catch (error) {
+          logRedisCacheError("employee work locations read", error);
+        }
+      }
+
+      const emp = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: {
+          workLocationName: true,
+          workLocationLat: true,
+          workLocationLng: true,
+          assignedLocations: true,
+        },
+      });
+      const sites = parseAssignedSites(emp ?? {});
+      if (redis) {
+        void redis
+          .set(redisKey, sites, { ex: 300 })
+          .catch((error: unknown) =>
+            logRedisCacheError("employee work locations write", error)
+          );
+      }
+      return sites;
+    })(),
     getOfficeSettings(prisma),
   ]);
 
@@ -157,7 +213,7 @@ export async function getPunchGeofenceSites(
     },
   ];
 
-  for (const s of parseAssignedSites(emp ?? {})) {
+  for (const s of assignedSites) {
     sites.push({
       source: "ASSIGNED",
       name: s.name,
