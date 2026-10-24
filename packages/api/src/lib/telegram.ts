@@ -306,13 +306,29 @@ export async function sendTelegramNotification(
 ) {
   try {
     const config = await getTelegramConfig(prisma, channelType);
-    if (!config || !config.enabled || !config.botToken || !config.chatId) {
+    if (!config) {
+      console.warn(`[telegram:${channelType}] No automation config found.`);
+      return;
+    }
+    if (!config.enabled) {
+      console.warn(`[telegram:${channelType}] Automation channel is disabled.`);
+      return;
+    }
+    if (!config.botToken || !config.chatId) {
+      console.warn(`[telegram:${channelType}] Missing botToken or chatId.`);
       return;
     }
     if (!config[featureKey]) {
+      console.log(`[telegram:${channelType}] Feature '${featureKey}' is unchecked in settings.`);
       return;
     }
-    await sendRawTelegramMessage(config.botToken, config.chatId, htmlMessage);
+    console.log(`[telegram:${channelType}] Sending notification for ${featureKey}...`);
+    const res = await sendRawTelegramMessage(config.botToken, config.chatId, htmlMessage);
+    if (!res.ok) {
+      console.error(`[telegram:${channelType}] Delivery failed: ${res.error}`);
+    } else {
+      console.log(`[telegram:${channelType}] Notification delivered successfully for ${featureKey}`);
+    }
   } catch (err) {
     console.error(`[telegram:${channelType}] notification failed:`, err);
   }

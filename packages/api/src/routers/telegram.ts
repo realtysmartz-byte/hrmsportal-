@@ -43,6 +43,12 @@ export const telegramRouter = router({
     .input(updateConfigSchema)
     .mutation(async ({ ctx, input }) => {
       const { channelType, ...data } = input;
+      // Default to active if botToken and chatId are present
+      const enabled =
+        data.enabled !== undefined
+          ? data.enabled
+          : Boolean(data.botToken && data.chatId);
+
       const updated = await ctx.prisma.telegramAutomationConfig.upsert({
         where: { channelType },
         create: {
@@ -53,9 +59,11 @@ export const telegramRouter = router({
               : "HR & Employee Lifecycle Automation",
           notifyPunchOut: false,
           ...data,
+          enabled,
         },
         update: {
           ...data,
+          enabled,
           notifyPunchOut: false,
         },
       });
@@ -120,10 +128,34 @@ export const telegramRouter = router({
         });
       }
 
-      await ctx.prisma.telegramAutomationConfig.updateMany({
+      // Automatically save and activate the verified Bot Token and Chat ID
+      await ctx.prisma.telegramAutomationConfig.upsert({
         where: { channelType: input.channelType },
-        data: { lastTestSentAt: new Date() },
+        create: {
+          channelType: input.channelType,
+          name:
+            input.channelType === "ATTENDANCE_LEAVE"
+              ? "Attendance & Leaves Automation"
+              : "HR & Employee Lifecycle Automation",
+          botToken: input.botToken.trim(),
+          chatId: input.chatId.trim(),
+          enabled: true,
+          notifyPunchIn: true,
+          notifyPunchOut: false,
+          notifyLeave: true,
+          notifyBirthday: true,
+          lastTestSentAt: new Date(),
+        },
+        update: {
+          botToken: input.botToken.trim(),
+          chatId: input.chatId.trim(),
+          enabled: true,
+          lastTestSentAt: new Date(),
+        },
       });
+
+      // Immediately invalidate Redis cache so active bot is live everywhere
+      await invalidateTelegramConfigCache(input.channelType);
 
       return { success: true };
     }),

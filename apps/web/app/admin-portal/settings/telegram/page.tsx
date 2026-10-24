@@ -109,9 +109,11 @@ export default function AutomationsPage() {
       if (activeTab === "ATTENDANCE_LEAVE") {
         setAttChatId(data.chatId);
         setAttChatTitle(data.chatTitle);
+        setAttEnabled(true);
       } else {
         setHrChatId(data.chatId);
         setHrChatTitle(data.chatTitle);
+        setHrEnabled(true);
       }
       setFeedback({
         type: "success",
@@ -127,8 +129,13 @@ export default function AutomationsPage() {
     onSuccess: () => {
       setFeedback({
         type: "success",
-        text: "Test message delivered to your Telegram group successfully! Check your Telegram group.",
+        text: "Test message delivered! Bot automation is now SAVED and ACTIVE for this group.",
       });
+      if (activeTab === "ATTENDANCE_LEAVE") {
+        setAttEnabled(true);
+      } else {
+        setHrEnabled(true);
+      }
       utils.telegram.getConfigs.invalidate();
     },
     onError: (err) => {
@@ -156,23 +163,27 @@ export default function AutomationsPage() {
   });
 
   const handleSaveAttendance = () => {
+    const isEnabled = attEnabled || Boolean(attToken.trim() && attChatId.trim());
+    setAttEnabled(isEnabled);
     updateMutation.mutate({
       channelType: "ATTENDANCE_LEAVE",
       botToken: attToken.trim() || null,
       chatId: attChatId.trim() || null,
       chatTitle: attChatTitle.trim() || null,
-      enabled: attEnabled,
+      enabled: isEnabled,
       ...attFlags,
     });
   };
 
   const handleSaveHR = () => {
+    const isEnabled = hrEnabled || Boolean(hrToken.trim() && hrChatId.trim());
+    setHrEnabled(isEnabled);
     updateMutation.mutate({
       channelType: "HR_LIFECYCLE",
       botToken: hrToken.trim() || null,
       chatId: hrChatId.trim() || null,
       chatTitle: hrChatTitle.trim() || null,
-      enabled: hrEnabled,
+      enabled: isEnabled,
       ...hrFlags,
     });
   };
