@@ -391,6 +391,105 @@ export function formatLeaveTelegramMessage(data: {
   ].join("\n");
 }
 
+export function getWeeklyBirthdayRange(refDate = new Date()) {
+  const istDateStr = refDate.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+  const base = new Date(istDateStr);
+  const dayOfWeek = base.getDay();
+  const diffToMonday = (dayOfWeek + 6) % 7;
+
+  const monday = new Date(base);
+  monday.setDate(base.getDate() - diffToMonday);
+
+  const days: Array<{
+    date: Date;
+    month: number;
+    day: number;
+    displayDate: string;
+  }> = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push({
+      date: d,
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+      displayDate: d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        weekday: "short",
+      }),
+    });
+  }
+
+  const startFormatted = days[0].date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+  });
+  const endFormatted = days[6].date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+  return {
+    weekRangeStr: `${startFormatted} to ${endFormatted}`,
+    days,
+  };
+}
+
+export function formatWeeklyBirthdayTelegramMessage(data: {
+  weekRangeStr: string;
+  birthdays: Array<{
+    name: string;
+    employeeCode: string;
+    birthdayDate: string;
+    designation?: string | null;
+    department?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  }>;
+}): string {
+  if (data.birthdays.length === 0) {
+    return [
+      "<b>[WEEKLY BIRTHDAY ANNOUNCEMENT]</b>",
+      "----------------------------------------",
+      `<b>Week:</b> ${data.weekRangeStr}`,
+      "",
+      "No employee birthdays scheduled for this week.",
+      "",
+      "<i>Realty Smartz Private Limited</i>",
+    ].join("\n");
+  }
+
+  const items = data.birthdays.map((b, idx) => {
+    return [
+      `${idx + 1}. <b>${escapeHtml(b.name)}</b> (${escapeHtml(b.employeeCode)})`,
+      `   <b>Birthday:</b> ${b.birthdayDate}`,
+      b.designation ? `   <b>Designation:</b> ${escapeHtml(b.designation)}` : null,
+      b.department ? `   <b>Department:</b> ${escapeHtml(b.department)}` : null,
+      b.phone ? `   <b>Contact:</b> ${escapeHtml(b.phone)}` : null,
+      b.email ? `   <b>Email:</b> ${escapeHtml(b.email)}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  });
+
+  return [
+    "<b>[WEEKLY BIRTHDAY ANNOUNCEMENT]</b>",
+    "----------------------------------------",
+    `<b>Week:</b> ${data.weekRangeStr}`,
+    "",
+    "Upcoming birthdays this week:",
+    "",
+    items.join("\n\n"),
+    "",
+    "Wishing everyone celebrating their birthday this week a wonderful year ahead from the entire Realty Smartz family!",
+    "",
+    "<i>Realty Smartz Private Limited</i>",
+  ].join("\n");
+}
+
 export function formatBirthdayTelegramMessage(data: {
   employeeName: string;
   designation?: string | null;

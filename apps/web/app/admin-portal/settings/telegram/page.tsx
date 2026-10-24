@@ -148,12 +148,12 @@ export default function AutomationsPage() {
       if (res.count === 0) {
         setFeedback({
           type: "success",
-          text: "Checked today's birthdays: No employee has a birthday today.",
+          text: `Weekly birthday check sent (${res.weekRange}): No birthdays this week. Message sent to Telegram.`,
         });
       } else {
         setFeedback({
           type: "success",
-          text: `Found ${res.count} birthday(s) today! ${res.delivered ? "Wishes sent to Telegram group." : "Bot is not enabled to deliver wishes."}`,
+          text: `Weekly birthday check sent (${res.weekRange}): Found ${res.count} birthday(s) this week! Announcement delivered to Telegram.`,
         });
       }
     },
@@ -239,7 +239,7 @@ export default function AutomationsPage() {
           className="gap-2 text-xs font-semibold self-start sm:self-auto border-neutral-300 hover:bg-neutral-50"
         >
           <Cake className="h-3.5 w-3.5 text-pink-500" />
-          {birthdayMutation.isLoading ? "Checking..." : "Trigger Today's Birthdays"}
+          {birthdayMutation.isLoading ? "Checking..." : "Trigger Weekly Birthdays Check"}
         </Button>
       </div>
 
@@ -347,7 +347,7 @@ export default function AutomationsPage() {
                   Attendance & Leaves Bot Setup
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  Sends live alerts for employee Punch-In, Leave Requests, and Birthday Celebrations.
+                  Sends live alerts for employee Punch-In, Leave Requests, and Weekly Birthday Announcements (every Monday).
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -476,8 +476,8 @@ export default function AutomationsPage() {
                       className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
                     />
                     <div>
-                      <div className="font-semibold text-neutral-800">Birthday Celebrations</div>
-                      <div className="text-[11px] text-neutral-400">Celebration wishes for employee birthdays</div>
+                      <div className="font-semibold text-neutral-800">Weekly Birthday Announcement</div>
+                      <div className="text-[11px] text-neutral-400">Weekly Monday post with upcoming birthdays & contacts</div>
                     </div>
                   </label>
                 </div>

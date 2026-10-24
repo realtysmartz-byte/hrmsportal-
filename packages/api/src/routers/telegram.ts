@@ -7,6 +7,8 @@ import {
   invalidateTelegramConfigCache,
   sendRawTelegramMessage,
   formatBirthdayTelegramMessage,
+  formatWeeklyBirthdayTelegramMessage,
+  getWeeklyBirthdayRange,
 } from "../lib/telegram";
 import { getRedisClient } from "../lib/redis";
 
@@ -165,9 +167,7 @@ export const telegramRouter = router({
       where: { channelType: "ATTENDANCE_LEAVE" },
     });
 
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentDay = today.getDate();
+    const { weekRangeStr, days } = getWeeklyBirthdayRange();
 
     const employees = await ctx.prisma.employee.findMany({
       where: {
@@ -176,53 +176,58 @@ export const telegramRouter = router({
       },
       select: {
         id: true,
+        employeeCode: true,
         firstName: true,
         lastName: true,
+        phone: true,
+        email: true,
         dateOfBirth: true,
         designation: { select: { title: true } },
         department: { select: { name: true } },
       },
     });
 
-    const birthdayEmployees = employees.filter((emp) => {
-      if (!emp.dateOfBirth) return false;
-      const dob = new Date(emp.dateOfBirth);
-      return dob.getMonth() + 1 === currentMonth && dob.getDate() === currentDay;
+    const birthdays = employees
+      .flatMap((emp) => {
+        if (!emp.dateOfBirth) return [];
+        const dob = new Date(emp.dateOfBirth);
+        const dobMonth = dob.getMonth() + 1;
+        const dobDay = dob.getDate();
+        const matchIndex = days.findIndex((d) => d.month === dobMonth && d.day === dobDay);
+        if (matchIndex === -1) return [];
+
+        return [
+          {
+            id: emp.id,
+            name: `${emp.firstName} ${emp.lastName}`.trim(),
+            employeeCode: emp.employeeCode,
+            birthdayDate: days[matchIndex].displayDate,
+            designation: emp.designation?.title,
+            department: emp.department?.name,
+            phone: emp.phone,
+            email: emp.email,
+            dayIndex: matchIndex,
+          },
+        ];
+      })
+      .sort((a, b) => a.dayIndex - b.dayIndex);
+
+    const msg = formatWeeklyBirthdayTelegramMessage({
+      weekRangeStr,
+      birthdays,
     });
 
-    if (
-      config &&
-      config.enabled &&
-      config.notifyBirthday &&
-      config.botToken &&
-      config.chatId &&
-      birthdayEmployees.length > 0
-    ) {
-      for (const emp of birthdayEmployees) {
-        const msg = formatBirthdayTelegramMessage({
-          employeeName: `${emp.firstName} ${emp.lastName}`,
-          designation: emp.designation?.title,
-          department: emp.department?.name,
-        });
-        await sendRawTelegramMessage(config.botToken, config.chatId, msg);
-      }
+    let delivered = false;
+    if (config?.enabled && config?.notifyBirthday && config?.botToken && config?.chatId) {
+      const res = await sendRawTelegramMessage(config.botToken, config.chatId, msg);
+      delivered = res.ok;
     }
 
     return {
-      count: birthdayEmployees.length,
-      employees: birthdayEmployees.map((e) => ({
-        id: e.id,
-        name: `${e.firstName} ${e.lastName}`,
-        designation: e.designation?.title,
-        department: e.department?.name,
-      })),
-      delivered: Boolean(
-        config?.enabled &&
-          config?.notifyBirthday &&
-          config?.botToken &&
-          config?.chatId &&
-          birthdayEmployees.length > 0
-      ),
+      count: birthdays.length,
+      weekRange: weekRangeStr,
+      employees: birthdays,
+      delivered,
     };
   }),
 });

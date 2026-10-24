@@ -3,6 +3,6 @@
   "regions": ["icn1"],
   "crons": [
     { "path": "/api/cron/auto-punch-out", "schedule": "30 13 * * *" },
-    { "path": "/api/cron/birthdays", "schedule": "30 3 * * *" }
+    { "path": "/api/cron/birthdays", "schedule": "30 3 * * 1" }
   ]
 }

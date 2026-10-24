@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@realty-smartz/db";
 import {
-  formatBirthdayTelegramMessage,
+  formatWeeklyBirthdayTelegramMessage,
+  getWeeklyBirthdayRange,
   sendTelegramNotification,
 } from "@realty-smartz/api";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Daily 9:00 AM IST Birthday Wishes Cron
+ * Weekly Monday 9:00 AM IST Birthday Announcement Cron
  * GET /api/cron/birthdays
  */
 export async function GET(request: Request) {
@@ -19,9 +20,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentDay = today.getDate();
+    const { weekRangeStr, days } = getWeeklyBirthdayRange();
 
     const employees = await prisma.employee.findMany({
       where: {
@@ -30,38 +29,60 @@ export async function GET(request: Request) {
       },
       select: {
         id: true,
+        employeeCode: true,
         firstName: true,
         lastName: true,
+        phone: true,
+        email: true,
         dateOfBirth: true,
         designation: { select: { title: true } },
         department: { select: { name: true } },
       },
     });
 
-    const birthdayEmployees = employees.filter((emp) => {
-      if (!emp.dateOfBirth) return false;
-      const dob = new Date(emp.dateOfBirth);
-      return dob.getMonth() + 1 === currentMonth && dob.getDate() === currentDay;
+    const birthdays = employees
+      .flatMap((emp) => {
+        if (!emp.dateOfBirth) return [];
+        const dob = new Date(emp.dateOfBirth);
+        const dobMonth = dob.getMonth() + 1;
+        const dobDay = dob.getDate();
+        const matchIndex = days.findIndex((d) => d.month === dobMonth && d.day === dobDay);
+        if (matchIndex === -1) return [];
+
+        return [
+          {
+            id: emp.id,
+            name: `${emp.firstName} ${emp.lastName}`.trim(),
+            employeeCode: emp.employeeCode,
+            birthdayDate: days[matchIndex].displayDate,
+            designation: emp.designation?.title,
+            department: emp.department?.name,
+            phone: emp.phone,
+            email: emp.email,
+            dayIndex: matchIndex,
+          },
+        ];
+      })
+      .sort((a, b) => a.dayIndex - b.dayIndex);
+
+    const msg = formatWeeklyBirthdayTelegramMessage({
+      weekRangeStr,
+      birthdays,
     });
 
-    for (const emp of birthdayEmployees) {
-      const msg = formatBirthdayTelegramMessage({
-        employeeName: `${emp.firstName} ${emp.lastName}`,
-        designation: emp.designation?.title,
-        department: emp.department?.name,
-      });
-      await sendTelegramNotification(
-        prisma,
-        "ATTENDANCE_LEAVE",
-        "notifyBirthday",
-        msg
-      );
-    }
+    // Send weekly announcement (even if 0 birthdays, as requested)
+    await sendTelegramNotification(
+      prisma,
+      "ATTENDANCE_LEAVE",
+      "notifyBirthday",
+      msg
+    );
 
     return NextResponse.json({
       success: true,
-      count: birthdayEmployees.length,
-      employees: birthdayEmployees.map((e) => `${e.firstName} ${e.lastName}`),
+      count: birthdays.length,
+      weekRange: weekRangeStr,
+      employees: birthdays.map((e) => `${e.name} (${e.birthdayDate})`),
       timestamp: new Date().toISOString(),
     });
   } catch (err: unknown) {

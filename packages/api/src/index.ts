@@ -77,6 +77,8 @@ export {
   formatPunchTelegramMessage,
   formatLeaveTelegramMessage,
   formatBirthdayTelegramMessage,
+  formatWeeklyBirthdayTelegramMessage,
+  getWeeklyBirthdayRange,
   formatNewJoinTelegramMessage,
   formatNewCandidateTelegramMessage,
   formatStatusChangeTelegramMessage,
