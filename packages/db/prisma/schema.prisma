@@ -458,3 +458,30 @@ enum ReviewStatus {
   PENDING
   SUBMITTED
 }
+
+model TelegramAutomationConfig {
+  id               String   @id @default(cuid())
+  channelType      String   @unique // "ATTENDANCE_LEAVE" or "HR_LIFECYCLE"
+  name             String   // e.g. "Attendance & Leaves Bot" or "HR & Employee Lifecycle Bot"
+  botToken         String?
+  chatId           String?
+  chatTitle        String?
+  enabled          Boolean  @default(false)
+  
+  // Attendance & Leaves flags
+  notifyPunchIn    Boolean  @default(true)
+  notifyPunchOut   Boolean  @default(true)
+  notifyLeave      Boolean  @default(true)
+  notifyBirthday   Boolean  @default(true)
+  
+  // HR / Lifecycle flags
+  notifyNewJoin    Boolean  @default(true)
+  notifyCandidate  Boolean  @default(true)
+  notifyResigned   Boolean  @default(true)
+  notifyTerminated Boolean  @default(true)
+
+  lastTestSentAt   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+

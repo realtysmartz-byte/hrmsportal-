@@ -180,7 +180,7 @@ export const recruitmentRouter = router({
     .input(createCandidateSchema)
     .mutation(async ({ ctx, input }) => {
       validateResumeUrl(input.resumeUrl);
-      return ctx.prisma.candidate.create({
+      const created = await ctx.prisma.candidate.create({
         data: {
           jobPostingId: input.jobPostingId,
           fullName: input.fullName,
@@ -190,7 +190,39 @@ export const recruitmentRouter = router({
           source: input.source,
           referredById: input.referredById || null,
         },
+        include: {
+          jobPosting: { select: { title: true } },
+          referredBy: { select: { firstName: true, lastName: true } },
+        },
       });
+
+      void (async () => {
+        try {
+          const { formatNewCandidateTelegramMessage, sendTelegramNotification } = await import(
+            "../lib/telegram"
+          );
+          const msg = formatNewCandidateTelegramMessage({
+            candidateName: created.fullName,
+            jobTitle: created.jobPosting?.title || "Open Role",
+            email: created.email,
+            phone: created.phone,
+            source: created.source,
+            referredBy: created.referredBy
+              ? `${created.referredBy.firstName} ${created.referredBy.lastName}`
+              : null,
+          });
+          await sendTelegramNotification(
+            ctx.prisma,
+            "HR_LIFECYCLE",
+            "notifyCandidate",
+            msg
+          );
+        } catch (err) {
+          console.error("[recruitment:candidate] telegram alert failed:", err);
+        }
+      })();
+
+      return created;
     }),
 
   referCandidate: protectedProcedure
@@ -206,7 +238,7 @@ export const recruitmentRouter = router({
         });
       }
       validateResumeUrl(input.resumeUrl);
-      return ctx.prisma.candidate.create({
+      const created = await ctx.prisma.candidate.create({
         data: {
           jobPostingId: input.jobPostingId,
           fullName: input.fullName,
@@ -216,7 +248,39 @@ export const recruitmentRouter = router({
           source: "REFERRAL",
           referredById: ctx.session.user.id,
         },
+        include: {
+          jobPosting: { select: { title: true } },
+          referredBy: { select: { firstName: true, lastName: true } },
+        },
       });
+
+      void (async () => {
+        try {
+          const { formatNewCandidateTelegramMessage, sendTelegramNotification } = await import(
+            "../lib/telegram"
+          );
+          const msg = formatNewCandidateTelegramMessage({
+            candidateName: created.fullName,
+            jobTitle: created.jobPosting?.title || job.title,
+            email: created.email,
+            phone: created.phone,
+            source: "EMPLOYEE REFERRAL",
+            referredBy: created.referredBy
+              ? `${created.referredBy.firstName} ${created.referredBy.lastName}`
+              : null,
+          });
+          await sendTelegramNotification(
+            ctx.prisma,
+            "HR_LIFECYCLE",
+            "notifyCandidate",
+            msg
+          );
+        } catch (err) {
+          console.error("[recruitment:referral] telegram alert failed:", err);
+        }
+      })();
+
+      return created;
     }),
 
   candidateById: protectedProcedure

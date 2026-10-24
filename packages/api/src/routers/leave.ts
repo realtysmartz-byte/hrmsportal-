@@ -233,8 +233,38 @@ export const leaveRouter = router({
             status: created.status,
             managerEmail: emp.manager?.email,
           });
+
+          // Telegram Alert
+          const { formatLeaveTelegramMessage, sendTelegramNotification } = await import(
+            "../lib/telegram"
+          );
+          const telegramMsg = formatLeaveTelegramMessage({
+            employeeName: `${emp.firstName} ${emp.lastName}`,
+            leaveType: leaveType.name,
+            startDate: startDate.toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              timeZone: "Asia/Kolkata",
+            }),
+            endDate: endDate.toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              timeZone: "Asia/Kolkata",
+            }),
+            days: numberOfDays,
+            reason: input.reason,
+            status: created.status,
+          });
+          await sendTelegramNotification(
+            ctx.prisma,
+            "ATTENDANCE_LEAVE",
+            "notifyLeave",
+            telegramMsg
+          );
         } catch (err) {
-          console.error("[leave] apply email failed:", err);
+          console.error("[leave] apply alert failed:", err);
         }
       })();
 

@@ -630,8 +630,35 @@ export const employeeRouter = router({
             designationTitle: employee.designation?.title,
             dateOfJoining: employee.dateOfJoining,
           });
+
+          // Telegram Alert for HR & Lifecycle Bot
+          const { formatNewJoinTelegramMessage, sendTelegramNotification } = await import(
+            "../lib/telegram"
+          );
+          const telegramMsg = formatNewJoinTelegramMessage({
+            employeeName: name,
+            employeeCode: employee.employeeCode,
+            designation: employee.designation?.title,
+            department: employee.department?.name,
+            dateOfJoining: employee.dateOfJoining
+              ? employee.dateOfJoining.toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  timeZone: "Asia/Kolkata",
+                })
+              : null,
+            email: employee.email,
+            phone: employee.phone,
+          });
+          await sendTelegramNotification(
+            ctx.prisma,
+            "HR_LIFECYCLE",
+            "notifyNewJoin",
+            telegramMsg
+          );
         } catch (err) {
-          console.error("[employee.create] Failed to send welcome email:", err);
+          console.error("[employee.create] Failed to send welcome notifications:", err);
         }
       })();
 
@@ -1008,6 +1035,34 @@ export const employeeRouter = router({
             console.error(
               "[employee.update] Status email was not sent. Check SMTP configuration and server mail logs."
             );
+          }
+
+          // Telegram Alert for HR & Lifecycle Bot
+          const isResigned = employee.status === "RESIGNED";
+          const isTerminated = employee.status === "TERMINATED";
+          const featureKey = isResigned
+            ? "notifyResigned"
+            : isTerminated
+              ? "notifyTerminated"
+              : null;
+
+          if (featureKey) {
+            const { formatStatusChangeTelegramMessage, sendTelegramNotification } = await import(
+              "../lib/telegram"
+            );
+            const msg = formatStatusChangeTelegramMessage({
+              employeeName: name,
+              employeeCode: employee.employeeCode,
+              previousStatus,
+              newStatus: employee.status,
+              effectiveDate: effectiveDate.toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                timeZone: "Asia/Kolkata",
+              }),
+            });
+            await sendTelegramNotification(ctx.prisma, "HR_LIFECYCLE", featureKey, msg);
           }
         } catch (err) {
           statusEmailSent = false;

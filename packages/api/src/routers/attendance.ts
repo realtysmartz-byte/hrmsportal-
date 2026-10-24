@@ -182,6 +182,49 @@ function schedulePunchLocationWork(
           : null
       ),
     ]);
+
+    // Send Telegram Notification post-response with lifecycle guarantee
+    if (input.direction === "in") {
+      try {
+        const emp = await ctx.prisma.employee.findUnique({
+          where: { id: input.employeeId },
+          select: { firstName: true, lastName: true, employeeCode: true },
+        });
+        if (emp) {
+          const timeStr = formatTimeIST(input.capturedAt);
+          const dateStr = input.capturedAt.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            timeZone: "Asia/Kolkata",
+          });
+          const locationName =
+            address || `${input.lat.toFixed(5)}, ${input.lng.toFixed(5)}`;
+
+          const { formatPunchTelegramMessage, sendTelegramNotification } = await import(
+            "../lib/telegram"
+          );
+
+          const msg = formatPunchTelegramMessage({
+            employeeName: `${emp.firstName} ${emp.lastName}`,
+            employeeCode: emp.employeeCode,
+            timeStr,
+            dateStr,
+            locationName,
+            lat: input.lat,
+            lng: input.lng,
+          });
+          await sendTelegramNotification(
+            ctx.prisma,
+            "ATTENDANCE_LEAVE",
+            "notifyPunchIn",
+            msg
+          );
+        }
+      } catch (err) {
+        console.error("[telegram:punch] alert failed:", err);
+      }
+    }
   });
 }
 

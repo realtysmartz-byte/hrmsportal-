@@ -9,6 +9,7 @@ import { recruitmentRouter } from "./routers/recruitment";
 import { performanceRouter } from "./routers/performance";
 import { googleSheetsRouter } from "./routers/googleSheets";
 import { emailSettingsRouter } from "./routers/emailSettings";
+import { telegramRouter } from "./routers/telegram";
 
 export const appRouter = router({
   employee: employeeRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   performance: performanceRouter,
   googleSheets: googleSheetsRouter,
   emailSettings: emailSettingsRouter,
+  telegram: telegramRouter,
 });
 
 export type AppRouter = typeof appRouter;
@@ -70,3 +72,12 @@ export {
 
 export { ensureAutoPunchOut } from "./lib/attendance-auto";
 export { assertRateLimit } from "./lib/rate-limit";
+export {
+  sendTelegramNotification,
+  formatPunchTelegramMessage,
+  formatLeaveTelegramMessage,
+  formatBirthdayTelegramMessage,
+  formatNewJoinTelegramMessage,
+  formatNewCandidateTelegramMessage,
+  formatStatusChangeTelegramMessage,
+} from "./lib/telegram";

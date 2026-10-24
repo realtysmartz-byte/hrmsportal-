@@ -30,6 +30,7 @@ import {
   Download,
   FileSpreadsheet,
   Mail,
+  Bot,
 } from "lucide-react";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ const settingsNavItems = [
   { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings },
   { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet },
   { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail },
+  { href: "/admin-portal/settings/telegram", label: "Automations", icon: Bot },
 ];
 
 interface AdminSidebarProps {
