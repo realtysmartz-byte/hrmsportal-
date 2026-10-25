@@ -118,6 +118,7 @@ export const authOptions: NextAuthOptions = {
               employeeCode: true,
               firstName: true,
               lastName: true,
+              profilePhotoUrl: true,
             },
           });
 
@@ -157,6 +158,7 @@ export const authOptions: NextAuthOptions = {
             name: `${employee.firstName} ${employee.lastName}`,
             role: employee.role,
             employeeCode: employee.employeeCode,
+            image: employee.profilePhotoUrl,
           };
         } catch (error) {
           if (
@@ -219,7 +221,7 @@ export const authOptions: NextAuthOptions = {
           return "/login?error=GoogleEmployeeOnly";
         }
 
-        if (!employee.profilePhotoUrl && user.image) {
+        if (user.image && employee.profilePhotoUrl !== user.image) {
           try {
             await prisma.employee.update({
               where: { id: employee.id },
@@ -247,6 +249,7 @@ export const authOptions: NextAuthOptions = {
               employeeCode: true,
               email: true,
               status: true,
+              profilePhotoUrl: true,
             },
           });
           if (employee) {
@@ -258,6 +261,7 @@ export const authOptions: NextAuthOptions = {
             token.employeeCode = employee.employeeCode;
             token.email = employee.email;
             token.status = employee.status;
+            token.picture = employee.profilePhotoUrl || user.image || null;
             token.statusCheckedAt = Date.now();
           }
         } else {
@@ -265,6 +269,7 @@ export const authOptions: NextAuthOptions = {
           token.role = (user as { role: string }).role;
           token.employeeCode = (user as { employeeCode: string }).employeeCode;
           token.email = user.email;
+          token.picture = (user as { image?: string }).image || null;
           token.statusCheckedAt = Date.now();
         }
         delete token.error;
@@ -279,6 +284,7 @@ export const authOptions: NextAuthOptions = {
             status: true,
             role: true,
             employeeCode: true,
+            profilePhotoUrl: true,
           },
         });
         if (!employee || !canEmployeeLogin(employee.status)) {
@@ -288,6 +294,7 @@ export const authOptions: NextAuthOptions = {
         token.role = employee.role;
         token.employeeCode = employee.employeeCode;
         token.status = employee.status;
+        token.picture = employee.profilePhotoUrl || token.picture || null;
         token.statusCheckedAt = Date.now();
       }
 
@@ -302,6 +309,7 @@ export const authOptions: NextAuthOptions = {
               role: true,
               employeeCode: true,
               email: true,
+              profilePhotoUrl: true,
             },
           });
           token.statusCheckedAt = Date.now();
@@ -312,6 +320,7 @@ export const authOptions: NextAuthOptions = {
           token.employeeCode = employee.employeeCode;
           token.email = employee.email;
           token.status = employee.status;
+          token.picture = employee.profilePhotoUrl || token.picture || null;
         } catch (err) {
           console.error("[auth] jwt status check failed:", err);
         }
@@ -332,6 +341,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = (token.role as string) || "EMPLOYEE";
         session.user.employeeCode = (token.employeeCode as string) || "";
         if (token.email) session.user.email = token.email as string;
+        session.user.image = (token.picture as string) || null;
       }
       return session;
     },

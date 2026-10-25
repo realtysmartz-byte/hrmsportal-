@@ -82,14 +82,66 @@ export function CheckInOutCard() {
     return () => clearInterval(id);
   }, [isOnDuty]);
 
-  const onSuccess = () => {
+  const onCheckInSuccess = (res?: { quote?: string | null; status?: string }) => {
     setError("");
+    const now = new Date();
+    if (res?.quote) {
+      setPunchQuote(res.quote);
+    }
+    utils.attendance.today.setData(undefined, (old) => {
+      if (!old) {
+        return {
+          id: "optimistic-" + Date.now(),
+          employeeId: "",
+          date: now,
+          status: (res?.status as any) || "PRESENT",
+          checkInTime: now,
+          checkOutTime: null,
+          checkInLat: 0,
+          checkInLng: 0,
+          checkInAddress: null,
+          checkOutLat: null,
+          checkOutLng: null,
+          checkOutAddress: null,
+          totalHours: null,
+          withinGeofence: true,
+          notes: null,
+          createdAt: now,
+          updatedAt: now,
+          punches: [{ id: "temp", checkInTime: now, checkOutTime: null, attendanceLogId: "temp", checkInAddress: null, checkOutAddress: null }],
+          quote: res?.quote ?? null,
+        } as unknown as typeof old;
+      }
+      return {
+        ...old,
+        checkInTime: old.checkInTime || now,
+        checkOutTime: null,
+        status: (res?.status as any) || old.status,
+        quote: res?.quote ?? old.quote,
+      } as unknown as typeof old;
+    });
     void utils.attendance.today.invalidate();
     void utils.attendance.myMonth.invalidate();
     void utils.attendance.myRecentWeek.invalidate();
   };
-  const checkIn = trpc.attendance.checkIn.useMutation({ onSuccess });
-  const checkOut = trpc.attendance.checkOut.useMutation({ onSuccess });
+
+  const onCheckOutSuccess = () => {
+    setError("");
+    const now = new Date();
+    utils.attendance.today.setData(undefined, (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        checkOutTime: now,
+      };
+    });
+    void utils.attendance.today.invalidate();
+    void utils.attendance.myMonth.invalidate();
+    void utils.attendance.myRecentWeek.invalidate();
+  };
+
+  const checkIn = trpc.attendance.checkIn.useMutation({ onSuccess: onCheckInSuccess });
+  const checkOut = trpc.attendance.checkOut.useMutation({ onSuccess: onCheckOutSuccess });
 
   async function punch(mode: "in" | "out") {
     if (busy) return;

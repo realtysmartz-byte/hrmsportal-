@@ -17,8 +17,8 @@ export type StoredFix = {
 export type PunchFix = StoredFix & { accuracy: number };
 
 const FIX_MAX_AGE_MS = 2 * 60_000;
-const WATCH_BUDGET_MS = 8_000;
-const GOOD_ACCURACY_M = 100;
+const WATCH_BUDGET_MS = 2_500;
+const GOOD_ACCURACY_M = 250;
 
 let latestFix: StoredFix | null = null;
 let watchId: number | null = null;
@@ -135,21 +135,30 @@ function startPrewarmWatch() {
   navigator.geolocation.getCurrentPosition(
     storeFix,
     () => {},
-    { enableHighAccuracy: false, maximumAge: 120_000, timeout: 5_000 }
+    { enableHighAccuracy: false, maximumAge: 120_000, timeout: 3_000 }
   );
 
   watchId = navigator.geolocation.watchPosition(
     storeFix,
     () => {},
-    { enableHighAccuracy: false, maximumAge: 120_000, timeout: 8_000 }
+    { enableHighAccuracy: false, maximumAge: 120_000, timeout: 5_000 }
   );
 }
 
-/** Pre-warm GPS only after permission is already granted. Clear on unmount. */
+/** Pre-warm GPS silently on mount so punch tap is instant. */
 export function startPunchLocationPrewarm() {
   if (typeof window === "undefined" || !navigator.geolocation) return;
   prewarmUsers += 1;
-  if (prewarmUsers > 1 || permissionStatus) return;
+  if (prewarmUsers > 1) return;
+
+  // Background quick attempt without prompting if allowed
+  try {
+    navigator.geolocation.getCurrentPosition(
+      storeFix,
+      () => {},
+      { enableHighAccuracy: false, maximumAge: 120_000, timeout: 3_000 }
+    );
+  } catch {}
 
   if (!navigator.permissions?.query) return;
   void navigator.permissions
@@ -165,11 +174,11 @@ export function startPunchLocationPrewarm() {
         }
       };
       status.addEventListener("change", permissionChangeHandler);
-      startPrewarmWatch();
+      if (status.state === "granted") {
+        startPrewarmWatch();
+      }
     })
-    .catch(() => {
-      // Do not trigger a permission prompt before the user taps a punch button.
-    });
+    .catch(() => {});
 }
 
 function stopPrewarmWatch() {
@@ -192,8 +201,7 @@ export function stopPunchLocationPrewarm() {
 }
 
 /**
- * Punch tap: use ≤2min cached fix, else watch ≤8s for accuracy≤100m
- * (or best fix at timeout). Never uses enableHighAccuracy+maximumAge:0 alone.
+ * Punch tap: instantaneous if cached within 2 min, else fast parallel GPS fix.
  */
 export function acquirePunchFix(): Promise<PunchFix> {
   return new Promise((resolve, reject) => {
@@ -210,7 +218,40 @@ export function acquirePunchFix(): Promise<PunchFix> {
 
     let best: PunchFix | null = null;
     let settled = false;
-    const id = navigator.geolocation.watchPosition(
+    let watchTimer: ReturnType<typeof setTimeout> | null = null;
+    let id: number | null = null;
+
+    const cleanup = () => {
+      if (id != null) navigator.geolocation.clearWatch(id);
+      if (watchTimer != null) clearTimeout(watchTimer);
+    };
+
+    // Fast path: cached OS/cell position returned in 50-200ms
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          storeFix(pos);
+          const fix: StoredFix = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
+            timestamp: pos.timestamp || Date.now(),
+          };
+          if (!isUsablePunchFix(fix)) return;
+          if (!best || fix.accuracy < best.accuracy) best = fix;
+          if (fix.accuracy <= GOOD_ACCURACY_M) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(fix);
+          }
+        },
+        () => {},
+        { enableHighAccuracy: false, maximumAge: 60_000, timeout: 2_000 }
+      );
+    } catch {}
+
+    id = navigator.geolocation.watchPosition(
       (pos) => {
         const fix: StoredFix = {
           lat: pos.coords.latitude,
@@ -220,17 +261,13 @@ export function acquirePunchFix(): Promise<PunchFix> {
         };
         storeFix(pos);
         if (!isUsablePunchFix(fix)) return;
-        if (
-          !best ||
-          fix.accuracy < best.accuracy
-        ) {
+        if (!best || fix.accuracy < best.accuracy) {
           best = fix;
         }
         if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
           if (settled) return;
           settled = true;
-          navigator.geolocation.clearWatch(id);
-          clearTimeout(timer);
+          cleanup();
           resolve(fix);
         }
       },
@@ -238,18 +275,17 @@ export function acquirePunchFix(): Promise<PunchFix> {
         if (settled) return;
         if (err.code === 1) {
           settled = true;
-          navigator.geolocation.clearWatch(id);
-          clearTimeout(timer);
+          cleanup();
           reject(err);
         }
       },
       { enableHighAccuracy: false, maximumAge: 30_000, timeout: WATCH_BUDGET_MS }
     );
 
-    const timer = setTimeout(() => {
+    watchTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      navigator.geolocation.clearWatch(id);
+      cleanup();
       if (best) resolve(best);
       else {
         reject(

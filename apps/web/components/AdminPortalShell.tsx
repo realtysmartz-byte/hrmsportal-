@@ -176,9 +176,18 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
             </Link>
             <div
               title={session?.user?.name ?? "Administrator"}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-white"
+              className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-emerald-400 text-xs font-semibold text-white border border-white/20"
             >
-              {session?.user?.name?.[0] ?? "A"}
+              {session?.user?.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session?.user?.name || "Admin"}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                session?.user?.name?.[0] ?? "A"
+              )}
             </div>
           </div>
         </header>

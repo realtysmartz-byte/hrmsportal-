@@ -31,6 +31,22 @@ import {
   syncLegacyWorkLocation,
 } from "../lib/work-location";
 
+export type UpcomingBirthdayItem = {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  profilePhotoUrl: string | null;
+  department: string | null;
+  designation: string | null;
+  birthdayDate: string;
+  isToday: boolean;
+  daysUntil: number;
+};
+
+let upcomingBirthdaysCache: { at: number; data: UpcomingBirthdayItem[] } | null = null;
+const UPCOMING_BIRTHDAYS_TTL_MS = 10 * 60 * 1000;
+
 const employeeInclude = {
   department: { select: { id: true, name: true } },
   designation: { select: { id: true, title: true } },
@@ -1350,7 +1366,15 @@ export const employeeRouter = router({
     return employee;
   }),
 
-  getUpcomingBirthdays: protectedProcedure.query(async ({ ctx }) => {
+  getUpcomingBirthdays: protectedProcedure.query(
+    async ({ ctx }): Promise<UpcomingBirthdayItem[]> => {
+    if (
+      upcomingBirthdaysCache &&
+      Date.now() - upcomingBirthdaysCache.at < UPCOMING_BIRTHDAYS_TTL_MS
+    ) {
+      return upcomingBirthdaysCache.data;
+    }
+
     const employees = await ctx.prisma.employee.findMany({
       where: {
         status: { in: ["ACTIVE", "ON_LEAVE"] },
@@ -1417,6 +1441,8 @@ export const employeeRouter = router({
     }
 
     upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
-    return upcoming.slice(0, 12);
+    const result = upcoming.slice(0, 12);
+    upcomingBirthdaysCache = { at: Date.now(), data: result };
+    return result;
   }),
 });

@@ -122,9 +122,20 @@ export function EmployeeTopNav() {
               <Link
                 href="/employee-portal/profile"
                 title={session?.user?.name ?? "Profile"}
-                className="hidden h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-white lg:flex"
+                className="hidden h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-emerald-400 text-xs font-semibold text-white lg:flex border border-white/20"
               >
-                {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
+                {session?.user?.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session?.user?.name || "Profile"}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : session?.user?.name ? (
+                  session.user.name.charAt(0).toUpperCase()
+                ) : (
+                  "U"
+                )}
               </Link>
               <button
                 type="button"
@@ -185,8 +196,19 @@ export function EmployeeTopNav() {
               {/* Drawer Header */}
               <div className="flex items-center justify-between px-5 pb-4 border-b border-neutral-100">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5D3EBC] font-bold text-sm text-white">
-                    {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : "U"}
+                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] font-bold text-sm text-white shrink-0">
+                    {session?.user?.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={session?.user?.name || "Profile"}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : session?.user?.name ? (
+                      session.user.name.charAt(0).toUpperCase()
+                    ) : (
+                      "U"
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="font-display text-sm font-bold text-neutral-900 truncate">

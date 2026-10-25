@@ -21,6 +21,7 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     employeeCode?: string;
+    picture?: string | null;
     status?: string;
     statusCheckedAt?: number;
     error?: "AccountInactive";

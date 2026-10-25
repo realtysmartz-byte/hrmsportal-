@@ -6,12 +6,30 @@ import {
 } from "@realty-smartz/shared";
 import { orgManageProcedure, protectedProcedure, router } from "../trpc";
 
+type DesignationWithCount = Array<{
+  id: string;
+  title: string;
+  createdAt: Date;
+  _count: { employees: number };
+}>;
+
+let designationListCache: { at: number; data: DesignationWithCount } | null = null;
+const DESIGNATION_LIST_TTL_MS = 5 * 60 * 1000;
+
 export const designationRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.designation.findMany({
+  list: protectedProcedure.query(async ({ ctx }): Promise<DesignationWithCount> => {
+    if (
+      designationListCache &&
+      Date.now() - designationListCache.at < DESIGNATION_LIST_TTL_MS
+    ) {
+      return designationListCache.data;
+    }
+    const data = await ctx.prisma.designation.findMany({
       include: { _count: { select: { employees: true } } },
       orderBy: { title: "asc" },
     });
+    designationListCache = { at: Date.now(), data };
+    return data;
   }),
 
   create: orgManageProcedure
@@ -26,6 +44,7 @@ export const designationRouter = router({
           message: "Designation already exists",
         });
       }
+      designationListCache = null;
       return ctx.prisma.designation.create({ data: { title: input.title } });
     }),
 
@@ -52,6 +71,7 @@ export const designationRouter = router({
         });
       }
 
+      designationListCache = null;
       return ctx.prisma.designation.update({
         where: { id: input.id },
         data: { title: input.title },
@@ -77,6 +97,7 @@ export const designationRouter = router({
           message: "Cannot delete designation with assigned employees",
         });
       }
+      designationListCache = null;
       await ctx.prisma.designation.delete({ where: { id: input.id } });
       return { success: true };
     }),

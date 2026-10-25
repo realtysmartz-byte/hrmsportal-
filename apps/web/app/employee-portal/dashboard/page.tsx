@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Search, PlaneTakeoff, ListChecks, ChevronRight, IdCard } from "lucide-react";
@@ -21,19 +20,10 @@ export default function EmployeeDashboardPage() {
   const userName = session?.user?.name ?? "";
   const [first = "", last = ""] = userName.split(" ");
 
-  // Let the punch card start first, then load secondary dashboard widgets.
-  const [loadSecondary, setLoadSecondary] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setLoadSecondary(true), 700);
-    return () => clearTimeout(t);
-  }, []);
-
   const { data: recentWeek } = trpc.attendance.myRecentWeek.useQuery(undefined, {
-    enabled: loadSecondary,
     staleTime: 5 * 60_000,
   });
-  const { data: birthdays } = trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
-    enabled: loadSecondary,
+  const { data: birthdays, isLoading: birthdaysLoading } = trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
     staleTime: 15 * 60_000,
   });
 
@@ -42,9 +32,19 @@ export default function EmployeeDashboardPage() {
       <div className="flex items-center gap-3">
         <Link
           href="/employee-portal/profile"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-medium text-emerald-700"
+          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-50 text-sm font-medium text-emerald-700 border border-neutral-200"
+          title={userName || "Profile"}
         >
-          {initials(first, last) || "U"}
+          {session?.user?.image ? (
+            <img
+              src={session.user.image}
+              alt={userName || "Profile"}
+              className="h-full w-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            initials(first, last) || "U"
+          )}
         </Link>
         <Link
           href="/employee-portal/directory"
@@ -76,9 +76,9 @@ export default function EmployeeDashboardPage() {
 
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-neutral-900">Wish them</h2>
-          {!loadSecondary ? (
+          {birthdaysLoading ? (
             <p className="mt-3 rounded-xl border border-neutral-100 p-4 text-center text-xs text-neutral-400">
-              …
+              Loading…
             </p>
           ) : birthdays && birthdays.length > 0 ? (
             <div className="mt-3 flex gap-5 overflow-x-auto pb-1">

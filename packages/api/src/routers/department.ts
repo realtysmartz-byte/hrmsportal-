@@ -6,12 +6,30 @@ import {
 } from "@realty-smartz/shared";
 import { orgManageProcedure, protectedProcedure, router } from "../trpc";
 
+type DepartmentWithCount = Array<{
+  id: string;
+  name: string;
+  createdAt: Date;
+  _count: { employees: number };
+}>;
+
+let departmentListCache: { at: number; data: DepartmentWithCount } | null = null;
+const DEPARTMENT_LIST_TTL_MS = 5 * 60 * 1000;
+
 export const departmentRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.department.findMany({
+  list: protectedProcedure.query(async ({ ctx }): Promise<DepartmentWithCount> => {
+    if (
+      departmentListCache &&
+      Date.now() - departmentListCache.at < DEPARTMENT_LIST_TTL_MS
+    ) {
+      return departmentListCache.data;
+    }
+    const data = await ctx.prisma.department.findMany({
       include: { _count: { select: { employees: true } } },
       orderBy: { name: "asc" },
     });
+    departmentListCache = { at: Date.now(), data };
+    return data;
   }),
 
   create: orgManageProcedure
@@ -26,6 +44,7 @@ export const departmentRouter = router({
           message: "Department already exists",
         });
       }
+      departmentListCache = null;
       return ctx.prisma.department.create({ data: { name: input.name } });
     }),
 
@@ -52,6 +71,7 @@ export const departmentRouter = router({
         });
       }
 
+      departmentListCache = null;
       return ctx.prisma.department.update({
         where: { id: input.id },
         data: { name: input.name },
@@ -77,6 +97,7 @@ export const departmentRouter = router({
           message: "Cannot delete department with assigned employees",
         });
       }
+      departmentListCache = null;
       await ctx.prisma.department.delete({ where: { id: input.id } });
       return { success: true };
     }),
