@@ -22,8 +22,8 @@ function runtimeDatabaseUrl(): string | undefined {
     if (!url.hostname.endsWith("pooler.supabase.com")) return raw;
     url.port = "6543";
     url.searchParams.set("pgbouncer", "true");
-    if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "10");
-    if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "30");
+    url.searchParams.set("connection_limit", "3");
+    if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "10");
     if (!url.searchParams.has("sslmode")) url.searchParams.set("sslmode", "require");
     return url.toString();
   } catch {

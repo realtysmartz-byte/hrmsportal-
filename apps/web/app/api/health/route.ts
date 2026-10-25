@@ -6,11 +6,18 @@ export const dynamic = "force-dynamic";
 /** GET /api/health → { status, db, timestamp } */
 export async function GET() {
   let db = false;
-  let queryMs = -1;
-  const t0 = Date.now();
+  let q1Ms = -1;
+  let q2Ms = -1;
+  
   try {
+    const t0 = Date.now();
     await prisma.$queryRaw`SELECT 1`;
-    queryMs = Date.now() - t0;
+    q1Ms = Date.now() - t0;
+
+    const t1 = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    q2Ms = Date.now() - t1;
+
     db = true;
   } catch (err) {
     console.error("[health] database check failed:", err);
@@ -30,7 +37,8 @@ export async function GET() {
       status: db ? "ok" : "db_error",
       db,
       dbHost,
-      queryMs,
+      q1Ms,
+      q2Ms,
       timestamp: new Date().toISOString(),
     },
     { status: db ? 200 : 503 }
