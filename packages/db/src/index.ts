@@ -41,7 +41,7 @@ export const prisma =
 globalForPrisma.prisma = prisma;
 
 // Auto pre-warm connection pool on startup
-if (typeof window === "undefined") {
+if (typeof globalThis !== "undefined" && !("window" in globalThis)) {
   void prisma.$connect().catch(() => {});
 }
 
