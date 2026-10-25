@@ -23,6 +23,14 @@ export async function GET() {
     console.error("[health] database check failed:", err);
   }
 
+  let serverGeo: any = null;
+  try {
+    const res = await fetch("http://ip-api.com/json/?fields=status,country,regionName,city,query,isp", {
+      next: { revalidate: 3600 },
+    });
+    serverGeo = await res.json();
+  } catch {}
+
   let dbHost = "not_set";
   try {
     const raw = process.env.DATABASE_URL;
@@ -37,6 +45,7 @@ export async function GET() {
       status: db ? "ok" : "db_error",
       db,
       dbHost,
+      serverGeo,
       q1Ms,
       q2Ms,
       timestamp: new Date().toISOString(),
