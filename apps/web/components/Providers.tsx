@@ -96,9 +96,33 @@ export function Providers({ children }: { children: React.ReactNode }) {
           },
         },
         mutationCache: new MutationCache({
-          onSuccess: (_data, variables, _context, mutation) => {
+          onSuccess: (data: unknown, variables, _context, mutation) => {
             const path = mutationPath(mutation.options.mutationKey);
             if (SILENT.has(path)) return;
+
+            if (path === "attendance.checkIn") {
+              const punchData = data as {
+                quote?: string;
+                punchTiming?: "EARLY" | "ON_TIME" | "LATE";
+              } | null;
+              const quote = punchData?.quote;
+              const timing = punchData?.punchTiming;
+              const badge =
+                timing === "EARLY"
+                  ? "Early Bird"
+                  : timing === "LATE"
+                    ? "Keep Going"
+                    : "On Time";
+
+              toast("success", quote || "Clock in successfully", {
+                title: "Clock in successfully",
+                quote,
+                badge,
+                duration: 7000,
+              });
+              return;
+            }
+
             toast("success", successMessage(path, variables));
           },
           onError: (error, _variables, _context, mutation) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft } from "lucide-react";
+import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
   acquirePunchFix,
@@ -61,6 +61,7 @@ export function CheckInOutCard() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<"idle" | "locating" | "saving">("idle");
+  const [punchQuote, setPunchQuote] = useState<string | null>(null);
 
   const isOnDuty = Boolean(today?.checkInTime && !today?.checkOutTime);
   const hasCompletedSession = Boolean(today?.checkInTime && today?.checkOutTime);
@@ -113,7 +114,10 @@ export function CheckInOutCard() {
       };
 
       if (mode === "in") {
-        await checkIn.mutateAsync(payload);
+        const res = await checkIn.mutateAsync(payload);
+        if (res && "quote" in res && typeof res.quote === "string") {
+          setPunchQuote(res.quote);
+        }
         void startNativeDutyTracking();
       } else {
         await checkOut.mutateAsync(payload);
@@ -159,6 +163,9 @@ export function CheckInOutCard() {
 
   const busyLabel =
     phase === "saving" ? "Saving…" : phase === "locating" ? "Getting location…" : null;
+
+  const activeQuote =
+    punchQuote || (today as { quote?: string | null } | undefined)?.quote;
 
   return (
     <div className="w-full rounded-xl bg-[#F3F0FC] p-4">
@@ -245,6 +252,18 @@ export function CheckInOutCard() {
             )}
           </span>
         </button>
+      )}
+
+      {activeQuote && (
+        <div className="mt-3 rounded-lg border border-purple-200/80 bg-white/80 p-2.5 text-xs text-purple-950 shadow-sm">
+          <div className="flex items-center gap-1.5 font-semibold text-[#5D3EBC]">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <span>Today's Motivation</span>
+          </div>
+          <p className="mt-1 italic leading-relaxed text-neutral-700">
+            "{activeQuote}"
+          </p>
+        </div>
       )}
 
       <div className="mt-3 flex items-center gap-1.5 text-xs text-neutral-500">

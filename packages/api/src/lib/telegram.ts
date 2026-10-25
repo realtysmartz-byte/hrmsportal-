@@ -347,6 +347,7 @@ export function formatPunchTelegramMessage(data: {
   lat?: number | null;
   lng?: number | null;
   statusBadge?: string;
+  quote?: string | null;
 }): string {
   const mapsUrl =
     data.lat != null && data.lng != null
@@ -361,6 +362,7 @@ export function formatPunchTelegramMessage(data: {
     `<b>Time:</b> ${data.timeStr}${data.statusBadge ? ` (${data.statusBadge})` : ""}`,
     `<b>Location:</b> ${escapeHtml(data.locationName)}`,
     mapsUrl ? `<b>Maps:</b> <a href="${mapsUrl}">View on Google Maps</a>` : null,
+    data.quote ? `\n<i>"${escapeHtml(data.quote)}"</i>` : null,
     "",
     "<i>Realty Smartz Private Limited</i>",
   ]

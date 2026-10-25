@@ -13,6 +13,9 @@ import {
   LATE_CHECK_IN_HOUR,
   canViewTeamAttendance,
   formatTimeIST,
+  getPunchTimingCategory,
+  getRandomMotivationalQuote,
+  getDailyDeterministicQuote,
 } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import type { Context } from "../context";
@@ -205,6 +208,9 @@ function schedulePunchLocationWork(
             "../lib/telegram"
           );
 
+          const punchTiming = getPunchTimingCategory(input.capturedAt);
+          const quote = getRandomMotivationalQuote(punchTiming);
+
           const msg = formatPunchTelegramMessage({
             employeeName: `${emp.firstName} ${emp.lastName}`,
             employeeCode: emp.employeeCode,
@@ -213,6 +219,7 @@ function schedulePunchLocationWork(
             locationName,
             lat: input.lat,
             lng: input.lng,
+            quote,
           });
           await sendTelegramNotification(
             ctx.prisma,
@@ -370,7 +377,10 @@ export const attendanceRouter = router({
     if (log) {
       [log] = await canonicalizeOfficeAttendanceLabels(ctx.prisma, [log]);
     }
-    return log;
+    const quote = log?.checkInTime
+      ? getDailyDeterministicQuote(log.checkInTime, employeeId)
+      : null;
+    return log ? { ...log, quote } : null;
   }),
 
   /**
@@ -586,7 +596,14 @@ export const attendanceRouter = router({
 
       // Idempotent: already on duty → acknowledge the repeated tap.
       if (existing?.checkInTime && !existing.checkOutTime) {
-        return { success: true };
+        const punchTiming = getPunchTimingCategory(existing.checkInTime);
+        const quote = getRandomMotivationalQuote(punchTiming);
+        return {
+          success: true,
+          punchTiming,
+          status: existing.status,
+          quote,
+        };
       }
       if (existing?.status === "ON_LEAVE") {
         throw new TRPCError({
@@ -758,7 +775,15 @@ export const attendanceRouter = router({
       });
       scheduleAfterResponse(ctx, async () => scheduleSheetSync(ctx.prisma, today));
 
-      return { success: true };
+      const punchTiming = getPunchTimingCategory(now);
+      const quote = getRandomMotivationalQuote(punchTiming);
+
+      return {
+        success: true,
+        punchTiming,
+        status,
+        quote,
+      };
     }),
 
   checkOut: protectedProcedure

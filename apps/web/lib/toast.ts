@@ -3,7 +3,11 @@ export type ToastType = "success" | "error";
 export interface ToastItem {
   id: number;
   type: ToastType;
+  title?: string;
   message: string;
+  quote?: string;
+  badge?: string;
+  duration?: number;
 }
 
 let items: ToastItem[] = [];
@@ -19,11 +23,26 @@ export function dismissToast(id: number) {
   emit();
 }
 
-export function toast(type: ToastType, message: string) {
+export function toast(
+  type: ToastType,
+  message: string,
+  options?: {
+    title?: string;
+    quote?: string;
+    badge?: string;
+    duration?: number;
+  }
+) {
   const id = nextId++;
-  items = [...items, { id, type, message }].slice(-4);
+  const title = options?.title;
+  const quote = options?.quote;
+  const badge = options?.badge;
+  const duration =
+    options?.duration ?? (quote ? 7000 : type === "error" ? 5000 : 3500);
+
+  items = [...items, { id, type, message, title, quote, badge, duration }].slice(-4);
   emit();
-  setTimeout(() => dismissToast(id), type === "error" ? 5000 : 3500);
+  setTimeout(() => dismissToast(id), duration);
 }
 
 export function subscribeToasts(listener: (items: ToastItem[]) => void) {
