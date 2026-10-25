@@ -22,7 +22,7 @@ function runtimeDatabaseUrl(): string | undefined {
     if (!url.hostname.endsWith("pooler.supabase.com")) return raw;
     url.port = "6543";
     url.searchParams.set("pgbouncer", "true");
-    url.searchParams.set("connection_limit", "3");
+    url.searchParams.set("connection_limit", "5");
     if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "10");
     if (!url.searchParams.has("sslmode")) url.searchParams.set("sslmode", "require");
     return url.toString();
@@ -39,6 +39,11 @@ export const prisma =
   });
 
 globalForPrisma.prisma = prisma;
+
+// Auto pre-warm connection pool on startup
+if (typeof window === "undefined") {
+  void prisma.$connect().catch(() => {});
+}
 
 export * from "@prisma/client";
 export default prisma;
