@@ -2,6 +2,8 @@
   "name": "realty-smartz-hrms",
   "private": true,
   "scripts": {
+    "postinstall": "node scripts/fix-turbo-permissions.js",
+    "prebuild": "node scripts/fix-turbo-permissions.js",
     "build": "turbo run build --concurrency=1",
     "start": "pnpm --filter @realty-smartz/web start",
     "dev": "turbo run dev",
