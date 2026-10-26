@@ -225,3 +225,19 @@
   scrollbar-width: none !important;
 }
 
+@keyframes marquee-scroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-smooth {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee-scroll 24s linear infinite;
+  will-change: transform;
+}
+.animate-marquee-smooth:hover {
+  animation-play-state: paused;
+}
+
+

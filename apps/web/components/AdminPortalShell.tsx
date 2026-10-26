@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, LogOut, Download, Search, Settings, ArrowLeftRight } from "lucide-react";
+import {
+  Menu,
+  LogOut,
+  Download,
+  Search,
+  ArrowLeftRight,
+  Bell,
+  Calendar,
+  ChevronDown,
+} from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
@@ -41,6 +50,13 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
           return next;
         });
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const searchInput = document.getElementById("admin-global-search");
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -55,8 +71,18 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
     });
   }
 
+  // Format today's date like "Mon, 26 Oct 2026"
+  const formattedDate = new Date().toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  const userInitial = session?.user?.name?.[0] ?? "H";
+
   return (
-    <div className="relative min-h-screen w-full bg-[#F4F5FA] antialiased">
+    <div className="relative min-h-screen w-full bg-[#F5F6FC] antialiased">
       {/* Desktop: fixed sidebar — never scrolls with page */}
       <div
         className={cn(
@@ -105,7 +131,8 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
           collapsed ? "lg:pl-[76px]" : "lg:pl-[260px]"
         )}
       >
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200/80 bg-white px-3 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-4 sm:py-3 lg:hidden">
+        {/* Mobile Header */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#E6E9F3] bg-white/95 backdrop-blur-md px-3 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-4 sm:py-3 lg:hidden shadow-xs">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -116,7 +143,6 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <div className="flex min-w-0 items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="Realty Smartz" className="h-6 w-6 shrink-0 object-contain" />
               <p className="truncate font-display text-xs font-bold text-neutral-900">Admin Console</p>
             </div>
@@ -128,14 +154,14 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               onClick={() => setShowInstallModal(true)}
               className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 sm:px-2.5"
             >
-              <Download className="h-3.5 w-3.5 text-[#5D3EBC]" />
+              <Download className="h-3.5 w-3.5 text-[#5145CD]" />
               <span className="hidden sm:inline">Install</span>
             </button>
             <Link
               href="/employee-portal/dashboard"
               className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 sm:px-2.5"
             >
-              <ArrowLeftRight className="h-3.5 w-3.5 text-[#5D3EBC]" />
+              <ArrowLeftRight className="h-3.5 w-3.5 text-[#5145CD]" />
               <span className="hidden sm:inline">Employee View</span>
             </Link>
             <button
@@ -149,46 +175,73 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
           </div>
         </header>
 
-        <header className="sticky top-0 z-30 hidden h-14 items-center gap-6 bg-[#5D3EBC] px-6 text-white lg:flex">
-          <p className="shrink-0 text-sm font-semibold">Realty Smartz</p>
+        {/* Desktop Header - Enterprise White Bar as in reference */}
+        <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#E6E9F3] bg-white/90 backdrop-blur-md px-8 text-neutral-900 lg:flex shadow-xs">
+          {/* Left: Global Search Pill */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              router.push(`/admin-portal/employees?q=${encodeURIComponent(query.trim())}`);
+              if (query.trim()) {
+                router.push(`/admin-portal/employees?q=${encodeURIComponent(query.trim())}`);
+              }
             }}
-            className="relative w-full max-w-md"
+            className="relative w-full max-w-lg"
           >
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search employees"
-              className="h-9 w-full rounded-full bg-white pl-9 pr-4 text-sm text-neutral-800 outline-none placeholder:text-neutral-400"
-            />
+            <div className="relative flex items-center">
+              <Search className="pointer-events-none absolute left-4 h-4 w-4 text-neutral-400" />
+              <input
+                id="admin-global-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search employees, departments, requests..."
+                className="h-10 w-full rounded-xl border border-[#E6E9F3] bg-neutral-50/70 pl-11 pr-16 text-xs font-medium text-neutral-800 placeholder:text-neutral-400 transition-all focus:border-[#6D28D9] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/15"
+              />
+              <span className="pointer-events-none absolute right-3 inline-flex items-center rounded border border-[#E6E9F3] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400 shadow-2xs">
+                ⌘ K
+              </span>
+            </div>
           </form>
-          <div className="ml-auto flex items-center gap-4">
+
+          {/* Right: Notification, Date, Profile */}
+          <div className="flex items-center gap-4">
+            {/* Notification Bell with number badge */}
+            <Link
+              href="/admin-portal/leave/approvals"
+              title="Pending Notifications"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-100 transition-colors"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#6D28D9] text-[9px] font-bold text-white ring-2 ring-white">
+                4
+              </span>
+            </Link>
+
+            {/* Date Indicator Pill */}
+            <div className="flex items-center gap-2 rounded-full border border-[#E6E9F3] bg-neutral-50/70 px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-2xs">
+              <Calendar className="h-3.5 w-3.5 text-[#5145CD]" />
+              <span>{formattedDate}</span>
+            </div>
+
+            {/* User Profile Pill */}
             <Link
               href="/admin-portal/settings/company"
-              title="Company Settings"
-              className="text-white/90 hover:text-white"
+              title={session?.user?.name ?? "HR Admin"}
+              className="flex items-center gap-2 rounded-full p-1 hover:bg-neutral-100 transition-colors"
             >
-              <Settings className="h-5 w-5" />
+              <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#5145CD] to-[#7957FF] text-xs font-bold text-white shadow-sm">
+                {session?.user?.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session?.user?.name || "Admin"}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  userInitial
+                )}
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
             </Link>
-            <div
-              title={session?.user?.name ?? "Administrator"}
-              className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-emerald-400 text-xs font-semibold text-white border border-white/20"
-            >
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={session?.user?.name || "Admin"}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                session?.user?.name?.[0] ?? "A"
-              )}
-            </div>
           </div>
         </header>
 
@@ -201,9 +254,10 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
           className="min-w-0 w-full max-w-full flex-1"
           style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
         >
-          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-6 lg:p-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
     </div>
   );
 }
+

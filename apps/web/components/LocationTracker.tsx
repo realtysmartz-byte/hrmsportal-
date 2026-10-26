@@ -199,7 +199,14 @@ export function LocationTracker() {
     };
   }, [authStatus, isOnDuty, isPingPage, onEmployeeRoute]);
 
-  if (authStatus !== "authenticated" || isPingPage || !onEmployeeRoute) return null;
+  if (
+    authStatus !== "authenticated" ||
+    isPingPage ||
+    !onEmployeeRoute ||
+    pathname === "/employee-portal/dashboard"
+  ) {
+    return null;
+  }
 
   return (
     <div

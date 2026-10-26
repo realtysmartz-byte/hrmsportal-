@@ -211,7 +211,7 @@ export function CheckInOutCard() {
   const locationLabel =
     assignedSites.length > 0
       ? `Office or ${assignedSites.map((s) => s.name).join(", ")} (200m)`
-      : workLoc?.name ?? (isLoading ? "…" : "Company office");
+      : workLoc?.name ?? (isLoading ? "…" : "Realty Smartz Pvt Ltd");
 
   const busyLabel =
     phase === "saving" ? "Saving…" : phase === "locating" ? "Getting location…" : null;
@@ -220,70 +220,80 @@ export function CheckInOutCard() {
     punchQuote || (today as { quote?: string | null } | undefined)?.quote;
 
   return (
-    <div className="w-full rounded-xl bg-[#F3F0FC] p-4">
-      <p className="text-xs text-neutral-600">10:00 AM - 07:00 PM • GENERAL</p>
+    <div className="w-full rounded-2xl bg-white border border-[#ECE5F8] p-3.5 sm:p-4 shadow-[0_8px_30px_rgba(78,36,201,0.06)] transition-all">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold tracking-wider text-[#7A6E9B] uppercase">
+          10:00 AM - 07:00 PM • GENERAL
+        </p>
+        <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200/80">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          GPS Active
+        </span>
+      </div>
 
-      <div className="mt-3 flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-white">
-          <CalendarClock className="h-5 w-5" />
+      <div className="mt-2 flex items-center gap-2.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5225C5] text-white shadow-[0_3px_10px_rgba(82,37,197,0.3)]">
+          <CalendarClock className="h-4.5 w-4.5 stroke-[2.2px]" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-neutral-900">
+          <p className="text-sm font-bold tracking-tight text-[#1C113B] leading-snug">
             {now.toLocaleDateString("en-IN", {
               timeZone: TIMEZONE_IST,
               day: "numeric",
               month: "short",
             })}{" "}
-            <span className="font-normal text-neutral-500">
+            <span className="font-semibold text-[#1C113B]">
               {now.toLocaleDateString("en-IN", {
                 timeZone: TIMEZONE_IST,
                 weekday: "short",
               })}
             </span>
           </p>
-          <p className="text-sm text-neutral-700">{hours} worked</p>
+          <p className="text-[10px] font-medium text-[#7A6E9B] leading-none mt-0.5">{hours} worked</p>
         </div>
       </div>
 
       {error && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="mt-2 flex items-start gap-1.5 rounded-xl bg-rose-50 px-2.5 py-1.5 text-[11px] font-medium text-rose-700 border border-rose-200/60">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {isOnDuty && pastShiftEnd ? (
-        <div className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-900">
-          <Loader2 className="h-4 w-4 animate-spin" />
+        <div className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 text-[11px] font-semibold text-amber-900 shadow-2xs">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Shift ended 7:00 PM — auto clock-out…
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={busy || isLoading}
-          onClick={() => punch(isOnDuty ? "out" : "in")}
-          className={cn(
-            "mt-4 flex h-12 w-full overflow-hidden rounded-lg border text-left disabled:opacity-70",
-            isOnDuty ? "border-rose-500" : "border-[#5D3EBC]"
-          )}
-        >
-          <span
+        <div className="mt-2.5 flex gap-2">
+          {/* Left Solid Deep Purple Clock In / Out Button */}
+          <button
+            type="button"
+            disabled={busy || isLoading}
+            onClick={() => punch(isOnDuty ? "out" : "in")}
             className={cn(
-              "flex flex-1 items-center justify-center gap-2 text-sm font-semibold text-white",
-              isOnDuty ? "bg-rose-500" : "bg-[#5D3EBC]"
+              "flex flex-1 items-center justify-center gap-1.5 h-9 sm:h-10 rounded-xl font-bold text-xs text-white transition-all duration-200 active:scale-98 disabled:opacity-70",
+              isOnDuty
+                ? "bg-rose-500 hover:bg-rose-600 shadow-[0_4px_14px_rgba(244,63,94,0.3)]"
+                : "bg-[#5225C5] hover:bg-[#431EB3] shadow-[0_4px_14px_rgba(82,37,197,0.3)]"
             )}
           >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busyLabel
-              ? busyLabel
-              : isOnDuty
-                ? "Clock Out"
-                : hasCompletedSession
-                  ? "Clock In Again"
-                  : "Clock In"}
-          </span>
-          <span className="flex w-[42%] flex-col items-center justify-center bg-white">
-            <span className="tabular-nums text-base font-semibold text-neutral-900">
+            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            <span>
+              {busyLabel
+                ? busyLabel
+                : isOnDuty
+                  ? "Clock Out"
+                  : hasCompletedSession
+                    ? "Clock In Again"
+                    : "Clock In"}
+            </span>
+          </button>
+
+          {/* Right White Pill with Purple Border Showing Current Time */}
+          <div className="flex flex-1 items-center justify-center rounded-xl border border-[#E7E0F8] bg-[#FAF8FE] h-9 sm:h-10 px-2 shadow-2xs">
+            <span className="tabular-nums text-xs font-bold text-[#5225C5]">
               {isOnDuty
                 ? formatClock(elapsed)
                 : now.toLocaleTimeString("en-IN", {
@@ -291,35 +301,27 @@ export function CheckInOutCard() {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: true,
-                  })}
+                  }).toLowerCase()}
             </span>
             {today?.checkInTime && (
-              <span className="flex items-center gap-0.5 text-[11px] text-neutral-500">
-                <ArrowDownLeft className="h-3 w-3 text-emerald-600" />
+              <span className="ml-1.5 flex items-center gap-0.5 text-[9px] font-semibold text-neutral-500">
+                <ArrowDownLeft className="h-2.5 w-2.5 text-emerald-600" />
                 {formatTimeIST(today.checkInTime)}
-                {hasCompletedSession &&
-                  today.checkOutTime &&
-                  ` - ${formatTimeIST(today.checkOutTime)}`}
               </span>
             )}
-          </span>
-        </button>
-      )}
-
-      {activeQuote && (
-        <div className="mt-3 rounded-lg border border-purple-200/80 bg-white/80 p-2.5 text-xs text-purple-950 shadow-sm">
-          <div className="flex items-center gap-1.5 font-semibold text-[#5D3EBC]">
-            <Sparkles className="h-3.5 w-3.5 shrink-0" />
-            <span>Today's Motivation</span>
           </div>
-          <p className="mt-1 italic leading-relaxed text-neutral-700">
-            "{activeQuote}"
-          </p>
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-1.5 text-xs text-neutral-500">
-        <MapPin className="h-3.5 w-3.5 shrink-0" />
+      {activeQuote && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-[#FAF8FE] px-2 py-1 text-[10px] text-neutral-600 border border-purple-100/80">
+          <Sparkles className="h-3 w-3 text-[#5225C5] shrink-0" />
+          <p className="truncate italic leading-none">&ldquo;{activeQuote}&rdquo;</p>
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-[#7D7398]">
+        <MapPin className="h-3 w-3 text-[#8E84A8] shrink-0" />
         <span className="truncate">{locationLabel}</span>
       </div>
     </div>

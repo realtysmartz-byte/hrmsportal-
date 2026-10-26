@@ -239,6 +239,31 @@ export const employeeAttendanceHistorySchema = z.object({
   pageSize: z.number().int().min(1).max(100).default(20),
 });
 
+export const holidayTypeSchema = z.enum(["PUBLIC", "RESTRICTED", "COMPANY"]);
+
+export const createHolidaySchema = z.object({
+  name: z.string().trim().min(1, "Holiday name is required").max(100),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  type: holidayTypeSchema.default("PUBLIC"),
+  description: z.string().trim().max(300).optional().nullable(),
+});
+
+export const announceHolidaysSchema = z.object({
+  name: z.string().trim().min(1, "Holiday name is required").max(100),
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")).min(1, "At least one date is required"),
+  type: holidayTypeSchema.default("PUBLIC"),
+  description: z.string().trim().max(300).optional().nullable(),
+});
+
+export const updateHolidaySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1, "Holiday name is required").max(100).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional(),
+  type: holidayTypeSchema.optional(),
+  description: z.string().trim().max(300).optional().nullable(),
+});
+
+export type AnnounceHolidaysInput = z.infer<typeof announceHolidaysSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
@@ -257,3 +282,5 @@ export type AdjustLeaveBalanceInput = z.infer<typeof adjustLeaveBalanceSchema>;
 export type UploadEmployeeDocumentInput = z.infer<
   typeof uploadEmployeeDocumentSchema
 >;
+export type CreateHolidayInput = z.infer<typeof createHolidaySchema>;
+export type UpdateHolidayInput = z.infer<typeof updateHolidaySchema>;

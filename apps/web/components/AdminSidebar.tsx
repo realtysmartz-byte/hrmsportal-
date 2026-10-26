@@ -4,25 +4,21 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
   Network,
   Building2,
   Briefcase,
-  LogOut,
   UserPlus,
   Clock,
   FileText,
   Settings,
   BriefcaseBusiness,
   ArrowLeftRight,
-  ShieldCheck,
   ChevronRight,
-  ChevronLeft,
   Award,
-  Sparkles,
   PanelLeftClose,
   PanelLeftOpen,
   MapPin,
@@ -31,6 +27,7 @@ import {
   FileSpreadsheet,
   Mail,
   Bot,
+  Power,
 } from "lucide-react";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
@@ -72,21 +69,21 @@ export function AdminSidebar({
   const { data: session } = useSession();
   const [showInstallModal, setShowInstallModal] = useState(false);
 
-  const userInitial = session?.user?.name?.[0] ?? "A";
-  const userName = session?.user?.name ?? "Administrator";
+  const userInitial = session?.user?.name?.[0] ?? "H";
+  const userName = session?.user?.name ?? "HR Admin";
   const userRole = (session?.user?.role ?? "ADMIN").replace("_", " ");
 
   return (
     <aside
       className={cn(
-        "relative flex h-full max-h-[100dvh] w-full shrink-0 flex-col select-none overflow-x-hidden border-r border-white/10 bg-[#1E1A3C] text-white transition-all duration-300 ease-in-out",
+        "relative flex h-full max-h-[100dvh] w-full shrink-0 flex-col select-none overflow-x-hidden border-r border-white/[0.08] bg-[#0B1024] text-white transition-all duration-300 ease-in-out shadow-2xl",
         isCollapsed ? "w-[76px]" : "w-[260px]"
       )}
     >
       {/* Brand & Stretch/Collapse Header */}
       <div
         className={cn(
-          "flex items-center border-b border-white/10 transition-all",
+          "flex items-center border-b border-white/[0.08] transition-all",
           isCollapsed ? "flex-col gap-2 py-3 px-2 justify-center" : "justify-between px-4 py-4"
         )}
       >
@@ -96,13 +93,14 @@ export function AdminSidebar({
           className="flex items-center gap-3 overflow-hidden group"
           title="Realty Smartz Private Limited"
         >
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-white/10 group-hover:border-[#A78BFA]/50 transition-colors">
+          {/* Logo container without any white box or white background */}
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center transition-transform group-hover:scale-105">
             <img
               src="/logo.png"
               alt="Realty Smartz"
-              width={26}
-              height={26}
-              className="h-6 w-6 object-contain"
+              width={34}
+              height={34}
+              className="h-8 w-8 object-contain drop-shadow-md"
             />
           </div>
 
@@ -114,11 +112,11 @@ export function AdminSidebar({
               transition={{ duration: 0.2 }}
               className="min-w-0"
             >
-              <span className="font-display text-sm font-bold tracking-tight text-white block truncate">
+              <span className="font-display text-[15px] font-bold tracking-tight text-white block truncate leading-tight">
                 Realty Smartz
               </span>
-              <span className="text-[10px] font-medium text-neutral-400 block truncate -mt-0.5">
-                Private Limited · Admin
+              <span className="text-[10px] font-medium text-[#8E9BB5] block truncate tracking-wider mt-0.5">
+                People • Process • Progress
               </span>
             </motion.div>
           )}
@@ -130,12 +128,12 @@ export function AdminSidebar({
           onClick={onToggleCollapse}
           title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
           className={cn(
-            "hidden lg:flex items-center justify-center rounded-xl bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white transition-all active:scale-95 border border-white/5",
+            "hidden lg:flex items-center justify-center rounded-xl bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08] hover:text-white transition-all active:scale-95 border border-white/[0.06]",
             isCollapsed ? "h-7 w-7" : "h-8 w-8"
           )}
         >
           {isCollapsed ? (
-            <PanelLeftOpen className="h-4 w-4 text-[#A78BFA]" />
+            <PanelLeftOpen className="h-4 w-4 text-[#7957FF]" />
           ) : (
             <PanelLeftClose className="h-4 w-4" />
           )}
@@ -146,21 +144,21 @@ export function AdminSidebar({
       <nav
         className={cn(
           "flex-1 overflow-y-auto overflow-x-hidden py-3 overscroll-contain scrollbar-none",
-          isCollapsed ? "px-2 space-y-3" : "px-3 space-y-6"
+          isCollapsed ? "px-2 space-y-2.5" : "px-3 space-y-5"
         )}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
       >
         {/* Section: Core Operations */}
         <div className="space-y-1">
           {!isCollapsed && (
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-              Core Operations
+            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#636B83]">
+              Navigation
             </div>
           )}
 
           {coreNavItems.map((item) => {
             const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              pathname === item.href || (item.href !== "/admin-portal/dashboard" && pathname.startsWith(`${item.href}/`));
             const Icon = item.icon;
 
             return (
@@ -169,17 +167,17 @@ export function AdminSidebar({
                   href={item.href}
                   onClick={onCloseMobile}
                   className={cn(
-                    "flex items-center rounded-lg text-xs font-semibold transition-all duration-200",
-                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
+                    "flex items-center rounded-xl text-xs font-medium transition-all duration-200",
+                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3.5 py-2.5",
                     active
-                      ? "bg-white/15 text-white"
-                      : "text-white/70 hover:bg-white/5 hover:text-white"
+                      ? "bg-[#6D28D9] text-white font-semibold shadow-[0_4px_16px_rgba(109,40,217,0.35)]"
+                      : "text-[#9AA5BE] hover:bg-white/[0.06] hover:text-white"
                   )}
                 >
                   <Icon
                     className={cn(
                       "h-4 w-4 shrink-0 transition-transform group-hover:scale-105",
-                      active ? "text-white" : "text-neutral-400 group-hover:text-white"
+                      active ? "text-white" : "text-[#7B87A0] group-hover:text-white"
                     )}
                   />
 
@@ -188,13 +186,13 @@ export function AdminSidebar({
                   )}
 
                   {!isCollapsed && active && (
-                    <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white " />
+                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/80 shrink-0" />
                   )}
                 </Link>
 
                 {/* Floating Tooltip in Collapsed Dock Mode */}
                 {isCollapsed && (
-                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#1E202E] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
+                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#111936] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 shadow-lg">
                     {item.label}
                   </div>
                 )}
@@ -206,7 +204,7 @@ export function AdminSidebar({
         {/* Section: Management & Settings */}
         <div className="space-y-1">
           {!isCollapsed && (
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#636B83]">
               Settings & Portal
             </div>
           )}
@@ -222,17 +220,17 @@ export function AdminSidebar({
                   href={item.href}
                   onClick={onCloseMobile}
                   className={cn(
-                    "flex items-center rounded-lg text-xs font-semibold transition-all duration-200",
-                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
+                    "flex items-center rounded-xl text-xs font-medium transition-all duration-200",
+                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3.5 py-2.5",
                     active
-                      ? "bg-white/15 text-white"
-                      : "text-white/70 hover:bg-white/5 hover:text-white"
+                      ? "bg-[#6D28D9] text-white font-semibold shadow-[0_4px_16px_rgba(109,40,217,0.35)]"
+                      : "text-[#9AA5BE] hover:bg-white/[0.06] hover:text-white"
                   )}
                 >
                   <Icon
                     className={cn(
                       "h-4 w-4 shrink-0 transition-transform group-hover:scale-105",
-                      active ? "text-white" : "text-neutral-400 group-hover:text-white"
+                      active ? "text-white" : "text-[#7B87A0] group-hover:text-white"
                     )}
                   />
 
@@ -243,7 +241,7 @@ export function AdminSidebar({
 
                 {/* Tooltip for collapsed dock mode */}
                 {isCollapsed && (
-                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#1E202E] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
+                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#111936] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 shadow-lg">
                     {item.label}
                   </div>
                 )}
@@ -254,32 +252,58 @@ export function AdminSidebar({
 
         {/* Quick Add Employee Action */}
         {!isCollapsed && (
-          <div className="pt-2">
+          <div className="pt-1">
             <Link
               href="/admin-portal/employees/new"
               onClick={onCloseMobile}
-              className="flex items-center justify-between rounded-lg border border-dashed border-white/15 bg-white/[0.02] px-3.5 py-2.5 text-xs font-semibold text-neutral-300 hover:border-[#A78BFA]/60 hover:text-white hover:bg-[#A78BFA]/10 transition-all group"
+              className="flex items-center justify-between rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-3.5 py-2.5 text-xs font-medium text-neutral-300 hover:border-[#7957FF]/60 hover:text-white hover:bg-[#7957FF]/10 transition-all group"
             >
               <span className="flex items-center gap-2">
-                <UserPlus className="h-3.5 w-3.5 text-[#A78BFA] group-hover:scale-110 transition-transform" />
+                <UserPlus className="h-3.5 w-3.5 text-[#7957FF] group-hover:scale-110 transition-transform" />
                 Add Employee
               </span>
-              <span className="text-[10px] font-bold text-[#C4B5FD] bg-[#C4B5FD]/15 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-[#A78BFA] bg-[#7957FF]/15 px-2 py-0.5 rounded-full">
                 +New
               </span>
             </Link>
+          </div>
+        )}
+
+        {/* Motivational skyscraper card as in reference design */}
+        {!isCollapsed && (
+          <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#121833] to-[#0A0E20] p-3.5 shadow-md">
+            <div className="relative z-10 max-w-[130px]">
+              <p className="text-xs font-bold leading-snug text-white">
+                Better People
+              </p>
+              <p className="text-xs font-bold leading-snug text-white/90">
+                Build Better
+              </p>
+              <p className="text-xs font-bold leading-snug text-[#7957FF]">
+                Tomorrow
+              </p>
+            </div>
+            {/* Background skyscraper graphic */}
+            <div className="absolute right-0 top-0 bottom-0 w-[95px] overflow-hidden opacity-45 pointer-events-none">
+              <img
+                src="/skyscraper-hero.jpg"
+                alt=""
+                className="h-full w-full object-cover object-left mix-blend-luminosity"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#121833] via-transparent to-transparent" />
+            </div>
           </div>
         )}
       </nav>
 
       {/* Dock Stretch Trigger Button (When Collapsed) */}
       {isCollapsed && (
-        <div className="p-2 border-t border-white/10 flex justify-center shrink-0">
+        <div className="p-2 border-t border-white/[0.08] flex justify-center shrink-0">
           <button
             type="button"
             onClick={onToggleCollapse}
             title="Expand sidebar (Ctrl+B)"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-[#A78BFA] hover:bg-[#A78BFA]/10 hover:text-white transition-all active:scale-95 border border-white/5"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] text-[#7957FF] hover:bg-[#7957FF]/10 hover:text-white transition-all active:scale-95 border border-white/[0.06]"
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>
@@ -287,24 +311,24 @@ export function AdminSidebar({
       )}
 
       {/* Footer Profile & Portal Switcher */}
-      <div className={cn("border-t border-white/10 space-y-2 bg-[#18152F] shrink-0", isCollapsed ? "p-2" : "p-3")}>
+      <div className={cn("border-t border-white/[0.08] space-y-2 bg-[#080D1D] shrink-0", isCollapsed ? "p-2" : "p-3")}>
         {/* Install App Button */}
         <button
           type="button"
           onClick={() => setShowInstallModal(true)}
           className={cn(
-            "flex w-full items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all ",
+            "flex w-full items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-neutral-300 hover:bg-white/[0.07] hover:text-white transition-all",
             isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Install Realty Smartz App (Mobile & Desktop)"
         >
           <span className="flex items-center gap-2">
-            <Download className="h-3.5 w-3.5 text-[#C4B5FD]" />
+            <Download className="h-3.5 w-3.5 text-[#A78BFA]" />
             {!isCollapsed && <span>Install App</span>}
           </span>
           {!isCollapsed && (
-            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold text-[#C4B5FD]">
-              PWA
+            <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90">
+              Install
             </span>
           )}
         </button>
@@ -314,55 +338,82 @@ export function AdminSidebar({
           href="/employee-portal/dashboard"
           onClick={onCloseMobile}
           className={cn(
-            "flex items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition-all ",
+            "flex items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-neutral-300 hover:bg-white/[0.07] hover:text-white transition-all",
             isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
           )}
           title="Switch to Employee Portal"
         >
           <span className="flex items-center gap-2">
-            <ArrowLeftRight className="h-3.5 w-3.5 text-[#A78BFA]" />
+            <ArrowLeftRight className="h-3.5 w-3.5 text-[#7957FF]" />
             {!isCollapsed && <span>Employee Portal</span>}
           </span>
           {!isCollapsed && <ChevronRight className="h-3.5 w-3.5 text-neutral-500" />}
         </Link>
 
-        {/* User Card */}
+        {/* User Card as in reference design */}
         <div
           className={cn(
-            "flex items-center rounded-lg bg-white/[0.04] border border-white/10 transition-all",
+            "flex items-center rounded-xl bg-white/[0.03] border border-white/[0.08] transition-all",
             isCollapsed ? "flex-col gap-1.5 p-1.5" : "justify-between p-2.5"
           )}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#A78BFA] to-[#C4B5FD] text-xs font-bold text-white">
-              {userInitial}
-              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#18152F]" />
+          <Link
+            href="/admin-portal/settings/company"
+            onClick={onCloseMobile}
+            className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity"
+          >
+            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#6D28D9] text-xs font-bold text-white shadow-md">
+              {session?.user?.image ? (
+                <img
+                  src={session.user.image}
+                  alt={userName}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                userInitial
+              )}
+              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0B1024]" />
             </div>
 
             {!isCollapsed && (
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-white">
                   {userName}
                 </p>
-                <p className="truncate text-[10px] text-neutral-400 capitalize">
+                <p className="truncate text-[10px] text-[#8E9BB5] uppercase tracking-wider">
                   {userRole}
                 </p>
               </div>
             )}
-          </div>
+          </Link>
 
-          <button
-            type="button"
-            title="Sign out of Realty Smartz"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className={cn(
-              "flex items-center justify-center rounded-xl text-neutral-400 hover:bg-rose-500/20 hover:text-rose-400 transition-colors",
-              isCollapsed ? "h-7 w-7 text-rose-400 bg-rose-500/10" : "h-7 w-7"
-            )}
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
+          {!isCollapsed && (
+            <ChevronRight className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+          )}
         </div>
+
+        {/* Bottom utility bar: Settings & Sign out */}
+        {!isCollapsed && (
+          <div className="flex items-center justify-between px-1 pt-1 text-xs text-[#8E9BB5]">
+            <Link
+              href="/admin-portal/settings/company"
+              onClick={onCloseMobile}
+              className="flex items-center gap-1.5 hover:text-white transition-colors"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              <span>Settings</span>
+            </Link>
+            <button
+              type="button"
+              title="Sign out of Realty Smartz"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center justify-center h-6 w-6 rounded-lg text-neutral-400 hover:bg-rose-500/20 hover:text-rose-400 transition-colors"
+            >
+              <Power className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       <InstallGuideModal
@@ -372,3 +423,4 @@ export function AdminSidebar({
     </aside>
   );
 }
+

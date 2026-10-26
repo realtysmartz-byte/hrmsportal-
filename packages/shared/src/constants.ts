@@ -146,6 +146,10 @@ export function canManageLeaveTypes(role: Role): boolean {
   return HR_ADMIN_ROLES.includes(role);
 }
 
+export function canManageHolidays(role: Role): boolean {
+  return HR_ADMIN_ROLES.includes(role);
+}
+
 export function canManageCompanySettings(role: Role): boolean {
   return role === "ADMIN";
 }

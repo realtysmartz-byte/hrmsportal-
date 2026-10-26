@@ -10,6 +10,7 @@ import { performanceRouter } from "./routers/performance";
 import { googleSheetsRouter } from "./routers/googleSheets";
 import { emailSettingsRouter } from "./routers/emailSettings";
 import { telegramRouter } from "./routers/telegram";
+import { holidayRouter } from "./routers/holiday";
 
 export const appRouter = router({
   employee: employeeRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   googleSheets: googleSheetsRouter,
   emailSettings: emailSettingsRouter,
   telegram: telegramRouter,
+  holiday: holidayRouter,
 });
 
 export type AppRouter = typeof appRouter;

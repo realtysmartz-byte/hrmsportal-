@@ -15,7 +15,7 @@ export default async function EmployeePortalLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-white lg:bg-[#F4F5FA]">
+    <div className="min-h-dvh bg-[#F9F7FD] lg:bg-[#F5F2FC]">
       <EmployeeTopNav />
       <main
         className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-8 lg:pb-20"

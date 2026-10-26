@@ -101,7 +101,7 @@ export function EmployeeProfileHub({
   });
 
   const basePath =
-    portal === "admin" ? "/admin-portal/employees" : "/employee-portal/directory";
+    portal === "admin" ? "/admin-portal/employees" : "/employee-portal/dashboard";
   const orgChartPath =
     portal === "admin"
       ? `/admin-portal/org-chart?highlight=${employeeId}`
@@ -187,19 +187,12 @@ export function EmployeeProfileHub({
       {/* Bento Obsidian + Radiant Coral banner */}
       <div className="relative">
         <div
-          className="h-28 w-full md:h-36 relative overflow-hidden"
+          className="h-32 w-full md:h-44 relative overflow-hidden bg-cover bg-center"
           style={{
-            background:
-              "linear-gradient(135deg, #11121A 0%, #181926 50%, #2A1722 100%)",
+            backgroundImage:
+              "linear-gradient(135deg, rgba(36, 14, 89, 0.82) 0%, rgba(68, 28, 158, 0.72) 50%, rgba(106, 55, 207, 0.65) 100%), url('/skyscraper-hero.jpg')",
           }}
         >
-          <div
-            className="absolute inset-0 opacity-20 pointer-events-none"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 50%, rgba(93,62,188,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(255,160,122,0.3) 0%, transparent 35%)",
-            }}
-          />
           <div className="absolute left-3 top-3 z-10 flex gap-2">
             <Link href={basePath}>
               <Button
@@ -225,17 +218,19 @@ export function EmployeeProfileHub({
                 </Button>
               </Link>
             )}
-            <Link href={orgChartPath}>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white"
-              >
-                <Network className="h-3.5 w-3.5 text-[#5D3EBC]" />
-                Org Chart
-              </Button>
-            </Link>
-            {access.canManage && (
+            {portal === "admin" && (
+              <Link href={orgChartPath}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white"
+                >
+                  <Network className="h-3.5 w-3.5 text-[#5D3EBC]" />
+                  Org Chart
+                </Button>
+              </Link>
+            )}
+            {portal === "admin" && access.canManage && (
               <Button
                 size="sm"
                 variant="destructive"
@@ -258,9 +253,9 @@ export function EmployeeProfileHub({
         </div>
 
         <div className="relative px-4 pb-0 pt-0 md:px-6">
-          <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
-            <div className="relative group">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#5D3EBC] font-display text-xl font-bold text-white md:h-24 md:w-24 md:text-2xl">
+          <div className="-mt-11 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:gap-5">
+            <div className="relative group shrink-0">
+              <div className="flex h-24 w-24 aspect-square shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#5145CD] to-[#7957FF] font-display text-2xl font-bold text-white shadow-[0_8px_25px_rgba(30,10,80,0.25)] ring-2 ring-[#7957FF]/30">
                 {emp.profilePhotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
