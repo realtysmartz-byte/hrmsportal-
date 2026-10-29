@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { AdminNotificationBell } from "@/components/AdminNotificationBell";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
 
@@ -204,17 +205,8 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
 
           {/* Right: Notification, Date, Profile */}
           <div className="flex items-center gap-4">
-            {/* Notification Bell with number badge */}
-            <Link
-              href="/admin-portal/leave/approvals"
-              title="Pending Notifications"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-100 transition-colors"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#6D28D9] text-[9px] font-bold text-white ring-2 ring-white">
-                4
-              </span>
-            </Link>
+            {/* Dynamic Real-Time Notification Bell */}
+            <AdminNotificationBell />
 
             {/* Date Indicator Pill */}
             <div className="flex items-center gap-2 rounded-full border border-[#E6E9F3] bg-neutral-50/70 px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-2xs">

@@ -1445,4 +1445,200 @@ export const employeeRouter = router({
     upcomingBirthdaysCache = { at: Date.now(), data: result };
     return result;
   }),
+
+  notifications: protectedProcedure.query(async ({ ctx }) => {
+    const role = ctx.session.user.role as Role;
+    const isStaff = role === "ADMIN" || role === "HR" || role === "MANAGER";
+    const today = startOfDayUTC(new Date());
+
+    if (isStaff) {
+      const leaveWhere: Record<string, unknown> = { status: "PENDING" };
+      if (role === "MANAGER") {
+        leaveWhere.employee = { managerId: ctx.session.user.id };
+      }
+
+      const [pendingLeaves, outsideGeofenceLogs, lateLogs, newCandidates] =
+        await Promise.all([
+          ctx.prisma.leaveRequest.findMany({
+            where: leaveWhere,
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePhotoUrl: true,
+                  department: { select: { name: true } },
+                },
+              },
+              leaveType: { select: { name: true } },
+            },
+            orderBy: { appliedAt: "desc" },
+            take: 10,
+          }),
+          ctx.prisma.attendanceLog.findMany({
+            where: {
+              date: today,
+              withinGeofence: false,
+              checkInTime: { not: null },
+            },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePhotoUrl: true,
+                },
+              },
+            },
+            take: 5,
+          }),
+          ctx.prisma.attendanceLog.findMany({
+            where: {
+              date: today,
+              status: "LATE",
+              checkInTime: { not: null },
+            },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePhotoUrl: true,
+                },
+              },
+            },
+            take: 5,
+          }),
+          role === "ADMIN" || role === "HR"
+            ? ctx.prisma.candidate.findMany({
+                where: { currentStage: "APPLIED" },
+                include: { jobPosting: { select: { title: true } } },
+                orderBy: { appliedAt: "desc" },
+                take: 5,
+              })
+            : Promise.resolve([]),
+        ]);
+
+      type NotificationItem = {
+        id: string;
+        type: "LEAVE" | "GEOFENCE" | "LATE" | "CANDIDATE";
+        title: string;
+        subtitle: string;
+        time: Date | null;
+        href: string;
+        avatar?: string | null;
+        badgeColor: string;
+        badgeText: string;
+      };
+
+      const items: NotificationItem[] = [];
+
+      for (const l of pendingLeaves) {
+        items.push({
+          id: `leave-${l.id}`,
+          type: "LEAVE",
+          title: `${l.employee.firstName} ${l.employee.lastName}`,
+          subtitle: `Applied for ${l.numberOfDays}d ${l.leaveType.name} (${l.reason.slice(0, 35)}${l.reason.length > 35 ? "…" : ""})`,
+          time: l.appliedAt,
+          href: "/admin-portal/leave/approvals",
+          avatar: l.employee.profilePhotoUrl,
+          badgeColor: "bg-purple-100 text-purple-700 border-purple-200",
+          badgeText: "Leave Request",
+        });
+      }
+
+      for (const g of outsideGeofenceLogs) {
+        items.push({
+          id: `geofence-${g.id}`,
+          type: "GEOFENCE",
+          title: `${g.employee.firstName} ${g.employee.lastName}`,
+          subtitle: "Punched in outside allowed geofence area",
+          time: g.checkInTime,
+          href: "/admin-portal/attendance",
+          avatar: g.employee.profilePhotoUrl,
+          badgeColor: "bg-amber-100 text-amber-700 border-amber-200",
+          badgeText: "Geofence Breach",
+        });
+      }
+
+      for (const lp of lateLogs) {
+        if (!items.some((i) => i.id === `geofence-${lp.id}`)) {
+          items.push({
+            id: `late-${lp.id}`,
+            type: "LATE",
+            title: `${lp.employee.firstName} ${lp.employee.lastName}`,
+            subtitle: "Arrived after scheduled shift start time",
+            time: lp.checkInTime,
+            href: "/admin-portal/attendance",
+            avatar: lp.employee.profilePhotoUrl,
+            badgeColor: "bg-rose-100 text-rose-700 border-rose-200",
+            badgeText: "Late Punch",
+          });
+        }
+      }
+
+      for (const c of newCandidates) {
+        items.push({
+          id: `candidate-${c.id}`,
+          type: "CANDIDATE",
+          title: c.fullName,
+          subtitle: `New application for ${c.jobPosting.title}`,
+          time: c.appliedAt,
+          href: "/admin-portal/recruitment/candidates",
+          badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
+          badgeText: "New Candidate",
+        });
+      }
+
+      items.sort((a, b) => {
+        const tA = a.time ? new Date(a.time).getTime() : 0;
+        const tB = b.time ? new Date(b.time).getTime() : 0;
+        return tB - tA;
+      });
+
+      return {
+        unreadCount: items.length,
+        pendingLeavesCount: pendingLeaves.length,
+        anomaliesCount: outsideGeofenceLogs.length + lateLogs.length,
+        candidatesCount: newCandidates.length,
+        items,
+      };
+    } else {
+      const recentLeaves = await ctx.prisma.leaveRequest.findMany({
+        where: {
+          employeeId: ctx.session.user.id,
+          respondedAt: { not: null },
+        },
+        include: { leaveType: true },
+        orderBy: { respondedAt: "desc" },
+        take: 5,
+      });
+
+      const items = recentLeaves.map((l) => ({
+        id: `leave-res-${l.id}`,
+        type: "LEAVE" as const,
+        title: `Leave ${l.status === "APPROVED" ? "Approved" : "Rejected"}`,
+        subtitle: `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
+        time: l.respondedAt,
+        href: "/employee-portal/leaves",
+        avatar: null,
+        badgeColor:
+          l.status === "APPROVED"
+            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+            : "bg-rose-100 text-rose-700 border-rose-200",
+        badgeText: l.status,
+      }));
+
+      return {
+        unreadCount: items.length,
+        pendingLeavesCount: 0,
+        anomaliesCount: 0,
+        candidatesCount: 0,
+        items,
+      };
+    }
+  }),
 });

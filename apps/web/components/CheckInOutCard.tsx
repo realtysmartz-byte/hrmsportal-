@@ -62,10 +62,69 @@ export function CheckInOutCard() {
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<"idle" | "locating" | "saving">("idle");
   const [punchQuote, setPunchQuote] = useState<string | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"active" | "ready" | "denied" | "prompt" | "unsupported">("prompt");
 
   const isOnDuty = Boolean(today?.checkInTime && !today?.checkOutTime);
   const hasCompletedSession = Boolean(today?.checkInTime && today?.checkOutTime);
   const pastShiftEnd = getISTDateParts(new Date()).hour >= 19;
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setGpsStatus("unsupported");
+      return;
+    }
+
+    let permStatus: PermissionStatus | null = null;
+
+    const handleState = (state: PermissionState) => {
+      if (state === "granted") {
+        setGpsStatus(isOnDuty ? "active" : "ready");
+      } else if (state === "denied") {
+        setGpsStatus("denied");
+      } else {
+        setGpsStatus("prompt");
+      }
+    };
+
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((perm) => {
+          permStatus = perm;
+          handleState(perm.state);
+          perm.onchange = () => {
+            handleState(perm.state);
+          };
+        })
+        .catch(() => {
+          navigator.geolocation.getCurrentPosition(
+            () => setGpsStatus(isOnDuty ? "active" : "ready"),
+            (err) => {
+              if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
+              else setGpsStatus("prompt");
+            },
+            { timeout: 4000, maximumAge: 60000 }
+          );
+        });
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        () => setGpsStatus(isOnDuty ? "active" : "ready"),
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
+          else setGpsStatus("prompt");
+        },
+        { timeout: 4000, maximumAge: 60000 }
+      );
+    }
+
+    return () => {
+      if (permStatus) {
+        permStatus.onchange = null;
+      }
+    };
+  }, [isOnDuty]);
+
+
 
   useEffect(() => {
     if (workLoc?.serverTime) setServerTimeReference(workLoc.serverTime);
@@ -165,6 +224,7 @@ export function CheckInOutCard() {
         isMockLocation,
       };
 
+      setGpsStatus(mode === "in" ? "active" : "ready");
       if (mode === "in") {
         const res = await checkIn.mutateAsync(payload);
         if (res && "quote" in res && typeof res.quote === "string") {
@@ -177,6 +237,7 @@ export function CheckInOutCard() {
       }
     } catch (err: unknown) {
       if ((err as { code?: number })?.code === 1) {
+        setGpsStatus("denied");
         reportLocationDisabled.mutate({
           reason: "Location permission denied during punch attempt",
           deviceInfo: navigator.userAgent,
@@ -225,10 +286,73 @@ export function CheckInOutCard() {
         <p className="text-[10px] font-bold tracking-wider text-[#7A6E9B] uppercase">
           10:00 AM - 07:00 PM • GENERAL
         </p>
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200/80">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          GPS Active
-        </span>
+        {gpsStatus === "active" && (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200/80 transition-colors"
+            title="GPS location tracking is actively connected"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            GPS Active
+          </span>
+        )}
+        {gpsStatus === "ready" && (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[9px] font-bold text-teal-700 border border-teal-200/80 transition-colors"
+            title="GPS location is available and ready for attendance"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+            GPS Ready
+          </span>
+        )}
+        {gpsStatus === "denied" && (
+          <button
+            type="button"
+            onClick={() => {
+              toast("error", 
+                "Location access is blocked. Please allow location permissions in browser/phone settings to check in."
+              );
+            }}
+            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-bold text-rose-700 border border-rose-200/90 hover:bg-rose-100 transition-colors"
+            title="Location permission denied. Click for details."
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+            GPS Disabled
+          </button>
+        )}
+        {gpsStatus === "prompt" && (
+          <button
+            type="button"
+            onClick={() => {
+              navigator.geolocation.getCurrentPosition(
+                () => {
+                  setGpsStatus(isOnDuty ? "active" : "ready");
+                  toast("success", "GPS location connected");
+                },
+                (err) => {
+                  if (err.code === err.PERMISSION_DENIED) {
+                    setGpsStatus("denied");
+                    toast("error", "Location permission was denied.");
+                  }
+                },
+                { timeout: 8000 }
+              );
+            }}
+            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200/90 hover:bg-amber-100 transition-colors"
+            title="Click to connect GPS"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            Connect GPS
+          </button>
+        )}
+        {gpsStatus === "unsupported" && (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] font-bold text-neutral-600 border border-neutral-200"
+            title="Geolocation is not supported by your browser"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
+            GPS Unavailable
+          </span>
+        )}
       </div>
 
       <div className="mt-2 flex items-center gap-2.5">
