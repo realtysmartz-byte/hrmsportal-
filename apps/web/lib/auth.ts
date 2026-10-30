@@ -30,6 +30,18 @@ if (process.env.NEXTAUTH_URL) {
 }
 
 import { checkRateLimit, recordFailedAttempt, resetRateLimit, getRateLimitRecord } from "./rate-limit";
+/**
+ * Never store large data URIs (base64 images) in the JWT token.
+ * Browsers and HTTP servers reject Cookie headers larger than 4-8 KB.
+ */
+function safePicture(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("data:") || url.length > 512) {
+    return null;
+  }
+  return url;
+}
+
 
 const secret = process.env.NEXTAUTH_SECRET;
 if (!secret || secret === "generate-a-long-random-secret-here" || secret.length < 32) {
@@ -173,7 +185,7 @@ export const authOptions: NextAuthOptions = {
             name: `${employee.firstName} ${employee.lastName}`,
             role: employee.role,
             employeeCode: employee.employeeCode,
-            image: employee.profilePhotoUrl,
+            image: safePicture(employee.profilePhotoUrl),
           };
         } catch (error) {
           if (
@@ -276,7 +288,7 @@ export const authOptions: NextAuthOptions = {
             token.employeeCode = employee.employeeCode;
             token.email = employee.email;
             token.status = employee.status;
-            token.picture = employee.profilePhotoUrl || user.image || null;
+            token.picture = safePicture(employee.profilePhotoUrl || user.image);
             token.statusCheckedAt = Date.now();
           }
         } else {
@@ -284,7 +296,7 @@ export const authOptions: NextAuthOptions = {
           token.role = (user as { role: string }).role;
           token.employeeCode = (user as { employeeCode: string }).employeeCode;
           token.email = user.email;
-          token.picture = (user as { image?: string }).image || null;
+          token.picture = safePicture((user as { image?: string }).image);
           token.statusCheckedAt = Date.now();
         }
         delete token.error;
@@ -309,7 +321,7 @@ export const authOptions: NextAuthOptions = {
         token.role = employee.role;
         token.employeeCode = employee.employeeCode;
         token.status = employee.status;
-        token.picture = employee.profilePhotoUrl || token.picture || null;
+        token.picture = safePicture(employee.profilePhotoUrl || token.picture);
         token.statusCheckedAt = Date.now();
       }
 
@@ -335,7 +347,7 @@ export const authOptions: NextAuthOptions = {
           token.employeeCode = employee.employeeCode;
           token.email = employee.email;
           token.status = employee.status;
-          token.picture = employee.profilePhotoUrl || token.picture || null;
+          token.picture = safePicture(employee.profilePhotoUrl || token.picture);
         } catch (err) {
           console.error("[auth] jwt status check failed:", err);
         }

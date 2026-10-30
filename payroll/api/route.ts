@@ -49,6 +49,7 @@ async function logAudit(
 
 // GET: /api/payroll?action=...
 export async function GET(req: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -288,10 +289,15 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (err: any) {
+    console.error("[PAYROLL_GET_ERROR]", err);
+    return NextResponse.json({ error: err?.message || "Internal server error fetching payroll data" }, { status: 500 });
+  }
 }
 
 // POST: /api/payroll
 export async function POST(req: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -761,4 +767,11 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (err: any) {
+    console.error("[PAYROLL_POST_ERROR]", err);
+    return NextResponse.json(
+      { error: err?.message || "Internal server error processing payroll action" },
+      { status: 500 }
+    );
+  }
 }

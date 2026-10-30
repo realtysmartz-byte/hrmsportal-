@@ -301,24 +301,26 @@ export function AdminPayrollScreen() {
 
     setIsSavingSalaryBank(true);
     try {
-      // 1. Save Salary
-      const salRes = await fetch("/api/payroll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "set-salary",
-          employeeId: editingEmp.employeeId,
-          monthlyGross: gross,
-          deductionsFixed: fixedDed,
-        }),
-      });
-      if (!salRes.ok) {
-        const d = await salRes.json();
-        throw new Error(d.error || "Failed to save salary");
+      // 1. Save Salary (if amount entered or existing)
+      if (modalGross.trim() || editingEmp.hasSalary) {
+        const salRes = await fetch("/api/payroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "set-salary",
+            employeeId: editingEmp.employeeId,
+            monthlyGross: gross,
+            deductionsFixed: fixedDed,
+          }),
+        });
+        const d = await salRes.json().catch(() => ({}));
+        if (!salRes.ok) {
+          throw new Error(d.error || "Failed to save salary");
+        }
       }
 
       // 2. Save Bank Details if entered
-      if (modalAccountNum.trim() || modalIFSC.trim()) {
+      if (modalAccountNum.trim() || modalConfirmAccountNum.trim() || modalIFSC.trim()) {
         const bankRes = await fetch("/api/payroll", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -333,7 +335,7 @@ export function AdminPayrollScreen() {
             upiId: modalUpiId.trim() || null,
           }),
         });
-        const bankData = await bankRes.json();
+        const bankData = await bankRes.json().catch(() => ({}));
         if (!bankRes.ok) {
           throw new Error(bankData.error || "Failed to save bank details");
         }
@@ -352,9 +354,9 @@ export function AdminPayrollScreen() {
 
   function openEditModal(emp: EmployeeSalaryBankItem) {
     setEditingEmp(emp);
-    setModalGross(String(emp.monthlyGross || 0));
-    setModalFixedDed(String(emp.deductionsFixed || 0));
-    setModalHolderName(emp.accountHolderName || emp.name);
+    setModalGross(emp.monthlyGross > 0 ? String(emp.monthlyGross) : "");
+    setModalFixedDed(emp.deductionsFixed > 0 ? String(emp.deductionsFixed) : "");
+    setModalHolderName(emp.accountHolderName || "");
     setModalAccountNum("");
     setModalConfirmAccountNum("");
     setModalIFSC(emp.ifsc || "");
@@ -832,7 +834,7 @@ export function AdminPayrollScreen() {
                       <tr key={r.employee_id} className="hover:bg-neutral-50/50">
                         <td className="py-2.5 px-3">
                           <div className="font-semibold text-neutral-900">{r.name}</div>
-                          <div className="text-[11px] text-neutral-500 font-mono">
+                          <div className="text-[11px] text-neutral-400 font-medium tracking-normal mt-0.5">
                             {r.employee_code} • {r.department}
                           </div>
                           {r.needs_review && (
@@ -987,7 +989,7 @@ export function AdminPayrollScreen() {
                         <tr key={emp.employeeId} className="hover:bg-neutral-50/50">
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-neutral-900">{emp.name}</div>
-                            <div className="text-[11px] text-neutral-500 font-mono">
+                            <div className="text-[11px] text-neutral-400 font-medium tracking-normal mt-0.5">
                               {emp.employeeCode} • {emp.department}
                             </div>
                           </td>
@@ -1004,10 +1006,10 @@ export function AdminPayrollScreen() {
                           <td className="py-2.5 px-3">
                             {emp.hasBankDetails ? (
                               <div>
-                                <div className="font-mono text-neutral-900 font-medium">
+                                <div className="text-xs font-semibold text-neutral-900 tabular-nums">
                                   {emp.accountNumberMasked}
                                 </div>
-                                <div className="text-[11px] text-neutral-500 font-mono">
+                                <div className="text-[11px] text-neutral-400 font-medium mt-0.5">
                                   {emp.ifsc} • {emp.bankName}
                                 </div>
                               </div>
@@ -1314,15 +1316,33 @@ export function AdminPayrollScreen() {
       {/* MODAL 2: EDIT SALARY & BANK DETAILS (ADMIN ONLY) */}
       {/* ========================================================================= */}
       {editingEmp && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-neutral-200 pb-3 mb-4">
-              <h2 className="text-base font-bold text-neutral-900">
-                Edit Salary &amp; Bank Details
-              </h2>
-              <p className="text-xs text-neutral-500">
-                {editingEmp.name} ({editingEmp.employeeCode} • {editingEmp.department})
-              </p>
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setEditingEmp(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-3 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-neutral-900">
+                  Edit Salary &amp; Bank Details
+                </h2>
+                <p className="text-xs text-neutral-500 mt-0.5 font-medium">
+                  {editingEmp.name} ({editingEmp.employeeCode} • {editingEmp.department})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEmp(null)}
+                className="text-neutral-400 hover:text-neutral-700 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
+                title="Close"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
             <form onSubmit={handleSaveSalaryAndBank} className="space-y-4 text-xs">
@@ -1399,8 +1419,8 @@ export function AdminPayrollScreen() {
                       autoComplete="new-password"
                       value={modalAccountNum}
                       onChange={(e) => setModalAccountNum(e.target.value)}
-                      placeholder="Enter account number"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-mono"
+                      placeholder="Enter 9-18 digit account number"
+                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
                     />
                   </div>
                   <div>
@@ -1413,7 +1433,7 @@ export function AdminPayrollScreen() {
                       value={modalConfirmAccountNum}
                       onChange={(e) => setModalConfirmAccountNum(e.target.value)}
                       placeholder="Re-enter account number"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-mono"
+                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
                     />
                   </div>
                 </div>
@@ -1429,7 +1449,7 @@ export function AdminPayrollScreen() {
                       value={modalIFSC}
                       onChange={(e) => setModalIFSC(e.target.value.toUpperCase())}
                       placeholder="HDFC0001234"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-mono uppercase"
+                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium uppercase tracking-wider"
                     />
                   </div>
                   <div>
@@ -1452,8 +1472,8 @@ export function AdminPayrollScreen() {
                     type="text"
                     value={modalUpiId}
                     onChange={(e) => setModalUpiId(e.target.value)}
-                    placeholder="name@upi"
-                    className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-mono"
+                    placeholder="e.g. name@upi"
+                    className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
                   />
                 </div>
               </div>
