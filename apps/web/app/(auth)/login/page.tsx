@@ -133,15 +133,23 @@ function LoginForm() {
           result.error.includes("AccountInactive")
         ) {
           setError(GOOGLE_ERRORS.AccountInactive);
-        } else if (result.error === "CredentialsSignin") {
+        } else if (
+          result.error === "CredentialsSignin" ||
+          result.error.toLowerCase().includes("credentials")
+        ) {
           setError("Invalid email or password. Please verify and try again.");
+        } else if (
+          result.error.includes("Too many failed") ||
+          result.error.includes("Locked out")
+        ) {
+          setError(result.error);
         } else {
-          setError(userFacingErrorMessage(result.error));
+          setError(userFacingErrorMessage(result.error, "Invalid email or password. Please verify and try again."));
         }
         return;
       }
 
-      let destination = "/";
+      let destination = "/employee-portal/dashboard";
       if (
         callbackParam &&
         callbackParam.startsWith("/") &&
@@ -151,19 +159,29 @@ function LoginForm() {
         destination = callbackParam;
       }
 
-      const session = await waitForSession(2);
-      if (session?.user?.role) {
-        const role = session.user.role as Role;
-        if (destination === "/" || destination.includes("/login")) {
-          destination = homePathForRole(role);
+      try {
+        const session = await waitForSession(2);
+        if (session?.user?.role) {
+          const role = session.user.role as Role;
+          if (destination === "/" || destination.includes("/login")) {
+            destination = homePathForRole(role);
+          }
         }
+      } catch (sessionErr) {
+        console.warn("[auth:session-check-warning]", sessionErr);
       }
 
       // Keep loading=true until navigation — prevents double-clicks making login slower
       window.location.href = destination;
     } catch (err) {
+      console.error("[auth:login-error]", err);
       setLoading(false);
-      setError(userFacingErrorMessage(err, "Login failed. Please try again."));
+      setError(
+        userFacingErrorMessage(
+          err,
+          "Invalid email or password or connection issue. Please try again."
+        )
+      );
     }
   }
 
