@@ -12,9 +12,9 @@ import type { Role } from "@realty-smartz/shared";
 
 const googleConfigured = Boolean(
   process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET &&
-    process.env.GOOGLE_CLIENT_ID.length > 10 &&
-    process.env.GOOGLE_CLIENT_SECRET.length > 5
+  process.env.GOOGLE_CLIENT_SECRET &&
+  process.env.GOOGLE_CLIENT_ID.length > 10 &&
+  process.env.GOOGLE_CLIENT_SECRET.length > 5
 );
 
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
@@ -29,7 +29,7 @@ if (process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL.replace(/\/+$/, "");
 }
 
-import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "./rate-limit";
+import { checkRateLimit, recordFailedAttempt, resetRateLimit, getRateLimitRecord } from "./rate-limit";
 
 const secret = process.env.NEXTAUTH_SECRET;
 if (!secret || secret === "generate-a-long-random-secret-here" || secret.length < 32) {
@@ -91,21 +91,11 @@ export const authOptions: NextAuthOptions = {
         try {
           const parsed = loginSchema.safeParse({
             email: credentials?.email?.toString().trim().toLowerCase(),
-            password: credentials?.password?.toString() ?? "",
+            password: credentials?.password?.toString().trim() ?? "",
           });
           if (!parsed.success) return null;
 
           const emailKey = parsed.data.email;
-
-          const rateCheck = checkRateLimit(emailKey);
-          if (!rateCheck.allowed) {
-            console.warn(
-              `[auth:rate-limit] Lockout active for ${emailKey} (${rateCheck.retryAfterSeconds}s remaining)`
-            );
-            throw new Error(
-              `Too many failed login attempts. Locked out for ${Math.ceil(rateCheck.retryAfterSeconds / 60)} minutes.`
-            );
-          }
 
           const employee = await prisma.employee.findUnique({
             where: { email: emailKey },
@@ -119,6 +109,7 @@ export const authOptions: NextAuthOptions = {
               firstName: true,
               lastName: true,
               profilePhotoUrl: true,
+              updatedAt: true,
             },
           });
 
@@ -126,6 +117,30 @@ export const authOptions: NextAuthOptions = {
             recordFailedAttempt(emailKey);
             console.warn("[auth] no employee for", emailKey);
             return null;
+          }
+
+          // If admin updated the employee (e.g. reset password) after previous failed attempts started,
+          // automatically clear any active rate limit or lockout for this account.
+          const rateRecord = getRateLimitRecord(emailKey);
+          if (
+            rateRecord &&
+            employee.updatedAt &&
+            employee.updatedAt.getTime() > rateRecord.firstAttemptAt
+          ) {
+            console.log(
+              `[auth:rate-limit] Clearing lockout for ${emailKey} due to profile update at ${employee.updatedAt.toISOString()}`
+            );
+            resetRateLimit(emailKey);
+          }
+
+          const rateCheck = checkRateLimit(emailKey);
+          if (!rateCheck.allowed) {
+            console.warn(
+              `[auth:rate-limit] Lockout active for ${emailKey} (${rateCheck.retryAfterSeconds}s remaining)`
+            );
+            throw new Error(
+              `Too many failed login attempts. Locked out for ${Math.ceil(rateCheck.retryAfterSeconds / 60)} minutes.`
+            );
           }
 
           // EXIT / TERMINATED / RESIGNED — no login until status is ACTIVE (or ON_LEAVE)
@@ -177,12 +192,12 @@ export const authOptions: NextAuthOptions = {
     }),
     ...(googleConfigured
       ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            allowDangerousEmailAccountLinking: true,
-          }),
-        ]
+        GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          allowDangerousEmailAccountLinking: true,
+        }),
+      ]
       : []),
   ],
   callbacks: {
@@ -199,7 +214,7 @@ export const authOptions: NextAuthOptions = {
         if (parsedUrl.origin === effectiveBaseUrl || parsedUrl.origin === baseUrl) {
           return url;
         }
-      } catch {}
+      } catch { }
       return effectiveBaseUrl;
     },
     async signIn({ user, account }) {

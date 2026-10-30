@@ -101,3 +101,8 @@ export function resetRateLimit(identifier: string): void {
   const key = identifier.toLowerCase().trim();
   attempts.delete(key);
 }
+
+export function getRateLimitRecord(identifier: string): AttemptRecord | undefined {
+  const key = identifier.toLowerCase().trim();
+  return attempts.get(key);
+}

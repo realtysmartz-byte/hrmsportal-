@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { EMPLOYEE_STATUSES, ROLES } from "@realty-smartz/shared";
-import { Camera, ImageUp } from "lucide-react";
+import { Camera, ImageUp, Eye, EyeOff } from "lucide-react";
 import { compressImage } from "@/lib/image-compress";
 
 type EmployeeFormValues = {
@@ -93,6 +93,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
   const [managerSearch, setManagerSearch] = useState("");
   const [error, setError] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [values, setValues] = useState<EmployeeFormValues>({
     ...emptyValues,
     ...initial,
@@ -216,7 +217,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
         setError("Password is required for new employees");
         return;
       }
-      createMutation.mutate({ ...payload, password: values.password });
+      createMutation.mutate({ ...payload, password: values.password.trim() });
       return;
     }
 
@@ -227,7 +228,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       statusEffectiveDate: values.statusEffectiveDate
         ? new Date(values.statusEffectiveDate)
         : null,
-      password: values.password || undefined,
+      password: values.password.trim() || undefined,
     });
   }
 
@@ -266,13 +267,24 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
             label={mode === "create" ? "Password" : "Password (leave blank to keep)"}
             required={mode === "create"}
           >
-            <Input
-              type="password"
-              value={values.password}
-              onChange={(e) => setField("password", e.target.value)}
-              required={mode === "create"}
-              minLength={6}
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={values.password}
+                onChange={(e) => setField("password", e.target.value)}
+                required={mode === "create"}
+                minLength={6}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </Field>
           <Field label="Phone">
             <Input

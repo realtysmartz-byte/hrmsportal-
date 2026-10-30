@@ -943,8 +943,8 @@ export const employeeRouter = router({
           )
         );
       }
-      if (password) {
-        updateData.passwordHash = await bcrypt.hash(password, 12);
+      if (password && password.trim()) {
+        updateData.passwordHash = await bcrypt.hash(password.trim(), 12);
       }
 
       const jobFields = [
