@@ -28,6 +28,7 @@ import {
   Mail,
   Bot,
   Power,
+  Banknote,
 } from "lucide-react";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const coreNavItems = [
   { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText },
   { href: "/admin-portal/performance", label: "Performance", icon: Award },
   { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness },
+  { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote },
 ];
 
 const settingsNavItems = [

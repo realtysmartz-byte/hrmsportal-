@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "ES2022"],
+    "allowJs": true,
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["apps/web/*"],
+      "@payroll/*": ["payroll/*"],
+      "@realty-smartz/db": ["packages/db/src"],
+      "@realty-smartz/api": ["packages/api/src"],
+      "@realty-smartz/shared": ["packages/shared/src"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../apps/web/next-env.d.ts",
+    "../apps/web/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "node_modules"
+  ]
+}

@@ -20,6 +20,7 @@ import {
   ChevronRight,
   IdCard,
   Briefcase,
+  Receipt,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
@@ -66,6 +67,7 @@ export function EmployeeTopNav() {
         ]
       : []),
     { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
+    { href: "/employee-portal/payslips", label: "My Payslips", icon: Receipt },
     { href: "/employee-portal/profile", label: "Profile", icon: User },
   ];
 

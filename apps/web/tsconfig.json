@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "lib": ["dom", "dom.iterable", "ES2022"],
     "allowJs": true,
     "noEmit": true,
@@ -12,7 +13,11 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@payroll/*": ["../../payroll/*"],
+      "@realty-smartz/db": ["../../packages/db/src"],
+      "@realty-smartz/api": ["../../packages/api/src"],
+      "@realty-smartz/shared": ["../../packages/shared/src"]
     },
     "strict": true,
     "isolatedModules": true,
@@ -20,6 +25,14 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "types/**/*.d.ts",
+    "../../payroll/**/*.ts",
+    "../../payroll/**/*.tsx"
+  ],
   "exclude": ["node_modules"]
 }

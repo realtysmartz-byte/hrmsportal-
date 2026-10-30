@@ -44,11 +44,15 @@ export function userFacingErrorMessage(
     }
   }
 
+  // Filter out internal/technical database, JS runtime, DOM, and network parsing errors
   if (
-    /\b(?:PrismaClient|Prisma|TypeError|ReferenceError|SyntaxError|Error:|node_modules|SELECT\s|INSERT\s|UPDATE\s|DELETE\s|P\d{4})\b/i.test(
+    /\b(?:PrismaClient|Prisma|TypeError|ReferenceError|SyntaxError|DOMException|Error:|node_modules|SELECT\s|INSERT\s|UPDATE\s|DELETE\s|P\d{4})\b/i.test(
       trimmed
     ) ||
-    /^\s*at\s/m.test(trimmed)
+    /^\s*at\s/m.test(trimmed) ||
+    /(?:is not valid json|unexpected token|<!doctype|<html|not match the expected pattern|failed to fetch|network\s?error|load failed|connection refused|econnrefused|fetch failed|aborterror)/i.test(
+      trimmed
+    )
   ) {
     return fallback;
   }
