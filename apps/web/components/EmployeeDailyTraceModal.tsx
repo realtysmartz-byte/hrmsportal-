@@ -44,28 +44,17 @@ export function EmployeeDailyTraceModal({
 
   const [selectedEventIndex, setSelectedEventIndex] = useState<number>(0);
 
-  // Prevent background page from scrolling while modal is open
+    // Prevent background page from scrolling while modal is open
   useEffect(() => {
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    const originalBodyPosition = document.body.style.position;
-    const originalBodyTop = document.body.style.top;
-    const originalBodyWidth = document.body.style.width;
-
-    document.documentElement.style.overflow = "hidden";
+    const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
 
     return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      document.body.style.position = originalBodyPosition;
-      document.body.style.top = originalBodyTop;
-      document.body.style.width = originalBodyWidth;
-      window.scrollTo(0, scrollY);
+      document.body.style.overflow = originalOverflow || "";
+      document.documentElement.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
     };
   }, []);
 

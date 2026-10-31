@@ -79,34 +79,6 @@ export default function LocationTracingPage() {
     name: string;
   } | null>(null);
 
-  // Prevent background page from scrolling when any modal is open
-  useEffect(() => {
-    const isAnyModalOpen = Boolean(activeMapPing || assignStaffTarget || traceModalEmployee);
-    if (!isAnyModalOpen) return;
-
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    const originalBodyPosition = document.body.style.position;
-    const originalBodyTop = document.body.style.top;
-    const originalBodyWidth = document.body.style.width;
-
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-
-    return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      document.body.style.position = originalBodyPosition;
-      document.body.style.top = originalBodyTop;
-      document.body.style.width = originalBodyWidth;
-      window.scrollTo(0, scrollY);
-    };
-  }, [activeMapPing, assignStaffTarget, traceModalEmployee]);
-
 
   // 1. Fetch live personnel overview (all employees with today's status & latest GPS)
   const {
