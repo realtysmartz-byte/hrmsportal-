@@ -206,7 +206,7 @@ export const applyLeaveSchema = z
 
 export const respondLeaveSchema = z.object({
   id: z.string().min(1).max(100),
-  action: z.enum(["APPROVE", "REJECT"]),
+  action: z.enum(["APPROVE", "REJECT", "RESET_TO_PENDING"]),
   approverNote: z.string().trim().max(500).optional().nullable(),
 });
 

@@ -316,6 +316,57 @@ export const leaveRouter = router({
       return updated;
     }),
 
+  listApprovals: protectedProcedure
+    .input(
+      z
+        .object({
+          status: z
+            .enum(["PENDING", "APPROVED", "REJECTED", "ALL"])
+            .optional()
+            .default("PENDING"),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      if (!canApproveLeave(role)) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const statusFilter = input?.status ?? "PENDING";
+      const where: Record<string, unknown> = {};
+      if (statusFilter !== "ALL") {
+        where.status = statusFilter;
+      }
+      if (role === "MANAGER") {
+        where.employee = { managerId: ctx.session.user.id };
+      }
+
+      return ctx.prisma.leaveRequest.findMany({
+        where,
+        include: {
+          leaveType: true,
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              department: { select: { name: true } },
+            },
+          },
+          approvedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { appliedAt: "desc" },
+      });
+    }),
+
   pendingApprovals: protectedProcedure.query(async ({ ctx }) => {
     const role = ctx.session.user.role as Role;
     if (!canApproveLeave(role)) {
@@ -379,12 +430,6 @@ export const leaveRouter = router({
         include: { employee: { select: { managerId: true } } },
       });
       if (!req) throw new TRPCError({ code: "NOT_FOUND" });
-      if (req.status !== "PENDING") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Request is not pending",
-        });
-      }
 
       if (
         role === "MANAGER" &&
@@ -393,137 +438,145 @@ export const leaveRouter = router({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      if (input.action === "REJECT") {
-        const rejected = await ctx.prisma.leaveRequest.update({
+      const prevStatus = req.status;
+      const newStatus =
+        input.action === "APPROVE"
+          ? "APPROVED"
+          : input.action === "REJECT"
+          ? "REJECTED"
+          : "PENDING";
+
+      const updated = await ctx.prisma.$transaction(async (tx) => {
+        // If transitioning AWAY from APPROVED (e.g. APPROVED -> REJECTED or APPROVED -> PENDING)
+        if (prevStatus === "APPROVED" && newStatus !== "APPROVED") {
+          const year = req.startDate.getUTCFullYear();
+          const balance = await tx.leaveBalance.findUnique({
+            where: {
+              employeeId_leaveTypeId_year: {
+                employeeId: req.employeeId,
+                leaveTypeId: req.leaveTypeId,
+                year,
+              },
+            },
+          });
+          if (balance) {
+            const used = Math.max(0, balance.used - req.numberOfDays);
+            await tx.leaveBalance.update({
+              where: { id: balance.id },
+              data: {
+                used,
+                remaining: balance.allotted - used,
+              },
+            });
+          }
+
+          const days = req.isHalfDay ? [] : listWeekdayDates(req.startDate, req.endDate);
+          if (days.length > 0) {
+            await tx.attendanceLog.deleteMany({
+              where: {
+                employeeId: req.employeeId,
+                date: { in: days },
+                notes: "Auto-created from approved leave",
+              },
+            });
+          }
+        }
+
+        // If transitioning TO APPROVED (from PENDING or REJECTED)
+        if (prevStatus !== "APPROVED" && newStatus === "APPROVED") {
+          const year = req.startDate.getUTCFullYear();
+          const balance = await tx.leaveBalance.findUnique({
+            where: {
+              employeeId_leaveTypeId_year: {
+                employeeId: req.employeeId,
+                leaveTypeId: req.leaveTypeId,
+                year,
+              },
+            },
+          });
+          if (balance) {
+            const used = balance.used + req.numberOfDays;
+            await tx.leaveBalance.update({
+              where: { id: balance.id },
+              data: {
+                used,
+                remaining: balance.allotted - used,
+              },
+            });
+          }
+
+          const days = req.isHalfDay ? [] : listWeekdayDates(req.startDate, req.endDate);
+          for (const day of days) {
+            await tx.attendanceLog.upsert({
+              where: {
+                employeeId_date: {
+                  employeeId: req.employeeId,
+                  date: day,
+                },
+              },
+              create: {
+                employeeId: req.employeeId,
+                date: day,
+                status: "ON_LEAVE",
+                withinGeofence: true,
+                notes: "Auto-created from approved leave",
+              },
+              update: {
+                status: "ON_LEAVE",
+                notes: "Auto-created from approved leave",
+              },
+            });
+          }
+        }
+
+        return tx.leaveRequest.update({
           where: { id: input.id },
           data: {
-            status: "REJECTED",
-            approvedById: approver.id,
+            status: newStatus,
+            approvedById: newStatus === "PENDING" ? null : approver.id,
             approverNote: input.approverNote || null,
-            respondedAt: new Date(),
+            respondedAt: newStatus === "PENDING" ? null : new Date(),
           },
           include: {
             leaveType: true,
             employee: {
               select: {
+                id: true,
                 email: true,
                 firstName: true,
                 lastName: true,
+                employeeCode: true,
               },
+            },
+            approvedBy: {
+              select: { id: true, firstName: true, lastName: true },
             },
           },
         });
+      });
 
+      // Send decision email if Approved or Rejected
+      if (newStatus !== "PENDING") {
         void (async () => {
           try {
             const { notifyLeaveDecision } = await import("../lib/email");
             await notifyLeaveDecision({
-              employeeName: `${rejected.employee.firstName} ${rejected.employee.lastName}`,
-              employeeEmail: rejected.employee.email,
-              leaveType: rejected.leaveType.name,
-              startDate: rejected.startDate.toISOString().slice(0, 10),
-              endDate: rejected.endDate.toISOString().slice(0, 10),
-              days: rejected.numberOfDays,
-              action: "REJECTED",
+              employeeName: `${updated.employee.firstName} ${updated.employee.lastName}`,
+              employeeEmail: updated.employee.email,
+              leaveType: updated.leaveType.name,
+              startDate: updated.startDate.toISOString().slice(0, 10),
+              endDate: updated.endDate.toISOString().slice(0, 10),
+              days: updated.numberOfDays,
+              action: newStatus,
               note: input.approverNote,
             });
           } catch (err) {
-            console.error("[leave] reject email failed:", err);
+            console.error("[leave] decision email failed:", err);
           }
         })();
-
-        return rejected;
       }
 
-      // APPROVE
-      const approved = await ctx.prisma.$transaction(async (tx) => {
-        const updated = await tx.leaveRequest.update({
-          where: { id: input.id },
-          data: {
-            status: "APPROVED",
-            approvedById: approver.id,
-            approverNote: input.approverNote || null,
-            respondedAt: new Date(),
-          },
-          include: {
-            leaveType: true,
-            employee: {
-              select: {
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        });
-
-        const year = req.startDate.getUTCFullYear();
-        const balance = await tx.leaveBalance.findUnique({
-          where: {
-            employeeId_leaveTypeId_year: {
-              employeeId: req.employeeId,
-              leaveTypeId: req.leaveTypeId,
-              year,
-            },
-          },
-        });
-
-        if (balance) {
-          const used = balance.used + req.numberOfDays;
-          await tx.leaveBalance.update({
-            where: { id: balance.id },
-            data: {
-              used,
-              remaining: balance.allotted - used,
-            },
-          });
-        }
-
-        const days = req.isHalfDay ? [] : listWeekdayDates(req.startDate, req.endDate);
-        for (const day of days) {
-          await tx.attendanceLog.upsert({
-            where: {
-              employeeId_date: {
-                employeeId: req.employeeId,
-                date: day,
-              },
-            },
-            create: {
-              employeeId: req.employeeId,
-              date: day,
-              status: "ON_LEAVE",
-              withinGeofence: true,
-              notes: "Auto-created from approved leave",
-            },
-            update: {
-              status: "ON_LEAVE",
-              notes: "Auto-created from approved leave",
-            },
-          });
-        }
-
-        return updated;
-      });
-
-      void (async () => {
-        try {
-          const { notifyLeaveDecision } = await import("../lib/email");
-          await notifyLeaveDecision({
-            employeeName: `${approved.employee.firstName} ${approved.employee.lastName}`,
-            employeeEmail: approved.employee.email,
-            leaveType: approved.leaveType.name,
-            startDate: approved.startDate.toISOString().slice(0, 10),
-            endDate: approved.endDate.toISOString().slice(0, 10),
-            days: approved.numberOfDays,
-            action: "APPROVED",
-            note: input.approverNote,
-          });
-        } catch (err) {
-          console.error("[leave] approve email failed:", err);
-        }
-      })();
-
-      return approved;
+      return updated;
     }),
 
   forEmployee: protectedProcedure

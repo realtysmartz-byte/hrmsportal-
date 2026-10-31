@@ -2,7 +2,7 @@
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { cn, formatDate, fullName, initials } from "@/lib/utils";
-import { DOCUMENT_TYPES, isWeeklyOffDay } from "@realty-smartz/shared";
+import { DOCUMENT_TYPES, isWeeklyOffDay, HALF_DAY_SLOT_LABELS } from "@realty-smartz/shared";
 import { LocationMap } from "@/components/LocationMap";
 import { AssignLocationCard } from "@/components/AssignLocationCard";
 import { KekaAttendancePanel } from "@/components/KekaAttendancePanel";
@@ -94,6 +94,10 @@ export function EmployeeProfileHub({
   portal: "admin" | "employee";
 }) {
   const [tab, setTab] = useState<TabId>("overview");
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [employeeId]);
   const utils = trpc.useUtils();
 
   const { data, isLoading, error } = trpc.employee.profileHub.useQuery({
@@ -278,7 +282,7 @@ export function EmployeeProfileHub({
                 </button>
               )}
             </div>
-            <div className="min-w-0 flex-1 pb-3">
+            <div className="min-w-0 flex-1 pt-2 pb-3">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="font-display text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
                   {fullName(emp.firstName, emp.lastName)}
@@ -1342,54 +1346,156 @@ function LeaveTab({
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Leave history</CardTitle>
+      <Card className="shadow-xs border-neutral-200/80">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-base font-bold text-neutral-900">Leave History</CardTitle>
+            <p className="text-xs text-neutral-500 mt-0.5">All submitted leaves, approvals, and reviewer notes</p>
+          </div>
+          {data?.requests && data.requests.length > 0 && (
+            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700 border border-neutral-200">
+              {data.requests.length} Requests
+            </span>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {!data?.requests.length ? (
             <EmptyState
-              title="No leave requests"
-              description="Leave applications for this employee will show here."
+              title="No leave requests submitted"
+              description="Leave applications for this employee will show here with full review details."
               className="m-4"
             />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Dates</TableHead>
-                    <TableHead>Days</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Approver</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.requests.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>{r.leaveType.name}</TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {formatDate(r.startDate)} → {formatDate(r.endDate)}
-                      </TableCell>
-                      <TableCell>{r.numberOfDays}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{r.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {r.approvedBy
-                          ? fullName(r.approvedBy.firstName, r.approvedBy.lastName)
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-caption text-neutral-500">
-                        {r.approverNote || "—"}
-                      </TableCell>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Leave Type</TableHead>
+                      <TableHead>Date Range</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Reviewer / Note</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {data.requests.map((r) => (
+                      <TableRow key={r.id} className="hover:bg-neutral-50/70 transition-colors">
+                        <TableCell>
+                          <span className="font-semibold text-neutral-900 text-xs">
+                            {r.leaveType.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-neutral-700 font-medium">
+                          {formatDate(r.startDate)} → {formatDate(r.endDate)}
+                        </TableCell>
+                        <TableCell className="text-xs font-bold text-neutral-900">
+                          {r.isHalfDay
+                            ? r.halfDaySlot === "SECOND_HALF"
+                              ? HALF_DAY_SLOT_LABELS.SECOND_HALF
+                              : HALF_DAY_SLOT_LABELS.FIRST_HALF
+                            : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                              r.status === "APPROVED"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : r.status === "REJECTED"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : r.status === "CANCELLED"
+                                ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {r.status === "APPROVED" && <Check className="h-3 w-3" />}
+                            {r.status === "REJECTED" && <X className="h-3 w-3" />}
+                            {r.status === "PENDING" && <Clock className="h-3 w-3" />}
+                            {r.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-[220px] text-xs text-neutral-600 line-clamp-2">
+                          {r.reason}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] text-xs">
+                          {r.approvedBy ? (
+                            <div>
+                              <p className="font-semibold text-neutral-800">
+                                {fullName(r.approvedBy.firstName, r.approvedBy.lastName)}
+                              </p>
+                              {r.approverNote && (
+                                <p className="text-[11px] text-neutral-500 italic mt-0.5">
+                                  {r.approverNote}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">Awaiting review</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="md:hidden divide-y divide-neutral-100">
+                {data.requests.map((r) => (
+                  <div key={r.id} className="p-4 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-neutral-900">{r.leaveType.name}</span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                          r.status === "APPROVED"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : r.status === "REJECTED"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : r.status === "CANCELLED"
+                            ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+
+                    <div className="rounded-lg bg-neutral-50 p-2.5 text-xs space-y-1 border border-neutral-100">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Dates:</span>
+                        <span className="font-medium text-neutral-700">
+                          {formatDate(r.startDate)} – {formatDate(r.endDate)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Duration:</span>
+                        <span className="font-bold text-[#5D3EBC]">
+                          {r.isHalfDay
+                            ? r.halfDaySlot === "SECOND_HALF"
+                              ? HALF_DAY_SLOT_LABELS.SECOND_HALF
+                              : HALF_DAY_SLOT_LABELS.FIRST_HALF
+                            : `${r.numberOfDays} ${r.numberOfDays === 1 ? "day" : "days"}`}
+                        </span>
+                      </div>
+                      {r.reason && (
+                        <div className="pt-1 border-t border-neutral-200/50">
+                          <span className="text-neutral-400 text-[11px] block">Reason:</span>
+                          <p className="text-neutral-700 text-[11px] italic mt-0.5">{r.reason}</p>
+                        </div>
+                      )}
+                      {r.approverNote && (
+                        <div className="pt-1 border-t border-neutral-200/50">
+                          <span className="text-neutral-400 text-[11px] block">Reviewer Note:</span>
+                          <p className="text-neutral-600 text-[11px] mt-0.5">{r.approverNote}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -66,7 +66,7 @@ export default function AdminDashboardPage() {
 
   const totalEmployees = data?.totalEmployees ?? 62;
   const deptCount = data?.departmentCount ?? 9;
-  const pendingLeaveCount = pendingLeave?.length ?? 3;
+  const pendingLeaveCount = pendingLeave?.length ?? 0;
   const openJobsCount = jobs?.length ?? 0;
   const adminName = session?.user?.name ?? "HR Admin";
 
@@ -116,8 +116,7 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const displayPending =
-    pendingLeave && pendingLeave.length > 0 ? pendingLeave : samplePendingRequests;
+  const displayPending = pendingLeave ?? [];
 
   // Real or Sample Birthdays
   const sampleBirthdays = [
@@ -402,8 +401,13 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* List of Pending Requests */}
-            <div className="mt-2 divide-y divide-neutral-100">
-              {displayPending.slice(0, 3).map((item) => (
+            {displayPending.length === 0 ? (
+              <div className="py-8 text-center text-xs font-medium text-neutral-400">
+                No pending leave requests
+              </div>
+            ) : (
+              <div className="mt-2 divide-y divide-neutral-100">
+                {displayPending.slice(0, 3).map((item) => (
                 <Link
                   key={item.id}
                   href="/admin-portal/leave/approvals"
@@ -411,9 +415,9 @@ export default function AdminDashboardPage() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-neutral-200 bg-[#F3F0FC] font-bold text-xs text-[#6D28D9]">
-                      {"profilePhotoUrl" in item.employee && item.employee.profilePhotoUrl ? (
+                      {(item.employee as any).profilePhotoUrl ? (
                         <img
-                          src={item.employee.profilePhotoUrl}
+                          src={(item.employee as any).profilePhotoUrl}
                           alt=""
                           className="h-full w-full object-cover"
                         />
@@ -446,8 +450,9 @@ export default function AdminDashboardPage() {
                     <ChevronRight className="h-4 w-4 text-neutral-300 group-hover:text-neutral-600 transition-colors" />
                   </div>
                 </Link>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-2 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-400 font-medium">
