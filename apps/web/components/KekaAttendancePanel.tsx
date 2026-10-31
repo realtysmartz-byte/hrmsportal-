@@ -36,6 +36,7 @@ import {
   startNativeDutyTracking,
   stopNativeDutyTracking,
 } from "@/lib/native-duty-tracking";
+import { notifyClockIn, notifyClockOut } from "@/lib/client-notifications";
 import { toast } from "@/lib/toast";
 import { TRPCClientError } from "@trpc/client";
 import {
@@ -256,9 +257,20 @@ export function KekaAttendancePanel({
       if (mode === "in") {
         await checkInMutation.mutateAsync(payload);
         void startNativeDutyTracking();
+        const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        void notifyClockIn({
+          employeeName: session?.user?.name || undefined,
+          timeStr,
+          locationName: "Realty Smartz Pvt Ltd",
+        });
       } else {
         await checkOutMutation.mutateAsync(payload);
         void stopNativeDutyTracking();
+        const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        void notifyClockOut({
+          employeeName: session?.user?.name || undefined,
+          timeStr,
+        });
       }
     } catch (err: unknown) {
       const message = geolocationErrorMessage(err);

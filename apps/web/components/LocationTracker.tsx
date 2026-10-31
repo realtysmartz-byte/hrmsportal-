@@ -217,7 +217,7 @@ export function LocationTracker() {
         status === "denied" && "border-rose-200 text-rose-700 bg-rose-50/90",
         (status === "error" || status === "idle") && "border-neutral-200 text-neutral-600"
       )}
-      title="While punched in, location is recorded every 30 minutes (not on every page open)."
+      title="While punched in, location is recorded every 1 hour with high-accuracy GPS."
     >
       <span
         className={cn(

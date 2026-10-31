@@ -279,7 +279,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
           reject(err);
         }
       },
-      { enableHighAccuracy: false, maximumAge: 30_000, timeout: WATCH_BUDGET_MS }
+      { enableHighAccuracy: true, maximumAge: 15_000, timeout: WATCH_BUDGET_MS }
     );
 
     watchTimer = setTimeout(() => {
@@ -316,17 +316,27 @@ export function getCurrentPosition(fresh = false): Promise<GeolocationPosition> 
   if (!fresh) {
     return getPunchPosition();
   }
-  // Balanced fallback only (never high-accuracy + maximumAge:0 alone)
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported by this browser"));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
-      timeout: 8000,
-      maximumAge: 60_000,
-    });
+    // High-accuracy GPS first with smooth fallback to network
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      () => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 60_000,
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10_000,
+        maximumAge: 15_000,
+      }
+    );
   });
 }
 

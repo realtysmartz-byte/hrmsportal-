@@ -3,12 +3,12 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
 import { startOfDayUTC } from "@realty-smartz/shared";
 import { authOptions } from "@/lib/auth";
-import { assertRateLimit, resolvePunchGeofence } from "@realty-smartz/api";
+import { assertRateLimit, resolvePunchGeofence, reverseGeocodePunchAddress } from "@realty-smartz/api";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-const MIN_TRACKING_PING_GAP_MS = 55 * 60 * 1000; // ~1 hour
+const MIN_TRACKING_PING_GAP_MS = 50 * 60 * 1000; // 50 minutes debounce for 1 hour tracking
 const locationPingBodySchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
@@ -110,9 +110,15 @@ export async function POST(req: Request) {
   }
 
   const geo = await resolvePunchGeofence(prisma, employee.id, fix.lat, fix.lng);
-  let address = geo.matched?.name
-    ? geo.matched.name
-    : `${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
+  let address = (body as any)?.address;
+  if (!address || address.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) {
+    try {
+      address = await reverseGeocodePunchAddress(fix.lat, fix.lng);
+    } catch {}
+  }
+  if (!address) {
+    address = geo.matched?.name ?? `${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
+  }
   if (fix.isMockLocation) {
     address = `${address} · review:mock-gps`;
   }

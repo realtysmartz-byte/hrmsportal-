@@ -1,7 +1,11 @@
 package in.realtysmartz.hrms;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Build;
+import androidx.core.app.NotificationCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -71,5 +75,59 @@ public class DutyTrackingPlugin extends Plugin {
     JSObject result = new JSObject();
     result.put("stopped", true);
     call.resolve(result);
+  }
+
+  @PluginMethod
+  public void showNotification(PluginCall call) {
+    String title = call.getString("title", "RS HRMS");
+    String body = call.getString("body", "");
+    if (body == null || body.isEmpty()) {
+      call.resolve();
+      return;
+    }
+
+    try {
+      String channelId = "hrms_alerts";
+      NotificationManager nm =
+          (NotificationManager)
+              getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
+        NotificationChannel channel =
+            new NotificationChannel(
+                channelId, "Attendance & Duty Alerts", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Clock In, Clock Out and System notifications");
+        channel.enableVibration(true);
+        nm.createNotificationChannel(channel);
+      }
+
+      Intent launch =
+          getContext().getPackageManager().getLaunchIntentForPackage(getContext().getPackageName());
+      PendingIntent pi =
+          PendingIntent.getActivity(
+              getContext(),
+              (int) System.currentTimeMillis(),
+              launch != null ? launch : new Intent(),
+              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+      NotificationCompat.Builder builder =
+          new NotificationCompat.Builder(getContext(), channelId)
+              .setContentTitle(title)
+              .setContentText(body)
+              .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+              .setSmallIcon(R.mipmap.ic_launcher)
+              .setAutoCancel(true)
+              .setContentIntent(pi)
+              .setPriority(NotificationCompat.PRIORITY_HIGH)
+              .setDefaults(NotificationCompat.DEFAULT_ALL);
+
+      if (nm != null) {
+        nm.notify((int) (System.currentTimeMillis() % 100000), builder.build());
+      }
+      JSObject res = new JSObject();
+      res.put("shown", true);
+      call.resolve(res);
+    } catch (Exception e) {
+      call.reject("Failed to show notification: " + e.getMessage());
+    }
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   MapPin,
   Clock,
@@ -43,6 +43,22 @@ export function EmployeeDailyTraceModal({
     });
 
   const [selectedEventIndex, setSelectedEventIndex] = useState<number>(0);
+
+  // Prevent background page from scrolling while modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, []);
 
   const events = data?.events ?? [];
   const log = data?.log;
@@ -91,7 +107,7 @@ export function EmployeeDailyTraceModal({
   }, [log]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4 overscroll-contain" onWheel={(e) => e.stopPropagation()}>
       <div className="relative flex flex-col w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-lg bg-white overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 bg-neutral-50/70">
@@ -320,7 +336,7 @@ export function EmployeeDailyTraceModal({
                       <Clock className="h-7 w-7 mx-auto text-neutral-300" />
                       <p className="font-semibold text-neutral-600">No Location Events Recorded</p>
                       <p className="text-[11px]">
-                        The employee has not checked in or sent 30-minute location pings for this date.
+                        The employee has not checked in or sent 1-hour location pings for this date.
                       </p>
                     </div>
                   ) : (
@@ -334,7 +350,7 @@ export function EmployeeDailyTraceModal({
 
                       let typeBadge = (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">
-                          <Clock className="h-2.5 w-2.5" /> 30m Ping #{idx}
+                          <Clock className="h-2.5 w-2.5" /> 1h Ping #{idx}
                         </span>
                       );
                       if (event.type === "CHECK_IN") {
@@ -376,13 +392,13 @@ export function EmployeeDailyTraceModal({
                             />
                           </div>
 
-                          <p className="text-neutral-600 text-[11px] line-clamp-1">
+                          <p className="text-neutral-700 text-[11px] line-clamp-1 font-medium">
                             {event.address || `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`}
                           </p>
 
-                          <div className="flex items-center justify-between text-[10px] text-neutral-400 pt-0.5">
-                            <span className="tabular-nums">
-                              {event.lat.toFixed(4)}, {event.lng.toFixed(4)}
+                          <div className="flex items-center justify-between text-[10px] text-neutral-500 pt-0.5">
+                            <span className="tabular-nums font-mono font-semibold text-neutral-600">
+                              {event.lat.toFixed(5)}, {event.lng.toFixed(5)}
                             </span>
                             <span
                               className={cn(
@@ -407,7 +423,7 @@ export function EmployeeDailyTraceModal({
         <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 bg-neutral-50/80">
           <div className="text-[11px] text-neutral-500 flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
-            <span>Pings automatically log every 30 minutes while employee is signed into the portal.</span>
+            <span>Pings automatically log every 1 hour while employee is signed into the portal.</span>
           </div>
           <Button
             size="sm"

@@ -85,3 +85,5 @@ export {
   formatNewCandidateTelegramMessage,
   formatStatusChangeTelegramMessage,
 } from "./lib/telegram";
+
+export { reverseGeocodePunchAddress } from "./lib/punch-address";

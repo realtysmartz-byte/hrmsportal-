@@ -1,4 +1,4 @@
-export const LOCATION_REMINDERS_ENABLED = false;
+export const LOCATION_REMINDERS_ENABLED = true;
 
 type SaveSubscription = (input: { endpoint: string; p256dh: string; auth: string }) => Promise<unknown>;
 

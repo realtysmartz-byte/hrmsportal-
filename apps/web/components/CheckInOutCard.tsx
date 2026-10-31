@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft, Sparkles } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import {
   acquirePunchFix,
@@ -17,6 +18,7 @@ import {
   startNativeDutyTracking,
   stopNativeDutyTracking,
 } from "@/lib/native-duty-tracking";
+import { notifyClockIn, notifyClockOut } from "@/lib/client-notifications";
 import { toast } from "@/lib/toast";
 import { TRPCClientError } from "@trpc/client";
 import {
@@ -40,6 +42,7 @@ function formatClock(totalSeconds: number) {
 }
 
 export function CheckInOutCard() {
+  const { data: session } = useSession();
   const utils = trpc.useUtils();
   const { data: today, isLoading } = trpc.attendance.today.useQuery(undefined, {
     staleTime: 60_000,
@@ -231,9 +234,22 @@ export function CheckInOutCard() {
           setPunchQuote(res.quote);
         }
         void startNativeDutyTracking();
+        const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        void notifyClockIn({
+          employeeName: session?.user?.name || undefined,
+          timeStr,
+          locationName: "Realty Smartz Pvt Ltd",
+        });
       } else {
         await checkOut.mutateAsync(payload);
         void stopNativeDutyTracking();
+        const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const durationStr = elapsed > 0 ? formatDuration(elapsed) : undefined;
+        void notifyClockOut({
+          employeeName: session?.user?.name || undefined,
+          timeStr,
+          durationStr,
+        });
       }
     } catch (err: unknown) {
       if ((err as { code?: number })?.code === 1) {

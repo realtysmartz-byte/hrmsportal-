@@ -503,8 +503,8 @@ public class DutyTrackingService extends Service {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
     NotificationChannel channel =
         new NotificationChannel(
-            CHANNEL_ID, "On-duty location", NotificationManager.IMPORTANCE_LOW);
-    channel.setDescription("Shows while attendance location tracking is active");
+            CHANNEL_ID, "On-duty location", NotificationManager.IMPORTANCE_MIN);
+    channel.setDescription("Background location tracking during active duty hours");
     channel.setShowBadge(false);
     NotificationManager nm = getSystemService(NotificationManager.class);
     if (nm != null) nm.createNotificationChannel(channel);
@@ -523,10 +523,11 @@ public class DutyTrackingService extends Service {
         .setContentTitle("RS HRMS")
         .setContentText("On duty — location every 1 hour")
         .setSmallIcon(R.mipmap.ic_launcher)
-        .setOngoing(true)
+        .setOngoing(false)
         .setOnlyAlertOnce(true)
         .setContentIntent(pi)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setPriority(NotificationCompat.PRIORITY_MIN)
+        .setCategory(NotificationCompat.CATEGORY_SERVICE)
         .build();
   }
 

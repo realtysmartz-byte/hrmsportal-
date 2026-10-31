@@ -260,7 +260,7 @@ export function EmployeeProfileHub({
           </div>
         </div>
 
-        <div className="relative px-4 pb-0 pt-0 md:px-6">
+        <div className="relative px-4 pb-0 pt-0 md:px-6 bg-white">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
             <div className="-mt-12 sm:-mt-14 relative group shrink-0">
               <div className="flex h-24 w-24 aspect-square shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#5145CD] to-[#7957FF] font-display text-2xl font-bold text-white shadow-[0_8px_25px_rgba(30,10,80,0.25)] ring-2 ring-[#7957FF]/30">
@@ -286,36 +286,45 @@ export function EmployeeProfileHub({
                 </button>
               )}
             </div>
-            <div className="min-w-0 flex-1 pt-2 sm:pt-3 pb-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-display text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
+            <div className="min-w-0 flex-1 pt-3 pb-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="font-display text-2xl font-black tracking-tight text-neutral-900 md:text-3xl">
                   {fullName(emp.firstName, emp.lastName)}
                 </h1>
                 <StatusBadge status={emp.status} />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3EAFD] border border-[#E0D0FB] px-2.5 py-0.5 text-xs font-bold text-[#5B21B6] shadow-2xs">
+                  <Building className="h-3 w-3 text-[#6D28D9]" />
+                  Realty Smartz Pvt Ltd
+                </span>
               </div>
-              <p className="mt-0.5 text-sm text-neutral-600 font-medium">
-                {emp.designation?.title ?? "No designation"}
-                {emp.department?.name ? ` · ${emp.department.name}` : ""}
+              <p className="mt-1 text-sm font-semibold text-neutral-700 flex items-center gap-2 flex-wrap">
+                <span className="text-neutral-900 font-bold">{emp.designation?.title ?? "Designation Pending"}</span>
+                {emp.department?.name && (
+                  <>
+                    <span className="text-neutral-300">•</span>
+                    <span className="text-[#6D28D9] font-medium">{emp.department.name} Department</span>
+                  </>
+                )}
               </p>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500 font-medium">
-                <span className="inline-flex items-center gap-1">
-                  <Mail className="h-3 w-3 text-neutral-400" />
-                  {emp.email}
+              <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-600 font-medium">
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-neutral-400" />
+                  <span className="font-semibold text-neutral-700">{emp.email}</span>
                 </span>
                 {emp.phone && (
-                  <span className="inline-flex items-center gap-1">
-                    <Phone className="h-3 w-3 text-neutral-400" />
-                    {emp.phone}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-neutral-400" />
+                    <span>{emp.phone}</span>
                   </span>
                 )}
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-neutral-400" />
-                  {emp.workLocationName || "Gurugram"}
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-neutral-400" />
+                  <span>{emp.workLocationName || "Gurugram"}</span>
                 </span>
                 {emp.dateOfJoining && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-neutral-400" />
-                    Joined {formatDate(emp.dateOfJoining)}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+                    <span>Joined {formatDate(emp.dateOfJoining)}</span>
                   </span>
                 )}
               </div>

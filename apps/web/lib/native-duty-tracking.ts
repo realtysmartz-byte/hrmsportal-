@@ -5,6 +5,7 @@ import type { StoredFix } from "@/lib/geolocation";
 interface DutyTrackingPlugin {
   start(options: { intervalMs?: number; apiUrl?: string }): Promise<{ started: boolean }>;
   stop(): Promise<{ stopped: boolean }>;
+  showNotification(options: { title: string; body: string }): Promise<{ shown?: boolean }>;
   lastKnownFix(): Promise<{
     lat?: number;
     lng?: number;
@@ -21,6 +22,9 @@ const DutyTracking = registerPlugin<DutyTrackingPlugin>("DutyTracking", {
     },
     async stop() {
       return { stopped: false };
+    },
+    async showNotification() {
+      return {};
     },
     async lastKnownFix() {
       return {};
@@ -51,27 +55,21 @@ export async function getNativeMockLocationFlag(referenceFix: StoredFix): Promis
     ) {
       return false;
     }
-    const distanceM = haversineDistanceM(
+    const distM = haversineDistanceM(
       referenceFix.lat,
       referenceFix.lng,
       fix.lat,
       fix.lng
     );
-    const accuracyRadiusM =
-      Math.min(referenceFix.accuracy ?? 100, 100) +
-      Math.min(fix.accuracy ?? 100, 100) +
-      25;
-    return Boolean(fix.isMockLocation && distanceM <= accuracyRadiusM);
+    if (distM > 100) return false;
+    return Boolean(fix.isMockLocation);
   } catch (err) {
-    console.error(
-      "[duty-tracking] mock location lookup failed:",
-      err instanceof Error ? err.name : "Unknown error"
-    );
+    console.warn("[duty-tracking] could not read native fix:", err);
     return false;
   }
 }
 
-/** Start Android foreground location tracking (every 30 min while on duty). */
+/** Start Android foreground location tracking (every 1 hour while on duty). */
 export async function startNativeDutyTracking() {
   if (!isNativeAndroidApp()) return;
   if (nativeTrackingStarted) return;
@@ -94,5 +92,17 @@ export async function stopNativeDutyTracking() {
     await DutyTracking.stop();
   } catch (err) {
     console.error("[duty-tracking] stop failed:", err);
+  }
+}
+
+/** Trigger native notification if on Android app */
+export async function showNativeNotification(title: string, body: string): Promise<boolean> {
+  if (!isNativeAndroidApp()) return false;
+  try {
+    const res = await DutyTracking.showNotification({ title, body });
+    return Boolean(res.shown);
+  } catch (err) {
+    console.warn("[duty-tracking] native notification error:", err);
+    return false;
   }
 }
