@@ -90,35 +90,73 @@ function writeHolidays(items: HolidayItem[]): void {
   fs.writeFileSync(filePath, JSON.stringify(sorted, null, 2), "utf-8");
 }
 
+let tableEnsured = false;
+async function ensurePayrollHolidaysTable(prisma: any): Promise<void> {
+  if (tableEnsured) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS payroll_holidays (
+        id TEXT PRIMARY KEY,
+        date DATE UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT DEFAULT 'PUBLIC',
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    try {
+      await prisma.$executeRawUnsafe("ALTER TABLE payroll_holidays ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'PUBLIC'");
+      await prisma.$executeRawUnsafe("ALTER TABLE payroll_holidays ADD COLUMN IF NOT EXISTS description TEXT");
+    } catch {}
+    tableEnsured = true;
+  } catch (err) {
+    console.warn("[holiday] Could not ensure payroll_holidays table:", err);
+  }
+}
+
 async function syncAndReadHolidays(prisma: any): Promise<HolidayItem[]> {
+  await ensurePayrollHolidaysTable(prisma);
   const fromFile = readHolidays();
   try {
     const rows = await prisma.$queryRawUnsafe(
-      "SELECT id, to_char(date, 'YYYY-MM-DD') as date, name FROM payroll_holidays ORDER BY date ASC"
+      "SELECT id, to_char(date, 'YYYY-MM-DD') as date, name, type, description FROM payroll_holidays ORDER BY date ASC"
     );
-      if (Array.isArray(rows)) {
-        // Build unified list where PostgreSQL is the primary store
-        const items: HolidayItem[] = rows.map((r: any) => {
-          const matchingFile = fromFile.find((f) => f.id === r.id || f.date === r.date);
-          return {
-            id: r.id || `hol-${r.date}`,
-            name: r.name,
-            date: r.date,
-            dayName: calculateDayName(r.date),
-            type: matchingFile?.type ?? "PUBLIC",
-            description: matchingFile?.description ?? null,
-          };
-        });
+    if (Array.isArray(rows) && rows.length > 0) {
+      const items: HolidayItem[] = rows.map((r: any) => {
+        const matchingFile = fromFile.find((f) => f.id === r.id || f.date === r.date);
+        return {
+          id: r.id || `hol-${r.date}`,
+          name: r.name,
+          date: r.date,
+          dayName: calculateDayName(r.date),
+          type: (r.type as any) ?? matchingFile?.type ?? "PUBLIC",
+          description: r.description ?? matchingFile?.description ?? null,
+        };
+      });
 
-        const sorted = items.sort((a, b) => a.date.localeCompare(b.date));
-        writeHolidays(sorted);
-        return sorted;
+      const sorted = items.sort((a, b) => a.date.localeCompare(b.date));
+      writeHolidays(sorted);
+      return sorted;
+    } else if (Array.isArray(rows) && rows.length === 0 && fromFile.length > 0) {
+      for (const f of fromFile) {
+        try {
+          await prisma.$executeRawUnsafe(
+            "INSERT INTO payroll_holidays (id, date, name, type, description) VALUES ($1, $2::date, $3, $4, $5) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name",
+            f.id,
+            f.date,
+            f.name,
+            f.type ?? "PUBLIC",
+            f.description ?? null
+          );
+        } catch {}
       }
-    } catch (err) {
-      // If payroll_holidays table query fails, fallback to file
+      return fromFile;
     }
-    return fromFile.sort((a, b) => a.date.localeCompare(b.date));
+  } catch (err) {
+    // If payroll_holidays table query fails, fallback to file
   }
+  return fromFile.sort((a, b) => a.date.localeCompare(b.date));
+}
 
 export const holidayRouter = router({
     list: protectedProcedure
@@ -266,10 +304,12 @@ export const holidayRouter = router({
         try {
           for (const item of createdItems) {
             await ctx.prisma.$executeRawUnsafe(
-              "INSERT INTO payroll_holidays (id, date, name) VALUES ($1, $2::date, $3) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name",
+              "INSERT INTO payroll_holidays (id, date, name, type, description) VALUES ($1, $2::date, $3, $4, $5) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, description = EXCLUDED.description",
               item.id,
               item.date,
-              item.name
+              item.name,
+              item.type,
+              item.description
             );
           }
         } catch (err) {
@@ -317,9 +357,11 @@ export const holidayRouter = router({
 
         try {
           await ctx.prisma.$executeRawUnsafe(
-            "UPDATE payroll_holidays SET name = $1, date = $2::date WHERE id = $3",
+            "UPDATE payroll_holidays SET name = $1, date = $2::date, type = $3, description = $4 WHERE id = $5 OR date::date = $2::date",
             updated.name,
             updated.date,
+            updated.type,
+            updated.description,
             updated.id
           );
         } catch (err) {
@@ -340,32 +382,35 @@ export const holidayRouter = router({
           });
         }
 
-        // 1. Delete from PostgreSQL database (by ID, or date contained in ID)
+        await ensurePayrollHolidaysTable(ctx.prisma);
+        const dateMatch = input.id.match(/(\d{4}-\d{2}-\d{2})/);
+        const targetDate = dateMatch ? dateMatch[1] : null;
+
+        // 1. Delete from PostgreSQL database (by ID, or by matching date)
         try {
-          await ctx.prisma.$executeRawUnsafe(
-            "DELETE FROM payroll_holidays WHERE id = $1",
-            input.id
-          );
-
-              const dateMatch = input.id.match(/(\d{4}-\d{2}-\d{2})/);
-              if (dateMatch) {
-                await ctx.prisma.$executeRawUnsafe(
-            "DELETE FROM payroll_holidays WHERE date = $1::date",
-                  dateMatch[1]
-                );
-              }
-            } catch (err) {
-              console.warn("[holiday] DB sync error on delete:", err);
-            }
-
-            // 2. Remove from JSON file cache
-            const all = readHolidays();
-            const dateMatch = input.id.match(/(\d{4}-\d{2}-\d{2})/);
-            const filtered = all.filter(
-              (h) => h.id !== input.id && (!dateMatch || h.date !== dateMatch[1])
+          if (targetDate) {
+            await ctx.prisma.$executeRawUnsafe(
+              "DELETE FROM payroll_holidays WHERE id = $1 OR date::date = $2::date",
+              input.id,
+              targetDate
             );
-            writeHolidays(filtered);
+          } else {
+            await ctx.prisma.$executeRawUnsafe(
+              "DELETE FROM payroll_holidays WHERE id = $1",
+              input.id
+            );
+          }
+        } catch (err) {
+          console.warn("[holiday] DB sync error on delete:", err);
+        }
 
-            return { success: true, id: input.id };
+        // 2. Remove from JSON file cache
+        const all = readHolidays();
+        const filtered = all.filter(
+          (h) => h.id !== input.id && (!targetDate || h.date !== targetDate)
+        );
+        writeHolidays(filtered);
+
+        return { success: true, id: input.id };
           }),
   });
