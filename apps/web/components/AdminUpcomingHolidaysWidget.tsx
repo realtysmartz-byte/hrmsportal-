@@ -39,6 +39,9 @@ function getDaysUntil(dateStr: string): string {
     const months = Math.floor(diffDays / 30);
     return `In ~${months} mo`;
   }
+  if (diffDays < 0 && diffDays >= -35) {
+    return `${Math.abs(diffDays)}d ago`;
+  }
   return "Past";
 }
 
@@ -78,8 +81,7 @@ export function AdminUpcomingHolidaysWidget() {
       setType("PUBLIC");
       setError("");
       setSuccess(
-        `Announced ${createdList.length} holiday date${
-          createdList.length > 1 ? "s" : ""
+        `Announced ${createdList.length} holiday date${createdList.length > 1 ? "s" : ""
         } ("${createdList[0]?.name ?? name}") successfully.`
       );
       setIsAnnouncing(false);
@@ -303,8 +305,8 @@ export function AdminUpcomingHolidaysWidget() {
                   {announceMutation.isLoading
                     ? "Announcing..."
                     : selectedDates.length > 1
-                    ? `Announce ${selectedDates.length} Dates`
-                    : "Announce Holiday"}
+                      ? `Announce ${selectedDates.length} Dates`
+                      : "Announce Holiday"}
                 </span>
               </Button>
             </div>
@@ -348,12 +350,21 @@ export function AdminUpcomingHolidaysWidget() {
                         {h.dayName} · {full}
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <span className="rounded-full bg-[#F3EAFD] px-2 py-0.5 text-[9px] font-bold text-[#6D28D9] border border-[#E7DBFA]">
-                          {daysUntil}
-                        </span>
-                        <span className="text-[9px] text-neutral-400 truncate">
-                          {h.type === "PUBLIC" ? "Public" : "Company"}
-                        </span>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[9px] font-bold border",
+                              daysUntil === "Today" || daysUntil === "Tomorrow"
+                                ? "bg-amber-100 text-amber-800 border-amber-200"
+                                : daysUntil === "Past" || daysUntil.endsWith("ago")
+                                  ? "bg-neutral-100 text-neutral-600 border-neutral-200"
+                                  : "bg-[#F3EAFD] text-[#6D28D9] border-[#E7DBFA]"
+                            )}
+                          >
+                            {daysUntil}
+                          </span>
+                          <span className="text-[9px] text-neutral-400 truncate">
+                            {h.type === "PUBLIC" ? "Public" : "Company"}
+                          </span>
                       </div>
                     </div>
                   </div>

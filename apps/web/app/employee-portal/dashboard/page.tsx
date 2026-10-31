@@ -40,6 +40,9 @@ function getDaysUntil(dateStr: string): string {
     const months = Math.floor(diffDays / 30);
     return `In ~${months} mo`;
   }
+  if (diffDays < 0 && diffDays >= -35) {
+    return `${Math.abs(diffDays)}d ago`;
+  }
   return "Past";
 }
 
@@ -70,7 +73,7 @@ export default function EmployeeDashboardPage() {
     : getInitials(userName);
 
   const { data: upcomingHolidays, isLoading: holidaysLoading } =
-    trpc.holiday.upcoming.useQuery({ limit: 6 }, { staleTime: 15 * 60_000 });
+    trpc.holiday.upcoming.useQuery({ limit: 8 }, { staleTime: 30_000, refetchOnWindowFocus: true });
   const { data: birthdays, isLoading: birthdaysLoading } =
     trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
       staleTime: 15 * 60_000,
@@ -222,6 +225,8 @@ export default function EmployeeDashboardPage() {
                           "rounded-full px-2 py-0.5 text-[9px] font-bold shadow-2xs",
                           daysUntil === "Today" || daysUntil === "Tomorrow"
                             ? "bg-amber-100 text-amber-800 border border-amber-200"
+                            : daysUntil === "Past" || daysUntil.endsWith("ago")
+                            ? "bg-neutral-100 text-neutral-600 border border-neutral-200"
                             : "bg-[#F3EAFD] text-[#5225C5] border border-[#E7DBFA]"
                         )}
                       >

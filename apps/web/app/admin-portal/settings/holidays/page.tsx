@@ -84,25 +84,26 @@ export default function HolidaysManagementPage() {
   const allowed = canManageHolidays(role);
 
   const utils = trpc.useUtils();
-  const { data: holidays, isLoading } = trpc.holiday.list.useQuery(undefined, {
-    enabled: allowed,
-  });
+    const { data: holidays, isLoading, refetch } = trpc.holiday.list.useQuery(undefined, {
+      enabled: allowed,
+      staleTime: 0,
+    });
 
-  const [name, setName] = useState("");
-  const [dates, setDates] = useState<string[]>([]);
-  const [type, setType] = useState<"PUBLIC" | "RESTRICTED" | "COMPANY">("PUBLIC");
-  const [description, setDescription] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+    const [name, setName] = useState("");
+    const [dates, setDates] = useState<string[]>([]);
+    const [type, setType] = useState<"PUBLIC" | "RESTRICTED" | "COMPANY">("PUBLIC");
+    const [description, setDescription] = useState("");
+    const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [search, setSearch] = useState("");
-  const [filterTab, setFilterTab] = useState<"ALL" | "UPCOMING" | "PAST">("ALL");
-  const [yearFilter, setYearFilter] = useState("");
+    const [search, setSearch] = useState("");
+    const [filterTab, setFilterTab] = useState<"ALL" | "UPCOMING" | "PAST">("ALL");
+    const [yearFilter, setYearFilter] = useState("");
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const [formOpen, setFormOpen] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     if (status === "authenticated" && !allowed) {
       router.replace("/admin-portal/dashboard");
     }
@@ -117,8 +118,8 @@ export default function HolidaysManagementPage() {
       setError("");
       setSuccess(`${items.length} holiday date${items.length > 1 ? "s" : ""} added successfully.`);
       setFormOpen(false);
-      utils.holiday.list.invalidate();
-      utils.holiday.upcoming.invalidate();
+      utils.holiday.invalidate();
+      refetch();
     },
     onError: (err) => {
       setError(userFacingErrorMessage(err));
@@ -136,8 +137,8 @@ export default function HolidaysManagementPage() {
       setError("");
       setSuccess("Holiday updated successfully.");
       setFormOpen(false);
-      utils.holiday.list.invalidate();
-      utils.holiday.upcoming.invalidate();
+      utils.holiday.invalidate();
+      refetch();
     },
     onError: (err) => {
       setError(userFacingErrorMessage(err));
@@ -149,8 +150,8 @@ export default function HolidaysManagementPage() {
     onSuccess: () => {
       setSuccess("Holiday removed successfully.");
       setError("");
-      utils.holiday.list.invalidate();
-      utils.holiday.upcoming.invalidate();
+      utils.holiday.invalidate();
+      refetch();
     },
     onError: (err) => {
       setError(userFacingErrorMessage(err));
@@ -480,10 +481,10 @@ export default function HolidaysManagementPage() {
                 {announceMutation.isPending || updateMutation.isPending
                   ? "Saving..."
                   : editingId
-                  ? "Update Holiday"
-                  : dates.length > 1
-                  ? `Save ${dates.length} Holidays`
-                  : "Save Holiday"}
+                    ? "Update Holiday"
+                    : dates.length > 1
+                      ? `Save ${dates.length} Holidays`
+                      : "Save Holiday"}
               </Button>
             </div>
           </form>
@@ -627,15 +628,15 @@ export default function HolidaysManagementPage() {
                           h.type === "PUBLIC"
                             ? "bg-purple-100 text-[#6D28D9] border border-purple-200/60"
                             : h.type === "COMPANY"
-                            ? "bg-blue-100 text-blue-800 border border-blue-200/60"
-                            : "bg-amber-100 text-amber-800 border border-amber-200/60"
+                              ? "bg-blue-100 text-blue-800 border border-blue-200/60"
+                              : "bg-amber-100 text-amber-800 border border-amber-200/60"
                         )}
                       >
                         {h.type === "PUBLIC"
                           ? "Public Holiday"
                           : h.type === "COMPANY"
-                          ? "Company Off"
-                          : "Restricted"}
+                            ? "Company Off"
+                            : "Restricted"}
                       </span>
                     </TableCell>
 
@@ -654,10 +655,10 @@ export default function HolidaysManagementPage() {
                           isToday
                             ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                             : daysUntilLabel === "Tomorrow"
-                            ? "bg-amber-100 text-amber-800 border border-amber-300"
-                            : isPast
-                            ? "bg-neutral-100 text-neutral-500"
-                            : "bg-[#F3EAFD] text-[#6D28D9] border border-[#E7DBFA]"
+                              ? "bg-amber-100 text-amber-800 border border-amber-300"
+                              : isPast
+                                ? "bg-neutral-100 text-neutral-500"
+                                : "bg-[#F3EAFD] text-[#6D28D9] border border-[#E7DBFA]"
                         )}
                       >
                         {daysUntilLabel}
