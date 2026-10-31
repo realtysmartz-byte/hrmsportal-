@@ -1,8 +1,10 @@
+import Link from "next/link";
 "use client";
 
 import { useState, FormEvent } from "react";
 import {
   CalendarDays,
+  ArrowRight,
   Plus,
   Calendar,
   Sparkles,
@@ -54,9 +56,9 @@ function formatHolidayDate(dateStr: string) {
 
 export function AdminUpcomingHolidaysWidget() {
   const utils = trpc.useUtils();
-  const { data: holidays, isLoading } = trpc.holiday.upcoming.useQuery(
+  const { data: holidays, isLoading, refetch } = trpc.holiday.upcoming.useQuery(
     { limit: 6 },
-    { staleTime: 10 * 60_000 }
+    { staleTime: 0 }
   );
 
   const [isAnnouncing, setIsAnnouncing] = useState(false);
@@ -80,8 +82,8 @@ export function AdminUpcomingHolidaysWidget() {
         } ("${createdList[0]?.name ?? name}") successfully.`
       );
       setIsAnnouncing(false);
-      utils.holiday.upcoming.invalidate();
-      utils.holiday.list.invalidate();
+      utils.holiday.invalidate();
+      refetch();
     },
     onError: (err) => {
       setError(userFacingErrorMessage(err));
@@ -93,8 +95,8 @@ export function AdminUpcomingHolidaysWidget() {
     onSuccess: () => {
       setSuccess("Holiday removed successfully.");
       setError("");
-      utils.holiday.upcoming.invalidate();
-      utils.holiday.list.invalidate();
+      utils.holiday.invalidate();
+      refetch();
     },
     onError: (err) => {
       setError(userFacingErrorMessage(err));
@@ -148,7 +150,14 @@ export function AdminUpcomingHolidaysWidget() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin-portal/settings/holidays"
+            className="flex items-center gap-1 text-xs font-bold text-[#6D28D9] hover:underline"
+          >
+            <span>View all</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
           {!isAnnouncing && (
             <Button
               size="sm"
@@ -285,12 +294,12 @@ export function AdminUpcomingHolidaysWidget() {
               <Button
                 type="submit"
                 size="sm"
-                disabled={announceMutation.isPending}
+                disabled={announceMutation.isLoading}
                 className="h-8 rounded-lg bg-[#6D28D9] hover:bg-[#5B21B6] text-white text-xs font-bold px-3.5 gap-1.5"
               >
                 <Megaphone className="h-3 w-3" />
                 <span>
-                  {announceMutation.isPending
+                  {announceMutation.isLoading
                     ? "Announcing..."
                     : selectedDates.length > 1
                     ? `Announce ${selectedDates.length} Dates`

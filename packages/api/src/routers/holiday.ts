@@ -90,6 +90,37 @@ function writeHolidays(items: HolidayItem[]): void {
   fs.writeFileSync(filePath, JSON.stringify(sorted, null, 2), "utf-8");
 }
 
+async function syncAndReadHolidays(prisma: any): Promise<HolidayItem[]> {
+  const fromFile = readHolidays();
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      "SELECT id, to_char(date, 'YYYY-MM-DD') as date, name FROM payroll_holidays ORDER BY date ASC"
+    );
+    if (Array.isArray(rows) && rows.length > 0) {
+      let changed = false;
+      for (const r of rows) {
+        if (!fromFile.some((f) => f.date === r.date)) {
+          fromFile.push({
+            id: r.id || `hol-${r.date}`,
+            name: r.name,
+            date: r.date,
+            dayName: calculateDayName(r.date),
+            type: "PUBLIC",
+            description: null,
+          });
+          changed = true;
+        }
+      }
+      if (changed) {
+        writeHolidays(fromFile);
+      }
+    }
+  } catch (err) {
+    // If payroll_holidays table query fails, ignore
+  }
+  return fromFile.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export const holidayRouter = router({
   list: protectedProcedure
     .input(
@@ -99,8 +130,8 @@ export const holidayRouter = router({
         })
         .optional()
     )
-    .query(async ({ input }) => {
-      const holidays = readHolidays();
+    .query(async ({ ctx, input }) => {
+      const holidays = await syncAndReadHolidays(ctx.prisma);
       if (input?.year) {
         return holidays.filter((h) => h.date.startsWith(`${input.year}-`));
       }
@@ -115,10 +146,10 @@ export const holidayRouter = router({
         })
         .optional()
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const limit = input?.limit ?? 6;
       const today = getTodayIST();
-      const all = readHolidays();
+      const all = await syncAndReadHolidays(ctx.prisma);
       const upcoming = all.filter((h) => h.date >= today);
       return upcoming.slice(0, limit);
     }),
@@ -149,6 +180,17 @@ export const holidayRouter = router({
 
       all.push(newHoliday);
       writeHolidays(all);
+
+      try {
+        await ctx.prisma.$executeRawUnsafe(
+          "INSERT INTO payroll_holidays (id, date, name) VALUES ($1, $2::date, $3) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name",
+          newHoliday.id,
+          newHoliday.date,
+          newHoliday.name
+        );
+      } catch (err) {
+        console.warn("[holiday] DB sync error on create:", err);
+      }
 
       return newHoliday;
     }),
@@ -193,6 +235,20 @@ export const holidayRouter = router({
       }
 
       writeHolidays(all);
+
+      try {
+        for (const item of createdItems) {
+          await ctx.prisma.$executeRawUnsafe(
+            "INSERT INTO payroll_holidays (id, date, name) VALUES ($1, $2::date, $3) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name",
+            item.id,
+            item.date,
+            item.name
+          );
+        }
+      } catch (err) {
+        console.warn("[holiday] DB sync error on announceMany:", err);
+      }
+
       return createdItems;
     }),
 
