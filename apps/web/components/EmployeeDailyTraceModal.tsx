@@ -46,17 +46,26 @@ export function EmployeeDailyTraceModal({
 
   // Prevent background page from scrolling while modal is open
   useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
 
     return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -336,7 +345,7 @@ export function EmployeeDailyTraceModal({
                       <Clock className="h-7 w-7 mx-auto text-neutral-300" />
                       <p className="font-semibold text-neutral-600">No Location Events Recorded</p>
                       <p className="text-[11px]">
-                        The employee has not checked in or sent 1-hour location pings for this date.
+                        The employee has not checked in or recorded GPS pings for this date.
                       </p>
                     </div>
                   ) : (
@@ -350,7 +359,7 @@ export function EmployeeDailyTraceModal({
 
                       let typeBadge = (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">
-                          <Clock className="h-2.5 w-2.5" /> 1h Ping #{idx}
+                          <Clock className="h-2.5 w-2.5" /> GPS Ping #{idx}
                         </span>
                       );
                       if (event.type === "CHECK_IN") {
@@ -423,7 +432,7 @@ export function EmployeeDailyTraceModal({
         <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 bg-neutral-50/80">
           <div className="text-[11px] text-neutral-500 flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
-            <span>Pings automatically log every 1 hour while employee is signed into the portal.</span>
+            <span>GPS traces log automatically while employee is on duty.</span>
           </div>
           <Button
             size="sm"

@@ -3,8 +3,16 @@ import { haversineDistanceM } from "@realty-smartz/shared";
 import type { StoredFix } from "@/lib/geolocation";
 
 interface DutyTrackingPlugin {
-  start(options: { intervalMs?: number; apiUrl?: string }): Promise<{ started: boolean }>;
-  stop(): Promise<{ stopped: boolean }>;
+  start(options: {
+    intervalMs?: number;
+    apiUrl?: string;
+    title?: string;
+    body?: string;
+  }): Promise<{ started: boolean }>;
+  stop(options?: {
+    title?: string;
+    body?: string;
+  }): Promise<{ stopped: boolean }>;
   showNotification(options: { title: string; body: string }): Promise<{ shown?: boolean }>;
   lastKnownFix(): Promise<{
     lat?: number;
@@ -69,14 +77,15 @@ export async function getNativeMockLocationFlag(referenceFix: StoredFix): Promis
   }
 }
 
-/** Start Android foreground location tracking (every 1 hour while on duty). */
-export async function startNativeDutyTracking() {
+/** Start Android background location tracking (every 1 hour while on duty). */
+export async function startNativeDutyTracking(options?: { title?: string; body?: string }) {
   if (!isNativeAndroidApp()) return;
-  if (nativeTrackingStarted) return;
   try {
     await DutyTracking.start({
       intervalMs: DEFAULT_INTERVAL_MS,
       apiUrl: `${window.location.origin}/api/native/location-ping`,
+      title: options?.title,
+      body: options?.body,
     });
     nativeTrackingStarted = true;
   } catch (err) {
@@ -84,12 +93,15 @@ export async function startNativeDutyTracking() {
   }
 }
 
-/** Stop Android foreground location tracking (on clock-out). */
-export async function stopNativeDutyTracking() {
+/** Stop Android background location tracking (on clock-out). */
+export async function stopNativeDutyTracking(options?: { title?: string; body?: string }) {
   if (!isNativeAndroidApp()) return;
   nativeTrackingStarted = false;
   try {
-    await DutyTracking.stop();
+    await DutyTracking.stop({
+      title: options?.title,
+      body: options?.body,
+    });
   } catch (err) {
     console.error("[duty-tracking] stop failed:", err);
   }

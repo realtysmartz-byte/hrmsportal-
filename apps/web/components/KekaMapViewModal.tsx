@@ -39,10 +39,26 @@ export function KekaMapViewModal({
   const [mapProvider, setMapProvider] = useState<"google" | "osm">("google");
 
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -241,7 +257,7 @@ export function KekaMapViewModal({
 
                   {punchItemsWithBadges.length === 0 ? (
                     <div className="p-3 rounded-lg border border-neutral-100 bg-neutral-50 text-center text-xs text-neutral-400">
-                      No 30-min location punches available for this date.
+                      No GPS location traces recorded for this date.
                     </div>
                   ) : (
                     <div className="space-y-2">

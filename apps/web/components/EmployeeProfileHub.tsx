@@ -2031,10 +2031,10 @@ function GpsTrailTab({
           <div>
             <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
               <MapPin className="h-4 w-4 text-[#5D3EBC]" />
-              <span>30-Minute GPS Breadcrumbs Trail</span>
+              <span>GPS Breadcrumbs Trail</span>
             </h3>
             <p className="text-xs text-neutral-500 mt-0.5">
-              Live automated location captures recorded in half-hour intervals while signed in.
+              Automated location captures recorded while on duty.
             </p>
           </div>
 
@@ -2076,24 +2076,24 @@ function GpsTrailTab({
       <div className="rounded-lg border border-neutral-200 bg-white overflow-hidden">
         <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-            Recorded Half-Hour Timestamps ({pings?.length ?? 0})
+            Recorded GPS Timestamps ({pings?.length ?? 0})
           </h4>
           <span className="text-[11px] text-neutral-400 font-medium">
-            Interval: 30 minutes
+            Background GPS Tracking
           </span>
         </div>
 
         {isLoading ? (
           <div className="p-8 text-center text-xs text-neutral-400">
             <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-neutral-300" />
-            Loading 30-minute GPS traces...
+            Loading GPS traces...
           </div>
         ) : !pings || pings.length === 0 ? (
           <div className="p-8 text-center text-xs text-neutral-400">
             <MapPin className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
             <p className="font-semibold text-neutral-700">No GPS logs for this date</p>
             <p className="mt-1">
-              Staff location is automatically recorded every 30 minutes while they are signed in.
+              Staff location is automatically recorded while on duty.
             </p>
           </div>
         ) : (

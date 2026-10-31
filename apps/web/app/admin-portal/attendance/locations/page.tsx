@@ -79,6 +79,35 @@ export default function LocationTracingPage() {
     name: string;
   } | null>(null);
 
+  // Prevent background page from scrolling when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(activeMapPing || assignStaffTarget || traceModalEmployee);
+    if (!isAnyModalOpen) return;
+
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [activeMapPing, assignStaffTarget, traceModalEmployee]);
+
+
   // 1. Fetch live personnel overview (all employees with today's status & latest GPS)
   const {
     data: allStaff,
@@ -162,7 +191,7 @@ export default function LocationTracingPage() {
             Employee Location & GPS Tracking
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
-            Real-time live location, assigned workplace verification, and 30-minute interval breadcrumb traces.
+            Real-time live location, assigned workplace verification, and background GPS breadcrumb traces.
           </p>
         </div>
 
@@ -214,10 +243,10 @@ export default function LocationTracingPage() {
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-              30-Min GPS Traces
+              GPS Traces
             </p>
             <p className="text-xl sm:text-2xl font-extrabold text-neutral-900">{totalPings}</p>
-            <p className="text-[10px] text-neutral-500">Interval captures today</p>
+            <p className="text-[10px] text-neutral-500">Location captures today</p>
           </div>
         </Card>
 
@@ -262,7 +291,7 @@ export default function LocationTracingPage() {
                   : "text-neutral-500 hover:text-neutral-800"
               )}
             >
-              📍 30-Min GPS Traces ({filteredPings.length})
+              📍 GPS Traces ({filteredPings.length})
             </button>
           </div>
 
@@ -432,7 +461,7 @@ export default function LocationTracingPage() {
                       <TableHead className="text-xs font-bold text-neutral-700">Employee</TableHead>
                       <TableHead className="text-xs font-bold text-neutral-700">Assigned Work Site</TableHead>
                       <TableHead className="text-xs font-bold text-neutral-700">Today's Punch Status</TableHead>
-                      <TableHead className="text-xs font-bold text-neutral-700">Latest 30-Min GPS Ping</TableHead>
+                      <TableHead className="text-xs font-bold text-neutral-700">Latest GPS Ping</TableHead>
                       <TableHead className="text-right text-xs font-bold text-neutral-700">Map Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -450,7 +479,7 @@ export default function LocationTracingPage() {
                       const targetLat = ping?.lat ?? att?.checkInLat ?? siteLat;
                       const targetLng = ping?.lng ?? att?.checkInLng ?? siteLng;
                       const targetLabel = ping
-                        ? `30-Min Ping at ${new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                        ? `GPS Ping at ${new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                         : att?.checkInTime
                           ? `Punch-in at ${new Date(att.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                           : siteName;
@@ -673,7 +702,7 @@ export default function LocationTracingPage() {
                         )}
                         {ping && (
                           <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Latest 30m Ping:</span>
+                            <span className="text-neutral-400">Latest GPS Ping:</span>
                             <span className="font-medium text-teal-800">
                               {new Date(ping.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
@@ -748,14 +777,14 @@ export default function LocationTracingPage() {
           {isPingsLoading ? (
             <div className="py-16 text-center text-xs text-neutral-400">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto text-neutral-300 mb-2" />
-              Loading 30-minute location traces...
+              Loading GPS traces...
             </div>
           ) : filteredPings.length === 0 ? (
             <div className="py-16 text-center text-xs text-neutral-400">
               <MapPin className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
               <p className="font-semibold text-neutral-700 text-sm">No GPS Traces Found</p>
               <p className="text-neutral-400 mt-1 max-w-sm mx-auto">
-                No GPS pings were recorded for this date and filter. Personnel pings are generated automatically every 30 minutes while signed in.
+                No GPS pings were recorded for this date and filter. Location traces are recorded automatically during on-duty hours.
               </p>
             </div>
           ) : (

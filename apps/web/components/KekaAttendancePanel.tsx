@@ -256,8 +256,11 @@ export function KekaAttendancePanel({
 
       if (mode === "in") {
         await checkInMutation.mutateAsync(payload);
-        void startNativeDutyTracking();
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const name = session?.user?.name ? ` ${session.user.name}` : "";
+        const title = "✨ Clocked In Successfully!";
+        const body = `Welcome to work${name}! Checked in at ${timeStr} (Realty Smartz Pvt Ltd). Wishing you a productive day!`;
+        void startNativeDutyTracking({ title, body });
         void notifyClockIn({
           employeeName: session?.user?.name || undefined,
           timeStr,
@@ -265,8 +268,11 @@ export function KekaAttendancePanel({
         });
       } else {
         await checkOutMutation.mutateAsync(payload);
-        void stopNativeDutyTracking();
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const name = session?.user?.name ? ` ${session.user.name}` : "";
+        const title = "👋 Clocked Out Successfully!";
+        const body = `Great job today${name}! Clocked out at ${timeStr}. Have a wonderful evening!`;
+        void stopNativeDutyTracking({ title, body });
         void notifyClockOut({
           employeeName: session?.user?.name || undefined,
           timeStr,

@@ -43,6 +43,14 @@ import org.json.JSONObject;
  * Android Doze mode and screen-off suspend using AlarmManager and WakeLock.
  */
 public class DutyTrackingService extends Service {
+
+  private boolean isWithinDutyHours() {
+    java.util.Calendar cal =
+        java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
+    int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
+    // Duty shift is 09:00 AM to 19:00 (7:00 PM IST)
+    return hour >= 9 && hour < 19;
+  }
   public static final String ACTION_START = "in.realtysmartz.hrms.DUTY_START";
   public static final String ACTION_STOP = "in.realtysmartz.hrms.DUTY_STOP";
   public static final String ACTION_ALARM_TICK = "in.realtysmartz.hrms.DUTY_ALARM_TICK";
@@ -113,6 +121,10 @@ public class DutyTrackingService extends Service {
     }
 
     if (ACTION_ALARM_TICK.equals(action)) {
+      if (!isWithinDutyHours()) {
+        stopTracking();
+        return START_NOT_STICKY;
+      }
       if (running) {
         startForegroundNotification();
         performWakefulPing();
@@ -146,6 +158,16 @@ public class DutyTrackingService extends Service {
           NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
     } else {
       startForeground(NOTIFICATION_ID, notification);
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      stopForeground(Service.STOP_FOREGROUND_REMOVE);
+    } else {
+      stopForeground(true);
+    }
+    NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    if (nm != null) {
+      nm.cancel(NOTIFICATION_ID);
     }
   }
 
@@ -184,7 +206,15 @@ public class DutyTrackingService extends Service {
     saveState();
     handler.removeCallbacks(tick);
     cancelAlarm();
-    stopForeground(true);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      stopForeground(Service.STOP_FOREGROUND_REMOVE);
+    } else {
+      stopForeground(true);
+    }
+    NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    if (nm != null) {
+      nm.cancel(NOTIFICATION_ID);
+    }
     stopSelf();
   }
 
@@ -247,12 +277,18 @@ public class DutyTrackingService extends Service {
             wakeLock.acquire(WAKELOCK_TIMEOUT_MS);
           }
           try {
+            if (!isWithinDutyHours()) {
+              stopTracking();
+              return;
+            }
             sendLocationPingIfDue();
           } finally {
-            if (running) {
+            if (running && isWithinDutyHours()) {
               scheduleNextAlarm(intervalMs);
               handler.removeCallbacks(tick);
               handler.postDelayed(tick, intervalMs);
+            } else {
+              stopTracking();
             }
             if (wakeLock != null && wakeLock.isHeld()) {
               wakeLock.release();
@@ -503,9 +539,12 @@ public class DutyTrackingService extends Service {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
     NotificationChannel channel =
         new NotificationChannel(
-            CHANNEL_ID, "On-duty location", NotificationManager.IMPORTANCE_MIN);
-    channel.setDescription("Background location tracking during active duty hours");
+            CHANNEL_ID, "Background Duty Location", NotificationManager.IMPORTANCE_MIN);
+    channel.setDescription("Silent periodic location checks during active duty hours");
     channel.setShowBadge(false);
+    channel.enableLights(false);
+    channel.enableVibration(false);
+    channel.setLockscreenVisibility(Notification.VISIBILITY_SECRET);
     NotificationManager nm = getSystemService(NotificationManager.class);
     if (nm != null) nm.createNotificationChannel(channel);
   }
@@ -521,12 +560,13 @@ public class DutyTrackingService extends Service {
 
     return new NotificationCompat.Builder(this, CHANNEL_ID)
         .setContentTitle("RS HRMS")
-        .setContentText("On duty — location every 1 hour")
+        .setContentText("Background duty tracking")
         .setSmallIcon(R.mipmap.ic_launcher)
         .setOngoing(false)
         .setOnlyAlertOnce(true)
         .setContentIntent(pi)
         .setPriority(NotificationCompat.PRIORITY_MIN)
+        .setVisibility(NotificationCompat.VISIBILITY_SECRET)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
         .build();
   }
