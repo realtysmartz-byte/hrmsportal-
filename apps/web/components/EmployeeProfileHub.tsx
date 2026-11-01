@@ -48,6 +48,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { toast } from "@/lib/toast";
 import { cn, formatDate, fullName, initials } from "@/lib/utils";
 import { DOCUMENT_TYPES, isWeeklyOffDay, HALF_DAY_SLOT_LABELS } from "@realty-smartz/shared";
 import { LocationMap } from "@/components/LocationMap";
@@ -1251,6 +1252,7 @@ function LeaveTab({
   onAdjusted: () => void;
 }) {
   const { data, isLoading } = trpc.leave.forEmployee.useQuery({ employeeId });
+  const { data: allLeaveTypes } = trpc.leave.types.useQuery();
   const [adjustTypeId, setAdjustTypeId] = useState("");
   const [allotted, setAllotted] = useState("");
   const [reason, setReason] = useState("");
@@ -1267,20 +1269,158 @@ function LeaveTab({
     onError: (e) => setError(userFacingErrorMessage(e)),
   });
 
+  const respondMutation = trpc.leave.respond.useMutation({
+    onSuccess: () => {
+      toast("success", "Leave status updated successfully");
+      onAdjusted();
+    },
+    onError: (e) => setError(userFacingErrorMessage(e)),
+  });
+
   if (isLoading) {
     return <p className="text-caption text-neutral-500">Loading leave…</p>;
   }
 
+  const pendingRequests = (data?.requests ?? []).filter((r) => r.status === "PENDING");
+  const availableTypes =
+    allLeaveTypes && allLeaveTypes.length > 0
+      ? allLeaveTypes
+      : (data?.balances.map((b) => b.leaveType) ?? []);
+
   return (
-    <div className="section-gap">
+    <div className="section-gap space-y-4">
+      {/* 1. Pending Leave Requests Section (Prominent Highlight) */}
+      {pendingRequests.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50/40 shadow-xs">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
+              <CardTitle className="text-sm font-bold text-amber-900">
+                Pending Leave Requests ({pendingRequests.length} Waiting for Review)
+              </CardTitle>
+            </div>
+            <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200">
+              Action Required
+            </span>
+          </CardHeader>
+          <CardContent className="space-y-2.5 pt-0">
+            {pendingRequests.map((req) => (
+              <div
+                key={req.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-amber-200/80 bg-white shadow-2xs"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-neutral-900">{req.leaveType.name}</span>
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                      {req.numberOfDays} {req.numberOfDays === 1 ? "day" : "days"} {req.isHalfDay ? `(${req.halfDaySlot})` : ""}
+                    </span>
+                  </div>
+                  <div className="text-xs text-neutral-600 font-medium">
+                    {formatDate(req.startDate)} → {formatDate(req.endDate)}
+                  </div>
+                  <div className="text-xs text-neutral-500 italic">
+                    Reason: &ldquo;{req.reason}&rdquo;
+                  </div>
+                </div>
+
+                {canManage && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold"
+                      disabled={respondMutation.isLoading}
+                      onClick={() => {
+                        const note = window.prompt("Reason for rejection (optional):");
+                        respondMutation.mutate({
+                          id: req.id,
+                          action: "REJECT",
+                          approverNote: note || undefined,
+                        });
+                      }}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs"
+                      disabled={respondMutation.isLoading}
+                      onClick={() => {
+                        respondMutation.mutate({
+                          id: req.id,
+                          action: "APPROVE",
+                        });
+                      }}
+                    >
+                      Approve (Paid Leave)
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 2. Probation 1-Click Setup Banner */}
+      {canManage && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200">
+          <div>
+            <span className="text-xs font-bold text-neutral-800">Probation &amp; Quota Policy:</span>
+            <span className="text-xs text-neutral-500 ml-1.5">
+              Probation candidates have 0 leaves allotted. Click below to quickly assign zero leaves.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={adjust.isLoading}
+            className="text-xs border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold shadow-2xs"
+            onClick={async () => {
+              if (!window.confirm("Set probation quota (0 leaves) for all leave types for this candidate?")) return;
+              const typesToSet = availableTypes.length > 0 ? availableTypes : (data?.balances.map((b) => b.leaveType) ?? []);
+              for (const t of typesToSet) {
+                await adjust.mutateAsync({
+                  employeeId,
+                  leaveTypeId: t.id,
+                  allotted: 0,
+                  reason: "Probation period - 0 leave quota",
+                });
+              }
+              toast("success", "Probation quota (0 leaves) set successfully!");
+            }}
+          >
+            Set Probation (0 Leaves)
+          </Button>
+        </div>
+      )}
+
+      {/* 3. Leave Balance Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(data?.balances ?? []).map((b) => (
-          <Card key={b.id}>
+          <Card key={b.id} className="relative overflow-hidden">
             <CardContent className="pt-5">
-              <p className="font-medium text-neutral-800">{b.leaveType.name}</p>
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-neutral-900 text-sm">{b.leaveType.name}</p>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdjustTypeId(b.leaveTypeId);
+                      setAllotted(String(b.allotted));
+                      setReason(`Adjust quota for ${b.leaveType.name}`);
+                    }}
+                    className="text-[11px] font-semibold text-violet-700 hover:text-violet-800 hover:underline"
+                  >
+                    Edit Quota
+                  </button>
+                )}
+              </div>
               <p className="mt-2 text-caption text-neutral-500">
-                Allotted {b.allotted} · Used {b.used} · Remaining{" "}
-                <span className="font-semibold text-teal-700">{b.remaining}</span>
+                Allotted <span className="font-semibold text-neutral-800">{b.allotted}</span> · Used{" "}
+                <span className="font-semibold text-neutral-800">{b.used}</span> · Remaining{" "}
+                <span className="font-bold text-teal-700">{b.remaining}</span>
               </p>
             </CardContent>
           </Card>
@@ -1288,16 +1428,17 @@ function LeaveTab({
         {!data?.balances.length && (
           <EmptyState
             title="No leave balances"
-            description="Balances are created when leave types exist for the current year."
+            description="No leave balances assigned yet. Use the quota form below to assign leaves or set probation."
             className="sm:col-span-2 lg:col-span-3"
           />
         )}
       </div>
 
-      {canManage && (data?.balances.length ?? 0) > 0 && (
+      {/* 4. Adjust Leave Balance Form */}
+      {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Adjust leave balance</CardTitle>
+            <CardTitle className="text-base font-bold text-neutral-900">Adjust / Assign Leave Quota</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
@@ -1306,20 +1447,21 @@ function LeaveTab({
                 value={adjustTypeId}
                 onChange={(e) => setAdjustTypeId(e.target.value)}
               >
-                <option value="">Select…</option>
-                {data?.balances.map((b) => (
-                  <option key={b.leaveTypeId} value={b.leaveTypeId}>
-                    {b.leaveType.name}
+                <option value="">Select leave type…</option>
+                {availableTypes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
                   </option>
                 ))}
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>New allotted</Label>
+              <Label>Allotted days (0 for probation)</Label>
               <Input
                 type="number"
                 min={0}
                 value={allotted}
+                placeholder="e.g. 0 or 12"
                 onChange={(e) => setAllotted(e.target.value)}
               />
             </div>
@@ -1328,7 +1470,7 @@ function LeaveTab({
               <Input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Correction reason"
+                placeholder="e.g. Probation period, Annual quota adjustment"
               />
             </div>
             {error && (
@@ -1336,12 +1478,12 @@ function LeaveTab({
                 {error}
               </p>
             )}
-            <div className="sm:col-span-2 lg:col-span-4">
+            <div className="sm:col-span-2 lg:col-span-4 flex items-center gap-2">
               <Button
                 disabled={adjust.isLoading}
                 onClick={() => {
-                  if (!adjustTypeId || !allotted || reason.length < 3) {
-                    setError("Select type, allotted days, and a reason (3+ chars).");
+                  if (!adjustTypeId || allotted === "" || reason.length < 3) {
+                    setError("Select type, allotted days (0 or more), and a reason (3+ chars).");
                     return;
                   }
                   adjust.mutate({
@@ -1352,7 +1494,7 @@ function LeaveTab({
                   });
                 }}
               >
-                Save adjustment
+                {adjust.isLoading ? "Saving..." : "Save Quota / Balance"}
               </Button>
             </div>
           </CardContent>

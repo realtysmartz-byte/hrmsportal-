@@ -29,31 +29,34 @@ import {
   Bot,
   Power,
   Banknote,
+  ShieldCheck,
 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
 
 const coreNavItems = [
-  { href: "/admin-portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin-portal/employees", label: "Employees", icon: Users },
-  { href: "/admin-portal/org-chart", label: "Org Chart", icon: Network },
-  { href: "/admin-portal/departments", label: "Departments", icon: Building2 },
-  { href: "/admin-portal/designations", label: "Designations", icon: Briefcase },
-  { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock },
-  { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin },
-  { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation },
-  { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText },
-  { href: "/admin-portal/performance", label: "Performance", icon: Award },
-  { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness },
-  { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote },
+  { href: "/admin-portal/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
+  { href: "/admin-portal/employees", label: "Employees", icon: Users, permission: "employees" },
+  { href: "/admin-portal/org-chart", label: "Org Chart", icon: Network, permission: "org_chart" },
+  { href: "/admin-portal/departments", label: "Departments", icon: Building2, permission: "departments" },
+  { href: "/admin-portal/designations", label: "Designations", icon: Briefcase, permission: "departments" },
+  { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock, permission: "attendance" },
+  { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin, permission: "attendance" },
+  { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation, permission: "attendance" },
+  { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText, permission: "leave" },
+  { href: "/admin-portal/performance", label: "Performance", icon: Award, permission: "performance" },
+  { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness, permission: "recruitment" },
+  { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote, permission: "payroll" },
 ];
 
 const settingsNavItems = [
-  { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText },
-  { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings },
-  { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet },
-  { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail },
-  { href: "/admin-portal/settings/telegram", label: "Automations", icon: Bot },
+  { href: "/admin-portal/settings/staff-permissions", label: "Staff & Permissions", icon: ShieldCheck, adminOnly: true },
+  { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText, permission: "settings" },
+  { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings, permission: "settings" },
+  { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet, permission: "settings" },
+  { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail, permission: "settings" },
+  { href: "/admin-portal/settings/telegram", label: "Automations", icon: Bot, permission: "settings" },
 ];
 
 interface AdminSidebarProps {
@@ -74,6 +77,22 @@ export function AdminSidebar({
   const userInitial = session?.user?.name?.[0] ?? "H";
   const userName = session?.user?.name ?? "HR Admin";
   const userRole = (session?.user?.role ?? "ADMIN").replace("_", " ");
+
+  const { data: permData } = trpc.employee.getMyPermissions.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+
+  const isSuperAdmin = session?.user?.role === "ADMIN" || Boolean(permData?.isSuperAdmin);
+  const userPerms = permData?.permissions ?? ["dashboard", "attendance", "leave"];
+
+  const visibleCoreItems = coreNavItems.filter(
+    (item) => isSuperAdmin || userPerms.includes("*") || userPerms.includes(item.permission)
+  );
+
+  const visibleSettingsItems = settingsNavItems.filter((item) => {
+    if (item.adminOnly) return isSuperAdmin;
+    return isSuperAdmin || userPerms.includes("*") || (item.permission ? userPerms.includes(item.permission) : false);
+  });
 
   return (
     <aside
@@ -158,7 +177,7 @@ export function AdminSidebar({
             </div>
           )}
 
-          {coreNavItems.map((item) => {
+          {visibleCoreItems.map((item) => {
             const active =
               pathname === item.href || (item.href !== "/admin-portal/dashboard" && pathname.startsWith(`${item.href}/`));
             const Icon = item.icon;
@@ -211,7 +230,7 @@ export function AdminSidebar({
             </div>
           )}
 
-          {settingsNavItems.map((item) => {
+          {visibleSettingsItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;

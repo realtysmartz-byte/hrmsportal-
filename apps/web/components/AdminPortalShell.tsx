@@ -14,10 +14,12 @@ import {
   Bell,
   Calendar,
   ChevronDown,
+  KeyRound,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminNotificationBell } from "@/components/AdminNotificationBell";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
+import { AdminChangePasswordModal } from "@/components/AdminChangePasswordModal";
 import { cn } from "@/lib/utils";
 
 interface AdminPortalShellProps {
@@ -28,6 +30,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
@@ -167,6 +170,15 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
             </Link>
             <button
               type="button"
+              onClick={() => setShowChangePasswordModal(true)}
+              className="flex h-8 items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 sm:px-2.5"
+              title="Change Password"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-violet-600" />
+              <span className="hidden sm:inline">Password</span>
+            </button>
+            <button
+              type="button"
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex h-8 items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 text-xs font-bold text-rose-700 hover:bg-rose-100 sm:px-2.5"
             >
@@ -214,6 +226,17 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               <span>{formattedDate}</span>
             </div>
 
+            {/* Change Password Button */}
+            <button
+              type="button"
+              onClick={() => setShowChangePasswordModal(true)}
+              className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors shadow-2xs"
+              title="Change Admin Password & Logout"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-violet-600" />
+              <span>Change Password</span>
+            </button>
+
             {/* User Profile Pill */}
             <Link
               href="/admin-portal/settings/company"
@@ -240,6 +263,11 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
         <InstallGuideModal
           isOpen={showInstallModal}
           onClose={() => setShowInstallModal(false)}
+        />
+
+        <AdminChangePasswordModal
+          isOpen={showChangePasswordModal}
+          onClose={() => setShowChangePasswordModal(false)}
         />
 
         <main

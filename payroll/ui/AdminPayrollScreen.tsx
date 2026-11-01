@@ -92,6 +92,22 @@ export function AdminPayrollScreen() {
   const [newHolidayDate, setNewHolidayDate] = useState("");
   const [newHolidayName, setNewHolidayName] = useState("");
 
+  // Marking Paid state
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [markingEmpId, setMarkingEmpId] = useState<string | null>(null);
+
+  // Lock body scroll when any modal popup is open
+  const isAnyModalOpen = Boolean(showPayoutModal || editingEmp || adjEmpId);
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow || "unset";
+      };
+    }
+  }, [isAnyModalOpen]);
+
   // Fetch Company Account Info
   const fetchCompanyAccount = useCallback(async () => {
     try {
@@ -288,6 +304,67 @@ export function AdminPayrollScreen() {
       toast("error", "Network error while retrying payout");
     } finally {
       setRetryingEmpId(null);
+    }
+  }
+
+  // Mark Individual Employee as Paid / Unpaid
+  async function handleMarkPaid(employeeId: string, status: "paid" | "unpaid") {
+    setMarkingEmpId(employeeId);
+    try {
+      const res = await fetch("/api/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mark-paid",
+          employeeId,
+          month: selectedMonth,
+          year: selectedYear,
+          status,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("success", `Marked as ${status}`);
+        void fetchPayroll(selectedMonth, selectedYear);
+      } else {
+        toast("error", data.error || "Failed to update payout status");
+      }
+    } catch {
+      toast("error", "Network error updating status");
+    } finally {
+      setMarkingEmpId(null);
+    }
+  }
+
+  // Mark All Finalized Employees as Paid for this Month
+  async function handleMarkAllPaid() {
+    if (!window.confirm(`Mark all employees as PAID for ${selectedMonth}/${selectedYear}? This will update the exported sheets to PAID.`)) {
+      return;
+    }
+    setIsMarkingPaid(true);
+    try {
+      const res = await fetch("/api/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mark-paid",
+          employeeId: "all",
+          month: selectedMonth,
+          year: selectedYear,
+          status: "paid",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("success", `All employees marked as PAID for ${selectedMonth}/${selectedYear}`);
+        void fetchPayroll(selectedMonth, selectedYear);
+      } else {
+        toast("error", data.error || "Failed to mark all as paid");
+      }
+    } catch {
+      toast("error", "Network error marking all as paid");
+    } finally {
+      setIsMarkingPaid(false);
     }
   }
 
@@ -490,6 +567,7 @@ export function AdminPayrollScreen() {
       "Total Days",
       "Present Days",
       "Half Days",
+      "Approved Leaves",
       "Absent Days",
       "Late Marks",
       "Weekly Offs",
@@ -516,6 +594,7 @@ export function AdminPayrollScreen() {
       r.total_days_in_month,
       r.present_days,
       r.half_days,
+      r.approved_leave_days,
       r.absent_days,
       r.late_marks,
       r.weekly_off_days,
@@ -739,6 +818,16 @@ export function AdminPayrollScreen() {
 
             {/* Right Action Buttons */}
             <div className="flex flex-wrap items-center gap-2">
+              {payrollRows.length > 0 && (
+                <button
+                  onClick={handleMarkAllPaid}
+                  disabled={isMarkingPaid}
+                  className="text-xs bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
+                >
+                  {isMarkingPaid ? "Updating..." : "Mark All as Paid"}
+                </button>
+              )}
+
               {isFinalized && (
                 <button
                   onClick={() => setShowPayoutModal(true)}
@@ -805,6 +894,7 @@ export function AdminPayrollScreen() {
                     <th className="py-2.5 px-3">Employee</th>
                     <th className="py-2.5 px-2 text-center">Pres</th>
                     <th className="py-2.5 px-2 text-center">Half</th>
+                    <th className="py-2.5 px-2 text-center text-emerald-700">Leaves</th>
                     <th className="py-2.5 px-2 text-center">Abs</th>
                     <th className="py-2.5 px-2 text-center">Late</th>
                     <th className="py-2.5 px-2 text-center font-bold">Paid Days</th>
@@ -819,13 +909,13 @@ export function AdminPayrollScreen() {
                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
                   {isPayrollLoading ? (
                     <tr>
-                      <td colSpan={12} className="text-center py-8 text-neutral-500">
+                      <td colSpan={13} className="text-center py-8 text-neutral-500">
                         Loading payroll data...
                       </td>
                     </tr>
                   ) : payrollRows.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="text-center py-8 text-neutral-500">
+                      <td colSpan={13} className="text-center py-8 text-neutral-500">
                         No payroll generated for this month. Click &quot;Generate Payroll&quot; above.
                       </td>
                     </tr>
@@ -845,6 +935,15 @@ export function AdminPayrollScreen() {
                         </td>
                         <td className="py-2.5 px-2 text-center">{r.present_days}</td>
                         <td className="py-2.5 px-2 text-center">{r.half_days}</td>
+                        <td className="py-2.5 px-2 text-center">
+                          {r.approved_leave_days > 0 ? (
+                            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px] border border-emerald-200" title="Approved Paid Leaves">
+                              {r.approved_leave_days}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-400">0</span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-2 text-center">{r.absent_days}</td>
                         <td className="py-2.5 px-2 text-center">{r.late_marks}</td>
                         <td className="py-2.5 px-2 text-center font-bold text-neutral-900">{r.paid_days}</td>
@@ -904,6 +1003,26 @@ export function AdminPayrollScreen() {
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
+                            {r.payout_status !== "paid" ? (
+                              <button
+                                onClick={() => handleMarkPaid(r.employee_id, "paid")}
+                                disabled={markingEmpId === r.employee_id}
+                                className="text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium rounded px-2 py-0.5 transition-colors"
+                                title="Mark as Paid"
+                              >
+                                {markingEmpId === r.employee_id ? "..." : "Mark Paid"}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleMarkPaid(r.employee_id, "unpaid")}
+                                disabled={markingEmpId === r.employee_id}
+                                className="text-[10px] text-neutral-400 hover:text-neutral-700 underline px-1 py-0.5"
+                                title="Reset to Unpaid"
+                              >
+                                {markingEmpId === r.employee_id ? "..." : "Reset"}
+                              </button>
+                            )}
+
                             {!isFinalized && (
                               <button
                                 onClick={() => setAdjEmpId(r.employee_id)}

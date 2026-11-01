@@ -1641,4 +1641,171 @@ export const employeeRouter = router({
       };
     }
   }),
+
+  changeMyPassword: protectedProcedure
+    .input(
+      z.object({
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const passwordHash = await bcrypt.hash(input.newPassword.trim(), 12);
+      await ctx.prisma.employee.update({
+        where: { id: ctx.session.user.id },
+        data: { passwordHash },
+      });
+      return { success: true };
+    }),
+
+  getMyPermissions: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.session.user.role === "ADMIN") {
+      return { isSuperAdmin: true, permissions: ["*"] };
+    }
+    try {
+      const rows = await ctx.prisma.$queryRaw<any[]>`
+        SELECT permissions FROM admin_user_permissions WHERE employee_id = ${ctx.session.user.id} LIMIT 1
+      `;
+      if (rows.length > 0 && Array.isArray(rows[0].permissions)) {
+        return { isSuperAdmin: false, permissions: rows[0].permissions as string[] };
+      }
+    } catch {
+      // Ignore if table does not exist
+    }
+    // Default HR permissions
+    return {
+      isSuperAdmin: false,
+      permissions: ["dashboard", "employees", "attendance", "leave", "recruitment"],
+    };
+  }),
+
+  listStaffUsers: hrAdminProcedure.query(async ({ ctx }) => {
+    const staff = await ctx.prisma.employee.findMany({
+      where: { role: { in: ["ADMIN", "HR"] } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        employeeCode: true,
+        role: true,
+        status: true,
+        updatedAt: true,
+      },
+      orderBy: [{ role: "asc" }, { firstName: "asc" }],
+    });
+
+    const permMap = new Map<string, string[]>();
+    try {
+      const perms = await ctx.prisma.$queryRaw<any[]>`
+        SELECT employee_id, permissions FROM admin_user_permissions
+      `;
+      for (const p of perms) {
+        permMap.set(p.employee_id, Array.isArray(p.permissions) ? p.permissions : []);
+      }
+    } catch {
+      // Ignore
+    }
+
+    return staff.map((s) => ({
+      ...s,
+      permissions: s.role === "ADMIN" ? ["*"] : (permMap.get(s.id) || ["dashboard", "attendance", "leave"]),
+    }));
+  }),
+
+  createStaffUser: hrAdminProcedure
+    .input(
+      z.object({
+        firstName: z.string().min(1, "First name required"),
+        lastName: z.string().min(1, "Last name required"),
+        email: z.string().email("Valid email required"),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        role: z.enum(["ADMIN", "HR"]).default("HR"),
+        permissions: z.array(z.string()).default([]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const email = input.email.trim().toLowerCase();
+      const existing = await ctx.prisma.employee.findUnique({ where: { email } });
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "User with this email already exists" });
+      }
+
+      const employeeCode = await nextEmployeeCode(ctx.prisma);
+      const passwordHash = await bcrypt.hash(input.password.trim(), 12);
+
+      const employee = await ctx.prisma.employee.create({
+        data: {
+          firstName: input.firstName.trim(),
+          lastName: input.lastName.trim(),
+          email,
+          passwordHash,
+          role: input.role,
+          employeeCode,
+          status: "ACTIVE",
+        },
+      });
+
+      // Save permissions
+      try {
+        await ctx.prisma.$executeRaw`
+          INSERT INTO admin_user_permissions (employee_id, permissions, updated_at)
+          VALUES (${employee.id}, ${input.permissions}, NOW())
+          ON CONFLICT (employee_id) DO UPDATE SET
+            permissions = EXCLUDED.permissions,
+            updated_at = NOW()
+        `;
+      } catch (err) {
+        console.error("Failed to save admin permissions:", err);
+      }
+
+      return {
+        id: employee.id,
+        email: employee.email,
+        employeeCode: employee.employeeCode,
+        role: employee.role,
+      };
+    }),
+
+  updateStaffPermissions: hrAdminProcedure
+    .input(
+      z.object({
+        employeeId: z.string().min(1),
+        permissions: z.array(z.string()),
+        role: z.enum(["ADMIN", "HR"]).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.role) {
+        await ctx.prisma.employee.update({
+          where: { id: input.employeeId },
+          data: { role: input.role },
+        });
+      }
+
+      await ctx.prisma.$executeRaw`
+        INSERT INTO admin_user_permissions (employee_id, permissions, updated_at)
+        VALUES (${input.employeeId}, ${input.permissions}, NOW())
+        ON CONFLICT (employee_id) DO UPDATE SET
+          permissions = EXCLUDED.permissions,
+          updated_at = NOW()
+      `;
+
+      return { success: true };
+    }),
+
+  resetStaffPassword: hrAdminProcedure
+    .input(
+      z.object({
+        employeeId: z.string().min(1),
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const passwordHash = await bcrypt.hash(input.newPassword.trim(), 12);
+      await ctx.prisma.employee.update({
+        where: { id: input.employeeId },
+        data: { passwordHash },
+      });
+      return { success: true };
+    }),
 });

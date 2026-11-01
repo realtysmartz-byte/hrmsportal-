@@ -1,1 +1,34 @@
-[]
+[
+  {
+    "id": "hol-2026-11-07",
+    "name": "Diwali Holidays",
+    "date": "2026-11-07",
+    "dayName": "Saturday",
+    "type": "PUBLIC",
+    "description": null
+  },
+  {
+    "id": "hol-2026-11-08-mvw0i93v-gnk7",
+    "name": "Diwali Holidays",
+    "date": "2026-11-08",
+    "dayName": "Sunday",
+    "type": "PUBLIC",
+    "description": null
+  },
+  {
+    "id": "hol-2026-11-09-mvw0i93v-bjn3",
+    "name": "Diwali Holidays",
+    "date": "2026-11-09",
+    "dayName": "Monday",
+    "type": "PUBLIC",
+    "description": null
+  },
+  {
+    "id": "hol-2026-11-10-mvw0i93v-f7nt",
+    "name": "Diwali Holidays",
+    "date": "2026-11-10",
+    "dayName": "Tuesday",
+    "type": "PUBLIC",
+    "description": null
+  }
+]

@@ -2,7 +2,9 @@ import type { PrismaClient } from "@realty-smartz/db";
 import {
   getEligiblePayrollEmployees,
   getAttendanceLogsForMonth,
+  getApprovedLeavesForMonth,
   type PayrollEmployeeRecord,
+  type PayrollLeaveRecord,
 } from "../config/employeeSource";
 
 export interface PayrollSettings {
@@ -26,6 +28,7 @@ export interface EmployeePayrollRow {
   present_days: number;
   half_days: number;
   absent_days: number;
+  approved_leave_days: number;
   late_marks: number;
   weekly_off_days: number;
   holiday_days: number;
@@ -264,6 +267,15 @@ export async function calculateMonthlyPayroll(
   const monthEnd = new Date(Date.UTC(year, month, 1, 0, 0, 0));
   const attendanceLogs = await getAttendanceLogsForMonth(prisma, employeeIds, monthStart, monthEnd);
 
+  // 9. Read Approved Leaves for the entire month
+  const approvedLeaves = await getApprovedLeavesForMonth(prisma, employeeIds, monthStart, monthEnd);
+  const empLeavesMap = new Map<string, PayrollLeaveRecord[]>();
+  for (const l of approvedLeaves) {
+    const list = empLeavesMap.get(l.employeeId) || [];
+    list.push(l);
+    empLeavesMap.set(l.employeeId, list);
+  }
+
   const empDayAttendanceMap = new Map<string, Map<number, any>>();
   for (const log of attendanceLogs) {
     let dayMap = empDayAttendanceMap.get(log.employeeId);
@@ -312,6 +324,7 @@ export async function calculateMonthlyPayroll(
         present_days: Number(existing.present_days),
         half_days: Number(existing.half_days),
         absent_days: Number(existing.absent_days),
+        approved_leave_days: Number(existing.approved_leave_days || 0),
         late_marks: Number(existing.late_marks),
         weekly_off_days: Number(existing.weekly_off_days),
         holiday_days: Number(existing.holiday_days),
@@ -343,16 +356,18 @@ export async function calculateMonthlyPayroll(
       continue;
     }
 
-    // Dynamic Calculation from Attendance
+    // Dynamic Calculation from Attendance and Approved Leaves
     let presentDays = 0;
     let halfDays = 0;
     let absentDays = 0;
+    let approvedLeaveDays = 0;
     let lateMarks = 0;
     let weeklyOffDays = 0;
     let holidayDays = 0;
     let missingPunchOutCount = 0;
 
     const dayAttendance = empDayAttendanceMap.get(emp.id) || new Map<number, any>();
+    const empLeaves = empLeavesMap.get(emp.id) || [];
 
     for (let day = 1; day <= totalDaysInMonth; day++) {
       const dateObj = new Date(year, month - 1, day);
@@ -371,7 +386,32 @@ export async function calculateMonthlyPayroll(
         continue;
       }
 
+      // Check if employee has an approved leave covering this date
+      const matchingLeave = empLeaves.find((l) => {
+        const sStr = l.startDate.toISOString().slice(0, 10);
+        const eStr = l.endDate.toISOString().slice(0, 10);
+        return dateStr >= sStr && dateStr <= eStr;
+      });
+
       const log = dayAttendance.get(day);
+
+      if (matchingLeave) {
+        if (matchingLeave.isHalfDay) {
+          approvedLeaveDays += 0.5;
+          // If half-day leave, check if employee worked the other half
+          if (log && log.checkInTime) {
+            const hours = Number(log.totalHours || 0);
+            if (hours >= settings.working_hours_half_day || (!log.checkOutTime && log.checkInTime)) {
+              halfDays++;
+            }
+          }
+        } else {
+          // Full-day approved leave (Paid)
+          approvedLeaveDays += 1.0;
+        }
+        continue;
+      }
+
       if (!log || (!log.checkInTime && (log.totalHours === null || log.totalHours === undefined))) {
         absentDays++;
         continue;
@@ -406,7 +446,8 @@ export async function calculateMonthlyPayroll(
     const lateDeductionPeriods = Math.floor(lateMarks / (settings.lates_per_half_day_cut || 3));
     const lateDeductionsDays = lateDeductionPeriods * 0.5;
 
-    let paidDays = presentDays + halfDays * 0.5 + weeklyOffDays + holidayDays - lateDeductionsDays;
+    let paidDays = presentDays + halfDays * 0.5 + approvedLeaveDays + weeklyOffDays + holidayDays - lateDeductionsDays;
+    if (paidDays > totalDaysInMonth) paidDays = totalDaysInMonth;
     if (paidDays < 0) paidDays = 0;
     paidDays = Math.round(paidDays * 100) / 100;
 
@@ -458,6 +499,7 @@ export async function calculateMonthlyPayroll(
       present_days: presentDays,
       half_days: halfDays,
       absent_days: absentDays,
+      approved_leave_days: approvedLeaveDays,
       late_marks: lateMarks,
       weekly_off_days: weeklyOffDays,
       holiday_days: holidayDays,
@@ -507,23 +549,24 @@ export async function finalizeMonthlyPayroll(
       prisma,
       `INSERT INTO payroll_runs (
         id, employee_id, month, year,
-        present_days, half_days, absent_days, late_marks,
+        present_days, half_days, absent_days, approved_leave_days, late_marks,
         weekly_off_days, holiday_days, paid_days,
         per_day_salary, monthly_gross, gross_payable,
         deductions, additions, net_salary,
         missing_punch_out_count, needs_review, status, updated_at
       ) VALUES (
         $1, $2, $3, $4,
-        $5, $6, $7, $8,
-        $9, $10, $11,
-        $12, $13, $14,
-        $15, $16, $17,
-        $18, $19, 'finalized', NOW()
+        $5, $6, $7, $8, $9,
+        $10, $11, $12,
+        $13, $14, $15,
+        $16, $17, $18,
+        $19, $20, 'finalized', NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         present_days = EXCLUDED.present_days,
         half_days = EXCLUDED.half_days,
         absent_days = EXCLUDED.absent_days,
+        approved_leave_days = EXCLUDED.approved_leave_days,
         late_marks = EXCLUDED.late_marks,
         weekly_off_days = EXCLUDED.weekly_off_days,
         holiday_days = EXCLUDED.holiday_days,
@@ -545,6 +588,7 @@ export async function finalizeMonthlyPayroll(
       r.present_days,
       r.half_days,
       r.absent_days,
+      r.approved_leave_days,
       r.late_marks,
       r.weekly_off_days,
       r.holiday_days,

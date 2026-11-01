@@ -13,6 +13,7 @@ interface PayslipItem {
   presentDays: number;
   halfDays: number;
   absentDays: number;
+  approvedLeaveDays?: number;
   lateMarks: number;
   weeklyOffDays: number;
   holidayDays: number;
@@ -186,7 +187,7 @@ export function EmployeePayslipsScreen() {
                 <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2">
                   Attendance Details
                 </h3>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 text-center text-xs">
                   <div className="bg-neutral-50 border border-neutral-200 rounded p-2">
                     <div className="text-[10px] text-neutral-500 font-medium">Present</div>
                     <div className="font-bold text-neutral-900 mt-0.5">{selectedPayslip.presentDays}</div>
@@ -194,6 +195,10 @@ export function EmployeePayslipsScreen() {
                   <div className="bg-neutral-50 border border-neutral-200 rounded p-2">
                     <div className="text-[10px] text-neutral-500 font-medium">Half Days</div>
                     <div className="font-bold text-neutral-900 mt-0.5">{selectedPayslip.halfDays}</div>
+                  </div>
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded p-2">
+                    <div className="text-[10px] text-emerald-700 font-medium">Approved Leaves</div>
+                    <div className="font-bold text-emerald-800 mt-0.5">{selectedPayslip.approvedLeaveDays ?? 0}</div>
                   </div>
                   <div className="bg-neutral-50 border border-neutral-200 rounded p-2">
                     <div className="text-[10px] text-neutral-500 font-medium">Weekly Offs</div>
@@ -207,7 +212,7 @@ export function EmployeePayslipsScreen() {
                     <div className="text-[10px] text-neutral-500 font-medium">Late Marks</div>
                     <div className="font-bold text-neutral-900 mt-0.5">{selectedPayslip.lateMarks}</div>
                   </div>
-                  <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
+                  <div className="bg-emerald-50 border border-emerald-300 rounded p-2">
                     <div className="text-[10px] text-emerald-700 font-bold">Paid Days</div>
                     <div className="font-bold text-emerald-900 mt-0.5">{selectedPayslip.paidDays}</div>
                   </div>

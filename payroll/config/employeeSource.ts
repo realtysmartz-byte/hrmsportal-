@@ -63,6 +63,60 @@ export interface PayrollAttendanceRecord {
   status: string;
 }
 
+export interface PayrollLeaveRecord {
+  id: string;
+  employeeId: string;
+  startDate: Date;
+  endDate: Date;
+  numberOfDays: number;
+  isHalfDay: boolean;
+  status: string;
+}
+
+/**
+ * Reads approved leaves for the given employee ID list and date range using LeaveRequest.
+ */
+export async function getApprovedLeavesForMonth(
+  prisma: PrismaClient,
+  employeeIds: string[],
+  startDate: Date,
+  endDate: Date
+): Promise<PayrollLeaveRecord[]> {
+  try {
+    const leaves = await prisma.leaveRequest.findMany({
+      where: {
+        employeeId: { in: employeeIds },
+        status: "APPROVED",
+        startDate: { lt: endDate },
+        endDate: { gte: startDate },
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        startDate: true,
+        endDate: true,
+        numberOfDays: true,
+        isHalfDay: true,
+        status: true,
+      },
+      orderBy: { startDate: "asc" },
+    });
+
+    return leaves.map((l: any) => ({
+      id: l.id,
+      employeeId: l.employeeId,
+      startDate: l.startDate,
+      endDate: l.endDate,
+      numberOfDays: Number(l.numberOfDays || 1),
+      isHalfDay: Boolean(l.isHalfDay),
+      status: l.status,
+    }));
+  } catch (error) {
+    console.error("[PAYROLL_DB_ERROR] Failed to fetch approved leaves:", error);
+    return [];
+  }
+}
+
 /**
  * Reads all active employees eligible for payroll using the configured mappings.
  * Strictly excludes any Admin or HR accounts.
