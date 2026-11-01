@@ -172,13 +172,13 @@ export const employeeRouter = router({
           { role: "EMPLOYEE" as Role },
           search
             ? {
-              OR: [
-                { firstName: { contains: search, mode: "insensitive" as const } },
-                { lastName: { contains: search, mode: "insensitive" as const } },
-                { email: { contains: search, mode: "insensitive" as const } },
-                { employeeCode: { contains: search, mode: "insensitive" as const } },
-              ],
-            }
+                OR: [
+                  { firstName: { contains: search, mode: "insensitive" as const } },
+                  { lastName: { contains: search, mode: "insensitive" as const } },
+                  { email: { contains: search, mode: "insensitive" as const } },
+                  { employeeCode: { contains: search, mode: "insensitive" as const } },
+                ],
+              }
             : {},
           departmentId ? { departmentId } : {},
           status ? { status } : {},
@@ -241,14 +241,14 @@ export const employeeRouter = router({
       const canViewSensitive = visibility === "FULL";
       const statusHistory = canManageEmployees(actor.role as Role)
         ? await ctx.prisma.employeeJobHistory.findFirst({
-          where: {
-            employeeId: employee.id,
-            fieldChanged: "status",
-            newValue: employee.status,
-          },
-          orderBy: { effectiveDate: "desc" },
-          select: { effectiveDate: true },
-        })
+            where: {
+              employeeId: employee.id,
+              fieldChanged: "status",
+              newValue: employee.status,
+            },
+            orderBy: { effectiveDate: "desc" },
+            select: { effectiveDate: true },
+          })
         : null;
 
       const { passwordHash: _, ...safe } = employee;
@@ -323,56 +323,56 @@ export const employeeRouter = router({
         await Promise.all([
           canViewSensitive
             ? ctx.prisma.employeeJobHistory.findMany({
-              where: { employeeId: employee.id },
-              include: {
-                changedBy: {
-                  select: { id: true, firstName: true, lastName: true },
+                where: { employeeId: employee.id },
+                include: {
+                  changedBy: {
+                    select: { id: true, firstName: true, lastName: true },
+                  },
                 },
-              },
-              orderBy: { effectiveDate: "desc" },
-              take: 20,
-            })
+                orderBy: { effectiveDate: "desc" },
+                take: 20,
+              })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.attendanceLog.findMany({
-              where: { employeeId: employee.id },
-              orderBy: { date: "desc" },
-              take: 5,
-            })
+                where: { employeeId: employee.id },
+                orderBy: { date: "desc" },
+                take: 5,
+              })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.leaveRequest.findMany({
-              where: { employeeId: employee.id },
-              include: { leaveType: true },
-              orderBy: { appliedAt: "desc" },
-              take: 3,
-            })
+                where: { employeeId: employee.id },
+                include: { leaveType: true },
+                orderBy: { appliedAt: "desc" },
+                take: 3,
+              })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.leaveBalance.findMany({
-              where: { employeeId: employee.id, year },
-              include: { leaveType: true },
-            })
+                where: { employeeId: employee.id, year },
+                include: { leaveType: true },
+              })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.attendanceLog.findMany({
-              where: {
-                employeeId: employee.id,
-                date: { gte: monthStart, lte: monthEnd },
-              },
-              select: { status: true },
-            })
+                where: {
+                  employeeId: employee.id,
+                  date: { gte: monthStart, lte: monthEnd },
+                },
+                select: { status: true },
+              })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.employeeJobHistory.findFirst({
-              where: {
-                employeeId: employee.id,
-                fieldChanged: "status",
-                newValue: employee.status,
-              },
-              orderBy: { effectiveDate: "desc" },
-              select: { effectiveDate: true },
-            })
+                where: {
+                  employeeId: employee.id,
+                  fieldChanged: "status",
+                  newValue: employee.status,
+                },
+                orderBy: { effectiveDate: "desc" },
+                select: { effectiveDate: true },
+              })
             : Promise.resolve(null),
         ]);
 
@@ -402,7 +402,7 @@ export const employeeRouter = router({
           0,
           Math.floor(
             (Date.now() - employee.dateOfJoining.getTime()) /
-            (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24)
           )
         );
       }
@@ -603,12 +603,12 @@ export const employeeRouter = router({
             const single =
               input.workLocationLat != null && input.workLocationLng != null
                 ? [
-                  {
-                    name: input.workLocationName || "Assigned site",
-                    lat: input.workLocationLat,
-                    lng: input.workLocationLng,
-                  },
-                ]
+                    {
+                      name: input.workLocationName || "Assigned site",
+                      lat: input.workLocationLat,
+                      lng: input.workLocationLng,
+                    },
+                  ]
                 : [];
             return syncLegacyWorkLocation(single);
           })(),
@@ -659,11 +659,11 @@ export const employeeRouter = router({
             department: employee.department?.name,
             dateOfJoining: employee.dateOfJoining
               ? employee.dateOfJoining.toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                timeZone: "Asia/Kolkata",
-              })
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  timeZone: "Asia/Kolkata",
+                })
               : null,
             email: employee.email,
             phone: employee.phone,
@@ -982,23 +982,23 @@ export const employeeRouter = router({
       const effectiveDate = statusEffectiveDate ?? new Date();
       const latestStatusHistory =
         data.status !== undefined &&
-          (statusChanged || statusEffectiveDate != null)
+        (statusChanged || statusEffectiveDate != null)
           ? await ctx.prisma.employeeJobHistory.findFirst({
-            where: {
-              employeeId: id,
-              fieldChanged: "status",
-              newValue: nextStatus,
-            },
-            orderBy: { effectiveDate: "desc" },
-            select: { effectiveDate: true },
-          })
+              where: {
+                employeeId: id,
+                fieldChanged: "status",
+                newValue: nextStatus,
+              },
+              orderBy: { effectiveDate: "desc" },
+              select: { effectiveDate: true },
+            })
           : null;
       const shouldWriteStatusHistory =
         statusChanged ||
         (statusEffectiveDate != null &&
           (!latestStatusHistory ||
             latestStatusHistory.effectiveDate.toISOString().slice(0, 10) !==
-            effectiveDate.toISOString().slice(0, 10)));
+              effectiveDate.toISOString().slice(0, 10)));
       const employee = await ctx.prisma.$transaction(async (tx) => {
         const updated = await tx.employee.update({
           where: { id },
@@ -1372,83 +1372,83 @@ export const employeeRouter = router({
 
   getUpcomingBirthdays: protectedProcedure.query(
     async ({ ctx }): Promise<UpcomingBirthdayItem[]> => {
-      if (
-        upcomingBirthdaysCache &&
-        Date.now() - upcomingBirthdaysCache.at < UPCOMING_BIRTHDAYS_TTL_MS
-      ) {
-        return upcomingBirthdaysCache.data;
-      }
+    if (
+      upcomingBirthdaysCache &&
+      Date.now() - upcomingBirthdaysCache.at < UPCOMING_BIRTHDAYS_TTL_MS
+    ) {
+      return upcomingBirthdaysCache.data;
+    }
 
-      const employees = await ctx.prisma.employee.findMany({
-        where: {
-          status: { in: ["ACTIVE", "ON_LEAVE"] },
-          dateOfBirth: { not: null },
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          profilePhotoUrl: true,
-          dateOfBirth: true,
-          department: { select: { name: true } },
-          designation: { select: { title: true } },
-        },
-        take: 200,
+    const employees = await ctx.prisma.employee.findMany({
+      where: {
+        status: { in: ["ACTIVE", "ON_LEAVE"] },
+        dateOfBirth: { not: null },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        profilePhotoUrl: true,
+        dateOfBirth: true,
+        department: { select: { name: true } },
+        designation: { select: { title: true } },
+      },
+      take: 200,
+    });
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const today = new Date(currentYear, now.getMonth(), now.getDate());
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+
+    const upcoming: {
+      id: string;
+      name: string;
+      firstName: string;
+      lastName: string;
+      profilePhotoUrl: string | null;
+      department: string | null;
+      designation: string | null;
+      birthdayDate: string;
+      isToday: boolean;
+      daysUntil: number;
+    }[] = [];
+
+    for (const emp of employees) {
+      if (!emp.dateOfBirth) continue;
+      const dob = new Date(emp.dateOfBirth);
+      const birthMonth = dob.getMonth();
+      const birthDay = dob.getDate();
+      let nextBirthday = new Date(currentYear, birthMonth, birthDay);
+      if (nextBirthday.getTime() < today.getTime()) {
+        nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
+      }
+      const diffDays = Math.round(
+        (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      if (diffDays < 0 || diffDays > 30) continue;
+      upcoming.push({
+        id: emp.id,
+        name: `${emp.firstName} ${emp.lastName}`.trim(),
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        profilePhotoUrl: emp.profilePhotoUrl,
+        department: emp.department?.name ?? null,
+        designation: emp.designation?.title ?? null,
+        birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
+        isToday: diffDays === 0,
+        daysUntil: diffDays,
       });
+    }
 
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const today = new Date(currentYear, now.getMonth(), now.getDate());
-      const monthNames = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December",
-      ];
-
-      const upcoming: {
-        id: string;
-        name: string;
-        firstName: string;
-        lastName: string;
-        profilePhotoUrl: string | null;
-        department: string | null;
-        designation: string | null;
-        birthdayDate: string;
-        isToday: boolean;
-        daysUntil: number;
-      }[] = [];
-
-      for (const emp of employees) {
-        if (!emp.dateOfBirth) continue;
-        const dob = new Date(emp.dateOfBirth);
-        const birthMonth = dob.getMonth();
-        const birthDay = dob.getDate();
-        let nextBirthday = new Date(currentYear, birthMonth, birthDay);
-        if (nextBirthday.getTime() < today.getTime()) {
-          nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
-        }
-        const diffDays = Math.round(
-          (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        if (diffDays < 0 || diffDays > 30) continue;
-        upcoming.push({
-          id: emp.id,
-          name: `${emp.firstName} ${emp.lastName}`.trim(),
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          profilePhotoUrl: emp.profilePhotoUrl,
-          department: emp.department?.name ?? null,
-          designation: emp.designation?.title ?? null,
-          birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
-          isToday: diffDays === 0,
-          daysUntil: diffDays,
-        });
-      }
-
-      upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
-      const result = upcoming.slice(0, 12);
-      upcomingBirthdaysCache = { at: Date.now(), data: result };
-      return result;
-    }),
+    upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+    const result = upcoming.slice(0, 12);
+    upcomingBirthdaysCache = { at: Date.now(), data: result };
+    return result;
+  }),
 
   notifications: protectedProcedure.query(async ({ ctx }) => {
     const role = ctx.session.user.role as Role;
@@ -1518,11 +1518,11 @@ export const employeeRouter = router({
           }),
           role === "ADMIN" || role === "HR"
             ? ctx.prisma.candidate.findMany({
-              where: { currentStage: "APPLIED" },
-              include: { jobPosting: { select: { title: true } } },
-              orderBy: { appliedAt: "desc" },
-              take: 5,
-            })
+                where: { currentStage: "APPLIED" },
+                include: { jobPosting: { select: { title: true } } },
+                orderBy: { appliedAt: "desc" },
+                take: 5,
+              })
             : Promise.resolve([]),
         ]);
 
