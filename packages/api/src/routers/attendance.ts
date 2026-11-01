@@ -1740,6 +1740,7 @@ export const attendanceRouter = router({
 
       const events: TraceEvent[] = [];
 
+      // 1. Check-In event
       if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
         events.push({
           id: `in-${log.id}`,
@@ -1753,7 +1754,22 @@ export const attendanceRouter = router({
         });
       }
 
+      // 2. Periodic GPS Tracking Pings (deduplicated against punch-in/out and spam clusters)
+      const checkInMs = log?.checkInTime ? new Date(log.checkInTime).getTime() : null;
+      const checkOutMs = log?.checkOutTime ? new Date(log.checkOutTime).getTime() : null;
+
+      let lastPingTimeMs = 0;
       for (const p of pings) {
+        const pingTimeMs = new Date(p.capturedAt).getTime();
+
+        // Skip duplicate pings that coincide with check-in or check-out (within 60 seconds)
+        if (checkInMs && Math.abs(pingTimeMs - checkInMs) < 60_000) continue;
+        if (checkOutMs && Math.abs(pingTimeMs - checkOutMs) < 60_000) continue;
+
+        // Skip rapid clustered pings closer than 10 minutes from each other
+        if (lastPingTimeMs > 0 && Math.abs(pingTimeMs - lastPingTimeMs) < 10 * 60_000) continue;
+
+        lastPingTimeMs = pingTimeMs;
         events.push({
           id: `ping-${p.id}`,
           type: "PING",
@@ -1765,6 +1781,7 @@ export const attendanceRouter = router({
         });
       }
 
+      // 3. Check-Out event
       if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
         events.push({
           id: `out-${log.id}`,

@@ -44,51 +44,28 @@ export function EmployeeDailyTraceModal({
 
   const [selectedEventIndex, setSelectedEventIndex] = useState<number>(0);
 
-  // Prevent background page from scrolling while modal is open
+  // Absolute freeze of background page while modal is open
   useEffect(() => {
+    const scrollY = window.scrollY;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
     const originalBodyOverflow = document.body.style.overflow;
     const originalHtmlOverflow = document.documentElement.style.overflow;
 
-    document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-
-    // Intercept wheel events so they NEVER propagate to the window/document behind the modal
-    const onWheelHandler = (e: WheelEvent) => {
-      let el = e.target as HTMLElement | null;
-      let scrollable: HTMLElement | null = null;
-      while (el && el !== document.body && el !== document.documentElement) {
-        if (el.scrollHeight > el.clientHeight) {
-          const overflowY = window.getComputedStyle(el).overflowY;
-          if (overflowY === "auto" || overflowY === "scroll") {
-            scrollable = el;
-            break;
-          }
-        }
-        el = el.parentElement;
-      }
-
-      if (!scrollable) {
-        e.preventDefault();
-        return;
-      }
-
-      // Prevent overscroll chaining to background window
-      const isDown = e.deltaY > 0;
-      const isUp = e.deltaY < 0;
-      const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1;
-      const atTop = scrollable.scrollTop <= 1;
-
-      if ((isDown && atBottom) || (isUp && atTop)) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener("wheel", onWheelHandler, { passive: false });
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = originalBodyOverflow;
       document.documentElement.style.overflow = originalHtmlOverflow;
-      window.removeEventListener("wheel", onWheelHandler);
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      document.body.style.overflow = originalBodyOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 

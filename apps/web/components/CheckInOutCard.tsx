@@ -229,6 +229,7 @@ export function CheckInOutCard() {
       setGpsStatus(mode === "in" ? "active" : "ready");
       if (mode === "in") {
         const res = await checkIn.mutateAsync(payload);
+        try { localStorage.setItem("rs_last_location_ping_at", String(Date.now())); } catch {}
         if (res && "quote" in res && typeof res.quote === "string") {
           setPunchQuote(res.quote);
         }
@@ -244,6 +245,7 @@ export function CheckInOutCard() {
         });
       } else {
         await checkOut.mutateAsync(payload);
+        try { localStorage.setItem("rs_last_location_ping_at", String(Date.now())); } catch {}
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         const name = session?.user?.name ? ` ${session.user.name}` : "";
         const durationStr = elapsed > 0 ? formatDuration(elapsed) : undefined;

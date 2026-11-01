@@ -17,8 +17,8 @@ export type StoredFix = {
 export type PunchFix = StoredFix & { accuracy: number };
 
 const FIX_MAX_AGE_MS = 2 * 60_000;
-const WATCH_BUDGET_MS = 2_500;
-const GOOD_ACCURACY_M = 250;
+const WATCH_BUDGET_MS = 3_500;
+const GOOD_ACCURACY_M = 35;
 
 let latestFix: StoredFix | null = null;
 let watchId: number | null = null;
@@ -226,31 +226,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
       if (watchTimer != null) clearTimeout(watchTimer);
     };
 
-    // Fast path: cached OS/cell position returned in 50-200ms
-    try {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          storeFix(pos);
-          const fix: StoredFix = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
-            timestamp: pos.timestamp || Date.now(),
-          };
-          if (!isUsablePunchFix(fix)) return;
-          if (!best || fix.accuracy < best.accuracy) best = fix;
-          if (fix.accuracy <= GOOD_ACCURACY_M) {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            resolve(fix);
-          }
-        },
-        () => {},
-        { enableHighAccuracy: false, maximumAge: 60_000, timeout: 2_000 }
-      );
-    } catch {}
-
+    // Listen to live GPS hardware via watchPosition for the highest precision fix
     id = navigator.geolocation.watchPosition(
       (pos) => {
         const fix: StoredFix = {
@@ -261,9 +237,10 @@ export function acquirePunchFix(): Promise<PunchFix> {
         };
         storeFix(pos);
         if (!isUsablePunchFix(fix)) return;
-        if (!best || fix.accuracy < best.accuracy) {
+        if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
           best = fix;
         }
+        // If accuracy is high precision (under 35 meters), resolve immediately
         if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
           if (settled) return;
           settled = true;
@@ -279,7 +256,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
           reject(err);
         }
       },
-      { enableHighAccuracy: true, maximumAge: 15_000, timeout: WATCH_BUDGET_MS }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: WATCH_BUDGET_MS }
     );
 
     watchTimer = setTimeout(() => {
@@ -321,20 +298,14 @@ export function getCurrentPosition(fresh = false): Promise<GeolocationPosition> 
       reject(new Error("Geolocation is not supported by this browser"));
       return;
     }
-    // High-accuracy GPS first with smooth fallback to network
+    // Pure hardware GPS fix
     navigator.geolocation.getCurrentPosition(
       resolve,
-      () => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: false,
-          timeout: 8000,
-          maximumAge: 60_000,
-        });
-      },
+      reject,
       {
         enableHighAccuracy: true,
-        timeout: 10_000,
-        maximumAge: 15_000,
+        timeout: 8_000,
+        maximumAge: 0,
       }
     );
   });
