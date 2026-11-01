@@ -186,6 +186,7 @@ export const authOptions: NextAuthOptions = {
             role: employee.role,
             employeeCode: employee.employeeCode,
             image: safePicture(employee.profilePhotoUrl),
+            loginAt: Date.now(),
           };
         } catch (error) {
           if (
@@ -264,7 +265,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, account }) {
-      const STATUS_RECHECK_MS = 5 * 60 * 1000;
+      const STATUS_RECHECK_MS = 2000;
 
       if (user) {
         if (account?.provider === "google" && user.email) {
@@ -290,6 +291,7 @@ export const authOptions: NextAuthOptions = {
             token.status = employee.status;
             token.picture = safePicture(employee.profilePhotoUrl || user.image);
             token.statusCheckedAt = Date.now();
+            token.loginAt = Date.now();
           }
         } else {
           token.id = user.id;
@@ -298,6 +300,7 @@ export const authOptions: NextAuthOptions = {
           token.email = user.email;
           token.picture = safePicture((user as { image?: string }).image);
           token.statusCheckedAt = Date.now();
+          token.loginAt = (user as { loginAt?: number }).loginAt || Date.now();
         }
         delete token.error;
       }
@@ -323,26 +326,52 @@ export const authOptions: NextAuthOptions = {
         token.status = employee.status;
         token.picture = safePicture(employee.profilePhotoUrl || token.picture);
         token.statusCheckedAt = Date.now();
+        token.loginAt = Date.now();
       }
 
-      // Re-check EXIT/TERMINATED/RESIGNED at most every 5 minutes (was every request = slow login/UI)
+      // REGULAR EMPLOYEES: Never expire on admin password changes. Stay logged in!
+      if (token.role === "EMPLOYEE") {
+        return token;
+      }
+
+      // FOR ADMIN & HR ROLES: Detect password change and expire previous sessions
       const checkedAt = Number(token.statusCheckedAt ?? 0);
       if (token.id && !token.error && Date.now() - checkedAt > STATUS_RECHECK_MS) {
         try {
-          const employee = await prisma.employee.findUnique({
-            where: { id: String(token.id) },
-            select: {
-              status: true,
-              role: true,
-              employeeCode: true,
-              email: true,
-              profilePhotoUrl: true,
-            },
-          });
+          const [employee, permRows] = await Promise.all([
+            prisma.employee.findUnique({
+              where: { id: String(token.id) },
+              select: {
+                status: true,
+                role: true,
+                employeeCode: true,
+                email: true,
+                profilePhotoUrl: true,
+              },
+            }),
+            prisma.$queryRaw<any[]>`
+              SELECT password_changed_at FROM admin_user_permissions WHERE employee_id = ${String(token.id)} LIMIT 1
+            `.catch(() => []),
+          ]);
+
           token.statusCheckedAt = Date.now();
           if (!employee || !canEmployeeLogin(employee.status)) {
             return { error: "AccountInactive" };
           }
+
+          // If password was changed for this admin, expire sessions created before that change
+          const passChangedAt = permRows?.[0]?.password_changed_at;
+          if (passChangedAt) {
+            const changedTime = new Date(passChangedAt).getTime();
+            const tokenLoginTime = Number(token.loginAt || 0);
+            if (tokenLoginTime < changedTime) {
+              console.log(
+                `[auth] Admin session expired for ${token.email}: login time (${tokenLoginTime}) is before password change (${changedTime})`
+              );
+              return { error: "SessionExpired" };
+            }
+          }
+
           token.role = employee.role;
           token.employeeCode = employee.employeeCode;
           token.email = employee.email;
@@ -356,11 +385,11 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (token.error === "AccountInactive") {
+      if (token.error === "AccountInactive" || token.error === "SessionExpired" || !token.id) {
         return {
           ...session,
           user: undefined as unknown as typeof session.user,
-          error: "AccountInactive",
+          error: token.error || "SessionExpired",
         };
       }
       if (session.user && token.id) {

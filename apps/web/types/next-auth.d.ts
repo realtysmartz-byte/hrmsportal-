@@ -7,12 +7,14 @@ declare module "next-auth" {
       role: string;
       employeeCode: string;
     } & DefaultSession["user"];
-    error?: "AccountInactive";
+    error?: "AccountInactive" | "SessionExpired";
   }
 
   interface User {
     role: string;
     employeeCode: string;
+    pwdSig?: string;
+    loginAt?: number;
   }
 }
 
@@ -24,6 +26,8 @@ declare module "next-auth/jwt" {
     picture?: string | null;
     status?: string;
     statusCheckedAt?: number;
-    error?: "AccountInactive";
+    pwdSig?: string;
+    loginAt?: number;
+    error?: "AccountInactive" | "SessionExpired";
   }
 }

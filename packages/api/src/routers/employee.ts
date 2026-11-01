@@ -1649,11 +1649,26 @@ export const employeeRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
       const passwordHash = await bcrypt.hash(input.newPassword.trim(), 12);
       await ctx.prisma.employee.update({
-        where: { id: ctx.session.user.id },
+        where: { id: userId },
         data: { passwordHash },
       });
+
+      // Update password_changed_at in admin_user_permissions to immediately invalidate active sessions for this admin
+      try {
+        await ctx.prisma.$executeRaw`
+          INSERT INTO admin_user_permissions (employee_id, password_changed_at, updated_at)
+          VALUES (${userId}, NOW(), NOW())
+          ON CONFLICT (employee_id) DO UPDATE SET
+            password_changed_at = NOW(),
+            updated_at = NOW()
+        `;
+      } catch (err) {
+        console.error("Failed to update admin password_changed_at:", err);
+      }
+
       return { success: true };
     }),
 
@@ -1806,6 +1821,20 @@ export const employeeRouter = router({
         where: { id: input.employeeId },
         data: { passwordHash },
       });
+
+      // Update password_changed_at in admin_user_permissions to immediately invalidate active sessions for this staff member
+      try {
+        await ctx.prisma.$executeRaw`
+          INSERT INTO admin_user_permissions (employee_id, password_changed_at, updated_at)
+          VALUES (${input.employeeId}, NOW(), NOW())
+          ON CONFLICT (employee_id) DO UPDATE SET
+            password_changed_at = NOW(),
+            updated_at = NOW()
+        `;
+      } catch (err) {
+        console.error("Failed to update staff password_changed_at:", err);
+      }
+
       return { success: true };
     }),
 });

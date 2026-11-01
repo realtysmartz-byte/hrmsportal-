@@ -13,6 +13,9 @@ export default async function EmployeePortalLayout({
   if (session.error === "AccountInactive") {
     redirect("/login?error=AccountInactive");
   }
+  if (session.error === "SessionExpired") {
+    redirect("/login?error=SessionExpired");
+  }
 
   return (
     <div className="min-h-dvh bg-[#F9F7FD] lg:bg-[#F5F2FC]">

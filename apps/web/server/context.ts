@@ -18,11 +18,12 @@ export async function createTRPCContext(opts?: {
   const session = await getServerSession(authOptions);
   const ip = clientIp(opts?.req);
 
-  // Incomplete JWT or inactive account (EXIT / TERMINATED / RESIGNED)
+  // Incomplete JWT, session expired (e.g. password changed), or inactive account
   if (
     !session?.user?.id ||
     !session.user.email ||
-    session.error === "AccountInactive"
+    session.error === "AccountInactive" ||
+    session.error === "SessionExpired"
   ) {
     return createContext({ prisma, session: null, ip, afterResponse: opts?.afterResponse });
   }

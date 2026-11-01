@@ -30,9 +30,15 @@ export async function middleware(req: NextRequest) {
     req,
     secret: process.env.NEXTAUTH_SECRET,
   });
-  if (!token) {
+  if (!token || token.error || !token.id) {
     const signInUrl = new URL("/login", req.url);
-    signInUrl.searchParams.set("callbackUrl", req.nextUrl.href);
+    if (token?.error === "SessionExpired") {
+      signInUrl.searchParams.set("error", "SessionExpired");
+    } else if (token?.error === "AccountInactive") {
+      signInUrl.searchParams.set("error", "AccountInactive");
+    } else {
+      signInUrl.searchParams.set("callbackUrl", req.nextUrl.href);
+    }
     return NextResponse.redirect(signInUrl);
   }
 

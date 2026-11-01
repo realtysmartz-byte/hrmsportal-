@@ -16,6 +16,9 @@ export default async function AdminPortalLayout({
   if (session.error === "AccountInactive") {
     redirect("/login?error=AccountInactive");
   }
+  if (session.error === "SessionExpired") {
+    redirect("/login?error=SessionExpired");
+  }
 
   if (!canAccessAdminPortal(session.user.role as Role)) {
     redirect("/employee-portal/dashboard");

@@ -33,6 +33,8 @@ const GOOGLE_ERRORS: Record<string, string> = {
     "Google sign-in is for employees only. Admin/HR must use email & password.",
   AccountInactive:
     "Your account is inactive (Terminated / Resigned / Exit). You cannot log in until HR sets status to Active.",
+  SessionExpired:
+    "Your password was changed or your session expired. Please sign in with your new password.",
   OAuthAccountNotLinked:
     "This Google account could not be linked. Use your company email.",
   AccessDenied: "Google sign-in was denied.",
