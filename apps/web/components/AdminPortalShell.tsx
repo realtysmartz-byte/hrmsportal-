@@ -32,7 +32,14 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status === "unauthenticated" || (session as any)?.error === "SessionExpired") {
+      window.location.href = "/login?error=SessionExpired";
+    }
+  }, [status, session]);
   const router = useRouter();
   const [query, setQuery] = useState("");
 

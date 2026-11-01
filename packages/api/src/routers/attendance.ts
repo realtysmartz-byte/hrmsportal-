@@ -1405,6 +1405,7 @@ export const attendanceRouter = router({
       const employees = await ctx.prisma.employee.findMany({
         where: {
           status: "ACTIVE",
+          role: "EMPLOYEE",
           ...(role === "MANAGER" ? { managerId: resolveEmployeeId(ctx) } : {}),
         },
         select: {

@@ -136,7 +136,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() => getTRPCClient());
 
   return (
-    <SessionProvider refetchOnWindowFocus={false} refetchInterval={5 * 60}>
+    <SessionProvider refetchOnWindowFocus={true} refetchInterval={10}>
       <AccountStatusGuard />
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
