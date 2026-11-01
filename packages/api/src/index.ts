@@ -65,6 +65,7 @@ export {
   notifyLeaveApplied,
   notifyLeaveDecision,
   notifyLeaveCancelled,
+  notifyLocationDisabledAlert,
   testSmtpConnection,
   getSmtpConfig,
   getAdminNotifyEmails,

@@ -207,7 +207,6 @@ export function CheckInOutCard() {
 
   async function punch(mode: "in" | "out") {
     if (busy) return;
-    if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
     setError("");
     setBusy(true);
     setPhase("locating");

@@ -9,29 +9,32 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const MIN_TRACKING_PING_GAP_MS = 50 * 60 * 1000; // 50 minutes debounce for 1 hour tracking
-const locationPingBodySchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  accuracyM: z.number().positive().lt(50_000),
-  fixTimestamp: z.coerce.date(),
-  isMockLocation: z.boolean().optional(),
-}).superRefine((value, ctx) => {
-  const timestamp = value.fixTimestamp.getTime();
-  const now = Date.now();
-  if (timestamp > now) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Location fix timestamp cannot be in the future",
-      path: ["fixTimestamp"],
-    });
-  } else if (now - timestamp > 5 * 60_000) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Location fix is older than 5 minutes",
-      path: ["fixTimestamp"],
-    });
-  }
-});
+
+const locationPingBodySchema = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracyM: z.number().positive().lt(50_000),
+    fixTimestamp: z.coerce.date(),
+    isMockLocation: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const timestamp = value.fixTimestamp.getTime();
+    const now = Date.now();
+    if (timestamp > now + 120_000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Location fix timestamp cannot be in the future",
+        path: ["fixTimestamp"],
+      });
+    } else if (now - timestamp > 15 * 60_000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Location fix is older than 15 minutes",
+        path: ["fixTimestamp"],
+      });
+    }
+  });
 
 function clientIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -114,7 +117,7 @@ export async function POST(req: Request) {
   if (!address || address.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) {
     try {
       address = await reverseGeocodePunchAddress(fix.lat, fix.lng);
-    } catch {}
+    } catch { }
   }
   if (!address) {
     address = geo.matched?.name ?? `${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;

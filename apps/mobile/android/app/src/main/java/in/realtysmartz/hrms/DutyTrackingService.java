@@ -159,16 +159,6 @@ public class DutyTrackingService extends Service {
     } else {
       startForeground(NOTIFICATION_ID, notification);
     }
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      stopForeground(Service.STOP_FOREGROUND_REMOVE);
-    } else {
-      stopForeground(true);
-    }
-    NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-    if (nm != null) {
-      nm.cancel(NOTIFICATION_ID);
-    }
   }
 
   private void startTracking() {
@@ -222,13 +212,11 @@ public class DutyTrackingService extends Service {
     AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
     if (am == null) return;
 
-    Intent intent = new Intent(this, DutyTrackingService.class);
+    Intent intent = new Intent(this, DutyTrackingReceiver.class);
     intent.setAction(ACTION_ALARM_TICK);
-    intent.putExtra(EXTRA_INTERVAL_MS, intervalMs);
-    intent.putExtra(EXTRA_API_URL, apiUrl);
 
     PendingIntent pi =
-        PendingIntent.getService(
+        PendingIntent.getBroadcast(
             this,
             ALARM_REQUEST_CODE,
             intent,
@@ -252,10 +240,10 @@ public class DutyTrackingService extends Service {
   private void cancelAlarm() {
     AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
     if (am == null) return;
-    Intent intent = new Intent(this, DutyTrackingService.class);
+    Intent intent = new Intent(this, DutyTrackingReceiver.class);
     intent.setAction(ACTION_ALARM_TICK);
     PendingIntent pi =
-        PendingIntent.getService(
+        PendingIntent.getBroadcast(
             this,
             ALARM_REQUEST_CODE,
             intent,
@@ -290,9 +278,19 @@ public class DutyTrackingService extends Service {
             } else {
               stopTracking();
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+              stopForeground(Service.STOP_FOREGROUND_REMOVE);
+            } else {
+              stopForeground(true);
+            }
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+              nm.cancel(NOTIFICATION_ID);
+            }
             if (wakeLock != null && wakeLock.isHeld()) {
               wakeLock.release();
             }
+            stopSelf();
           }
         });
   }
@@ -315,12 +313,78 @@ public class DutyTrackingService extends Service {
     sendLocationPing();
   }
 
+    private void reportLocationDisabled(String reason) {
+    SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+    long lastAlertAt = prefs.getLong("last_location_disabled_alert_at", 0L);
+    long now = System.currentTimeMillis();
+    if (now - lastAlertAt < 30 * 60 * 1000L) {
+      return;
+    }
+    prefs.edit().putLong("last_location_disabled_alert_at", now).apply();
+
+    executor.execute(
+        () -> {
+          try {
+            JSONObject body = new JSONObject();
+            body.put("reason", reason);
+            body.put(
+                "deviceInfo",
+                "Android App ("
+                    + Build.MANUFACTURER
+                    + " "
+                    + Build.MODEL
+                    + ", Android "
+                    + Build.VERSION.RELEASE
+                    + ")");
+
+            URL url = new URL("https://rshrms.in/api/native/location-disabled");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(15000);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            String cookie = CookieManager.getInstance().getCookie("https://rshrms.in");
+            if (cookie == null || cookie.isEmpty()) {
+              cookie = prefs.getString("auth_cookie", null);
+            }
+            if (cookie != null && !cookie.isEmpty()) {
+              conn.setRequestProperty("Cookie", cookie);
+            }
+
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
+            try (OutputStream os = conn.getOutputStream()) {
+              os.write(bytes);
+            }
+            conn.getResponseCode();
+          } catch (Exception ignored) {
+          }
+        });
+  }
+
   private void sendLocationPing() {
     try {
-      if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-              != PackageManager.PERMISSION_GRANTED
-          && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-              != PackageManager.PERMISSION_GRANTED) {
+      LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
+      boolean finePerm =
+          ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+              == PackageManager.PERMISSION_GRANTED;
+      boolean coarsePerm =
+          ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+              == PackageManager.PERMISSION_GRANTED;
+      boolean isGpsEnabled =
+          lm != null
+              && (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                  || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
+
+      if (!finePerm && !coarsePerm) {
+        reportLocationDisabled("Location permission revoked on device while on active duty");
+        return;
+      }
+
+      if (!isGpsEnabled) {
+        reportLocationDisabled("Device GPS / Location switched OFF in Android quick settings while on active duty");
         return;
       }
 
@@ -336,7 +400,7 @@ public class DutyTrackingService extends Service {
       body.put("lat", loc.getLatitude());
       body.put("lng", loc.getLongitude());
       body.put("accuracyM", loc.getAccuracy());
-      body.put("fixTimestamp", loc.getTime());
+      body.put("fixTimestamp", System.currentTimeMillis());
       body.put("isMockLocation", isMockFix(loc));
       body.put(
           "address",
@@ -359,6 +423,9 @@ public class DutyTrackingService extends Service {
       String cookie = CookieManager.getInstance().getCookie("https://rshrms.in");
       if (cookie == null || cookie.length() == 0) {
         cookie = CookieManager.getInstance().getCookie(apiUrl);
+      }
+      if (cookie == null || cookie.length() == 0) {
+        cookie = getSharedPreferences(PREFS, MODE_PRIVATE).getString("auth_cookie", null);
       }
       if (cookie != null && cookie.length() > 0) {
         conn.setRequestProperty("Cookie", cookie);
@@ -561,7 +628,7 @@ public class DutyTrackingService extends Service {
     return new NotificationCompat.Builder(this, CHANNEL_ID)
         .setContentTitle("RS HRMS")
         .setContentText("Background duty tracking")
-        .setSmallIcon(R.mipmap.ic_launcher)
+        .setSmallIcon(R.drawable.ic_stat_notification)
         .setOngoing(false)
         .setOnlyAlertOnce(true)
         .setContentIntent(pi)
@@ -572,10 +639,20 @@ public class DutyTrackingService extends Service {
   }
 
   @Override
+  public void onTaskRemoved(Intent rootIntent) {
+    super.onTaskRemoved(rootIntent);
+    // When employee swipes the app away from recent apps, ensure alarm is still intact
+    if (running && isWithinDutyHours()) {
+      scheduleNextAlarm(intervalMs);
+    }
+  }
+
+  @Override
   public void onDestroy() {
-    running = false;
     handler.removeCallbacks(tick);
-    cancelAlarm();
+    if (!running) {
+      cancelAlarm();
+    }
     executor.shutdownNow();
     super.onDestroy();
   }

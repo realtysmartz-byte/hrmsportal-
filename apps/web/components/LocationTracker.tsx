@@ -77,12 +77,15 @@ export function LocationTracker() {
 
     function handleError(err: GeolocationPositionError) {
       if (cancelled) return;
-      if (err.code === err.PERMISSION_DENIED) {
+      if (err.code === err.PERMISSION_DENIED || err.code === err.POSITION_UNAVAILABLE) {
         setStatus("denied");
-        if (!hasReportedRef.current) {
+        if (!hasReportedRef.current && isOnDuty) {
           hasReportedRef.current = true;
           reportRef.current({
-            reason: "Employee turned off device location / denied permission",
+            reason:
+              err.code === err.PERMISSION_DENIED
+                ? "Employee denied location permission while on active duty"
+                : "Employee turned off device GPS / Location in phone settings while on active duty",
             deviceInfo: navigator.userAgent,
           });
         }
@@ -106,6 +109,7 @@ export function LocationTracker() {
           const now = Date.now();
           writeLastPingAt(now);
           setLastAt(new Date(pos.timestamp));
+          hasReportedRef.current = false;
           setStatus("on");
         }
         return true;
@@ -166,17 +170,8 @@ export function LocationTracker() {
       };
     }
 
-    // Android APK: native foreground service owns the 1-hour pings — do not also ping from WebView on every open
     if (nativeApp) {
       void startNativeDutyTracking();
-      navigator.geolocation.getCurrentPosition(
-        () => !cancelled && setStatus("on"),
-        handleError,
-        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 }
-      );
-      return () => {
-        cancelled = true;
-      };
     }
 
     // Web browser: never ping just because the page opened.

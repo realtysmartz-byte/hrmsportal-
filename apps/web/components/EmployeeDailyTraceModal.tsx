@@ -44,17 +44,51 @@ export function EmployeeDailyTraceModal({
 
   const [selectedEventIndex, setSelectedEventIndex] = useState<number>(0);
 
-    // Prevent background page from scrolling while modal is open
+  // Prevent background page from scrolling while modal is open
   useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    // Intercept wheel events so they NEVER propagate to the window/document behind the modal
+    const onWheelHandler = (e: WheelEvent) => {
+      let el = e.target as HTMLElement | null;
+      let scrollable: HTMLElement | null = null;
+      while (el && el !== document.body && el !== document.documentElement) {
+        if (el.scrollHeight > el.clientHeight) {
+          const overflowY = window.getComputedStyle(el).overflowY;
+          if (overflowY === "auto" || overflowY === "scroll") {
+            scrollable = el;
+            break;
+          }
+        }
+        el = el.parentElement;
+      }
+
+      if (!scrollable) {
+        e.preventDefault();
+        return;
+      }
+
+      // Prevent overscroll chaining to background window
+      const isDown = e.deltaY > 0;
+      const isUp = e.deltaY < 0;
+      const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1;
+      const atTop = scrollable.scrollTop <= 1;
+
+      if ((isDown && atBottom) || (isUp && atTop)) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("wheel", onWheelHandler, { passive: false });
 
     return () => {
-      document.body.style.overflow = originalOverflow || "";
-      document.documentElement.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      window.removeEventListener("wheel", onWheelHandler);
     };
   }, []);
 
@@ -105,8 +139,15 @@ export function EmployeeDailyTraceModal({
   }, [log]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4 overscroll-contain" onWheel={(e) => e.stopPropagation()}>
-      <div className="relative flex flex-col w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-lg bg-white overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4 overscroll-contain"
+      style={{ touchAction: "none" }}
+      onWheel={(e) => {
+        // Prevent event chaining to page background
+        e.stopPropagation();
+      }}
+    >
+      <div className="relative flex flex-col w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-lg bg-white overflow-hidden overscroll-contain">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 bg-neutral-50/70">
           <div className="flex items-center gap-3">
@@ -167,7 +208,7 @@ export function EmployeeDailyTraceModal({
             Failed to load trace information. Please try again.
           </div>
         ) : (
-          <div className="flex flex-col flex-1 overflow-y-auto lg:overflow-hidden">
+          <div className="flex flex-col flex-1 overflow-y-auto lg:overflow-hidden overscroll-contain">
             {/* Day KPI Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 sm:px-5 py-3 bg-white border-b border-neutral-100 text-xs shrink-0">
               <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
@@ -328,7 +369,7 @@ export function EmployeeDailyTraceModal({
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[220px] max-h-[380px] lg:max-h-[500px]">
+                <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[220px] max-h-[380px] lg:max-h-[500px] overscroll-contain">
                   {events.length === 0 ? (
                     <div className="py-12 text-center text-xs text-neutral-400 space-y-2">
                       <Clock className="h-7 w-7 mx-auto text-neutral-300" />

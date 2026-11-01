@@ -34,7 +34,7 @@ public class DutyTrackingPlugin extends Plugin {
         }
       }
 
-      String channelId = "hrms_alerts_v3";
+      String channelId = "hrms_punch_alerts_v5";
       NotificationManager nm =
           (NotificationManager)
               getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
@@ -44,7 +44,7 @@ public class DutyTrackingPlugin extends Plugin {
                 channelId, "Attendance & Duty Alerts", NotificationManager.IMPORTANCE_HIGH);
         channel.setDescription("Clock In, Clock Out and System notifications");
         channel.enableVibration(true);
-        channel.setVibrationPattern(new long[] {0, 250, 150, 250});
+        channel.setVibrationPattern(new long[] {0, 300, 200, 300});
         channel.setShowBadge(true);
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 
@@ -72,10 +72,11 @@ public class DutyTrackingPlugin extends Plugin {
               .setContentTitle(title != null ? title : "RS HRMS")
               .setContentText(body)
               .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
-              .setSmallIcon(R.mipmap.ic_launcher)
+              .setSmallIcon(R.drawable.ic_stat_notification)
               .setAutoCancel(true)
               .setContentIntent(pi)
               .setPriority(NotificationCompat.PRIORITY_MAX)
+              .setCategory(NotificationCompat.CATEGORY_EVENT)
               .setDefaults(NotificationCompat.DEFAULT_ALL)
               .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
               .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
@@ -83,6 +84,7 @@ public class DutyTrackingPlugin extends Plugin {
       if (nm != null) {
         int notifId = (int) (System.currentTimeMillis() % 100000);
         nm.notify(notifId, builder.build());
+        android.util.Log.i("DutyTracking", "Device notification displayed: " + title);
       }
     } catch (Exception e) {
       android.util.Log.e("DutyTracking", "Failed to show notification: " + e.getMessage());
@@ -91,8 +93,18 @@ public class DutyTrackingPlugin extends Plugin {
 
   @PluginMethod
   public void start(PluginCall call) {
-    int intervalMs = call.getInt("intervalMs", 60 * 60 * 1000);
+    long intervalMs = call.getLong("intervalMs", 60 * 60 * 1000L);
     String apiUrl = call.getString("apiUrl", "https://rshrms.in/api/native/location-ping");
+
+    try {
+      android.webkit.CookieManager.getInstance().flush();
+      String cookie = android.webkit.CookieManager.getInstance().getCookie("https://rshrms.in");
+      if (cookie != null && !cookie.isEmpty()) {
+        android.content.SharedPreferences prefs =
+            getContext().getSharedPreferences("duty_tracking", android.content.Context.MODE_PRIVATE);
+        prefs.edit().putString("auth_cookie", cookie).apply();
+      }
+    } catch (Exception ignored) {}
 
     String title = call.getString("title", null);
     String body = call.getString("body", null);
