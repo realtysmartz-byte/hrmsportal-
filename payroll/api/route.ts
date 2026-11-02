@@ -543,6 +543,156 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
+    // 8a. Edit Calculation (Manual Override for Glitches / Login Issues)
+    if (action === "edit-calculation") {
+      const {
+        employeeId,
+        month,
+        year,
+        presentDays,
+        halfDays,
+        absentDays,
+        approvedLeaveDays,
+        lateMarks,
+        weeklyOffDays,
+        holidayDays,
+        paidDays,
+        monthlyGross,
+        perDaySalary,
+        grossPayable,
+        deductions,
+        additions,
+        netSalary,
+        notes,
+      } = body;
+
+      const m = Number(month);
+      const y = Number(year);
+      if (!employeeId || !m || !y) {
+        return NextResponse.json({ error: "employeeId, month, and year are required" }, { status: 400 });
+      }
+
+      // Check if payout is already paid
+      const payouts = await safeQueryRaw<any>(
+        prisma,
+        "payroll_payouts",
+        `SELECT status FROM payroll_payouts WHERE employee_id = $1 AND month = $2 AND year = $3 LIMIT 1`,
+        employeeId,
+        m,
+        y
+      );
+      if (payouts.length > 0 && String(payouts[0].status).toLowerCase() === "paid") {
+        return NextResponse.json(
+          { error: "Salary has already been marked as Paid. Please reset payout to Unpaid before modifying calculations." },
+          { status: 400 }
+        );
+      }
+
+      // Check existing run status
+      const existingRuns = await safeQueryRaw<any>(
+        prisma,
+        "payroll_runs",
+        `SELECT status FROM payroll_runs WHERE employee_id = $1 AND month = $2 AND year = $3 LIMIT 1`,
+        employeeId,
+        m,
+        y
+      );
+      const currentStatus = existingRuns.length > 0 && existingRuns[0].status === "finalized" ? "finalized" : "draft";
+
+      const runId = `run_${employeeId}_${m}_${y}`;
+      await safeExecuteRaw(
+        prisma,
+        `INSERT INTO payroll_runs (
+          id, employee_id, month, year,
+          present_days, half_days, absent_days, approved_leave_days, late_marks,
+          weekly_off_days, holiday_days, paid_days,
+          per_day_salary, monthly_gross, gross_payable,
+          deductions, additions, net_salary,
+          missing_punch_out_count, needs_review, status, updated_at,
+          is_manual_override, notes
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5, $6, $7, $8, $9,
+          $10, $11, $12,
+          $13, $14, $15,
+          $16, $17, $18,
+          0, false, $19, NOW(),
+          true, $20
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          present_days = EXCLUDED.present_days,
+          half_days = EXCLUDED.half_days,
+          absent_days = EXCLUDED.absent_days,
+          approved_leave_days = EXCLUDED.approved_leave_days,
+          late_marks = EXCLUDED.late_marks,
+          weekly_off_days = EXCLUDED.weekly_off_days,
+          holiday_days = EXCLUDED.holiday_days,
+          paid_days = EXCLUDED.paid_days,
+          per_day_salary = EXCLUDED.per_day_salary,
+          monthly_gross = EXCLUDED.monthly_gross,
+          gross_payable = EXCLUDED.gross_payable,
+          deductions = EXCLUDED.deductions,
+          additions = EXCLUDED.additions,
+          net_salary = EXCLUDED.net_salary,
+          status = EXCLUDED.status,
+          updated_at = NOW(),
+          is_manual_override = true,
+          notes = EXCLUDED.notes`,
+        runId,
+        employeeId,
+        m,
+        y,
+        Number(presentDays) || 0,
+        Number(halfDays) || 0,
+        Number(absentDays) || 0,
+        Number(approvedLeaveDays) || 0,
+        Number(lateMarks) || 0,
+        Number(weeklyOffDays) || 0,
+        Number(holidayDays) || 0,
+        Number(paidDays) || 0,
+        Number(perDaySalary) || 0,
+        Number(monthlyGross) || 0,
+        Number(grossPayable) || 0,
+        Number(deductions) || 0,
+        Number(additions) || 0,
+        Number(netSalary) || 0,
+        currentStatus,
+        notes || "Manual calculation adjustment"
+      );
+
+      await logAudit("PAYROLL_MANUAL_OVERRIDE", session.user.id, {
+        employeeId,
+        month: m,
+        year: y,
+        paidDays,
+        netSalary,
+        notes,
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    // 8b. Reset Calculation to System Auto
+    if (action === "reset-calculation") {
+      const { employeeId, month, year } = body;
+      const m = Number(month);
+      const y = Number(year);
+      if (!employeeId || !m || !y) {
+        return NextResponse.json({ error: "employeeId, month, and year are required" }, { status: 400 });
+      }
+
+      await safeExecuteRaw(
+        prisma,
+        `DELETE FROM payroll_runs WHERE employee_id = $1 AND month = $2 AND year = $3`,
+        employeeId,
+        m,
+        y
+      );
+
+      await logAudit("PAYROLL_RESET_TO_AUTO", session.user.id, { employeeId, month: m, year: y });
+      return NextResponse.json({ success: true });
+    }
+
     // 8b. Mark as Paid (Manual Payout Confirmation for Individual or All)
     if (action === "mark-paid") {
       const { month, year, employeeId, status = "paid", notes } = body;

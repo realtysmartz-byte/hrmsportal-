@@ -35,6 +35,22 @@ interface CompanyAccountInfo {
   isSandbox: boolean;
 }
 
+const months = [
+  "",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 export function AdminPayrollScreen() {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -97,7 +113,28 @@ export function AdminPayrollScreen() {
   const [markingEmpId, setMarkingEmpId] = useState<string | null>(null);
 
   // Lock body scroll when any modal popup is open
-  const isAnyModalOpen = Boolean(showPayoutModal || editingEmp || adjEmpId);
+  // Edit Calculation Modal state (for punch glitches / login issues)
+  const [editingRow, setEditingRow] = useState<EmployeePayrollRow | null>(null);
+  const [editPresentDays, setEditPresentDays] = useState<number>(0);
+  const [editHalfDays, setEditHalfDays] = useState<number>(0);
+  const [editAbsentDays, setEditAbsentDays] = useState<number>(0);
+  const [editApprovedLeaveDays, setEditApprovedLeaveDays] = useState<number>(0);
+  const [editLateMarks, setEditLateMarks] = useState<number>(0);
+  const [editWeeklyOffDays, setEditWeeklyOffDays] = useState<number>(0);
+  const [editHolidayDays, setEditHolidayDays] = useState<number>(0);
+  const [editPaidDays, setEditPaidDays] = useState<number>(0);
+  const [editMonthlyGross, setEditMonthlyGross] = useState<number>(0);
+  const [editPerDaySalary, setEditPerDaySalary] = useState<number>(0);
+  const [editGrossPayable, setEditGrossPayable] = useState<number>(0);
+  const [editDeductions, setEditDeductions] = useState<number>(0);
+  const [editAdditions, setEditAdditions] = useState<number>(0);
+  const [editNetSalary, setEditNetSalary] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState<string>("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isResettingEdit, setIsResettingEdit] = useState(false);
+
+  // Lock body scroll when any modal popup is open
+  const isAnyModalOpen = Boolean(showPayoutModal || editingEmp || adjEmpId || editingRow);
   useEffect(() => {
     if (isAnyModalOpen) {
       const originalOverflow = document.body.style.overflow;
@@ -476,6 +513,101 @@ export function AdminPayrollScreen() {
     }
   }
 
+  // Open Edit Calculation Modal
+  function handleOpenEditCalculation(r: EmployeePayrollRow) {
+    setEditingRow(r);
+    setEditPresentDays(r.present_days);
+    setEditHalfDays(r.half_days);
+    setEditAbsentDays(r.absent_days);
+    setEditApprovedLeaveDays(r.approved_leave_days);
+    setEditLateMarks(r.late_marks);
+    setEditWeeklyOffDays(r.weekly_off_days);
+    setEditHolidayDays(r.holiday_days);
+    setEditPaidDays(r.paid_days);
+    setEditMonthlyGross(r.monthly_gross);
+    setEditPerDaySalary(r.per_day_salary);
+    setEditGrossPayable(r.gross_payable);
+    setEditDeductions(r.deductions);
+    setEditAdditions(r.additions);
+    setEditNetSalary(r.net_salary);
+    setEditNotes(r.notes || "");
+  }
+
+  // Save Edit Calculation
+  async function handleSaveCalculationEdit() {
+    if (!editingRow) return;
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch("/api/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "edit-calculation",
+          employeeId: editingRow.employee_id,
+          month: selectedMonth,
+          year: selectedYear,
+          presentDays: editPresentDays,
+          halfDays: editHalfDays,
+          absentDays: editAbsentDays,
+          approvedLeaveDays: editApprovedLeaveDays,
+          lateMarks: editLateMarks,
+          weeklyOffDays: editWeeklyOffDays,
+          holidayDays: editHolidayDays,
+          paidDays: editPaidDays,
+          monthlyGross: editMonthlyGross,
+          perDaySalary: editPerDaySalary,
+          grossPayable: editGrossPayable,
+          deductions: editDeductions,
+          additions: editAdditions,
+          netSalary: editNetSalary,
+          notes: editNotes,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("success", "Calculation updated successfully");
+        setEditingRow(null);
+        void fetchPayroll(selectedMonth, selectedYear);
+      } else {
+        toast("error", data.error || "Failed to update calculation");
+      }
+    } catch {
+      toast("error", "Network error updating calculation");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  // Reset Calculation to dynamic punch logs
+  async function handleResetCalculation() {
+    if (!editingRow) return;
+    setIsResettingEdit(true);
+    try {
+      const res = await fetch("/api/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reset-calculation",
+          employeeId: editingRow.employee_id,
+          month: selectedMonth,
+          year: selectedYear,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("success", "Reset to system attendance calculation");
+        setEditingRow(null);
+        void fetchPayroll(selectedMonth, selectedYear);
+      } else {
+        toast("error", data.error || "Failed to reset calculation");
+      }
+    } catch {
+      toast("error", "Network error resetting calculation");
+    } finally {
+      setIsResettingEdit(false);
+    }
+  }
+
   // Add Holiday
   async function handleAddHoliday(e: React.FormEvent) {
     e.preventDefault();
@@ -704,8 +836,8 @@ export function AdminPayrollScreen() {
             </div>
             <span
               className={`px-2 py-0.5 rounded text-[10px] font-bold ${companyAccount?.isSandbox
-                  ? "bg-amber-100 text-amber-800 border border-amber-300"
-                  : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                ? "bg-amber-100 text-amber-800 border border-amber-300"
+                : "bg-emerald-100 text-emerald-800 border border-emerald-300"
                 }`}
             >
               {companyAccount?.isSandbox ? "SANDBOX MODE" : "LIVE ACCOUNT"}
@@ -718,8 +850,8 @@ export function AdminPayrollScreen() {
           <button
             onClick={() => setActiveTab("payroll")}
             className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${activeTab === "payroll"
-                ? "border-neutral-900 text-neutral-900 font-semibold"
-                : "border-transparent text-neutral-500 hover:text-neutral-700"
+              ? "border-neutral-900 text-neutral-900 font-semibold"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
               }`}
           >
             Payroll Runs
@@ -727,8 +859,8 @@ export function AdminPayrollScreen() {
           <button
             onClick={() => setActiveTab("salaries")}
             className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeTab === "salaries"
-                ? "border-neutral-900 text-neutral-900 font-semibold"
-                : "border-transparent text-neutral-500 hover:text-neutral-700"
+              ? "border-neutral-900 text-neutral-900 font-semibold"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
               }`}
           >
             <span>Salaries &amp; Bank Details</span>
@@ -739,8 +871,8 @@ export function AdminPayrollScreen() {
           <button
             onClick={() => setActiveTab("settings")}
             className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${activeTab === "settings"
-                ? "border-neutral-900 text-neutral-900 font-semibold"
-                : "border-transparent text-neutral-500 hover:text-neutral-700"
+              ? "border-neutral-900 text-neutral-900 font-semibold"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
               }`}
           >
             Policy Settings
@@ -748,8 +880,8 @@ export function AdminPayrollScreen() {
           <button
             onClick={() => setActiveTab("holidays")}
             className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${activeTab === "holidays"
-                ? "border-neutral-900 text-neutral-900 font-semibold"
-                : "border-transparent text-neutral-500 hover:text-neutral-700"
+              ? "border-neutral-900 text-neutral-900 font-semibold"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
               }`}
           >
             Paid Holidays
@@ -924,13 +1056,21 @@ export function AdminPayrollScreen() {
                         <td className="py-2.5 px-3">
                           <div className="font-semibold text-neutral-900 flex items-center gap-1.5 flex-wrap">
                             <span>{r.name}</span>
+                            {r.is_manual_override && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                title={r.notes || "Manually adjusted calculation"}
+                              >
+                                Edited
+                              </span>
+                            )}
                             {r.separation_type && (
                               <span
                                 className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${r.separation_type === "TERMINATED"
-                                    ? "bg-rose-50 text-rose-700 border-rose-200"
-                                    : r.separation_type === "RESIGNED"
-                                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                                      : "bg-purple-50 text-purple-700 border-purple-200"
+                                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                                  : r.separation_type === "RESIGNED"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-purple-50 text-purple-700 border-purple-200"
                                   }`}
                                 title={`Prorated up to separation date: ${r.separation_date ? new Date(r.separation_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}`}
                               >
@@ -938,7 +1078,7 @@ export function AdminPayrollScreen() {
                                   ? "Terminated"
                                   : r.separation_type === "RESIGNED"
                                     ? "Resigned"
-                                  : "Absconding"}
+                                    : "Absconding"}
                                 {r.separation_date
                                   ? ` (${new Date(r.separation_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })})`
                                   : ""}
@@ -1023,46 +1163,55 @@ export function AdminPayrollScreen() {
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {r.payout_status !== "paid" ? (
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               <button
-                                onClick={() => handleMarkPaid(r.employee_id, "paid")}
-                                disabled={markingEmpId === r.employee_id}
-                                className="text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium rounded px-2 py-0.5 transition-colors"
-                                title="Mark as Paid"
+                                type="button"
+                                onClick={() => handleOpenEditCalculation(r)}
+                                className="text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-300 font-medium rounded px-2 py-0.5 transition-colors"
+                                title="Edit attendance & salary calculation"
                               >
-                                {markingEmpId === r.employee_id ? "..." : "Mark Paid"}
+                                Edit
                               </button>
-                            ) : (
-                              <button
-                                onClick={() => handleMarkPaid(r.employee_id, "unpaid")}
-                                disabled={markingEmpId === r.employee_id}
-                                className="text-[10px] text-neutral-400 hover:text-neutral-700 underline px-1 py-0.5"
-                                title="Reset to Unpaid"
-                              >
-                                {markingEmpId === r.employee_id ? "..." : "Reset"}
-                              </button>
-                            )}
 
-                            {!isFinalized && (
-                              <button
-                                onClick={() => setAdjEmpId(r.employee_id)}
-                                className="text-[11px] text-neutral-600 hover:text-neutral-900 border border-neutral-300 rounded px-2 py-0.5"
-                              >
-                                Adjust
-                              </button>
-                            )}
+                              {r.payout_status !== "paid" ? (
+                                <button
+                                  onClick={() => handleMarkPaid(r.employee_id, "paid")}
+                                  disabled={markingEmpId === r.employee_id}
+                                  className="text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium rounded px-2 py-0.5 transition-colors"
+                                  title="Mark as Paid"
+                                >
+                                  {markingEmpId === r.employee_id ? "..." : "Mark Paid"}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleMarkPaid(r.employee_id, "unpaid")}
+                                  disabled={markingEmpId === r.employee_id}
+                                  className="text-[10px] text-neutral-400 hover:text-neutral-700 underline px-1 py-0.5"
+                                  title="Reset to Unpaid"
+                                >
+                                  {markingEmpId === r.employee_id ? "..." : "Reset"}
+                                </button>
+                              )}
 
-                            {r.payout_status === "failed" && (
-                              <button
-                                onClick={() => handleRetryPayout(r.employee_id)}
-                                disabled={retryingEmpId === r.employee_id}
-                                className="text-[11px] bg-rose-600 hover:bg-rose-500 text-white font-medium rounded px-2 py-0.5"
-                              >
-                                {retryingEmpId === r.employee_id ? "..." : "Retry"}
-                              </button>
-                            )}
-                          </div>
+                              {!isFinalized && (
+                                <button
+                                  onClick={() => setAdjEmpId(r.employee_id)}
+                                  className="text-[11px] text-neutral-600 hover:text-neutral-900 border border-neutral-300 rounded px-2 py-0.5"
+                                >
+                                  Adjust
+                                </button>
+                              )}
+
+                              {r.payout_status === "failed" && (
+                                <button
+                                  onClick={() => handleRetryPayout(r.employee_id)}
+                                  disabled={retryingEmpId === r.employee_id}
+                                  className="text-[11px] bg-rose-600 hover:bg-rose-500 text-white font-medium rounded px-2 py-0.5"
+                                >
+                                  {retryingEmpId === r.employee_id ? "..." : "Retry"}
+                                </button>
+                              )}
+                            </div>
                         </td>
                       </tr>
                     ))
@@ -1656,8 +1805,8 @@ export function AdminPayrollScreen() {
                     type="button"
                     onClick={() => setAdjType("bonus")}
                     className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "bonus"
-                        ? "bg-emerald-50 border-emerald-500 text-emerald-800"
-                        : "border-neutral-300 text-neutral-600"
+                      ? "bg-emerald-50 border-emerald-500 text-emerald-800"
+                      : "border-neutral-300 text-neutral-600"
                       }`}
                   >
                     Bonus (+)
@@ -1666,8 +1815,8 @@ export function AdminPayrollScreen() {
                     type="button"
                     onClick={() => setAdjType("deduction")}
                     className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "deduction"
-                        ? "bg-rose-50 border-rose-500 text-rose-800"
-                        : "border-neutral-300 text-neutral-600"
+                      ? "bg-rose-50 border-rose-500 text-rose-800"
+                      : "border-neutral-300 text-neutral-600"
                       }`}
                   >
                     Deduction (-)
@@ -1713,6 +1862,339 @@ export function AdminPayrollScreen() {
                   className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-lg font-medium"
                 >
                   {isAddingAdj ? "Saving..." : "Add"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: EDIT CALCULATION MODAL (GLITCHES / LOGIN ISSUES OVERRIDE) */}
+      {/* ========================================================================= */}
+      {editingRow && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 touch-none"
+          onClick={() => setEditingRow(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-neutral-200 max-h-[92vh] flex flex-col overflow-hidden my-auto overscroll-contain"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Top Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-200 bg-neutral-50/90 shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-neutral-900">Edit Payroll Calculation</h2>
+                  {editingRow.is_manual_override && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Currently Overridden
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  {editingRow.name} ({editingRow.employee_code}) • {editingRow.department} • {months[selectedMonth]} {selectedYear}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingRow(null)}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs overscroll-contain">
+              {/* Info banner */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 text-amber-900">
+                <span className="text-base leading-none">⚠️</span>
+                <div className="text-[11px] leading-relaxed">
+                  Use this form to adjust attendance days and payable salary if this employee experienced <strong>login issues, portal glitches, missed punches, or field duty regularizations</strong>.
+                </div>
+              </div>
+
+              {/* Section 1: Attendance Breakdown */}
+              <div className="border border-neutral-200 rounded-xl p-3.5 bg-neutral-50/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
+                    1. Attendance &amp; Working Days ({editingRow.total_days_in_month} Days in Month)
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const lateCuts = Math.floor(editLateMarks / (settings?.lates_per_half_day_cut || 3)) * 0.5;
+                      const calculated = Math.max(
+                        0,
+                        Math.min(
+                          editingRow.total_days_in_month,
+                          editPresentDays + (editHalfDays * 0.5) + editApprovedLeaveDays + editWeeklyOffDays + editHolidayDays - lateCuts
+                        )
+                      );
+                      const rounded = Math.round(calculated * 100) / 100;
+                      setEditPaidDays(rounded);
+                      const perDay = editingRow.total_days_in_month > 0 ? editMonthlyGross / editingRow.total_days_in_month : 0;
+                      const grossP = Math.round(perDay * rounded * 100) / 100;
+                      setEditGrossPayable(grossP);
+                      const net = Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100);
+                      setEditNetSalary(net);
+                      toast("success", "Paid days and salary figures recalculated");
+                    }}
+                    className="text-[11px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 font-semibold px-2 py-0.5 rounded transition-colors"
+                  >
+                    Auto-Calculate from Days
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Present Days</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max={editingRow.total_days_in_month}
+                      value={editPresentDays}
+                      onChange={(e) => setEditPresentDays(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Half Days</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max={editingRow.total_days_in_month}
+                      value={editHalfDays}
+                      onChange={(e) => setEditHalfDays(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Approved Leaves</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max={editingRow.total_days_in_month}
+                      value={editApprovedLeaveDays}
+                      onChange={(e) => setEditApprovedLeaveDays(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Absent Days</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max={editingRow.total_days_in_month}
+                      value={editAbsentDays}
+                      onChange={(e) => setEditAbsentDays(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Late Marks</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={editLateMarks}
+                      onChange={(e) => setEditLateMarks(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Weekly Offs</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={editWeeklyOffDays}
+                      onChange={(e) => setEditWeeklyOffDays(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Holidays</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={editHolidayDays}
+                      onChange={(e) => setEditHolidayDays(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div className="bg-emerald-50/80 border border-emerald-300 rounded-lg p-1.5">
+                    <label className="block text-emerald-800 font-bold mb-1">Total Paid Days *</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max={editingRow.total_days_in_month}
+                      value={editPaidDays}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEditPaidDays(val);
+                        const perDay = editingRow.total_days_in_month > 0 ? editMonthlyGross / editingRow.total_days_in_month : 0;
+                        const grossP = Math.round(perDay * val * 100) / 100;
+                        setEditGrossPayable(grossP);
+                        const net = Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100);
+                        setEditNetSalary(net);
+                      }}
+                      className="w-full bg-white border border-emerald-400 rounded-md px-2.5 py-1 font-bold text-neutral-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Salary Figures */}
+              <div className="border border-neutral-200 rounded-xl p-3.5 bg-neutral-50/50 space-y-3">
+                <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
+                  2. Salary &amp; Deductions Breakdown
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Monthly Gross (₹)</label>
+                    <input
+                      type="number"
+                      step="100"
+                      min="0"
+                      value={editMonthlyGross}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEditMonthlyGross(val);
+                        const perDay = editingRow.total_days_in_month > 0 ? Math.round((val / editingRow.total_days_in_month) * 100) / 100 : 0;
+                        setEditPerDaySalary(perDay);
+                        const grossP = Math.round(perDay * editPaidDays * 100) / 100;
+                        setEditGrossPayable(grossP);
+                        setEditNetSalary(Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100));
+                      }}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Per Day Salary (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editPerDaySalary}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEditPerDaySalary(val);
+                        const grossP = Math.round(val * editPaidDays * 100) / 100;
+                        setEditGrossPayable(grossP);
+                        setEditNetSalary(Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100));
+                      }}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Gross Payable (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editGrossPayable}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEditGrossPayable(val);
+                        setEditNetSalary(Math.max(0, Math.round((val + editAdditions - editDeductions) * 100) / 100));
+                      }}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-emerald-700 font-medium mb-1">Bonuses / Additions (+₹)</label>
+                    <input
+                      type="number"
+                      step="10"
+                      min="0"
+                      value={editAdditions}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEditAdditions(val);
+                        setEditNetSalary(Math.max(0, Math.round((editGrossPayable + val - editDeductions) * 100) / 100));
+                      }}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-rose-700 font-medium mb-1">Total Deductions (-₹)</label>
+                    <input
+                      type="number"
+                      step="10"
+                      min="0"
+                      value={editDeductions}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEditDeductions(val);
+                        setEditNetSalary(Math.max(0, Math.round((editGrossPayable + editAdditions - val) * 100) / 100));
+                      }}
+                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+                  <div className="bg-neutral-900 text-white rounded-lg p-2.5 flex flex-col justify-between">
+                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Net Payable</span>
+                    <span className="text-lg font-black tracking-tight text-white">
+                      ₹{editNetSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Reason / Notes */}
+              <div>
+                <label className="block text-neutral-700 font-semibold mb-1">
+                  Reason for Adjustment / Glitch Details
+                </label>
+                <input
+                  type="text"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="e.g. Employee faced login issue Oct 1-5; punch regularized manually"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-neutral-900"
+                />
+              </div>
+            </div>
+
+            {/* Modal Bottom Controls */}
+            <div className="flex items-center justify-between p-3 sm:px-6 sm:py-3.5 border-t border-neutral-200 bg-neutral-50/80 shrink-0">
+              <div>
+                {editingRow.is_manual_override && (
+                  <button
+                    type="button"
+                    onClick={handleResetCalculation}
+                    disabled={isResettingEdit || isSavingEdit}
+                    className="text-xs text-rose-700 hover:text-rose-900 underline font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {isResettingEdit ? "Resetting..." : "Reset to System Attendance"}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingRow(null)}
+                  className="px-4 py-2 border border-neutral-300 text-xs font-semibold rounded-lg text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveCalculationEdit}
+                  disabled={isSavingEdit || isResettingEdit}
+                  className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                >
+                  {isSavingEdit ? "Saving..." : "Save Calculation"}
                 </button>
               </div>
             </div>
