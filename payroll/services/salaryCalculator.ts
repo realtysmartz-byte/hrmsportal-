@@ -58,6 +58,10 @@ export interface EmployeePayrollRow {
   payout_status?: "queued" | "processing" | "paid" | "failed" | "unpaid" | "skipped";
   failure_reason?: string;
   paid_at?: string;
+  // Separation & joining info for prorated exit/resigned/terminated
+  date_of_joining?: string | null;
+  separation_date?: string | null;
+  separation_type?: "RESIGNED" | "TERMINATED" | "EXIT" | null;
 }
 
 export const DEFAULT_PAYROLL_SETTINGS: PayrollSettings = {
@@ -84,6 +88,17 @@ function formatISTDateStr(year: number, month: number, day: number): string {
   const m = String(month).padStart(2, "0");
   const d = String(day).padStart(2, "0");
   return `${year}-${m}-${d}`;
+}
+
+function getISTDateParts(d: Date): { year: number; month: number; day: number } {
+  const utc = d.getTime();
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(utc + istOffsetMs);
+  return {
+    year: istDate.getUTCFullYear(),
+    month: istDate.getUTCMonth() + 1,
+    day: istDate.getUTCDate(),
+  };
 }
 
 const verifiedTables = new Set<string>();
@@ -171,8 +186,8 @@ export async function calculateMonthlyPayroll(
   const lateCutoffMinutes = parseTimeToMinutes(settings.late_after_time);
   const totalDaysInMonth = new Date(year, month, 0).getDate();
 
-  // 1. Read Eligible Active Employees via configured mapping (Excludes Admin accounts)
-  const employees: PayrollEmployeeRecord[] = await getEligiblePayrollEmployees(prisma);
+  // 1. Read Eligible Active and Separated Employees via configured mapping (Excludes Admin accounts)
+  const employees: PayrollEmployeeRecord[] = await getEligiblePayrollEmployees(prisma, month, year);
   if (employees.length === 0) {
     return [];
   }
@@ -352,6 +367,9 @@ export async function calculateMonthlyPayroll(
         payout_status: payout?.status || "unpaid",
         failure_reason: payout?.failure_reason,
         paid_at: payout?.paid_at,
+        date_of_joining: emp.dateOfJoining ? emp.dateOfJoining.toISOString() : null,
+        separation_date: emp.separationDate ? emp.separationDate.toISOString() : null,
+        separation_type: emp.separationType || null,
       });
       continue;
     }
@@ -366,10 +384,40 @@ export async function calculateMonthlyPayroll(
     let holidayDays = 0;
     let missingPunchOutCount = 0;
 
+    // Proration tenure boundaries:
+    // If employee joined in this month, active starts on dateOfJoining day.
+    // If employee resigned, was terminated, or exited in this month, active ends on separationDate day.
+    let startDay = 1;
+    let endDay = totalDaysInMonth;
+
+    if (emp.dateOfJoining) {
+      const doj = getISTDateParts(new Date(emp.dateOfJoining));
+      if (doj.year === year && doj.month === month) {
+        startDay = Math.max(1, doj.day);
+      } else if (doj.year > year || (doj.year === year && doj.month > month)) {
+        startDay = totalDaysInMonth + 1; // Joined in a future month
+      }
+    }
+
+    if (emp.separationDate && emp.separationType) {
+      const sep = getISTDateParts(new Date(emp.separationDate));
+      if (sep.year === year && sep.month === month) {
+        endDay = Math.min(totalDaysInMonth, sep.day);
+      } else if (sep.year < year || (sep.year === year && sep.month < month)) {
+        endDay = 0; // Separated in an earlier month
+      }
+    }
+
     const dayAttendance = empDayAttendanceMap.get(emp.id) || new Map<number, any>();
     const empLeaves = empLeavesMap.get(emp.id) || [];
 
     for (let day = 1; day <= totalDaysInMonth; day++) {
+      // Days outside employee's active tenure (before joining or after separation) are completely ignored.
+      // They are not marked absent, nor do they receive weekly offs or holidays.
+      if (day < startDay || day > endDay) {
+        continue;
+      }
+
       const dateObj = new Date(year, month - 1, day);
       const dayOfWeek = dateObj.getDay();
       const dateStr = formatISTDateStr(year, month, day);
@@ -527,6 +575,9 @@ export async function calculateMonthlyPayroll(
       payout_status: payout?.status || "unpaid",
       failure_reason: payout?.failure_reason,
       paid_at: payout?.paid_at,
+      date_of_joining: emp.dateOfJoining ? emp.dateOfJoining.toISOString() : null,
+      separation_date: emp.separationDate ? emp.separationDate.toISOString() : null,
+      separation_type: emp.separationType || null,
     });
   }
 

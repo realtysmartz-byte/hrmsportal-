@@ -784,8 +784,10 @@ export async function notifyEmployeeStatusChange(args: {
   const effectiveDateLabel =
     args.newStatus === "TERMINATED"
       ? "Termination Date"
-      : args.newStatus === "RESIGNED" || args.newStatus === "EXIT"
-        ? "Date of Exit"
+      : args.newStatus === "RESIGNED"
+        ? "Resignation Date"
+        : args.newStatus === "EXIT"
+          ? "Absconding Date"
         : "Effective Date";
   const meta: [string, string][] = [
     ["Employee", `${args.employeeName} (${args.employeeCode})`],
@@ -822,10 +824,10 @@ export async function notifyEmployeeStatusChange(args: {
       subject: `Employee Resigned — ${args.employeeName} (${args.employeeCode})`,
     },
     EXIT: {
-      title: "Exit Recorded",
-      badge: "EXIT",
-      intro: `Status set to Exit effective ${effective}. Portal access is revoked until HR reactivates your account.`,
-      subject: `Employee Exit — ${args.employeeName} (${args.employeeCode})`,
+      title: "Absconding Recorded",
+      badge: "ABSCONDING",
+      intro: `Status set to Absconding effective ${effective}. Portal access is revoked until HR reactivates your account.`,
+      subject: `Employee Absconded — ${args.employeeName} (${args.employeeCode})`,
     },
     ON_LEAVE: {
       title: "On Leave",

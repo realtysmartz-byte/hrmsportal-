@@ -450,7 +450,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
             >
               {EMPLOYEE_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s.replace("_", " ")}
+                  {s === "EXIT" ? "Absconding" : s.replace("_", " ")}
                 </option>
               ))}
             </Select>
@@ -461,194 +461,198 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
                 label={
                   values.status === "TERMINATED"
                     ? "Termination Date"
-                    : "Date of Exit"
+                    : values.status === "RESIGNED"
+          ? "Resignation Date"
+          : "Absconding Date"
                 }
               >
-                <Input
-                  type="date"
-                  value={values.statusEffectiveDate}
-                  onChange={(e) =>
-                    setField("statusEffectiveDate", e.target.value)
+          <Input
+            type="date"
+            value={values.statusEffectiveDate}
+            onChange={(e) =>
+              setField("statusEffectiveDate", e.target.value)
+            }
+          />
+        </Field>
+            )}
+        <Field label="Department">
+          <Select
+            value={values.departmentId}
+            onChange={(e) => setField("departmentId", e.target.value)}
+          >
+            <option value="">Select department</option>
+            {departments?.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Designation">
+          <Select
+            value={values.designationId}
+            onChange={(e) => setField("designationId", e.target.value)}
+          >
+            <option value="">Select designation</option>
+            {designations?.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Date of Joining">
+          <Input
+            type="date"
+            value={values.dateOfJoining}
+            onChange={(e) => setField("dateOfJoining", e.target.value)}
+          />
+        </Field>
+        {/* Work Mode & Assigned Workplace Location Allocation */}
+        <div className="sm:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50/70 p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <Label className="text-sm font-bold text-neutral-900 flex items-center gap-1.5">
+                <span>📍 Assigned Work & Punch-In Location</span>
+                <span className="rounded-full bg-[#5D3EBC]/10 px-2 py-0.5 text-[10px] font-bold text-[#5D3EBC]">
+                  Workplace Verified
+                </span>
+              </Label>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Staff can only punch in at this designated workplace. Leave empty to use the company office from Company Settings.
+              </p>
+            </div>
+
+            {/* Quick Preset Buttons */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setField("workLocationName", "");
+                  setField("workLocationLat", "");
+                  setField("workLocationLng", "");
+                }}
+                className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+              >
+                🏢 Use Company Office
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setField("workLocationLat", String(pos.coords.latitude));
+                        setField("workLocationLng", String(pos.coords.longitude));
+                        if (!values.workLocationName) {
+                          setField("workLocationName", "Allocated Remote Site");
+                        }
+                      },
+                      () => alert("Could not fetch device GPS coordinates."),
+                      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                    );
                   }
-                />
-              </Field>
-            )}
-          <Field label="Department">
-            <Select
-              value={values.departmentId}
-              onChange={(e) => setField("departmentId", e.target.value)}
-            >
-              <option value="">Select department</option>
-              {departments?.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Designation">
-            <Select
-              value={values.designationId}
-              onChange={(e) => setField("designationId", e.target.value)}
-            >
-              <option value="">Select designation</option>
-              {designations?.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Date of Joining">
-            <Input
-              type="date"
-              value={values.dateOfJoining}
-              onChange={(e) => setField("dateOfJoining", e.target.value)}
-            />
-          </Field>
-          {/* Work Mode & Assigned Workplace Location Allocation */}
-          <div className="sm:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50/70 p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <Label className="text-sm font-bold text-neutral-900 flex items-center gap-1.5">
-                  <span>📍 Assigned Work & Punch-In Location</span>
-                  <span className="rounded-full bg-[#5D3EBC]/10 px-2 py-0.5 text-[10px] font-bold text-[#5D3EBC]">
-                    Workplace Verified
-                  </span>
-                </Label>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  Staff can only punch in at this designated workplace. Leave empty to use the company office from Company Settings.
-                </p>
-              </div>
-
-              {/* Quick Preset Buttons */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setField("workLocationName", "");
-                    setField("workLocationLat", "");
-                    setField("workLocationLng", "");
-                  }}
-                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
-                >
-                  🏢 Use Company Office
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (navigator.geolocation) {
-                      navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                          setField("workLocationLat", String(pos.coords.latitude));
-                          setField("workLocationLng", String(pos.coords.longitude));
-                          if (!values.workLocationName) {
-                            setField("workLocationName", "Allocated Remote Site");
-                          }
-                        },
-                        () => alert("Could not fetch device GPS coordinates."),
-                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                      );
-                    }
-                  }}
-                  className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 hover:bg-teal-100 transition-colors"
-                >
-                  📍 Detect Device GPS
-                </button>
-              </div>
+                }}
+                className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 hover:bg-teal-100 transition-colors"
+              >
+                📍 Detect Device GPS
+              </button>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1 sm:col-span-1">
-                <Label className="text-xs font-medium text-neutral-700">Location / Site Name</Label>
-                <Input
-                  placeholder="e.g. REALTY SMARTZ PVT LTD or Site A"
-                  value={values.workLocationName}
-                  onChange={(e) => setField("workLocationName", e.target.value)}
-                  className="text-xs h-9 bg-white"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-neutral-700">Latitude</Label>
-                <Input
-                  placeholder="28.3997196"
-                  value={values.workLocationLat}
-                  onChange={(e) => setField("workLocationLat", e.target.value)}
-                  className="text-xs h-9 tabular-nums bg-white"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-neutral-700">Longitude</Label>
-                <Input
-                  placeholder="77.0385682"
-                  value={values.workLocationLng}
-                  onChange={(e) => setField("workLocationLng", e.target.value)}
-                  className="text-xs h-9 tabular-nums bg-white"
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1 sm:col-span-1">
+              <Label className="text-xs font-medium text-neutral-700">Location / Site Name</Label>
+              <Input
+                placeholder="e.g. REALTY SMARTZ PVT LTD or Site A"
+                value={values.workLocationName}
+                onChange={(e) => setField("workLocationName", e.target.value)}
+                className="text-xs h-9 bg-white"
+              />
             </div>
-
-            {values.workLocationLat && values.workLocationLng && (
-              <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-200/60">
-                <span>Coordinates: {values.workLocationLat}, {values.workLocationLng}</span>
-                <a
-                  href={`https://www.google.com/maps?q=${values.workLocationLat},${values.workLocationLng}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[#5D3EBC] font-semibold hover:underline"
-                >
-                  Verify on Google Maps →
-                </a>
-              </div>
-            )}
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-neutral-700">Latitude</Label>
+              <Input
+                placeholder="28.3997196"
+                value={values.workLocationLat}
+                onChange={(e) => setField("workLocationLat", e.target.value)}
+                className="text-xs h-9 tabular-nums bg-white"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-neutral-700">Longitude</Label>
+              <Input
+                placeholder="77.0385682"
+                value={values.workLocationLng}
+                onChange={(e) => setField("workLocationLng", e.target.value)}
+                className="text-xs h-9 tabular-nums bg-white"
+              />
+            </div>
           </div>
-          <div className="sm:col-span-2 space-y-2">
-            <Label>Manager</Label>
-            <Input
-              placeholder="Search managers..."
-              value={managerSearch}
-              onChange={(e) => setManagerSearch(e.target.value)}
-            />
-            <Select
-              value={values.managerId}
-              onChange={(e) => setField("managerId", e.target.value)}
-            >
-              <option value="">No manager (top-level)</option>
-              {filteredManagers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.firstName} {m.lastName} ({m.employeeCode})
-                  {m.designation?.title ? ` — ${m.designation.title}` : ""}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
 
-      {error && (
-        <p className="text-sm text-brand-maroon" role="alert">
-          {error}
-        </p>
-      )}
+          {values.workLocationLat && values.workLocationLng && (
+            <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-200/60">
+              <span>Coordinates: {values.workLocationLat}, {values.workLocationLng}</span>
+              <a
+                href={`https://www.google.com/maps?q=${values.workLocationLat},${values.workLocationLng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#5D3EBC] font-semibold hover:underline"
+              >
+                Verify on Google Maps →
+              </a>
+            </div>
+          )}
+        </div>
+        <div className="sm:col-span-2 space-y-2">
+          <Label>Manager</Label>
+          <Input
+            placeholder="Search managers..."
+            value={managerSearch}
+            onChange={(e) => setManagerSearch(e.target.value)}
+          />
+          <Select
+            value={values.managerId}
+            onChange={(e) => setField("managerId", e.target.value)}
+          >
+            <option value="">No manager (top-level)</option>
+            {filteredManagers.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.firstName} {m.lastName} ({m.employeeCode})
+                {m.designation?.title ? ` — ${m.designation.title}` : ""}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={busy}>
-          {busy
-            ? "Saving..."
-            : mode === "create"
-              ? "Create Employee"
-              : "Save Changes"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={busy}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+      {
+    error && (
+      <p className="text-sm text-brand-maroon" role="alert">
+        {error}
+      </p>
+    )
+  }
+
+  <div className="flex gap-3">
+    <Button type="submit" disabled={busy}>
+      {busy
+        ? "Saving..."
+        : mode === "create"
+          ? "Create Employee"
+          : "Save Changes"}
+    </Button>
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => router.back()}
+      disabled={busy}
+    >
+      Cancel
+    </Button>
+  </div>
+    </form >
   );
 }
 

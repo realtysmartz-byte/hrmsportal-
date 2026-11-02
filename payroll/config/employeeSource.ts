@@ -51,6 +51,9 @@ export interface PayrollEmployeeRecord {
   role: string;
   status: string;
   department: string;
+  dateOfJoining?: Date | null;
+  separationDate?: Date | null;
+  separationType?: "RESIGNED" | "TERMINATED" | "EXIT" | null;
 }
 
 export interface PayrollAttendanceRecord {
@@ -120,13 +123,21 @@ export async function getApprovedLeavesForMonth(
 /**
  * Reads all active employees eligible for payroll using the configured mappings.
  * Strictly excludes any Admin or HR accounts.
+ *
+ * If month and year are provided, includes separated employees (RESIGNED, TERMINATED, EXIT)
+ * who were still with the company during the specified month and prorates based on separation date.
+ * Excludes separated employees whose separation occurred prior to this payroll month.
  */
-export async function getEligiblePayrollEmployees(prisma: PrismaClient): Promise<PayrollEmployeeRecord[]> {
+export async function getEligiblePayrollEmployees(
+  prisma: PrismaClient,
+  month?: number,
+  year?: number
+): Promise<PayrollEmployeeRecord[]> {
   try {
     const rawEmployees = await prisma.employee.findMany({
       where: {
         role: { in: [...employeeSourceConfig.filters.allowedRoles] as any },
-        status: { in: [...employeeSourceConfig.filters.activeStatuses] as any },
+        status: { in: ["ACTIVE", "ON_LEAVE", "RESIGNED", "TERMINATED", "EXIT"] as any },
       },
       select: {
         id: true,
@@ -137,6 +148,8 @@ export async function getEligiblePayrollEmployees(prisma: PrismaClient): Promise
         phone: true,
         role: true,
         status: true,
+        dateOfJoining: true,
+        updatedAt: true,
         department: {
           select: { name: true },
         },
@@ -144,7 +157,65 @@ export async function getEligiblePayrollEmployees(prisma: PrismaClient): Promise
       orderBy: { firstName: "asc" },
     });
 
-      return rawEmployees.map((emp: any) => ({
+    const separatedEmpIds: string[] = rawEmployees
+      .filter((e) => ["RESIGNED", "TERMINATED", "EXIT"].includes(e.status))
+      .map((e) => e.id);
+
+    const statusHistories =
+      separatedEmpIds.length > 0
+        ? await prisma.employeeJobHistory.findMany({
+            where: {
+              employeeId: { in: separatedEmpIds },
+              fieldChanged: "status",
+            },
+            orderBy: { effectiveDate: "desc" },
+            select: {
+              employeeId: true,
+              newValue: true,
+              effectiveDate: true,
+            },
+          })
+        : [];
+
+    const latestStatusHistoryMap = new Map<string, { effectiveDate: Date; newValue: string | null }>();
+    for (const h of statusHistories) {
+      if (!latestStatusHistoryMap.has(h.employeeId)) {
+        latestStatusHistoryMap.set(h.employeeId, h);
+      }
+    }
+
+    const monthStart: Date | null =
+      month != null && year != null ? new Date(Date.UTC(year, month - 1, 1, 0, 0, 0)) : null;
+    const monthEnd: Date | null =
+      month != null && year != null ? new Date(Date.UTC(year, month, 1, 0, 0, 0)) : null;
+
+    const eligibleList: PayrollEmployeeRecord[] = [];
+
+    for (const emp of rawEmployees) {
+      const isSeparated = ["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status);
+      let separationDate: Date | null = null;
+      let separationType: "RESIGNED" | "TERMINATED" | "EXIT" | null = null;
+
+      if (isSeparated) {
+        const hist = latestStatusHistoryMap.get(emp.id);
+        separationDate = hist?.effectiveDate ?? emp.updatedAt;
+        separationType = emp.status as "RESIGNED" | "TERMINATED" | "EXIT";
+      }
+
+      // If month and year are specified, filter out employees who joined in future or separated in past
+      if (monthStart != null && monthEnd != null) {
+        // Employee joined strictly after the end of this month
+        if (emp.dateOfJoining != null && emp.dateOfJoining >= monthEnd) {
+          continue;
+        }
+
+        // Separated employee whose separation happened before the start of this month
+        if (isSeparated && separationDate != null && separationDate < monthStart) {
+          continue;
+        }
+      }
+
+      eligibleList.push({
         id: emp.id,
         employeeCode: emp.employeeCode || "",
         name: `${emp.firstName || ""} ${emp.lastName || ""}`.trim() || "Unknown",
@@ -155,55 +226,60 @@ export async function getEligiblePayrollEmployees(prisma: PrismaClient): Promise
         role: emp.role,
         status: emp.status,
         department: emp.department?.name || "General",
-      }));
-    } catch (error) {
-      console.error("[PAYROLL_DB_ERROR] Failed to fetch eligible employees from table:", employeeSourceConfig.tableName, error);
-      throw new Error(`Failed to load payroll employees from ${employeeSourceConfig.tableName}`);
+        dateOfJoining: emp.dateOfJoining || null,
+        separationDate,
+        separationType,
+      });
     }
+
+    return eligibleList;
+  } catch (error) {
+    console.error("[PAYROLL_DB_ERROR] Failed to fetch eligible employees from table:", employeeSourceConfig.tableName, error);
+    throw new Error(`Failed to load payroll employees from ${employeeSourceConfig.tableName}`);
   }
+}
 
 /**
  * Reads attendance records for the given employee ID list and date range using mapped columns.
  */
 export async function getAttendanceLogsForMonth(
-    prisma: PrismaClient,
-    employeeIds: string[],
-    startDate: Date,
-    endDate: Date
-  ): Promise<PayrollAttendanceRecord[]> {
-    try {
-      const logs = await prisma.attendanceLog.findMany({
-        where: {
-          employeeId: { in: employeeIds },
-          date: {
-            gte: startDate,
-            lt: endDate,
-          },
+  prisma: PrismaClient,
+  employeeIds: string[],
+  startDate: Date,
+  endDate: Date
+): Promise<PayrollAttendanceRecord[]> {
+  try {
+    const logs = await prisma.attendanceLog.findMany({
+      where: {
+        employeeId: { in: employeeIds },
+        date: {
+          gte: startDate,
+          lt: endDate,
         },
-        select: {
-          id: true,
-          employeeId: true,
-          date: true,
-          checkInTime: true,
-          checkOutTime: true,
-          totalHours: true,
-          status: true,
-        },
-        orderBy: { date: "asc" },
-      });
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        date: true,
+        checkInTime: true,
+        checkOutTime: true,
+        totalHours: true,
+        status: true,
+      },
+      orderBy: { date: "asc" },
+    });
 
-        return logs.map((log: any) => ({
-          id: log.id,
-          employeeId: log.employeeId,
-          date: log.date,
-          checkInTime: log.checkInTime,
-          checkOutTime: log.checkOutTime,
-          totalHours: log.totalHours,
-          status: log.status,
-        }));
-      } catch (error) {
-        console.error("[PAYROLL_DB_ERROR] Failed to fetch attendance logs from table:", attendanceSourceConfig.tableName, error);
-        throw new Error(`Failed to load attendance logs from ${attendanceSourceConfig.tableName}`);
-      }
-    }
-
+    return logs.map((log: any) => ({
+      id: log.id,
+      employeeId: log.employeeId,
+      date: log.date,
+      checkInTime: log.checkInTime,
+      checkOutTime: log.checkOutTime,
+      totalHours: log.totalHours,
+      status: log.status,
+    }));
+  } catch (error) {
+    console.error("[PAYROLL_DB_ERROR] Failed to fetch attendance logs from table:", attendanceSourceConfig.tableName, error);
+    throw new Error(`Failed to load attendance logs from ${attendanceSourceConfig.tableName}`);
+  }
+}

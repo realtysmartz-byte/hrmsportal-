@@ -552,6 +552,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Month and year are required" }, { status: 400 });
     }
 
+    // If resetting to "unpaid", delete the payout record so status cleanly reverts
+    if (status === "unpaid") {
+      if (employeeId && employeeId !== "all") {
+        await safeExecuteRaw(
+          prisma,
+          `DELETE FROM payroll_payouts WHERE employee_id = $1 AND month = $2 AND year = $3`,
+          employeeId,
+          m,
+          y
+        );
+      } else {
+        await safeExecuteRaw(
+          prisma,
+          `DELETE FROM payroll_payouts WHERE month = $1 AND year = $2`,
+          m,
+          y
+        );
+      }
+
+      await logAudit(
+        "PAYROLL_RESET_UNPAID",
+        session.user.id,
+        { month: m, year: y, employeeId },
+        req.headers.get("x-forwarded-for")
+      );
+
+      return NextResponse.json({ success: true, status: "unpaid" });
+    }
+
     if (employeeId && employeeId !== "all") {
       const idempotencyKey = `manual_${employeeId}_${m}_${y}`;
       const pId = `pay_man_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;

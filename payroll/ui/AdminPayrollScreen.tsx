@@ -324,7 +324,7 @@ export function AdminPayrollScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast("success", `Marked as ${status}`);
+        toast("success", status === "unpaid" ? "Status reset to Unpaid" : "Marked as Paid");
         void fetchPayroll(selectedMonth, selectedYear);
       } else {
         toast("error", data.error || "Failed to update payout status");
@@ -581,6 +581,8 @@ export function AdminPayrollScreen() {
       "Additions",
       "Net Salary",
       "Needs Review",
+      "Separation Type",
+      "Separation Date",
       "Status",
       "Payout Status",
     ];
@@ -608,6 +610,8 @@ export function AdminPayrollScreen() {
       r.additions,
       r.net_salary,
       r.needs_review ? "Yes" : "No",
+      r.separation_type === "EXIT" ? "Absconding" : (r.separation_type || "Active"),
+      r.separation_date ? `"${r.separation_date.slice(0, 10)}"` : `"-"`,
       r.status,
       r.payout_status || "unpaid",
     ]);
@@ -699,11 +703,10 @@ export function AdminPayrollScreen() {
               </div>
             </div>
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                companyAccount?.isSandbox
+              className={`px-2 py-0.5 rounded text-[10px] font-bold ${companyAccount?.isSandbox
                   ? "bg-amber-100 text-amber-800 border border-amber-300"
                   : "bg-emerald-100 text-emerald-800 border border-emerald-300"
-              }`}
+                }`}
             >
               {companyAccount?.isSandbox ? "SANDBOX MODE" : "LIVE ACCOUNT"}
             </span>
@@ -714,21 +717,19 @@ export function AdminPayrollScreen() {
         <div className="flex items-center gap-1 mt-4 border-b border-neutral-200 text-xs font-medium overflow-x-auto">
           <button
             onClick={() => setActiveTab("payroll")}
-            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === "payroll"
+            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${activeTab === "payroll"
                 ? "border-neutral-900 text-neutral-900 font-semibold"
                 : "border-transparent text-neutral-500 hover:text-neutral-700"
-            }`}
+              }`}
           >
             Payroll Runs
           </button>
           <button
             onClick={() => setActiveTab("salaries")}
-            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-              activeTab === "salaries"
+            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeTab === "salaries"
                 ? "border-neutral-900 text-neutral-900 font-semibold"
                 : "border-transparent text-neutral-500 hover:text-neutral-700"
-            }`}
+              }`}
           >
             <span>Salaries &amp; Bank Details</span>
             <span className="px-1.5 py-0.2 bg-neutral-100 text-neutral-600 rounded-full text-[10px]">
@@ -737,21 +738,19 @@ export function AdminPayrollScreen() {
           </button>
           <button
             onClick={() => setActiveTab("settings")}
-            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === "settings"
+            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${activeTab === "settings"
                 ? "border-neutral-900 text-neutral-900 font-semibold"
                 : "border-transparent text-neutral-500 hover:text-neutral-700"
-            }`}
+              }`}
           >
             Policy Settings
           </button>
           <button
             onClick={() => setActiveTab("holidays")}
-            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === "holidays"
+            className={`px-3 py-2 border-b-2 whitespace-nowrap transition-colors ${activeTab === "holidays"
                 ? "border-neutral-900 text-neutral-900 font-semibold"
                 : "border-transparent text-neutral-500 hover:text-neutral-700"
-            }`}
+              }`}
           >
             Paid Holidays
           </button>
@@ -923,7 +922,29 @@ export function AdminPayrollScreen() {
                     payrollRows.map((r) => (
                       <tr key={r.employee_id} className="hover:bg-neutral-50/50">
                         <td className="py-2.5 px-3">
-                          <div className="font-semibold text-neutral-900">{r.name}</div>
+                          <div className="font-semibold text-neutral-900 flex items-center gap-1.5 flex-wrap">
+                            <span>{r.name}</span>
+                            {r.separation_type && (
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${r.separation_type === "TERMINATED"
+                                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                                    : r.separation_type === "RESIGNED"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-purple-50 text-purple-700 border-purple-200"
+                                  }`}
+                                title={`Prorated up to separation date: ${r.separation_date ? new Date(r.separation_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}`}
+                              >
+                                {r.separation_type === "TERMINATED"
+                                  ? "Terminated"
+                                  : r.separation_type === "RESIGNED"
+                                    ? "Resigned"
+                                  : "Absconding"}
+                                {r.separation_date
+                                  ? ` (${new Date(r.separation_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })})`
+                                  : ""}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[11px] text-neutral-400 font-medium tracking-normal mt-0.5">
                             {r.employee_code} • {r.department}
                           </div>
@@ -1634,22 +1655,20 @@ export function AdminPayrollScreen() {
                   <button
                     type="button"
                     onClick={() => setAdjType("bonus")}
-                    className={`flex-1 py-1.5 rounded-lg border font-medium ${
-                      adjType === "bonus"
+                    className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "bonus"
                         ? "bg-emerald-50 border-emerald-500 text-emerald-800"
                         : "border-neutral-300 text-neutral-600"
-                    }`}
+                      }`}
                   >
                     Bonus (+)
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdjType("deduction")}
-                    className={`flex-1 py-1.5 rounded-lg border font-medium ${
-                      adjType === "deduction"
+                    className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "deduction"
                         ? "bg-rose-50 border-rose-500 text-rose-800"
                         : "border-neutral-300 text-neutral-600"
-                    }`}
+                      }`}
                   >
                     Deduction (-)
                   </button>

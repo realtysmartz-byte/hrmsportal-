@@ -328,6 +328,19 @@ export function EmployeeProfileHub({
                     <span>Joined {formatDate(emp.dateOfJoining)}</span>
                   </span>
                 )}
+                {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
+                  <span className="inline-flex items-center gap-1.5 font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                    <Calendar className="h-3.5 w-3.5 text-rose-600" />
+                    <span>
+                      {emp.status === "TERMINATED"
+                        ? "Terminated On"
+                        : emp.status === "RESIGNED"
+                          ? "Resigned On"
+                        : "Absconded On"}
+                      : {formatDate(emp.statusEffectiveDate)}
+                    </span>
+                  </span>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <Badge variant="outline">{emp.employeeCode}</Badge>
@@ -618,6 +631,7 @@ function LimitedColleagueProfileView({
       employeeCode: string;
     } | null;
     dateOfJoining: Date | string | null;
+    statusEffectiveDate?: Date | string | null;
     status: string;
     directReports: {
       id: string;
@@ -646,7 +660,19 @@ function LimitedColleagueProfileView({
             <InfoRow label="Designation" value={emp.designation?.title ?? "—"} />
             <InfoRow label="Department" value={emp.department?.name ?? "—"} />
             <InfoRow label="Date of Joining" value={formatDate(emp.dateOfJoining)} />
-            <InfoRow label="Status" value={emp.status.replace("_", " ")} />
+            <InfoRow label="Status" value={emp.status === "EXIT" ? "Absconding" : emp.status.replace("_", " ")} />
+            {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
+              <InfoRow
+                label={
+                  emp.status === "TERMINATED"
+                    ? "Termination Date"
+                    : emp.status === "RESIGNED"
+                      ? "Resigned On"
+                    : "Absconding Date"
+                }
+            value={formatDate(emp.statusEffectiveDate)}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -905,7 +931,19 @@ function OverviewTab({
               label="Date of joining"
               value={formatDate(emp.dateOfJoining)}
             />
-            <InfoRow label="Status" value={emp.status.replace("_", " ")} />
+            <InfoRow label="Status" value={emp.status === "EXIT" ? "Absconding" : emp.status.replace("_", " ")} />
+            {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
+              <InfoRow
+                label={
+                  emp.status === "TERMINATED"
+                    ? "Termination Date"
+                    : emp.status === "RESIGNED"
+                      ? "Resigned On"
+                    : "Absconding Date"
+                }
+            value={formatDate(emp.statusEffectiveDate)}
+              />
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -1082,16 +1120,18 @@ function JobTab({
             />
             <DetailField
               label="Employee Status"
-              value={emp.status.replace("_", " ")}
+              value={emp.status === "EXIT" ? "Absconding" : emp.status.replace("_", " ")}
             />
             {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
               <DetailField
                 label={
                   emp.status === "TERMINATED"
                     ? "Termination Date"
-                    : "Date of Exit"
+                    : emp.status === "RESIGNED"
+            ? "Resignation Date"
+            : "Absconding Date"
                 }
-                value={formatDate(emp.statusEffectiveDate)}
+            value={formatDate(emp.statusEffectiveDate)}
               />
             )}
             <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
@@ -1555,15 +1595,14 @@ function LeaveTab({
                         </TableCell>
                         <TableCell>
                           <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${
-                              r.status === "APPROVED"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : r.status === "REJECTED"
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${r.status === "APPROVED"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : r.status === "REJECTED"
                                 ? "bg-rose-50 text-rose-700 border border-rose-200"
                                 : r.status === "CANCELLED"
-                                ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
-                                : "bg-amber-50 text-amber-700 border border-amber-200"
-                            }`}
+                                  ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
                           >
                             {r.status === "APPROVED" && <Check className="h-3 w-3" />}
                             {r.status === "REJECTED" && <X className="h-3 w-3" />}
@@ -1603,15 +1642,14 @@ function LeaveTab({
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-xs text-neutral-900">{r.leaveType.name}</span>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                          r.status === "APPROVED"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : r.status === "REJECTED"
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${r.status === "APPROVED"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : r.status === "REJECTED"
                             ? "bg-rose-50 text-rose-700 border border-rose-200"
                             : r.status === "CANCELLED"
-                            ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
-                            : "bg-amber-50 text-amber-700 border border-amber-200"
-                        }`}
+                              ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
                       >
                         {r.status}
                       </span>
@@ -2117,9 +2155,9 @@ function GpsTrailTab({
     selectedPing?.label ??
     (pings?.[0]
       ? `Latest Ping: ${new Date(pings[0].capturedAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`
       : workplaceName);
 
   return (

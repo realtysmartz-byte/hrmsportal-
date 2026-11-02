@@ -87,7 +87,26 @@ function EmployeesInner() {
         status: exportStatus,
       });
       const XLSX = await import("xlsx");
-      const sheet = XLSX.utils.json_to_sheet(dataRows);
+      const formattedRows = dataRows.map((r) => ({
+        "Employee Code": r.employeeCode,
+        "Full Name": `${r.firstName} ${r.lastName}`.trim(),
+        "First Name": r.firstName,
+        "Last Name": r.lastName,
+        "Department": r.department || "-",
+        "Designation": r.designation || "-",
+        "Status": r.status === "EXIT" ? "Absconding" : r.status,
+        "Date of Joining": r.dateOfJoining || "-",
+        "Termination / Absconding Date": r.terminationDate || "-",
+        "Separation Type": r.separationType === "EXIT" ? "Absconding" : (r.separationType || (r.status === "ACTIVE" ? "Active" : "-")),
+        "Reporting Manager": r.manager || "-",
+        "Email": r.email,
+        "Phone": r.phone || "-",
+        "Gender": r.gender || "-",
+        "Date of Birth": r.dateOfBirth || "-",
+        "Address": r.address || "-",
+        "Last Profile Update": r.updatedAt || "-",
+      }));
+      const sheet = XLSX.utils.json_to_sheet(formattedRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, sheet, exportStatus);
       XLSX.writeFile(
@@ -128,7 +147,7 @@ function EmployeesInner() {
               >
                 <option value="ACTIVE">Active</option>
                 <option value="TERMINATED">Terminated</option>
-                <option value="EXIT">Exit (no resign)</option>
+                <option value="EXIT">Absconding</option>
                 <option value="RESIGNED">Resigned</option>
                 <option value="ON_LEAVE">On Leave</option>
                 <option value="ALL">All</option>

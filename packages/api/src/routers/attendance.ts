@@ -951,6 +951,7 @@ export const attendanceRouter = router({
       const targetDate = startOfDayUTC(input.date ?? new Date());
       const employeeWhere: Record<string, unknown> = {
         status: { in: ["ACTIVE", "ON_LEAVE"] },
+        role: "EMPLOYEE",
       };
 
       if (role === "MANAGER") {
@@ -1099,8 +1100,10 @@ export const attendanceRouter = router({
         }
       }
 
-      // Build employee filters
-      const employeeWhere: Record<string, unknown> = {};
+      // Build employee filters - exclude Admin and HR staff
+      const employeeWhere: Record<string, unknown> = {
+        role: "EMPLOYEE",
+      };
       if (role === "MANAGER") {
         employeeWhere.managerId = resolveEmployeeId(ctx);
       }
@@ -1370,9 +1373,12 @@ export const attendanceRouter = router({
         where: {
           employeeId: input.employeeId || undefined,
           capturedAt: { gte: day, lt: next },
-          ...(role === "MANAGER"
-            ? { employee: { managerId: resolveEmployeeId(ctx) } }
-            : {}),
+          employee: {
+            role: "EMPLOYEE",
+            ...(role === "MANAGER"
+              ? { managerId: resolveEmployeeId(ctx) }
+              : {}),
+          },
         },
         include: {
           employee: {

@@ -256,9 +256,15 @@ export const employeeRouter = router({
         ? safe
         : redactEmployeeSensitiveData(safe);
 
+      const statusEffectiveDate =
+        statusHistory?.effectiveDate ??
+        (["RESIGNED", "TERMINATED", "EXIT"].includes(employee.status)
+          ? employee.updatedAt
+          : null);
+
       return {
         ...sanitized,
-        statusEffectiveDate: statusHistory?.effectiveDate ?? null,
+        statusEffectiveDate,
         profileCompletion: canViewSensitive ? profileCompletionPercent(employee) : 0,
         access: {
           canViewSensitive,
@@ -412,10 +418,16 @@ export const employeeRouter = router({
         ? safe
         : redactEmployeeSensitiveData(safe);
 
+      const statusEffectiveDate =
+        statusHistory?.effectiveDate ??
+        (["RESIGNED", "TERMINATED", "EXIT"].includes(employee.status)
+          ? employee.updatedAt
+          : null);
+
       return {
         employee: {
           ...sanitizedEmployee,
-          statusEffectiveDate: statusHistory?.effectiveDate ?? null,
+          statusEffectiveDate,
           profileCompletion: canViewSensitive ? profileCompletionPercent(employee) : 0,
         },
         access: {
@@ -1124,29 +1136,66 @@ export const employeeRouter = router({
         orderBy: [{ status: "asc" }, { employeeCode: "asc" }],
       });
 
-      return rows.map((e) => ({
-        employeeCode: e.employeeCode,
-        firstName: e.firstName,
-        lastName: e.lastName,
-        email: e.email,
-        phone: e.phone ?? "",
-        role: e.role,
-        status: e.status,
-        department: e.department?.name ?? "",
-        designation: e.designation?.title ?? "",
-        manager: e.manager
-          ? `${e.manager.firstName} ${e.manager.lastName} (${e.manager.employeeCode})`
-          : "",
-        dateOfJoining: e.dateOfJoining
-          ? e.dateOfJoining.toISOString().slice(0, 10)
-          : "",
-        dateOfBirth: e.dateOfBirth
-          ? e.dateOfBirth.toISOString().slice(0, 10)
-          : "",
-        gender: e.gender ?? "",
-        address: e.address ?? "",
-        updatedAt: e.updatedAt.toISOString().slice(0, 10),
-      }));
+      const separatedIds = rows
+        .filter((e) => ["RESIGNED", "TERMINATED", "EXIT"].includes(e.status))
+        .map((e) => e.id);
+
+      const statusHistories =
+        separatedIds.length > 0
+          ? await ctx.prisma.employeeJobHistory.findMany({
+              where: {
+                employeeId: { in: separatedIds },
+                fieldChanged: "status",
+              },
+              orderBy: { effectiveDate: "desc" },
+              select: {
+                employeeId: true,
+                newValue: true,
+                effectiveDate: true,
+              },
+            })
+          : [];
+
+      const latestStatusMap = new Map<string, Date>();
+      for (const h of statusHistories) {
+        if (!latestStatusMap.has(h.employeeId)) {
+          latestStatusMap.set(h.employeeId, h.effectiveDate);
+        }
+      }
+
+      return rows.map((e) => {
+        const isSeparated = ["RESIGNED", "TERMINATED", "EXIT"].includes(e.status);
+        const sepDate = isSeparated
+          ? (latestStatusMap.get(e.id) ?? e.updatedAt)
+          : null;
+
+        return {
+          employeeCode: e.employeeCode,
+          firstName: e.firstName,
+          lastName: e.lastName,
+          email: e.email,
+          phone: e.phone ?? "",
+          role: e.role,
+          status: e.status,
+          department: e.department?.name ?? "",
+          designation: e.designation?.title ?? "",
+          manager: e.manager
+            ? `${e.manager.firstName} ${e.manager.lastName} (${e.manager.employeeCode})`
+            : "",
+          dateOfJoining: e.dateOfJoining
+            ? e.dateOfJoining.toISOString().slice(0, 10)
+            : "",
+          terminationDate: sepDate ? sepDate.toISOString().slice(0, 10) : "",
+          separationDate: sepDate ? sepDate.toISOString().slice(0, 10) : "",
+          separationType: isSeparated ? e.status : "",
+          dateOfBirth: e.dateOfBirth
+            ? e.dateOfBirth.toISOString().slice(0, 10)
+            : "",
+          gender: e.gender ?? "",
+          address: e.address ?? "",
+          updatedAt: e.updatedAt.toISOString().slice(0, 10),
+        };
+      });
     }),
 
   delete: hrAdminProcedure

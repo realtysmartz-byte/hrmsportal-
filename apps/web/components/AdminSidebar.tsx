@@ -354,22 +354,7 @@ export function AdminSidebar({
           )}
         </button>
 
-        {/* Switch to Employee Portal Button */}
-        <Link
-          href="/employee-portal/dashboard"
-          onClick={onCloseMobile}
-          className={cn(
-            "flex items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-neutral-300 hover:bg-white/[0.07] hover:text-white transition-all",
-            isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
-          )}
-          title="Switch to Employee Portal"
-        >
-          <span className="flex items-center gap-2">
-            <ArrowLeftRight className="h-3.5 w-3.5 text-[#7957FF]" />
-            {!isCollapsed && <span>Employee Portal</span>}
-          </span>
-          {!isCollapsed && <ChevronRight className="h-3.5 w-3.5 text-neutral-500" />}
-        </Link>
+        
 
         {/* User Card as in reference design */}
         <div

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { EmployeeTopNav } from "@/components/EmployeeTopNav";
 import { authOptions } from "@/lib/auth";
+import { canAccessAdminPortal } from "@realty-smartz/shared";
+import type { Role } from "@realty-smartz/shared";
 
 export default async function EmployeePortalLayout({
   children,
@@ -15,6 +17,12 @@ export default async function EmployeePortalLayout({
   }
   if (session.error === "SessionExpired") {
     redirect("/login?error=SessionExpired");
+  }
+
+  // Admin and HR staff (like HR Admin, Sushant, Priyanka) must exclusively use the admin portal
+  const role = (session.user.role || "EMPLOYEE") as Role;
+  if (canAccessAdminPortal(role)) {
+    redirect("/admin-portal/dashboard");
   }
 
   return (

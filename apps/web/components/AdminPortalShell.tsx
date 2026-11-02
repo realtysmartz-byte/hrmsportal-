@@ -168,13 +168,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               <Download className="h-3.5 w-3.5 text-[#5145CD]" />
               <span className="hidden sm:inline">Install</span>
             </button>
-            <Link
-              href="/employee-portal/dashboard"
-              className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 sm:px-2.5"
-            >
-              <ArrowLeftRight className="h-3.5 w-3.5 text-[#5145CD]" />
-              <span className="hidden sm:inline">Employee View</span>
-            </Link>
+            
             <button
               type="button"
               onClick={() => setShowChangePasswordModal(true)}
