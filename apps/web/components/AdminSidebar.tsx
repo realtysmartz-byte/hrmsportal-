@@ -38,7 +38,6 @@ import { cn } from "@/lib/utils";
 const coreNavItems = [
   { href: "/admin-portal/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
   { href: "/admin-portal/employees", label: "Employees", icon: Users, permission: "employees" },
-  { href: "/admin-portal/org-chart", label: "Org Chart", icon: Network, permission: "org_chart" },
   { href: "/admin-portal/departments", label: "Departments", icon: Building2, permission: "departments" },
   { href: "/admin-portal/designations", label: "Designations", icon: Briefcase, permission: "departments" },
   { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock, permission: "attendance" },

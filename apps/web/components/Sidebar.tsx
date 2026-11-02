@@ -74,12 +74,6 @@ const navItems: NavItem[] = [
     visible: () => true,
   },
   {
-    href: "/org-chart",
-    label: "Org Chart",
-    icon: Network,
-    visible: () => true,
-  },
-  {
     href: "/departments",
     label: "Departments",
     icon: Building2,

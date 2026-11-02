@@ -57,13 +57,16 @@ export function EmployeePayslipsScreen() {
     const originalTop = document.body.style.top;
     const originalWidth = document.body.style.width;
     const originalOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
 
+    document.documentElement.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = "100%";
     document.body.style.overflow = "hidden";
 
     return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
       document.body.style.position = originalPosition;
       document.body.style.top = originalTop;
       document.body.style.width = originalWidth;

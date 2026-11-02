@@ -16,7 +16,6 @@ import {
 } from "@realty-smartz/shared";
 import {
   type Role,
-  type OrgChartNode,
   type EmployeeVisibilityLevel,
 } from "@realty-smartz/shared";
 import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
@@ -1247,52 +1246,6 @@ export const employeeRouter = router({
       orderBy: { firstName: "asc" },
     });
     return employees;
-  }),
-
-  orgChart: protectedProcedure.query(async ({ ctx }): Promise<OrgChartNode[]> => {
-    const employees = await ctx.prisma.employee.findMany({
-      where: {
-        status: { in: ["ACTIVE", "ON_LEAVE"] },
-        role: "EMPLOYEE",
-      },
-      select: {
-        id: true,
-        employeeCode: true,
-        firstName: true,
-        lastName: true,
-        profilePhotoUrl: true,
-        managerId: true,
-        designation: { select: { id: true, title: true } },
-        department: { select: { id: true, name: true } },
-      },
-      orderBy: { employeeCode: "asc" },
-    });
-
-    const map = new Map<string, OrgChartNode>();
-    for (const emp of employees) {
-      map.set(emp.id, {
-        id: emp.id,
-        employeeCode: emp.employeeCode,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        profilePhotoUrl: emp.profilePhotoUrl,
-        designation: emp.designation,
-        department: emp.department,
-        children: [],
-      });
-    }
-
-    const roots: OrgChartNode[] = [];
-    for (const emp of employees) {
-      const node = map.get(emp.id)!;
-      if (emp.managerId && map.has(emp.managerId)) {
-        map.get(emp.managerId)!.children.push(node);
-      } else {
-        roots.push(node);
-      }
-    }
-
-    return roots;
   }),
 
   dashboardStats: protectedProcedure.query(async ({ ctx }) => {

@@ -111,10 +111,6 @@ export function EmployeeProfileHub({
 
   const basePath =
     portal === "admin" ? "/admin-portal/employees" : "/employee-portal/dashboard";
-  const orgChartPath =
-    portal === "admin"
-      ? `/admin-portal/org-chart?highlight=${employeeId}`
-      : `/employee-portal/org-chart?highlight=${employeeId}`;
   const editPath =
     portal === "admin"
       ? `/admin-portal/employees/${employeeId}/edit`
@@ -227,18 +223,7 @@ export function EmployeeProfileHub({
                 </Button>
               </Link>
             )}
-            {portal === "admin" && (
-              <Link href={orgChartPath}>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white"
-                >
-                  <Network className="h-3.5 w-3.5 text-[#5D3EBC]" />
-                  Org Chart
-                </Button>
-              </Link>
-            )}
+            
             {portal === "admin" && access.canManage && (
               <Button
                 size="sm"
