@@ -693,6 +693,7 @@ export function AdminPayrollScreen() {
     const headers = [
       "Employee Code",
       "Employee Name",
+      "Designation",
       "Department",
       "Month",
       "Year",
@@ -722,6 +723,7 @@ export function AdminPayrollScreen() {
     const rows = payrollRows.map((r) => [
       `"${r.employee_code}"`,
       `"${r.name.replace(/"/g, '""')}"`,
+      `"${(r.designation || '-').replace(/"/g, '""')}"`,
       `"${r.department}"`,
       r.month,
       r.year,
@@ -1163,55 +1165,55 @@ export function AdminPayrollScreen() {
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditCalculation(r)}
+                              className="text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-300 font-medium rounded px-2 py-0.5 transition-colors"
+                              title="Edit attendance & salary calculation"
+                            >
+                              Edit
+                            </button>
+
+                            {r.payout_status !== "paid" ? (
                               <button
-                                type="button"
-                                onClick={() => handleOpenEditCalculation(r)}
-                                className="text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-300 font-medium rounded px-2 py-0.5 transition-colors"
-                                title="Edit attendance & salary calculation"
+                                onClick={() => handleMarkPaid(r.employee_id, "paid")}
+                                disabled={markingEmpId === r.employee_id}
+                                className="text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium rounded px-2 py-0.5 transition-colors"
+                                title="Mark as Paid"
                               >
-                                Edit
+                                {markingEmpId === r.employee_id ? "..." : "Mark Paid"}
                               </button>
+                            ) : (
+                              <button
+                                onClick={() => handleMarkPaid(r.employee_id, "unpaid")}
+                                disabled={markingEmpId === r.employee_id}
+                                className="text-[10px] text-neutral-400 hover:text-neutral-700 underline px-1 py-0.5"
+                                title="Reset to Unpaid"
+                              >
+                                {markingEmpId === r.employee_id ? "..." : "Reset"}
+                              </button>
+                            )}
 
-                              {r.payout_status !== "paid" ? (
-                                <button
-                                  onClick={() => handleMarkPaid(r.employee_id, "paid")}
-                                  disabled={markingEmpId === r.employee_id}
-                                  className="text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium rounded px-2 py-0.5 transition-colors"
-                                  title="Mark as Paid"
-                                >
-                                  {markingEmpId === r.employee_id ? "..." : "Mark Paid"}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleMarkPaid(r.employee_id, "unpaid")}
-                                  disabled={markingEmpId === r.employee_id}
-                                  className="text-[10px] text-neutral-400 hover:text-neutral-700 underline px-1 py-0.5"
-                                  title="Reset to Unpaid"
-                                >
-                                  {markingEmpId === r.employee_id ? "..." : "Reset"}
-                                </button>
-                              )}
+                            {!isFinalized && (
+                              <button
+                                onClick={() => setAdjEmpId(r.employee_id)}
+                                className="text-[11px] text-neutral-600 hover:text-neutral-900 border border-neutral-300 rounded px-2 py-0.5"
+                              >
+                                Adjust
+                              </button>
+                            )}
 
-                              {!isFinalized && (
-                                <button
-                                  onClick={() => setAdjEmpId(r.employee_id)}
-                                  className="text-[11px] text-neutral-600 hover:text-neutral-900 border border-neutral-300 rounded px-2 py-0.5"
-                                >
-                                  Adjust
-                                </button>
-                              )}
-
-                              {r.payout_status === "failed" && (
-                                <button
-                                  onClick={() => handleRetryPayout(r.employee_id)}
-                                  disabled={retryingEmpId === r.employee_id}
-                                  className="text-[11px] bg-rose-600 hover:bg-rose-500 text-white font-medium rounded px-2 py-0.5"
-                                >
-                                  {retryingEmpId === r.employee_id ? "..." : "Retry"}
-                                </button>
-                              )}
-                            </div>
+                            {r.payout_status === "failed" && (
+                              <button
+                                onClick={() => handleRetryPayout(r.employee_id)}
+                                disabled={retryingEmpId === r.employee_id}
+                                className="text-[11px] bg-rose-600 hover:bg-rose-500 text-white font-medium rounded px-2 py-0.5"
+                              >
+                                {retryingEmpId === r.employee_id ? "..." : "Retry"}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))

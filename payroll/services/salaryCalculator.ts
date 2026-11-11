@@ -20,6 +20,7 @@ export interface EmployeePayrollRow {
   name: string;
   employee_code: string;
   department: string;
+  designation?: string;
   email: string;
   phone: string | null;
   month: number;
@@ -183,14 +184,15 @@ export async function getPayrollSettings(prisma: PrismaClient): Promise<PayrollS
 export async function calculateMonthlyPayroll(
   prisma: PrismaClient,
   month: number,
-  year: number
+  year: number,
+  organizationId?: string
 ): Promise<EmployeePayrollRow[]> {
   const settings = await getPayrollSettings(prisma);
   const lateCutoffMinutes = parseTimeToMinutes(settings.late_after_time);
   const totalDaysInMonth = new Date(year, month, 0).getDate();
 
   // 1. Read Eligible Active and Separated Employees via configured mapping (Excludes Admin accounts)
-  const employees: PayrollEmployeeRecord[] = await getEligiblePayrollEmployees(prisma, month, year);
+  const employees: PayrollEmployeeRecord[] = await getEligiblePayrollEmployees(prisma, month, year, organizationId);
   if (employees.length === 0) {
     return [];
   }
@@ -241,7 +243,8 @@ export async function calculateMonthlyPayroll(
   const holidayRows = await safeQueryRaw<any>(
     prisma,
     "payroll_holidays",
-    `SELECT to_char(date, 'YYYY-MM-DD') as date_str, name FROM payroll_holidays`
+    `SELECT to_char(date, 'YYYY-MM-DD') as date_str, name FROM payroll_holidays WHERE organization_id = $1`,
+    organizationId || "org_default_realty"
   );
   const holidaySet = new Set<string>();
   for (const h of holidayRows) {
@@ -333,6 +336,7 @@ export async function calculateMonthlyPayroll(
           employee_id: emp.id,
           name: emp.name,
           employee_code: emp.employeeCode,
+          designation: emp.designation || "-",
           department: emp.department,
           email: emp.email,
           phone: emp.phone,
@@ -543,6 +547,7 @@ export async function calculateMonthlyPayroll(
         employee_id: emp.id,
         name: emp.name,
         employee_code: emp.employeeCode,
+        designation: emp.designation || "-",
         department: emp.department,
         email: emp.email,
         phone: emp.phone,
@@ -592,9 +597,10 @@ export async function calculateMonthlyPayroll(
   export async function finalizeMonthlyPayroll(
     prisma: PrismaClient,
     month: number,
-    year: number
+    year: number,
+    organizationId?: string
   ): Promise<{ success: boolean; count: number }> {
-    const rows = await calculateMonthlyPayroll(prisma, month, year);
+    const rows = await calculateMonthlyPayroll(prisma, month, year, organizationId);
     if (rows.length === 0) {
       return { success: false, count: 0 };
     }

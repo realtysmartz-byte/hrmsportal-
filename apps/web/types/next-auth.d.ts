@@ -6,6 +6,8 @@ declare module "next-auth" {
       id: string;
       role: string;
       employeeCode: string;
+      organizationId?: string;
+      orgSlug?: string;
     } & DefaultSession["user"];
     error?: "AccountInactive" | "SessionExpired";
   }
@@ -13,6 +15,8 @@ declare module "next-auth" {
   interface User {
     role: string;
     employeeCode: string;
+    organizationId?: string;
+    orgSlug?: string;
     pwdSig?: string;
     loginAt?: number;
   }
@@ -23,6 +27,8 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     employeeCode?: string;
+    organizationId?: string;
+    orgSlug?: string;
     picture?: string | null;
     status?: string;
     statusCheckedAt?: number;

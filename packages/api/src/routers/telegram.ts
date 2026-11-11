@@ -29,9 +29,10 @@ const updateConfigSchema = z.object({
 
 export const telegramRouter = router({
   getConfigs: hrAdminProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const [attendanceLeave, hrLifecycle] = await Promise.all([
-      getTelegramConfig(ctx.prisma, "ATTENDANCE_LEAVE"),
-      getTelegramConfig(ctx.prisma, "HR_LIFECYCLE"),
+      getTelegramConfig(ctx.prisma, "ATTENDANCE_LEAVE", orgId),
+      getTelegramConfig(ctx.prisma, "HR_LIFECYCLE", orgId),
     ]);
     const redis = getRedisClient();
     return {
@@ -44,6 +45,7 @@ export const telegramRouter = router({
   updateConfig: hrAdminProcedure
     .input(updateConfigSchema)
     .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const { channelType, ...data } = input;
       // Default to active if botToken and chatId are present
       const enabled =
@@ -52,8 +54,14 @@ export const telegramRouter = router({
           : Boolean(data.botToken && data.chatId);
 
       const updated = await ctx.prisma.telegramAutomationConfig.upsert({
-        where: { channelType },
+        where: {
+          organizationId_channelType: {
+            organizationId: orgId,
+            channelType,
+          },
+        },
         create: {
+          organizationId: orgId,
           channelType,
           name:
             channelType === "ATTENDANCE_LEAVE"
@@ -70,7 +78,7 @@ export const telegramRouter = router({
         },
       });
       // Invalidate Redis cache to ensure immediate update across all services
-      await invalidateTelegramConfigCache(channelType);
+      await invalidateTelegramConfigCache(channelType, orgId);
       return updated;
     }),
 
@@ -100,10 +108,17 @@ export const telegramRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const channelLabel =
         input.channelType === "ATTENDANCE_LEAVE"
           ? "Attendance & Leaves"
           : "HR & Employee Lifecycle";
+
+      const org = await ctx.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { name: true },
+      });
+      const orgName = org?.name || "HRMS Portal";
 
       const testMsg = [
         `<b>[AUTOMATION TEST NOTIFICATION]</b>`,
@@ -114,7 +129,7 @@ export const telegramRouter = router({
         ``,
         `Configured automation alerts will be delivered to this group.`,
         ``,
-        `<i>Realty Smartz Private Limited</i>`,
+        `<i>${orgName}</i>`,
       ].join("\n");
 
       const result = await sendRawTelegramMessage(
@@ -132,8 +147,14 @@ export const telegramRouter = router({
 
       // Automatically save and activate the verified Bot Token and Chat ID
       await ctx.prisma.telegramAutomationConfig.upsert({
-        where: { channelType: input.channelType },
+        where: {
+          organizationId_channelType: {
+            organizationId: orgId,
+            channelType: input.channelType,
+          },
+        },
         create: {
+          organizationId: orgId,
           channelType: input.channelType,
           name:
             input.channelType === "ATTENDANCE_LEAVE"
@@ -157,20 +178,27 @@ export const telegramRouter = router({
       });
 
       // Immediately invalidate Redis cache so active bot is live everywhere
-      await invalidateTelegramConfigCache(input.channelType);
+      await invalidateTelegramConfigCache(input.channelType, orgId);
 
       return { success: true };
     }),
 
   triggerBirthdayCheck: hrAdminProcedure.mutation(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const config = await ctx.prisma.telegramAutomationConfig.findUnique({
-      where: { channelType: "ATTENDANCE_LEAVE" },
+      where: {
+        organizationId_channelType: {
+          organizationId: orgId,
+          channelType: "ATTENDANCE_LEAVE",
+        },
+      },
     });
 
     const { weekRangeStr, days } = getWeeklyBirthdayRange();
 
     const employees = await ctx.prisma.employee.findMany({
       where: {
+        organizationId: orgId,
         status: "ACTIVE",
         dateOfBirth: { not: null },
       },

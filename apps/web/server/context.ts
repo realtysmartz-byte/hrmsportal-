@@ -28,6 +28,19 @@ export async function createTRPCContext(opts?: {
     return createContext({ prisma, session: null, ip, afterResponse: opts?.afterResponse });
   }
 
+  // ALWAYS fetch the employee's authoritative organizationId and role from the DB.
+  // Never trust a stale token or session fallback for multi-tenant isolation.
+  const emp = await prisma.employee.findUnique({
+    where: { id: session.user.id },
+    select: { organizationId: true, role: true, employeeCode: true, status: true },
+  });
+
+  if (!emp || emp.status === "EXIT" || emp.status === "TERMINATED") {
+    return createContext({ prisma, session: null, ip, afterResponse: opts?.afterResponse });
+  }
+
+  const organizationId = emp.organizationId || "org_default_realty";
+
   return createContext({
     prisma,
     ip,
@@ -37,8 +50,9 @@ export async function createTRPCContext(opts?: {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name ?? "",
-        role: (session.user.role as Role) || "EMPLOYEE",
-        employeeCode: session.user.employeeCode || "",
+        role: (emp.role as Role) || (session.user.role as Role) || "EMPLOYEE",
+        employeeCode: emp.employeeCode || session.user.employeeCode || "",
+        organizationId,
       },
     },
   });

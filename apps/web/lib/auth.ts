@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@realty-smartz/db";
+import { getTenantFromHost } from "./tenant";
 import {
   canAccessAdminPortal,
   canEmployeeLogin,
@@ -99,7 +100,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         try {
           const parsed = loginSchema.safeParse({
             email: credentials?.email?.toString().trim().toLowerCase(),
@@ -109,8 +110,15 @@ export const authOptions: NextAuthOptions = {
 
           const emailKey = parsed.data.email;
 
-          const employee = await prisma.employee.findUnique({
-            where: { email: emailKey },
+          const hostHeader =
+            (req?.headers as Record<string, string> | undefined)?.["x-forwarded-host"] ||
+            (req?.headers as Record<string, string> | undefined)?.["host"];
+          const tenant = await getTenantFromHost(
+            typeof hostHeader === "string" ? hostHeader : undefined
+          );
+
+          let employee = await prisma.employee.findFirst({
+            where: { email: emailKey, organizationId: tenant.id },
             select: {
               id: true,
               email: true,
@@ -121,9 +129,31 @@ export const authOptions: NextAuthOptions = {
               firstName: true,
               lastName: true,
               profilePhotoUrl: true,
+              organizationId: true,
+              organization: { select: { id: true, slug: true, name: true } },
               updatedAt: true,
             },
           });
+
+          if (!employee && tenant.id === "org_default_realty") {
+            employee = await prisma.employee.findFirst({
+              where: { email: emailKey },
+              select: {
+                id: true,
+                email: true,
+                passwordHash: true,
+                status: true,
+                role: true,
+                employeeCode: true,
+                firstName: true,
+                lastName: true,
+                profilePhotoUrl: true,
+                organizationId: true,
+                organization: { select: { id: true, slug: true, name: true } },
+                updatedAt: true,
+              },
+            });
+          }
 
           if (!employee) {
             recordFailedAttempt(emailKey);
@@ -185,6 +215,8 @@ export const authOptions: NextAuthOptions = {
             name: `${employee.firstName} ${employee.lastName}`,
             role: employee.role,
             employeeCode: employee.employeeCode,
+            organizationId: employee.organizationId || "org_default_realty",
+            orgSlug: employee.organization?.slug || tenant.slug || "realty",
             image: safePicture(employee.profilePhotoUrl),
             loginAt: Date.now(),
           };
@@ -278,6 +310,7 @@ export const authOptions: NextAuthOptions = {
               email: true,
               status: true,
               profilePhotoUrl: true,
+              organizationId: true,
             },
           });
           if (employee) {
@@ -302,6 +335,8 @@ export const authOptions: NextAuthOptions = {
           token.statusCheckedAt = Date.now();
           token.loginAt = (user as { loginAt?: number }).loginAt || Date.now();
         }
+        token.organizationId = (user as any)?.organizationId || token.organizationId || "org_default_realty";
+        token.orgSlug = (user as any)?.orgSlug || token.orgSlug || "realty";
         delete token.error;
       }
 
@@ -315,6 +350,8 @@ export const authOptions: NextAuthOptions = {
             role: true,
             employeeCode: true,
             profilePhotoUrl: true,
+            organizationId: true,
+            organization: { select: { slug: true } },
           },
         });
         if (!employee || !canEmployeeLogin(employee.status)) {
@@ -325,6 +362,8 @@ export const authOptions: NextAuthOptions = {
         token.employeeCode = employee.employeeCode;
         token.status = employee.status;
         token.picture = safePicture(employee.profilePhotoUrl || token.picture);
+        token.organizationId = employee.organizationId || "org_default_realty";
+        token.orgSlug = employee.organization?.slug || "realty";
         token.statusCheckedAt = Date.now();
         token.loginAt = Date.now();
       }
@@ -347,6 +386,8 @@ export const authOptions: NextAuthOptions = {
                 employeeCode: true,
                 email: true,
                 profilePhotoUrl: true,
+                organizationId: true,
+                organization: { select: { slug: true } },
               },
             }),
             prisma.$queryRaw<any[]>`
@@ -377,6 +418,8 @@ export const authOptions: NextAuthOptions = {
           token.email = employee.email;
           token.status = employee.status;
           token.picture = safePicture(employee.profilePhotoUrl || token.picture);
+          token.organizationId = employee.organizationId || "org_default_realty";
+          token.orgSlug = employee.organization?.slug || "realty";
         } catch (err) {
           console.error("[auth] jwt status check failed:", err);
         }
@@ -398,6 +441,8 @@ export const authOptions: NextAuthOptions = {
         session.user.employeeCode = (token.employeeCode as string) || "";
         if (token.email) session.user.email = token.email as string;
         session.user.image = (token.picture as string) || null;
+        session.user.organizationId = (token.organizationId as string) || "org_default_realty";
+        session.user.orgSlug = (token.orgSlug as string) || "realty";
       }
       return session;
     },

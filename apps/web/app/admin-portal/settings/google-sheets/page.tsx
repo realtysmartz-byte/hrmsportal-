@@ -1,18 +1,24 @@
 "use client";
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Calendar,
   Clock,
   Layers,
+  Save,
+  Key,
+  Mail,
+  Link as LinkIcon,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 
@@ -20,6 +26,14 @@ export default function GoogleSheetsSettingsPage() {
   const utils = trpc.useUtils();
   const { data: settings, isLoading } = trpc.googleSheets.getSettings.useQuery();
 
+  // Form states
+  const [spreadsheetId, setSpreadsheetId] = useState("");
+  const [serviceAccountEmail, setServiceAccountEmail] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
+
+  // Date sync
   const [selectedDate, setSelectedDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
@@ -28,6 +42,33 @@ export default function GoogleSheetsSettingsPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  // Populate form when data loads
+  useEffect(() => {
+    if (settings) {
+      setSpreadsheetId(settings.spreadsheetId || "");
+      setServiceAccountEmail(settings.serviceAccountEmail || "");
+      setWebhookUrl(settings.webhookUrl || "");
+      setAutoSyncEnabled(settings.autoSyncEnabled ?? true);
+    }
+  }, [settings]);
+
+  const saveMutation = trpc.googleSheets.saveSettings.useMutation({
+    onSuccess: () => {
+      setSyncStatusMsg({
+        type: "success",
+        text: "Google Sheets configuration successfully saved for your organization!",
+      });
+      setPrivateKey("");
+      utils.googleSheets.getSettings.invalidate();
+    },
+    onError: (err) => {
+      setSyncStatusMsg({
+        type: "error",
+        text: userFacingErrorMessage(err),
+      });
+    },
+  });
 
   const syncMutation = trpc.googleSheets.syncDailyReport.useMutation({
     onSuccess: (data) => {
@@ -49,7 +90,7 @@ export default function GoogleSheetsSettingsPage() {
     onSuccess: (data) => {
       setSyncStatusMsg({
         type: "success",
-        text: `Connection verified! Successfully synced ${data.rowCount} employee records.`,
+        text: `Connection test successful! Tab "${data.sheetTitle}" synced with ${data.rowCount} employee rows.`,
       });
       utils.googleSheets.getSettings.invalidate();
     },
@@ -60,6 +101,17 @@ export default function GoogleSheetsSettingsPage() {
       });
     },
   });
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveMutation.mutate({
+      spreadsheetId: spreadsheetId.trim() || null,
+      serviceAccountEmail: serviceAccountEmail.trim() || null,
+      privateKey: privateKey.trim() || undefined,
+      webhookUrl: webhookUrl.trim() || null,
+      autoSyncEnabled,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -80,13 +132,13 @@ export default function GoogleSheetsSettingsPage() {
           Google Sheets Attendance Sync
         </h1>
         <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
-          Automated daily attendance synchronization and operational health status.
+          Configure dynamic Google Sheets sync for your company. Each company connects its own Google Sheet independently.
         </p>
       </div>
 
       {/* Operational Connection Status Badge Banner */}
       <div
-        className={`rounded-lg border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+        className={`rounded-xl border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
           isConfigured
             ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
             : "border-amber-200 bg-amber-50/70 text-amber-900"
@@ -107,7 +159,7 @@ export default function GoogleSheetsSettingsPage() {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-sm sm:text-base">
-                {isConfigured ? "Google Sheets Sync: Connected" : "Google Sheets Sync: Disconnected"}
+                {isConfigured ? "Google Sheets Sync: Connected" : "Google Sheets Sync: Not Configured"}
               </h3>
               <Badge
                 variant="outline"
@@ -117,13 +169,18 @@ export default function GoogleSheetsSettingsPage() {
                     : "bg-amber-100 text-amber-800 border-amber-300 font-bold text-[10px]"
                 }
               >
-                {isConfigured ? "Active" : "Inactive"}
+                {isConfigured ? "Active" : "Pending Setup"}
               </Badge>
+              {settings?.source && (
+                <span className="text-[10px] text-neutral-500 font-medium">
+                  ({settings.source === "DATABASE" ? "Company Custom Config" : "Default Server Fallback"})
+                </span>
+              )}
             </div>
             <p className="text-xs opacity-90 mt-0.5">
               {isConfigured
                 ? "Daily attendance reports are automatically synced to your designated company spreadsheet."
-                : "Backend environment variables are not configured. Contact your system administrator."}
+                : "Enter your Google Spreadsheet ID and credentials below to enable automated sync."}
             </p>
           </div>
         </div>
@@ -172,6 +229,112 @@ export default function GoogleSheetsSettingsPage() {
           </button>
         </div>
       )}
+
+      {/* Form: Configure Company Google Sheet */}
+      <Card className="border-neutral-200">
+        <CardHeader className="pb-3 border-b border-neutral-100">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-[#5D3EBC]" />
+            Company Google Sheet Configuration
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Connect your company's official Google Sheet. Provide your Google Cloud Service Account credentials or a Google Apps Script webhook URL.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+                <FileSpreadsheet className="h-3.5 w-3.5 text-neutral-500" />
+                Google Spreadsheet ID
+              </Label>
+              <Input
+                type="text"
+                placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                value={spreadsheetId}
+                onChange={(e) => setSpreadsheetId(e.target.value)}
+                className="text-xs font-mono"
+              />
+              <p className="text-[11px] text-neutral-400">
+                Found in your Google Sheet URL: docs.google.com/spreadsheets/d/<b>[SPREADSHEET_ID]</b>/edit
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-neutral-500" />
+                  Service Account Email
+                </Label>
+                <Input
+                  type="email"
+                  placeholder="e.g. sync@your-project.iam.gserviceaccount.com"
+                  value={serviceAccountEmail}
+                  onChange={(e) => setServiceAccountEmail(e.target.value)}
+                  className="text-xs font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5 text-neutral-500" />
+                  Service Account Private Key
+                  {settings?.hasPrivateKey && (
+                    <span className="text-[10px] text-emerald-600 font-normal">
+                      (Encrypted key is active)
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  type="password"
+                  placeholder={settings?.hasPrivateKey ? "Leave blank to keep existing key" : "Paste -----BEGIN PRIVATE KEY----- ..."}
+                  value={privateKey}
+                  onChange={(e) => setPrivateKey(e.target.value)}
+                  className="text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-neutral-100 space-y-1.5">
+              <Label className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5 text-neutral-500" />
+                Alternative: Google Apps Script Webhook URL (Optional)
+              </Label>
+              <Input
+                type="url"
+                placeholder="https://script.google.com/macros/s/.../exec"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                className="text-xs font-mono"
+              />
+              <p className="text-[11px] text-neutral-400">
+                If you use a Google Apps Script web app, paste the deployment URL here.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={autoSyncEnabled}
+                  onChange={(e) => setAutoSyncEnabled(e.target.checked)}
+                  className="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500 h-4 w-4"
+                />
+                Auto-sync daily after 7:00 PM auto punch-out
+              </label>
+
+              <Button
+                type="submit"
+                disabled={saveMutation.isLoading}
+                className="bg-[#0F172A] hover:bg-neutral-800 text-white font-bold text-xs gap-2"
+              >
+                <Save className="h-3.5 w-3.5" />
+                {saveMutation.isLoading ? "Saving..." : "Save Google Sheets Config"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Main Grid: Operational Actions & Last Sync Telemetry */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

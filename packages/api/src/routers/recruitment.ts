@@ -82,13 +82,15 @@ export const recruitmentRouter = router({
         .optional()
     )
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       return ctx.prisma.jobPosting.findMany({
-        where: input?.status ? { status: input.status } : undefined,
+        where: {
+          ...(input?.status ? { status: input.status } : {}),
+          postedBy: { organizationId: orgId },
+        },
         include: {
           department: true,
-          postedBy: {
-            select: { id: true, firstName: true, lastName: true },
-          },
+          postedBy: { select: { id: true, firstName: true, lastName: true, organizationId: true } },
           _count: { select: { candidates: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -100,13 +102,14 @@ export const recruitmentRouter = router({
     .query(async ({ ctx, input }) => {
       const role = ctx.session.user.role as Role;
       const isAdmin = canAccessAdminPortal(role);
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
 
       const job = await ctx.prisma.jobPosting.findUnique({
         where: { id: input.id },
         include: {
           department: true,
           postedBy: {
-            select: { id: true, firstName: true, lastName: true },
+            select: { id: true, firstName: true, lastName: true, organizationId: true },
           },
           candidates: isAdmin
             ? {
@@ -128,7 +131,7 @@ export const recruitmentRouter = router({
             : false,
         },
       });
-      if (!job) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!job || job.postedBy.organizationId !== orgId) throw new TRPCError({ code: "NOT_FOUND" });
       type CandidateSummary = {
         id: string;
         fullName: string;
@@ -293,7 +296,7 @@ export const recruitmentRouter = router({
       const candidate = await ctx.prisma.candidate.findUnique({
         where: { id: input.id },
         include: {
-          jobPosting: true,
+          jobPosting: { include: { postedBy: { select: { organizationId: true } } } },
           referredBy: {
             select: { id: true, firstName: true, lastName: true, employeeCode: true },
           },
@@ -315,7 +318,8 @@ export const recruitmentRouter = router({
           },
         },
       });
-      if (!candidate) throw new TRPCError({ code: "NOT_FOUND" });
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      if (!candidate || (candidate.jobPosting as any).postedBy?.organizationId !== orgId) throw new TRPCError({ code: "NOT_FOUND" });
       return candidate;
     }),
 

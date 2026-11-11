@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { PlaneTakeoff, ClipboardCheck, IdCard, CalendarDays } from "lucide-react";
@@ -72,8 +73,17 @@ export default function EmployeeDashboardPage() {
     ? getInitials(profileHubData.employee.firstName, profileHubData.employee.lastName)
     : getInitials(userName);
 
-  const { data: upcomingHolidays, isLoading: holidaysLoading } =
+  const { data: rawUpcomingHolidays, isLoading: holidaysLoading } =
     trpc.holiday.upcoming.useQuery({ limit: 8 }, { staleTime: 30_000, refetchOnWindowFocus: true });
+
+  // Strictly filter out any past holidays (date must be >= today in IST)
+  const upcomingHolidays = useMemo(() => {
+    if (!rawUpcomingHolidays) return [];
+    const todayIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return (rawUpcomingHolidays as Array<{ id: string; name: string; date: string; dayName?: string; type?: string; description?: string | null }>).filter(
+      (h) => h.date >= todayIST
+    );
+  }, [rawUpcomingHolidays]);
   const { data: birthdays, isLoading: birthdaysLoading } =
     trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
       staleTime: 15 * 60_000,
@@ -226,8 +236,8 @@ export default function EmployeeDashboardPage() {
                           daysUntil === "Today" || daysUntil === "Tomorrow"
                             ? "bg-amber-100 text-amber-800 border border-amber-200"
                             : daysUntil === "Past" || daysUntil.endsWith("ago")
-                            ? "bg-neutral-100 text-neutral-600 border border-neutral-200"
-                            : "bg-[#F3EAFD] text-[#5225C5] border border-[#E7DBFA]"
+                              ? "bg-neutral-100 text-neutral-600 border border-neutral-200"
+                              : "bg-[#F3EAFD] text-[#5225C5] border border-[#E7DBFA]"
                         )}
                       >
                         {daysUntil}

@@ -10,6 +10,32 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Organization {
+  id           String            @id @default(cuid())
+  name         String
+  slug         String            @unique
+  customDomain String?           @unique
+  logoUrl      String?
+  brandColor   String?           @default("#7c3aed")
+  supportEmail String?
+  loginHeading     String?
+  loginSubheading  String?
+  loginBannerUrl   String?
+  tagline          String?
+  testimonialQuote String?
+  testimonialAuthor String?
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @default(now()) @updatedAt
+  employees    Employee[]
+  departments  Department[]
+  designations Designation[]
+  leaveTypes         LeaveType[]
+  settings           CompanySettings[]
+  googleSheetConfig  GoogleSheetConfig?
+  telegramConfigs    TelegramAutomationConfig[]
+}
+
 model Employee {
   id               String         @id @default(cuid())
   employeeCode     String         @unique // e.g. "RS-0001"
@@ -17,6 +43,8 @@ model Employee {
   lastName         String
   email            String         @unique
   passwordHash     String
+  organizationId   String         @default("org_default_realty")
+  organization     Organization   @relation(fields: [organizationId], references: [id])
   phone            String?
   role             Role           @default(EMPLOYEE)
   designationId    String?
@@ -61,6 +89,9 @@ model Employee {
   bloodGroup           String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, email])
 }
 
 enum Role {
@@ -79,17 +110,21 @@ enum EmployeeStatus {
 }
 
 model Department {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  employees   Employee[]
+  id             String        @id @default(cuid())
+  name           String        @unique
+  organizationId String?       @default("org_default_realty")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  employees      Employee[]
   jobPostings JobPosting[]
   createdAt   DateTime     @default(now())
 }
 
 model Designation {
-  id        String     @id @default(cuid())
-  title     String     @unique
-  employees Employee[]
+  id             String        @id @default(cuid())
+  title          String        @unique
+  organizationId String?       @default("org_default_realty")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  employees      Employee[]
   createdAt DateTime   @default(now())
 }
 
@@ -141,6 +176,8 @@ enum AttendanceStatus {
 model LeaveType {
   id                  String         @id @default(cuid())
   name                String         @unique
+  organizationId      String?        @default("org_default_realty")
+  organization        Organization?  @relation(fields: [organizationId], references: [id])
   annualQuota         Int
   carryForwardAllowed Boolean        @default(false)
   requiresApproval    Boolean        @default(true)
@@ -192,7 +229,9 @@ enum LeaveStatus {
 }
 
 model CompanySettings {
-  id              String @id @default("singleton")
+  id              String        @id @default("singleton")
+  organizationId  String?       @default("org_default_realty")
+  organization    Organization? @relation(fields: [organizationId], references: [id])
   officeName      String @default("Realty Smartz Private Limited HQ")
   officeLat       Float
   officeLng       Float
@@ -459,29 +498,49 @@ enum ReviewStatus {
   SUBMITTED
 }
 
+model GoogleSheetConfig {
+  id                  String       @id @default(cuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  spreadsheetId       String?
+  serviceAccountEmail String?
+  privateKey          String?
+  webhookUrl          String?
+  autoSyncEnabled     Boolean      @default(true)
+  lastSyncedAt        DateTime?
+  lastSyncStatus      String?
+  lastSyncRows        Int?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @default(now()) @updatedAt
+}
+
 model TelegramAutomationConfig {
-  id               String   @id @default(cuid())
-  channelType      String   @unique // "ATTENDANCE_LEAVE" or "HR_LIFECYCLE"
-  name             String   // e.g. "Attendance & Leaves Bot" or "HR & Employee Lifecycle Bot"
+  id               String        @id @default(cuid())
+  organizationId   String        @default("org_default_realty")
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channelType      String        // "ATTENDANCE_LEAVE" or "HR_LIFECYCLE"
+  name             String        // e.g. "Attendance & Leaves Bot" or "HR & Employee Lifecycle Bot"
   botToken         String?
   chatId           String?
   chatTitle        String?
-  enabled          Boolean  @default(false)
+  enabled          Boolean       @default(false)
   
   // Attendance & Leaves flags
-  notifyPunchIn    Boolean  @default(true)
-  notifyPunchOut   Boolean  @default(true)
-  notifyLeave      Boolean  @default(true)
-  notifyBirthday   Boolean  @default(true)
+  notifyPunchIn    Boolean       @default(true)
+  notifyPunchOut   Boolean       @default(true)
+  notifyLeave      Boolean       @default(true)
+  notifyBirthday   Boolean       @default(true)
   
   // HR / Lifecycle flags
-  notifyNewJoin    Boolean  @default(true)
-  notifyCandidate  Boolean  @default(true)
-  notifyResigned   Boolean  @default(true)
-  notifyTerminated Boolean  @default(true)
+  notifyNewJoin    Boolean       @default(true)
+  notifyCandidate  Boolean       @default(true)
+  notifyResigned   Boolean       @default(true)
+  notifyTerminated Boolean       @default(true)
 
   lastTestSentAt   DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([organizationId, channelType])
 }
 

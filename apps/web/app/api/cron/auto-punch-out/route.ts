@@ -12,7 +12,7 @@ import { startOfDayUTC } from "@realty-smartz/shared";
 export const dynamic = "force-dynamic";
 
 /**
- * Daily 7:00 PM IST Cron / Webhook Endpoint for Realty Smartz Auto Punch-Out
+ * Daily 7:00 PM IST Cron / Webhook Endpoint for Multi-Tenant Auto Punch-Out
  * GET /api/cron/auto-punch-out
  */
 export async function GET(request: Request) {
@@ -25,21 +25,36 @@ export async function GET(request: Request) {
 
     const result = await ensureAutoPunchOut(prisma);
 
-    // If records were auto-punched out, immediately sync the updated day's report to Google Sheets
+    // If records were auto-punched out, immediately sync each organization's report to their configured Google Sheet
     if (result.updatedCount > 0) {
       try {
-        const config = getActiveGoogleSheetConfig();
-        if (config.webhookUrl || config.spreadsheetId) {
-          const today = startOfDayUTC(new Date());
-          const reportData = await generateDailyAttendanceData(prisma, today);
-          const sheetRes = await syncReportToGoogleSheet(config, reportData);
-          setLastSyncMetadata({
-            date: reportData.dateStr,
-            sheetTitle: sheetRes.sheetTitle,
-            rowCount: sheetRes.rowCount,
-            syncedAt: new Date().toISOString(),
-          });
-          console.info(`[cron:auto-punch-out] Synced ${result.updatedCount} auto-punched records to Google Sheet "${reportData.dateStr}"`);
+        const orgs = await prisma.organization.findMany({
+          where: { isActive: true },
+          select: { id: true, name: true },
+        });
+
+        for (const org of orgs) {
+          try {
+            const config = await getActiveGoogleSheetConfig(prisma, org.id);
+            if (config.webhookUrl || config.spreadsheetId) {
+              const today = startOfDayUTC(new Date());
+              const reportData = await generateDailyAttendanceData(prisma, today, org.id);
+              if (reportData.rows.length > 0) {
+                const sheetRes = await syncReportToGoogleSheet(config, reportData);
+                setLastSyncMetadata({
+                  date: reportData.dateStr,
+                  sheetTitle: sheetRes.sheetTitle,
+                  rowCount: sheetRes.rowCount,
+                  syncedAt: new Date().toISOString(),
+                });
+                console.info(
+                  `[cron:auto-punch-out] Synced ${sheetRes.rowCount} records for ${org.name} to Google Sheet "${reportData.dateStr}"`
+                );
+              }
+            }
+          } catch (orgErr) {
+            console.error(`[cron:auto-punch-out] Sheet sync error for ${org.name}:`, orgErr);
+          }
         }
       } catch (sheetErr) {
         console.error("[cron:auto-punch-out] Sheet sync error:", sheetErr);
@@ -48,20 +63,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Auto punch-out executed successfully at 7:00 PM IST.`,
-      updatedRecords: result.updatedCount,
+      updatedCount: result.updatedCount,
       timestamp: new Date().toISOString(),
     });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cron:auto-punch-out] Error:", message);
+  } catch (error: any) {
+    console.error("[cron:auto-punch-out] Execution failed:", error);
     return NextResponse.json(
-      { success: false, error: message },
+      { error: error?.message || "Internal server error" },
       { status: 500 }
     );
   }
-}
-
-export async function POST(request: Request) {
-  return GET(request);
 }

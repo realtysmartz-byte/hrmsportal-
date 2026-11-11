@@ -51,6 +51,7 @@ export interface PayrollEmployeeRecord {
   role: string;
   status: string;
   department: string;
+  designation?: string;
   dateOfJoining?: Date | null;
   separationDate?: Date | null;
   separationType?: "RESIGNED" | "TERMINATED" | "EXIT" | null;
@@ -131,11 +132,13 @@ export async function getApprovedLeavesForMonth(
 export async function getEligiblePayrollEmployees(
   prisma: PrismaClient,
   month?: number,
-  year?: number
+  year?: number,
+  organizationId?: string
 ): Promise<PayrollEmployeeRecord[]> {
   try {
     const rawEmployees = await prisma.employee.findMany({
       where: {
+        organizationId: organizationId || "org_default_realty",
         role: { in: [...employeeSourceConfig.filters.allowedRoles] as any },
         status: { in: ["ACTIVE", "ON_LEAVE", "RESIGNED", "TERMINATED", "EXIT"] as any },
       },
@@ -152,6 +155,9 @@ export async function getEligiblePayrollEmployees(
         updatedAt: true,
         department: {
           select: { name: true },
+        },
+        designation: {
+          select: { title: true },
         },
       },
       orderBy: { firstName: "asc" },
@@ -226,6 +232,7 @@ export async function getEligiblePayrollEmployees(
         role: emp.role,
         status: emp.status,
         department: emp.department?.name || "General",
+        designation: emp.designation?.title || "-",
         dateOfJoining: emp.dateOfJoining || null,
         separationDate,
         separationType,

@@ -22,7 +22,9 @@ export const performanceRouter = router({
   // -------------------------------------------------------------
 
   cycleList: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     return ctx.prisma.performanceCycle.findMany({
+      where: { createdBy: { organizationId: orgId } },
       include: {
         createdBy: {
           select: { id: true, firstName: true, lastName: true },
@@ -36,8 +38,9 @@ export const performanceRouter = router({
   }),
 
   activeCycle: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     return ctx.prisma.performanceCycle.findFirst({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", createdBy: { organizationId: orgId } },
       include: {
         _count: {
           select: { goals: true, reviews: true },
@@ -50,11 +53,12 @@ export const performanceRouter = router({
   cycleById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const cycle = await ctx.prisma.performanceCycle.findUnique({
         where: { id: input.id },
         include: {
           createdBy: {
-            select: { id: true, firstName: true, lastName: true },
+            select: { id: true, firstName: true, lastName: true, organizationId: true },
           },
           _count: {
             select: { goals: true, reviews: true },
@@ -62,7 +66,7 @@ export const performanceRouter = router({
         },
       });
 
-      if (!cycle) {
+      if (!cycle || cycle.createdBy.organizationId !== orgId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Performance cycle not found" });
       }
 
@@ -521,7 +525,9 @@ export const performanceRouter = router({
       if (!cycle) return { cycle: null, team: [] };
 
       // Direct reports for manager, or all employees for admin/HR
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const whereClause: Record<string, unknown> = {
+        organizationId: orgId,
         status: { in: ["ACTIVE", "ON_LEAVE"] },
       };
       if (role === "MANAGER") {
@@ -838,8 +844,10 @@ export const performanceRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Cycle not found" });
       }
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const employees = await ctx.prisma.employee.findMany({
         where: {
+          organizationId: orgId,
           status: { in: ["ACTIVE", "ON_LEAVE"] },
         },
         include: {

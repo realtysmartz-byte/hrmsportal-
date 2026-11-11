@@ -30,6 +30,7 @@ import {
   Power,
   Banknote,
   ShieldCheck,
+  Layers,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
@@ -50,12 +51,13 @@ const coreNavItems = [
 ];
 
 const settingsNavItems = [
-  { href: "/admin-portal/settings/staff-permissions", label: "Staff & Permissions", icon: ShieldCheck, adminOnly: true },
-  { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText, permission: "settings" },
+  { href: "/admin-portal/organizations", label: "Companies (Multi-Tenant)", icon: Layers, superAdminOnly: true },
   { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings, permission: "settings" },
   { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet, permission: "settings" },
-  { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail, permission: "settings" },
   { href: "/admin-portal/settings/telegram", label: "Automations", icon: Bot, permission: "settings" },
+  { href: "/admin-portal/settings/staff-permissions", label: "Staff & Permissions", icon: ShieldCheck, adminOnly: true },
+  { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText, permission: "settings" },
+  { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail, superAdminOnly: true },
 ];
 
 interface AdminSidebarProps {
@@ -80,8 +82,21 @@ export function AdminSidebar({
   const { data: permData } = trpc.employee.getMyPermissions.useQuery(undefined, {
     staleTime: 60_000,
   });
+  const { data: orgData } = trpc.organization.getCurrent.useQuery(undefined, {
+    staleTime: 5 * 60_000,
+  });
+
+  const companyName = orgData?.name || "Realty Smartz";
+  const companyLogo = orgData?.logoUrl || "/logo.png";
+  const companyTagline =
+    orgData?.slug === "realty" || !orgData
+      ? "People • Process • Progress"
+      : "HR & Workforce Operations";
 
   const isSuperAdmin = session?.user?.role === "ADMIN" || Boolean(permData?.isSuperAdmin);
+  const isPlatformSuperAdmin =
+    isSuperAdmin &&
+    (session?.user?.organizationId === "org_default_realty" || !session?.user?.organizationId);
   const userPerms = permData?.permissions ?? ["dashboard", "attendance", "leave"];
 
   const visibleCoreItems = coreNavItems.filter(
@@ -89,6 +104,7 @@ export function AdminSidebar({
   );
 
   const visibleSettingsItems = settingsNavItems.filter((item) => {
+    if ((item as any).superAdminOnly) return isPlatformSuperAdmin;
     if (item.adminOnly) return isSuperAdmin;
     return isSuperAdmin || userPerms.includes("*") || (item.permission ? userPerms.includes(item.permission) : false);
   });
@@ -111,13 +127,13 @@ export function AdminSidebar({
           href="/admin-portal/dashboard"
           onClick={onCloseMobile}
           className="flex items-center gap-3 overflow-hidden group"
-          title="Realty Smartz Private Limited"
+          title={companyName}
         >
           {/* Logo container without any white box or white background */}
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center transition-transform group-hover:scale-105">
             <img
-              src="/logo.png"
-              alt="Realty Smartz"
+              src={companyLogo}
+              alt={companyName}
               width={34}
               height={34}
               className="h-8 w-8 object-contain drop-shadow-md"
@@ -133,10 +149,10 @@ export function AdminSidebar({
               className="min-w-0"
             >
               <span className="font-display text-[15px] font-bold tracking-tight text-white block truncate leading-tight">
-                Realty Smartz
+                {companyName}
               </span>
               <span className="text-[10px] font-medium text-[#8E9BB5] block truncate tracking-wider mt-0.5">
-                People • Process • Progress
+                {companyTagline}
               </span>
             </motion.div>
           )}

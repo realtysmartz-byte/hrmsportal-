@@ -264,7 +264,7 @@ function scheduleSheetSync(prisma: Context["prisma"], date: Date) {
       const { generateDailyAttendanceData, syncReportToGoogleSheet } = await import(
         "../lib/google-sheets"
       );
-      const sheetConfig = getActiveGoogleSheetConfig();
+      const sheetConfig = await getActiveGoogleSheetConfig(prisma);
       if (sheetConfig.webhookUrl || sheetConfig.spreadsheetId) {
         const reportData = await generateDailyAttendanceData(prisma, date);
         const res = await syncReportToGoogleSheet(sheetConfig, reportData);
@@ -947,9 +947,11 @@ export const attendanceRouter = router({
 
       // Auto clock-out runs via cron — do not block team roster loads
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const isRange = Boolean(input.startDate && input.endDate);
       const targetDate = startOfDayUTC(input.date ?? new Date());
       const employeeWhere: Record<string, unknown> = {
+        organizationId: orgId,
         status: { in: ["ACTIVE", "ON_LEAVE"] },
         role: "EMPLOYEE",
       };
@@ -1100,8 +1102,10 @@ export const attendanceRouter = router({
         }
       }
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       // Build employee filters - exclude Admin and HR staff
       const employeeWhere: Record<string, unknown> = {
+        organizationId: orgId,
         role: "EMPLOYEE",
       };
       if (role === "MANAGER") {
@@ -1369,11 +1373,13 @@ export const attendanceRouter = router({
       const next = new Date(day);
       next.setUTCDate(next.getUTCDate() + 1);
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       return ctx.prisma.locationPing.findMany({
         where: {
           employeeId: input.employeeId || undefined,
           capturedAt: { gte: day, lt: next },
           employee: {
+            organizationId: orgId,
             role: "EMPLOYEE",
             ...(role === "MANAGER"
               ? { managerId: resolveEmployeeId(ctx) }
@@ -1408,8 +1414,10 @@ export const attendanceRouter = router({
       const next = new Date(day);
       next.setUTCDate(next.getUTCDate() + 1);
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const employees = await ctx.prisma.employee.findMany({
         where: {
+          organizationId: orgId,
           status: "ACTIVE",
           role: "EMPLOYEE",
           ...(role === "MANAGER" ? { managerId: resolveEmployeeId(ctx) } : {}),
@@ -1582,7 +1590,9 @@ export const attendanceRouter = router({
       const minDate = new Date(today);
       minDate.setUTCMonth(minDate.getUTCMonth() - 6);
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const employees = await ctx.prisma.employee.findMany({
+        where: { organizationId: orgId },
         select: { id: true, employeeCode: true, email: true },
       });
       const byCode = new Map(employees.map((e) => [e.employeeCode.toUpperCase(), e.id]));

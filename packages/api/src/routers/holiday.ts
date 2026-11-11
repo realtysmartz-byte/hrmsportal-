@@ -37,14 +37,13 @@ function getHolidaysFilePath(): string {
     }
   }
 
-  // Fallback to preferred path
   const defaultPath = path.join(process.cwd(), "data", "holidays.json");
   const dir = path.dirname(defaultPath);
   if (!fs.existsSync(dir)) {
     try {
       fs.mkdirSync(dir, { recursive: true });
     } catch {
-      // Ignore directory creation failure
+      // Ignore
     }
   }
   return defaultPath;
@@ -74,9 +73,6 @@ function readHolidays(): HolidayItem[] {
   } catch (err) {
     console.error("Failed to read holidays from file:", err);
   }
-
-  // Save empty defaults if file not present
-  writeHolidays(DEFAULT_HOLIDAYS);
   return DEFAULT_HOLIDAYS;
 }
 
@@ -97,320 +93,318 @@ async function ensurePayrollHolidaysTable(prisma: any): Promise<void> {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS payroll_holidays (
         id TEXT PRIMARY KEY,
-        date DATE UNIQUE NOT NULL,
+        date DATE NOT NULL,
         name TEXT NOT NULL,
         type TEXT DEFAULT 'PUBLIC',
         description TEXT,
+        organization_id TEXT NOT NULL DEFAULT 'org_default_realty',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
     try {
       await prisma.$executeRawUnsafe("ALTER TABLE payroll_holidays ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'PUBLIC'");
       await prisma.$executeRawUnsafe("ALTER TABLE payroll_holidays ADD COLUMN IF NOT EXISTS description TEXT");
-    } catch {}
+      await prisma.$executeRawUnsafe("ALTER TABLE payroll_holidays ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT 'org_default_realty'");
+    } catch { }
     tableEnsured = true;
   } catch (err) {
     console.warn("[holiday] Could not ensure payroll_holidays table:", err);
   }
 }
 
-async function syncAndReadHolidays(prisma: any): Promise<HolidayItem[]> {
+async function getHolidaysForOrg(prisma: any, orgId: string): Promise<HolidayItem[]> {
   await ensurePayrollHolidaysTable(prisma);
-  const fromFile = readHolidays();
   try {
     const rows = await prisma.$queryRawUnsafe(
-      "SELECT id, to_char(date, 'YYYY-MM-DD') as date, name, type, description FROM payroll_holidays ORDER BY date ASC"
+      "SELECT id, to_char(date, 'YYYY-MM-DD') as date, name, type, description FROM payroll_holidays WHERE organization_id = $1 ORDER BY date ASC",
+      orgId
     );
     if (Array.isArray(rows) && rows.length > 0) {
-      const items: HolidayItem[] = rows.map((r: any) => {
-        const matchingFile = fromFile.find((f) => f.id === r.id || f.date === r.date);
-        return {
-          id: r.id || `hol-${r.date}`,
-          name: r.name,
-          date: r.date,
-          dayName: calculateDayName(r.date),
-          type: (r.type as any) ?? matchingFile?.type ?? "PUBLIC",
-          description: r.description ?? matchingFile?.description ?? null,
-        };
-      });
-
-      const sorted = items.sort((a, b) => a.date.localeCompare(b.date));
-      writeHolidays(sorted);
-      return sorted;
-    } else if (Array.isArray(rows) && rows.length === 0 && fromFile.length > 0) {
-      for (const f of fromFile) {
-        try {
-          await prisma.$executeRawUnsafe(
-            "INSERT INTO payroll_holidays (id, date, name, type, description) VALUES ($1, $2::date, $3, $4, $5) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name",
-            f.id,
-            f.date,
-            f.name,
-            f.type ?? "PUBLIC",
-            f.description ?? null
-          );
-        } catch {}
-      }
-      return fromFile;
+      return rows.map((r: any) => ({
+        id: r.id || `hol-${r.date}`,
+        name: r.name,
+        date: r.date,
+        dayName: calculateDayName(r.date),
+        type: (r.type as any) ?? "PUBLIC",
+        description: r.description ?? null,
+      }));
     }
   } catch (err) {
-    // If payroll_holidays table query fails, fallback to file
+    console.error("[holiday] Failed to read holidays for org:", orgId, err);
   }
-  return fromFile.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Fallback to legacy file ONLY for org_default_realty if table query was empty
+  if (orgId === "org_default_realty") {
+    return readHolidays();
+  }
+
+  return [];
 }
 
 export const holidayRouter = router({
-    list: protectedProcedure
-      .input(
-        z
-          .object({
-            year: z.number().int().optional(),
-          })
-          .optional()
-      )
-      .query(async ({ ctx, input }) => {
-        const holidays = await syncAndReadHolidays(ctx.prisma);
-        if (input?.year) {
-          return holidays.filter((h) => h.date.startsWith(`${input.year}-`));
-        }
-        return holidays;
-      }),
+  list: protectedProcedure
+    .input(
+      z
+        .object({
+          year: z.number().int().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const holidays = await getHolidaysForOrg(ctx.prisma, orgId);
+      if (input?.year) {
+        return holidays.filter((h) => h.date.startsWith(`${input.year}-`));
+      }
+      return holidays;
+    }),
 
-    upcoming: protectedProcedure
-      .input(
-        z
-          .object({
-            limit: z.number().int().min(1).max(50).default(8),
-          })
-          .optional()
-      )
-      .query(async ({ ctx, input }) => {
-        const limit = input?.limit ?? 8;
-        const today = getTodayIST();
-        const all = await syncAndReadHolidays(ctx.prisma);
+  upcoming: protectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(50).default(8),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 8;
+      const today = getTodayIST();
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const all = await getHolidaysForOrg(ctx.prisma, orgId);
 
-        // 1. Future & today's holidays (ascending chronologically)
-        const future = all
-          .filter((h) => h.date >= today)
-          .sort((a, b) => a.date.localeCompare(b.date));
+      // Only return upcoming holidays (today or future dates), sorted chronologically ascending
+      const future = all
+        .filter((h) => h.date >= today)
+        .sort((a, b) => a.date.localeCompare(b.date));
 
-        // 2. Recent holidays within the last 35 days (e.g. this month, newest first)
-        const pastThreshold = new Date();
-        pastThreshold.setDate(pastThreshold.getDate() - 35);
-        const pastThresholdStr = pastThreshold.toLocaleDateString("en-CA", {
-          timeZone: TIMEZONE_IST,
+      return future.slice(0, limit);
+    }),
+
+  create: protectedProcedure
+    .input(createHolidaySchema)
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      if (!canManageHolidays(role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only HR & Admins can manage company holidays.",
         });
+      }
 
-        const recentPast = all
-          .filter((h) => h.date < today && h.date >= pastThresholdStr)
-          .sort((a, b) => b.date.localeCompare(a.date));
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      await ensurePayrollHolidaysTable(ctx.prisma);
+      const dayName = calculateDayName(input.date);
+      const id = `hol-${input.date}-${Date.now().toString(36)}`;
 
-        // Prefer future holidays first; if future count < limit, backfill with recent
-        const combined = [...future];
-        for (const r of recentPast) {
-          if (combined.length >= limit) break;
-          combined.push(r);
-        }
+      const newHoliday: HolidayItem = {
+        id,
+        name: input.name,
+        date: input.date,
+        dayName,
+        type: input.type,
+        description: input.description ?? null,
+      };
 
-        // If still empty and there are any holidays at all, show latest ones
-        if (combined.length === 0 && all.length > 0) {
-          return all.slice(0, limit);
-        }
-
-        return combined.slice(0, limit);
-      }),
-
-    create: protectedProcedure
-      .input(createHolidaySchema)
-      .mutation(async ({ ctx, input }) => {
-        const role = ctx.session.user.role as Role;
-        if (!canManageHolidays(role)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Only HR & Admins can manage company holidays.",
-          });
-        }
-
+      if (orgId === "org_default_realty") {
         const all = readHolidays();
-        const dayName = calculateDayName(input.date);
-        const id = `hol-${input.date}-${Date.now().toString(36)}`;
+        all.push(newHoliday);
+        writeHolidays(all);
+      }
 
-        const newHoliday: HolidayItem = {
-          id,
+      try {
+        await ctx.prisma.$executeRawUnsafe(
+          `INSERT INTO payroll_holidays (id, date, name, type, description, organization_id) 
+           VALUES ($1, $2::date, $3, $4, $5, $6) 
+           ON CONFLICT (date, organization_id) DO UPDATE SET 
+             name = EXCLUDED.name,
+             type = EXCLUDED.type,
+             description = EXCLUDED.description`,
+          newHoliday.id,
+          newHoliday.date,
+          newHoliday.name,
+          newHoliday.type,
+          newHoliday.description,
+          orgId
+        );
+      } catch (err) {
+        console.warn("[holiday] DB sync error on create:", err);
+      }
+
+      return newHoliday;
+    }),
+
+  announceMany: protectedProcedure
+    .input(announceHolidaysSchema)
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      if (!canManageHolidays(role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only HR & Admins can manage company holidays.",
+        });
+      }
+
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      await ensurePayrollHolidaysTable(ctx.prisma);
+      const createdItems: HolidayItem[] = [];
+
+      for (const dateStr of input.dates) {
+        const dayName = calculateDayName(dateStr);
+        const item: HolidayItem = {
+          id: `hol-${dateStr}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
           name: input.name,
-          date: input.date,
+          date: dateStr,
           dayName,
           type: input.type,
           description: input.description ?? null,
         };
+        createdItems.push(item);
+      }
 
-        all.push(newHoliday);
-        writeHolidays(all);
-
-        try {
-          await ctx.prisma.$executeRawUnsafe(
-            "INSERT INTO payroll_holidays (id, date, name) VALUES ($1, $2::date, $3) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name",
-            newHoliday.id,
-            newHoliday.date,
-            newHoliday.name
-          );
-        } catch (err) {
-          console.warn("[holiday] DB sync error on create:", err);
-        }
-
-        return newHoliday;
-      }),
-
-    announceMany: protectedProcedure
-      .input(announceHolidaysSchema)
-      .mutation(async ({ ctx, input }) => {
-        const role = ctx.session.user.role as Role;
-        if (!canManageHolidays(role)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Only HR & Admins can manage company holidays.",
-          });
-        }
-
+      if (orgId === "org_default_realty") {
         const all = readHolidays();
-        const createdItems: HolidayItem[] = [];
-
-        for (const dateStr of input.dates) {
-          const dayName = calculateDayName(dateStr);
-          const existingIdx = all.findIndex((h) => h.date === dateStr && h.name.toLowerCase() === input.name.toLowerCase());
-          if (existingIdx >= 0) {
-            all[existingIdx] = {
-              ...all[existingIdx],
-              name: input.name,
-              type: input.type,
-              description: input.description ?? all[existingIdx].description,
-            };
-            createdItems.push(all[existingIdx]);
-          } else {
-            const item: HolidayItem = {
-              id: `hol-${dateStr}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
-              name: input.name,
-              date: dateStr,
-              dayName,
-              type: input.type,
-              description: input.description ?? null,
-            };
-            all.push(item);
-            createdItems.push(item);
-          }
-        }
-
+        all.push(...createdItems);
         writeHolidays(all);
+      }
 
-        try {
-          for (const item of createdItems) {
-            await ctx.prisma.$executeRawUnsafe(
-              "INSERT INTO payroll_holidays (id, date, name, type, description) VALUES ($1, $2::date, $3, $4, $5) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, description = EXCLUDED.description",
-              item.id,
-              item.date,
-              item.name,
-              item.type,
-              item.description
-            );
-          }
-        } catch (err) {
-          console.warn("[holiday] DB sync error on announceMany:", err);
+      try {
+        for (const item of createdItems) {
+          await ctx.prisma.$executeRawUnsafe(
+            `INSERT INTO payroll_holidays (id, date, name, type, description, organization_id) 
+             VALUES ($1, $2::date, $3, $4, $5, $6) 
+             ON CONFLICT (date, organization_id) DO UPDATE SET 
+               name = EXCLUDED.name, 
+               type = EXCLUDED.type, 
+               description = EXCLUDED.description`,
+            item.id,
+            item.date,
+            item.name,
+            item.type,
+            item.description,
+            orgId
+          );
         }
+      } catch (err) {
+        console.warn("[holiday] DB sync error on announceMany:", err);
+      }
 
-        return createdItems;
-      }),
+      return createdItems;
+    }),
 
-    update: protectedProcedure
-      .input(updateHolidaySchema)
-      .mutation(async ({ ctx, input }) => {
-        const role = ctx.session.user.role as Role;
-        if (!canManageHolidays(role)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Only HR & Admins can manage company holidays.",
-          });
-        }
+  update: protectedProcedure
+    .input(updateHolidaySchema)
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      if (!canManageHolidays(role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only HR & Admins can manage company holidays.",
+        });
+      }
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      await ensurePayrollHolidaysTable(ctx.prisma);
+
+      const currentRows = (await ctx.prisma.$queryRawUnsafe(
+        "SELECT id, to_char(date, 'YYYY-MM-DD') as date, name, type, description FROM payroll_holidays WHERE id = $1 AND organization_id = $2",
+        input.id,
+        orgId
+      )) as any[];
+
+      if (!currentRows || currentRows.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Holiday not found.",
+        });
+      }
+
+      const existing = currentRows[0];
+      const newDate = input.date ?? existing.date;
+      const dayName = input.date ? calculateDayName(newDate) : calculateDayName(existing.date);
+
+      const updated: HolidayItem = {
+        id: existing.id,
+        name: input.name ?? existing.name,
+        date: newDate,
+        dayName,
+        type: input.type ?? existing.type ?? "PUBLIC",
+        description: input.description !== undefined ? input.description : existing.description,
+      };
+
+      try {
+        await ctx.prisma.$executeRawUnsafe(
+          `UPDATE payroll_holidays 
+           SET name = $1, date = $2::date, type = $3, description = $4 
+           WHERE id = $5 AND organization_id = $6`,
+          updated.name,
+          updated.date,
+          updated.type,
+          updated.description,
+          updated.id,
+          orgId
+        );
+      } catch (err) {
+        console.warn("[holiday] DB sync error on update:", err);
+      }
+
+      if (orgId === "org_default_realty") {
         const all = readHolidays();
         const idx = all.findIndex((h) => h.id === input.id);
-        if (idx === -1) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Holiday not found.",
-          });
+        if (idx >= 0) {
+          all[idx] = updated;
+          writeHolidays(all);
         }
+      }
 
-        const existing = all[idx];
-        const newDate = input.date ?? existing.date;
-        const dayName = input.date ? calculateDayName(newDate) : existing.dayName;
+      return updated;
+    }),
 
-        const updated: HolidayItem = {
-          ...existing,
-          name: input.name ?? existing.name,
-          date: newDate,
-          dayName,
-          type: input.type ?? existing.type,
-          description: input.description !== undefined ? input.description : existing.description,
-        };
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as Role;
+      if (!canManageHolidays(role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only HR & Admins can manage company holidays.",
+        });
+      }
 
-        all[idx] = updated;
-        writeHolidays(all);
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      await ensurePayrollHolidaysTable(ctx.prisma);
+      const dateMatch = input.id.match(/(\d{4}-\d{2}-\d{2})/);
+      const targetDate = dateMatch ? dateMatch[1] : null;
 
-        try {
+      // 1. Delete from PostgreSQL database scoped to organization_id
+      try {
+        if (targetDate) {
           await ctx.prisma.$executeRawUnsafe(
-            "UPDATE payroll_holidays SET name = $1, date = $2::date, type = $3, description = $4 WHERE id = $5 OR date::date = $2::date",
-            updated.name,
-            updated.date,
-            updated.type,
-            updated.description,
-            updated.id
+            "DELETE FROM payroll_holidays WHERE (id = $1 OR date::date = $2::date) AND organization_id = $3",
+            input.id,
+            targetDate,
+            orgId
           );
-        } catch (err) {
-          console.warn("[holiday] DB sync error on update:", err);
+        } else {
+          await ctx.prisma.$executeRawUnsafe(
+            "DELETE FROM payroll_holidays WHERE id = $1 AND organization_id = $2",
+            input.id,
+            orgId
+          );
         }
+      } catch (err) {
+        console.warn("[holiday] DB sync error on delete:", err);
+      }
 
-        return updated;
-      }),
-
-    delete: protectedProcedure
-      .input(z.object({ id: z.string().min(1) }))
-      .mutation(async ({ ctx, input }) => {
-        const role = ctx.session.user.role as Role;
-        if (!canManageHolidays(role)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Only HR & Admins can manage company holidays.",
-          });
-        }
-
-        await ensurePayrollHolidaysTable(ctx.prisma);
-        const dateMatch = input.id.match(/(\d{4}-\d{2}-\d{2})/);
-        const targetDate = dateMatch ? dateMatch[1] : null;
-
-        // 1. Delete from PostgreSQL database (by ID, or by matching date)
-        try {
-          if (targetDate) {
-            await ctx.prisma.$executeRawUnsafe(
-              "DELETE FROM payroll_holidays WHERE id = $1 OR date::date = $2::date",
-              input.id,
-              targetDate
-            );
-          } else {
-            await ctx.prisma.$executeRawUnsafe(
-              "DELETE FROM payroll_holidays WHERE id = $1",
-              input.id
-            );
-          }
-        } catch (err) {
-          console.warn("[holiday] DB sync error on delete:", err);
-        }
-
-        // 2. Remove from JSON file cache
+      // 2. Remove from JSON file cache ONLY for org_default_realty
+      if (orgId === "org_default_realty") {
         const all = readHolidays();
         const filtered = all.filter(
           (h) => h.id !== input.id && (!targetDate || h.date !== targetDate)
         );
         writeHolidays(filtered);
+      }
 
-        return { success: true, id: input.id };
-          }),
-  });
+      return { success: true, id: input.id };
+    }),
+});

@@ -7,10 +7,12 @@ const REDIS_KEY_PREFIX = "hrms:automation:config:";
 
 export async function getTelegramConfig(
   prisma: PrismaClient,
-  channelType: TelegramChannelType
+  channelType: TelegramChannelType,
+  organizationId?: string
 ): Promise<TelegramAutomationConfig> {
+  const orgId = organizationId || "org_default_realty";
   const redis = getRedisClient();
-  const cacheKey = `${REDIS_KEY_PREFIX}${channelType}`;
+  const cacheKey = `${REDIS_KEY_PREFIX}${orgId}:${channelType}`;
 
   if (redis) {
     try {
@@ -22,13 +24,19 @@ export async function getTelegramConfig(
   }
 
   let config = await prisma.telegramAutomationConfig.findUnique({
-    where: { channelType },
+    where: {
+      organizationId_channelType: {
+        organizationId: orgId,
+        channelType,
+      },
+    },
   });
 
   if (!config) {
     const isAttendance = channelType === "ATTENDANCE_LEAVE";
     config = await prisma.telegramAutomationConfig.create({
       data: {
+        organizationId: orgId,
         channelType,
         name: isAttendance
           ? "Attendance and Leaves Automation"
@@ -55,10 +63,11 @@ export async function getTelegramConfig(
   return config;
 }
 
-export async function invalidateTelegramConfigCache(channelType: TelegramChannelType) {
+export async function invalidateTelegramConfigCache(channelType: TelegramChannelType, organizationId?: string) {
+  const orgId = organizationId || "org_default_realty";
   const redis = getRedisClient();
   if (!redis) return;
-  const cacheKey = `${REDIS_KEY_PREFIX}${channelType}`;
+  const cacheKey = `${REDIS_KEY_PREFIX}${orgId}:${channelType}`;
   try {
     await redis.del(cacheKey);
   } catch (err) {
@@ -302,10 +311,11 @@ export async function sendTelegramNotification(
     | "notifyCandidate"
     | "notifyResigned"
     | "notifyTerminated",
-  htmlMessage: string
+  htmlMessage: string,
+  organizationId?: string
 ) {
   try {
-    const config = await getTelegramConfig(prisma, channelType);
+    const config = await getTelegramConfig(prisma, channelType, organizationId);
     if (!config) {
       console.warn(`[telegram:${channelType}] No automation config found.`);
       return;

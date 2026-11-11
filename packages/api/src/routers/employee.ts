@@ -166,8 +166,11 @@ export const employeeRouter = router({
       const role = ctx.session.user.role as Role;
       const canManage = canManageEmployees(role);
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+
       const where = {
         AND: [
+          { organizationId: orgId },
           { role: "EMPLOYEE" as Role },
           search
             ? {
@@ -229,7 +232,8 @@ export const employeeRouter = router({
         },
       });
 
-      if (!employee) {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      if (!employee || (employee.organizationId && employee.organizationId !== orgId)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
@@ -586,8 +590,10 @@ export const employeeRouter = router({
       const employeeCode = input.employeeCode || (await nextEmployeeCode(ctx.prisma));
       const passwordHash = await bcrypt.hash(input.password, 12);
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const employee = await ctx.prisma.employee.create({
         data: {
+          organizationId: orgId,
           employeeCode,
           firstName: input.firstName,
           lastName: input.lastName,
@@ -859,8 +865,9 @@ export const employeeRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { id, password, statusEffectiveDate, ...data } = input;
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const existing = await ctx.prisma.employee.findUnique({ where: { id } });
-      if (!existing) {
+      if (!existing || (existing.organizationId && existing.organizationId !== orgId)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
@@ -1118,7 +1125,9 @@ export const employeeRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const where = {
+        organizationId: orgId,
         role: "EMPLOYEE" as Role,
         ...(input.status === "ALL" ? {} : { status: input.status as (typeof EMPLOYEE_STATUSES)[number] }),
       };
@@ -1207,10 +1216,11 @@ export const employeeRouter = router({
         });
       }
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const existing = await ctx.prisma.employee.findUnique({
         where: { id: input.id },
       });
-      if (!existing) {
+      if (!existing || (existing.organizationId && existing.organizationId !== orgId)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
       }
 
@@ -1234,8 +1244,9 @@ export const employeeRouter = router({
     }),
 
   managerOptions: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const employees = await ctx.prisma.employee.findMany({
-      where: { status: "ACTIVE" },
+      where: { organizationId: orgId, status: "ACTIVE" },
       select: {
         id: true,
         firstName: true,
@@ -1249,15 +1260,18 @@ export const employeeRouter = router({
   }),
 
   dashboardStats: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const today = startOfDayUTC(new Date());
     const [totalEmployees, departmentCount, recentJoiners, todayLogs] =
       await Promise.all([
         ctx.prisma.employee.count({
-          where: { status: { in: ["ACTIVE", "ON_LEAVE"] }, role: "EMPLOYEE" },
+          where: { organizationId: orgId, status: { in: ["ACTIVE", "ON_LEAVE"] }, role: "EMPLOYEE" },
         }),
-        ctx.prisma.department.count(),
+        ctx.prisma.department.count({
+          where: { organizationId: orgId },
+        }),
         ctx.prisma.employee.findMany({
-          where: { dateOfJoining: { not: null }, role: "EMPLOYEE" },
+          where: { organizationId: orgId, dateOfJoining: { not: null }, role: "EMPLOYEE" },
           select: {
             id: true,
             firstName: true,
@@ -1272,7 +1286,7 @@ export const employeeRouter = router({
           take: 5,
         }),
         ctx.prisma.attendanceLog.findMany({
-          where: { date: today },
+          where: { date: today, employee: { organizationId: orgId } },
           select: {
             status: true,
             checkInTime: true,
@@ -1296,6 +1310,7 @@ export const employeeRouter = router({
     const checkedIds = new Set(todayLogs.map((l) => l.employee.id));
     const notInSample = await ctx.prisma.employee.findMany({
       where: {
+        organizationId: orgId,
         status: { in: ["ACTIVE", "ON_LEAVE"] },
         id: { notIn: [...checkedIds] },
       },
@@ -1381,8 +1396,10 @@ export const employeeRouter = router({
       return upcomingBirthdaysCache.data;
     }
 
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const employees = await ctx.prisma.employee.findMany({
       where: {
+        organizationId: orgId,
         status: { in: ["ACTIVE", "ON_LEAVE"] },
         dateOfBirth: { not: null },
       },
@@ -1458,10 +1475,14 @@ export const employeeRouter = router({
     const today = startOfDayUTC(new Date());
 
     if (isStaff) {
-      const leaveWhere: Record<string, unknown> = { status: "PENDING" };
-      if (role === "MANAGER") {
-        leaveWhere.employee = { managerId: ctx.session.user.id };
-      }
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const leaveWhere: Record<string, unknown> = {
+        status: "PENDING",
+        employee: {
+          organizationId: orgId,
+          ...(role === "MANAGER" ? { managerId: ctx.session.user.id } : {}),
+        },
+      };
 
       const [pendingLeaves, outsideGeofenceLogs, lateLogs, newCandidates] =
         await Promise.all([
@@ -1487,6 +1508,7 @@ export const employeeRouter = router({
               date: today,
               withinGeofence: false,
               checkInTime: { not: null },
+              employee: { organizationId: orgId },
             },
             include: {
               employee: {
@@ -1505,6 +1527,7 @@ export const employeeRouter = router({
               date: today,
               status: "LATE",
               checkInTime: { not: null },
+              employee: { organizationId: orgId },
             },
             include: {
               employee: {
@@ -1520,7 +1543,10 @@ export const employeeRouter = router({
           }),
           role === "ADMIN" || role === "HR"
             ? ctx.prisma.candidate.findMany({
-                where: { currentStage: "APPLIED" },
+                where: {
+                  currentStage: "APPLIED",
+                  jobPosting: { postedBy: { organizationId: orgId } },
+                },
                 include: { jobPosting: { select: { title: true } } },
                 orderBy: { appliedAt: "desc" },
                 take: 5,
@@ -1700,8 +1726,9 @@ export const employeeRouter = router({
   }),
 
   listStaffUsers: hrAdminProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const staff = await ctx.prisma.employee.findMany({
-      where: { role: { in: ["ADMIN", "HR"] } },
+      where: { organizationId: orgId, role: { in: ["ADMIN", "HR"] } },
       select: {
         id: true,
         firstName: true,

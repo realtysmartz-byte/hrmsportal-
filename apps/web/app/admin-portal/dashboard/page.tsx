@@ -60,24 +60,28 @@ export default function AdminDashboardPage() {
     staleTime: 15 * 60_000,
   });
 
+  const { data: orgData } = trpc.organization.getCurrent.useQuery(undefined, {
+    staleTime: 5 * 60_000,
+  });
+
   if (isLoading) {
     return <PageSkeleton />;
   }
 
-  const totalEmployees = data?.totalEmployees ?? 62;
-  const deptCount = data?.departmentCount ?? 9;
+  const totalEmployees = data?.totalEmployees ?? 0;
+  const deptCount = data?.departmentCount ?? 0;
   const pendingLeaveCount = pendingLeave?.length ?? 0;
   const openJobsCount = jobs?.length ?? 0;
   const adminName = session?.user?.name ?? "HR Admin";
 
   // Attendance metrics calculation
   const presence = data?.presence;
-  const presentCount = (presence?.onTime?.count ?? 0) + (presence?.late?.count ?? 0) || 48;
-  const absentCount = presence?.notIn?.count ?? 6;
-  const onLeaveCount = presence?.onLeave?.count ?? 5;
-  const halfDayCount = 3;
+  const presentCount = (presence?.onTime?.count ?? 0) + (presence?.late?.count ?? 0);
+  const absentCount = presence?.notIn?.count ?? 0;
+  const onLeaveCount = presence?.onLeave?.count ?? 0;
+  const halfDayCount = 0;
 
-  const totalTracked = presentCount + absentCount + onLeaveCount + halfDayCount || totalEmployees || 62;
+  const totalTracked = presentCount + absentCount + onLeaveCount + halfDayCount || totalEmployees || 1;
   const presentPct = ((presentCount / totalTracked) * 100).toFixed(1);
   const absentPct = ((absentCount / totalTracked) * 100).toFixed(1);
   const onLeavePct = ((onLeaveCount / totalTracked) * 100).toFixed(1);
@@ -118,17 +122,7 @@ export default function AdminDashboardPage() {
 
   const displayPending = pendingLeave ?? [];
 
-  // Real or Sample Birthdays
-  const sampleBirthdays = [
-    { id: "b1", name: "Meera Iyer", birthdayDate: "27 Oct", profilePhotoUrl: null },
-    { id: "b2", name: "Vikram Singh", birthdayDate: "28 Oct", profilePhotoUrl: null },
-    { id: "b3", name: "Ananya Das", birthdayDate: "29 Oct", profilePhotoUrl: null },
-    { id: "b4", name: "Karan Malhotra", birthdayDate: "30 Oct", profilePhotoUrl: null },
-    { id: "b5", name: "Pooja Nair", birthdayDate: "31 Oct", profilePhotoUrl: null },
-  ];
-
-  const displayBirthdays =
-    upcomingBirthdays && upcomingBirthdays.length > 0 ? upcomingBirthdays : sampleBirthdays;
+  const displayBirthdays = upcomingBirthdays ?? [];
 
   return (
     <div className="mx-auto max-w-[1520px] space-y-6">
@@ -140,7 +134,7 @@ export default function AdminDashboardPage() {
               {greeting()}, {adminName}
             </h1>
             <p className="text-sm font-medium text-neutral-500">
-              Great Teams Build Great Spaces
+              {orgData?.name || "Realty Smartz"} • {orgData?.slug === "realty" || !orgData ? "Great Teams Build Great Spaces" : "Workforce & Operations Management"}
             </p>
           </div>
         </div>
@@ -484,29 +478,35 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Birthday Avatars Row */}
-        <div className="mt-2 flex items-center gap-6 overflow-x-auto pb-2 scrollbar-none">
-          {displayBirthdays.slice(0, 6).map((b) => (
-            <div
-              key={b.id}
-              className="flex w-24 shrink-0 flex-col items-center text-center select-none"
-            >
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-neutral-200 bg-[#F5F2FC] shadow-2xs">
-                {b.profilePhotoUrl ? (
-                  <img src={b.profilePhotoUrl} alt={b.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-[#6D28D9] to-[#8B5CF6] text-white font-bold text-sm">
-                    {initials(b.name.split(" ")[0], b.name.split(" ")[1])}
-                  </div>
-                )}
+        {displayBirthdays.length === 0 ? (
+          <div className="py-6 text-center text-xs font-medium text-neutral-400">
+            No upcoming birthdays this week
+          </div>
+        ) : (
+          <div className="mt-2 flex items-center gap-6 overflow-x-auto pb-2 scrollbar-none">
+            {displayBirthdays.slice(0, 6).map((b) => (
+              <div
+                key={b.id}
+                className="flex w-24 shrink-0 flex-col items-center text-center select-none"
+              >
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-neutral-200 bg-[#F5F2FC] shadow-2xs">
+                  {b.profilePhotoUrl ? (
+                    <img src={b.profilePhotoUrl} alt={b.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-[#6D28D9] to-[#8B5CF6] text-white font-bold text-sm">
+                      {initials(b.name.split(" ")[0], b.name.split(" ")[1])}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2.5 w-full truncate text-xs font-bold text-neutral-900">
+                  {b.name}
+                </p>
+                <p className="text-[11px] font-medium text-neutral-500 mt-0.5">{b.birthdayDate}</p>
+                <Gift className="mt-1.5 h-4 w-4 text-[#7C3AED]" />
               </div>
-              <p className="mt-2.5 w-full truncate text-xs font-bold text-neutral-900">
-                {b.name}
-              </p>
-              <p className="text-[11px] font-medium text-neutral-500 mt-0.5">{b.birthdayDate}</p>
-              <Gift className="mt-1.5 h-4 w-4 text-[#7C3AED]" />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 5. Footer Motivational & Brand Banner */}

@@ -261,6 +261,8 @@ export default function TeamAttendancePage() {
     const header = [
       "Employee Name",
       "Employee Code",
+      "Designation",
+      "Department",
       "Date",
       "Punch In (IST)",
       "Punch Out (IST)",
@@ -273,6 +275,8 @@ export default function TeamAttendancePage() {
     const lines = rows.map((r) => {
       const log = r.log;
       const empName = fullName(r.employee.firstName, r.employee.lastName);
+      const designation = r.employee.designation?.title || "—";
+      const department = r.employee.department?.name || "—";
       const dateStr = formatDateIST(log?.date || selectedDate);
       const punchIn = log?.checkInTime ? formatTimeIST(log.checkInTime) : "—";
       const punchOut = log?.checkOutTime
@@ -301,6 +305,8 @@ export default function TeamAttendancePage() {
       return [
         empName,
         r.employee.employeeCode,
+        designation,
+        department,
         dateStr,
         punchIn,
         punchOut,

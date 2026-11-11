@@ -59,6 +59,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
 
+    // Authoritative organization ID resolution for payroll multi-tenancy
+    const currentUserEmp = await prisma.employee.findUnique({
+      where: { id: session.user.id },
+      select: { organizationId: true },
+    });
+    const orgId = currentUserEmp?.organizationId || (session.user as any)?.organizationId || "org_default_realty";
+
     // =========================================================================
     // EMPLOYEE ACTION: View own finalized payslips only
     // =========================================================================
@@ -138,7 +145,7 @@ export async function GET(req: NextRequest) {
 
     // 3. Get Employee Salaries & Bank Details
     if (action === "get-salaries") {
-      const eligibleEmployees = await getEligiblePayrollEmployees(prisma);
+      const eligibleEmployees = await getEligiblePayrollEmployees(prisma, undefined, undefined, orgId);
 
       const salaryRows = await safeQueryRaw<any>(
         prisma,
@@ -196,7 +203,8 @@ export async function GET(req: NextRequest) {
       const holidays = await safeQueryRaw<any>(
         prisma,
         "payroll_holidays",
-        `SELECT id, to_char(date, 'YYYY-MM-DD') as date, name FROM payroll_holidays ORDER BY date ASC`
+        `SELECT id, to_char(date, 'YYYY-MM-DD') as date, name FROM payroll_holidays WHERE organization_id = $1 ORDER BY date ASC`,
+        orgId
       );
       return NextResponse.json({ holidays });
     }
@@ -205,7 +213,7 @@ export async function GET(req: NextRequest) {
     if (action === "view-month") {
       const month = Number(searchParams.get("month") || new Date().getMonth() + 1);
       const year = Number(searchParams.get("year") || new Date().getFullYear());
-      const rows = await calculateMonthlyPayroll(prisma, month, year);
+      const rows = await calculateMonthlyPayroll(prisma, month, year, orgId);
       return NextResponse.json({ rows });
     }
 
@@ -214,7 +222,7 @@ export async function GET(req: NextRequest) {
       const month = Number(searchParams.get("month") || new Date().getMonth() + 1);
       const year = Number(searchParams.get("year") || new Date().getFullYear());
 
-      const rows = await calculateMonthlyPayroll(prisma, month, year);
+      const rows = await calculateMonthlyPayroll(prisma, month, year, orgId);
       if (rows.length === 0) {
         return NextResponse.json({ error: "No payroll rows found for this month" }, { status: 400 });
       }
@@ -309,6 +317,12 @@ export async function POST(req: NextRequest) {
     if (!isAuthorizedAdminOrHR(role)) {
       return NextResponse.json({ error: "Forbidden: Admin or HR role required" }, { status: 403 });
     }
+
+    const currentUserEmp = await prisma.employee.findUnique({
+      where: { id: session.user.id },
+      select: { organizationId: true },
+    });
+    const orgId = currentUserEmp?.organizationId || (session.user as any)?.organizationId || "org_default_realty";
 
     const body = await req.json().catch(() => ({}));
     const action = body.action;
@@ -474,14 +488,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Date and name are required" }, { status: 400 });
       }
 
-      const id = `hol_${date}`;
+      const id = `hol_${date}_${orgId}`;
       await safeExecuteRaw(
         prisma,
-        `INSERT INTO payroll_holidays (id, date, name) VALUES ($1, $2::date, $3)
-       ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name`,
+        `INSERT INTO payroll_holidays (id, date, name, organization_id) VALUES ($1, $2::date, $3, $4)
+       ON CONFLICT (date, organization_id) DO UPDATE SET name = EXCLUDED.name`,
         id,
         date,
-        name
+        name,
+        orgId
       );
       return NextResponse.json({ success: true });
     }
@@ -489,7 +504,7 @@ export async function POST(req: NextRequest) {
     // 5. Delete Paid Holiday
     if (action === "delete-holiday") {
       const { id } = body;
-      await safeExecuteRaw(prisma, `DELETE FROM payroll_holidays WHERE id = $1`, id);
+      await safeExecuteRaw(prisma, `DELETE FROM payroll_holidays WHERE id = $1 AND organization_id = $2`, id, orgId);
       return NextResponse.json({ success: true });
     }
 
@@ -530,15 +545,15 @@ export async function POST(req: NextRequest) {
     // 7. Generate Month
     if (action === "generate-month") {
       const { month, year } = body;
-      const rows = await calculateMonthlyPayroll(prisma, Number(month), Number(year));
+      const rows = await calculateMonthlyPayroll(prisma, Number(month), Number(year), orgId);
       return NextResponse.json({ rows });
     }
 
     // 8. Finalize Month
     if (action === "finalize-month") {
       const { month, year } = body;
-      await calculateMonthlyPayroll(prisma, Number(month), Number(year));
-      const result = await finalizeMonthlyPayroll(prisma, Number(month), Number(year));
+      await calculateMonthlyPayroll(prisma, Number(month), Number(year), orgId);
+      const result = await finalizeMonthlyPayroll(prisma, Number(month), Number(year), orgId);
       await logAudit("PAYROLL_FINALIZED", session.user.id, { month, year, count: result.count });
       return NextResponse.json(result);
     }

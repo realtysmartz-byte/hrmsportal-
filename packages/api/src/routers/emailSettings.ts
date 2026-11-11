@@ -8,8 +8,11 @@ import { testSmtpConnection, isSmtpConfigured } from "../lib/email";
 export const emailSettingsRouter = router({
   getStatus: protectedProcedure.query(async ({ ctx }) => {
     const role = ctx.session.user.role as Role;
-    if (!canManageCompanySettings(role)) {
-      throw new TRPCError({ code: "FORBIDDEN" });
+    const isPlatformSuperAdmin =
+      role === "ADMIN" &&
+      (ctx.session.user.organizationId === "org_default_realty" || !ctx.session.user.organizationId);
+    if (!isPlatformSuperAdmin) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only Platform Super Admin can view Email Service status" });
     }
 
     // Return ONLY high-level operational status — never SMTP host, user, port, or passwords
@@ -24,7 +27,13 @@ export const emailSettingsRouter = router({
         targetEmail: z.string().email(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const isPlatformSuperAdmin =
+        ctx.session.user.role === "ADMIN" &&
+        (ctx.session.user.organizationId === "org_default_realty" || !ctx.session.user.organizationId);
+      if (!isPlatformSuperAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only Platform Super Admin can test Email Service" });
+      }
       return testSmtpConnection(input.targetEmail);
     }),
 });

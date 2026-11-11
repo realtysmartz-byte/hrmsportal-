@@ -2,7 +2,8 @@ import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
 function isLocalHost(hostname: string) {
-  return ["localhost", "127.0.0.1", "::1"].includes(hostname.toLowerCase());
+  const h = hostname.toLowerCase();
+  return ["localhost", "127.0.0.1", "::1"].includes(h) || h.endsWith(".localhost");
 }
 
 export async function middleware(req: NextRequest) {
@@ -30,6 +31,7 @@ export async function middleware(req: NextRequest) {
     req,
     secret: process.env.NEXTAUTH_SECRET,
   });
+
   if (!token || token.error || !token.id) {
     const signInUrl = new URL("/login", req.url);
     if (token?.error === "SessionExpired") {

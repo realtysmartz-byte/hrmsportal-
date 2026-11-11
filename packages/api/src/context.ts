@@ -7,6 +7,7 @@ export type SessionUser = {
   name: string;
   role: Role;
   employeeCode: string;
+  organizationId?: string;
 };
 
 export type Session = {

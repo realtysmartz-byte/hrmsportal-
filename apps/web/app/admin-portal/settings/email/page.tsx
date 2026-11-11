@@ -2,6 +2,7 @@
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,14 @@ import {
 } from "lucide-react";
 
 export default function EmailSettingsPage() {
-  const { data: status, isLoading } = trpc.emailSettings.getStatus.useQuery();
+  const { data: session, status: authStatus } = useSession();
+  const isPlatformSuperAdmin =
+    session?.user?.role === "ADMIN" &&
+    (session?.user?.organizationId === "org_default_realty" || !session?.user?.organizationId);
+
+  const { data: status, isLoading } = trpc.emailSettings.getStatus.useQuery(undefined, {
+    enabled: Boolean(isPlatformSuperAdmin),
+  });
 
   const [testEmail, setTestEmail] = useState("");
   const [testStatus, setTestStatus] = useState<{

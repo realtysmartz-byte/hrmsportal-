@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useState, FormEvent } from "react";
+import { useState, useMemo, FormEvent } from "react";
 import {
   CalendarDays,
   ArrowRight,
@@ -60,10 +60,17 @@ function formatHolidayDate(dateStr: string) {
 
 export function AdminUpcomingHolidaysWidget() {
   const utils = trpc.useUtils();
-  const { data: holidays, isLoading, refetch } = trpc.holiday.upcoming.useQuery(
+  const { data: rawHolidays, isLoading, refetch } = trpc.holiday.upcoming.useQuery(
     { limit: 6 },
     { staleTime: 0 }
   );
+
+  // Filter out any past holidays (must be today or future date in IST)
+  const holidays = useMemo(() => {
+    if (!rawHolidays) return [];
+    const todayIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return rawHolidays.filter((h) => h.date >= todayIST);
+  }, [rawHolidays]);
 
   const [isAnnouncing, setIsAnnouncing] = useState(false);
   const [name, setName] = useState("");
@@ -350,21 +357,21 @@ export function AdminUpcomingHolidaysWidget() {
                         {h.dayName} · {full}
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[9px] font-bold border",
-                              daysUntil === "Today" || daysUntil === "Tomorrow"
-                                ? "bg-amber-100 text-amber-800 border-amber-200"
-                                : daysUntil === "Past" || daysUntil.endsWith("ago")
-                                  ? "bg-neutral-100 text-neutral-600 border-neutral-200"
-                                  : "bg-[#F3EAFD] text-[#6D28D9] border-[#E7DBFA]"
-                            )}
-                          >
-                            {daysUntil}
-                          </span>
-                          <span className="text-[9px] text-neutral-400 truncate">
-                            {h.type === "PUBLIC" ? "Public" : "Company"}
-                          </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[9px] font-bold border",
+                            daysUntil === "Today" || daysUntil === "Tomorrow"
+                              ? "bg-amber-100 text-amber-800 border-amber-200"
+                              : daysUntil === "Past" || daysUntil.endsWith("ago")
+                                ? "bg-neutral-100 text-neutral-600 border-neutral-200"
+                                : "bg-[#F3EAFD] text-[#6D28D9] border-[#E7DBFA]"
+                          )}
+                        >
+                          {daysUntil}
+                        </span>
+                        <span className="text-[9px] text-neutral-400 truncate">
+                          {h.type === "PUBLIC" ? "Public" : "Company"}
+                        </span>
                       </div>
                     </div>
                   </div>

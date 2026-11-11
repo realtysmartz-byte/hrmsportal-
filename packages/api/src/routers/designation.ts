@@ -13,46 +13,41 @@ type DesignationWithCount = Array<{
   _count: { employees: number };
 }>;
 
-let designationListCache: { at: number; data: DesignationWithCount } | null = null;
-const DESIGNATION_LIST_TTL_MS = 5 * 60 * 1000;
-
 export const designationRouter = router({
   list: protectedProcedure.query(async ({ ctx }): Promise<DesignationWithCount> => {
-    if (
-      designationListCache &&
-      Date.now() - designationListCache.at < DESIGNATION_LIST_TTL_MS
-    ) {
-      return designationListCache.data;
-    }
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const data = await ctx.prisma.designation.findMany({
+      where: { organizationId: orgId },
       include: { _count: { select: { employees: true } } },
       orderBy: { title: "asc" },
     });
-    designationListCache = { at: Date.now(), data };
     return data;
   }),
 
   create: orgManageProcedure
     .input(createDesignationSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.designation.findUnique({
-        where: { title: input.title },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.designation.findFirst({
+        where: { title: input.title, organizationId: orgId },
       });
       if (existing) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Designation already exists",
+          message: "Designation already exists in your company",
         });
       }
-      designationListCache = null;
-      return ctx.prisma.designation.create({ data: { title: input.title } });
+      return ctx.prisma.designation.create({
+        data: { title: input.title, organizationId: orgId },
+      });
     }),
 
   update: orgManageProcedure
     .input(updateDesignationSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.designation.findUnique({
-        where: { id: input.id },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.designation.findFirst({
+        where: { id: input.id, organizationId: orgId },
       });
       if (!existing) {
         throw new TRPCError({
@@ -62,16 +57,15 @@ export const designationRouter = router({
       }
 
       const titleTaken = await ctx.prisma.designation.findFirst({
-        where: { title: input.title, NOT: { id: input.id } },
+        where: { title: input.title, organizationId: orgId, NOT: { id: input.id } },
       });
       if (titleTaken) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Designation title already exists",
+          message: "Designation title already exists in your company",
         });
       }
 
-      designationListCache = null;
       return ctx.prisma.designation.update({
         where: { id: input.id },
         data: { title: input.title },
@@ -81,8 +75,9 @@ export const designationRouter = router({
   delete: orgManageProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.designation.findUnique({
-        where: { id: input.id },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.designation.findFirst({
+        where: { id: input.id, organizationId: orgId },
         include: { _count: { select: { employees: true } } },
       });
       if (!existing) {
@@ -97,7 +92,6 @@ export const designationRouter = router({
           message: "Cannot delete designation with assigned employees",
         });
       }
-      designationListCache = null;
       await ctx.prisma.designation.delete({ where: { id: input.id } });
       return { success: true };
     }),

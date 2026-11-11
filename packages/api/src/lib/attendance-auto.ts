@@ -85,13 +85,18 @@ export async function ensureAutoPunchOut(
       const cumulativeHours = (log.totalHours || 0) + sessionHours;
       const roundedHours = Math.max(0.25, Math.round(cumulativeHours * 100) / 100);
 
-      const [firstPunch, halfDaySlot] = await Promise.all([
+      const [firstPunch, halfDaySlot, latestPing] = await Promise.all([
         prisma.attendancePunch.findFirst({
           where: { attendanceLogId: log.id },
           orderBy: { checkInTime: "asc" },
           select: { checkInTime: true },
         }),
         getApprovedHalfDaySlot(prisma, log.employeeId, log.date),
+        prisma.locationPing.findFirst({
+          where: { employeeId: log.employeeId },
+          orderBy: { capturedAt: "desc" },
+          select: { lat: true, lng: true, address: true, capturedAt: true },
+        }),
       ]);
       const status =
         log.status === "ON_LEAVE"
@@ -102,11 +107,20 @@ export async function ensureAutoPunchOut(
               halfDaySlot,
             });
 
+      const checkOutLat = latestPing?.lat ?? null;
+      const checkOutLng = latestPing?.lng ?? null;
+      const checkOutAddress = latestPing?.address
+        ? `${latestPing.address} (Auto 7:00 PM)`
+        : "Auto checked out at 7:00 PM";
       const autoNote = "Auto checked out at 7:00 PM";
+
       await prisma.attendanceLog.update({
         where: { id: log.id },
         data: {
           checkOutTime: finalOutTime,
+          checkOutLat,
+          checkOutLng,
+          checkOutAddress,
           totalHours: roundedHours,
           status,
           notes: log.notes ? `${log.notes} · ${autoNote}` : autoNote,
@@ -114,7 +128,7 @@ export async function ensureAutoPunchOut(
       });
       const closed = await prisma.attendancePunch.updateMany({
         where: { attendanceLogId: log.id, checkOutTime: null },
-        data: { checkOutTime: finalOutTime, checkOutAddress: autoNote },
+        data: { checkOutTime: finalOutTime, checkOutAddress },
       });
       if (closed.count === 0) {
         await prisma.attendancePunch.create({
@@ -123,7 +137,7 @@ export async function ensureAutoPunchOut(
             checkInTime: log.checkInTime,
             checkInAddress: log.checkInAddress,
             checkOutTime: finalOutTime,
-            checkOutAddress: autoNote,
+            checkOutAddress,
           },
         });
       }

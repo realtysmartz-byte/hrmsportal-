@@ -16,27 +16,37 @@ import { assertCanViewSensitive } from "../lib/employee-access";
 
 export const leaveRouter = router({
   types: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.leaveType.findMany({ orderBy: { name: "asc" } });
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
+    return ctx.prisma.leaveType.findMany({
+      where: { organizationId: orgId },
+      orderBy: { name: "asc" },
+    });
   }),
 
   createType: hrAdminProcedure
     .input(createLeaveTypeSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.leaveType.findUnique({
-        where: { name: input.name },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.leaveType.findFirst({
+        where: { name: input.name, organizationId: orgId },
       });
       if (existing) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Leave type already exists",
+          message: "Leave type already exists in this company",
         });
       }
 
-      const leaveType = await ctx.prisma.leaveType.create({ data: input });
+      const leaveType = await ctx.prisma.leaveType.create({
+        data: {
+          ...input,
+          organizationId: orgId,
+        },
+      });
 
       const year = new Date().getFullYear();
       const employees = await ctx.prisma.employee.findMany({
-        where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+        where: { organizationId: orgId, status: { in: ["ACTIVE", "ON_LEAVE"] } },
         select: { id: true, email: true },
       });
 
@@ -75,8 +85,11 @@ export const leaveRouter = router({
   updateType: hrAdminProcedure
     .input(updateLeaveTypeSchema)
     .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const { id, ...data } = input;
-      const existing = await ctx.prisma.leaveType.findUnique({ where: { id } });
+      const existing = await ctx.prisma.leaveType.findFirst({
+        where: { id, organizationId: orgId },
+      });
       if (!existing) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
@@ -86,6 +99,13 @@ export const leaveRouter = router({
   deleteType: hrAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.leaveType.findFirst({
+        where: { id: input.id, organizationId: orgId },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
       const pending = await ctx.prisma.leaveRequest.count({
         where: { leaveTypeId: input.id, status: "PENDING" },
       });
@@ -338,9 +358,11 @@ export const leaveRouter = router({
       if (statusFilter !== "ALL") {
         where.status = statusFilter;
       }
-      if (role === "MANAGER") {
-        where.employee = { managerId: ctx.session.user.id };
-      }
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      where.employee = {
+        organizationId: orgId,
+        ...(role === "MANAGER" ? { managerId: ctx.session.user.id } : {}),
+      };
 
       return ctx.prisma.leaveRequest.findMany({
         where,
@@ -373,10 +395,14 @@ export const leaveRouter = router({
       throw new TRPCError({ code: "FORBIDDEN" });
     }
 
-    const where: Record<string, unknown> = { status: "PENDING" };
-    if (role === "MANAGER") {
-      where.employee = { managerId: ctx.session.user.id };
-    }
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
+    const where: Record<string, unknown> = {
+      status: "PENDING",
+      employee: {
+        organizationId: orgId,
+        ...(role === "MANAGER" ? { managerId: ctx.session.user.id } : {}),
+      },
+    };
 
     return ctx.prisma.leaveRequest.findMany({
       where,

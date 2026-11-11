@@ -13,46 +13,41 @@ type DepartmentWithCount = Array<{
   _count: { employees: number };
 }>;
 
-let departmentListCache: { at: number; data: DepartmentWithCount } | null = null;
-const DEPARTMENT_LIST_TTL_MS = 5 * 60 * 1000;
-
 export const departmentRouter = router({
   list: protectedProcedure.query(async ({ ctx }): Promise<DepartmentWithCount> => {
-    if (
-      departmentListCache &&
-      Date.now() - departmentListCache.at < DEPARTMENT_LIST_TTL_MS
-    ) {
-      return departmentListCache.data;
-    }
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
     const data = await ctx.prisma.department.findMany({
+      where: { organizationId: orgId },
       include: { _count: { select: { employees: true } } },
       orderBy: { name: "asc" },
     });
-    departmentListCache = { at: Date.now(), data };
     return data;
   }),
 
   create: orgManageProcedure
     .input(createDepartmentSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.department.findUnique({
-        where: { name: input.name },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.department.findFirst({
+        where: { name: input.name, organizationId: orgId },
       });
       if (existing) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Department already exists",
+          message: "Department already exists in your company",
         });
       }
-      departmentListCache = null;
-      return ctx.prisma.department.create({ data: { name: input.name } });
+      return ctx.prisma.department.create({
+        data: { name: input.name, organizationId: orgId },
+      });
     }),
 
   update: orgManageProcedure
     .input(updateDepartmentSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.department.findUnique({
-        where: { id: input.id },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.department.findFirst({
+        where: { id: input.id, organizationId: orgId },
       });
       if (!existing) {
         throw new TRPCError({
@@ -62,16 +57,15 @@ export const departmentRouter = router({
       }
 
       const nameTaken = await ctx.prisma.department.findFirst({
-        where: { name: input.name, NOT: { id: input.id } },
+        where: { name: input.name, organizationId: orgId, NOT: { id: input.id } },
       });
       if (nameTaken) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Department name already exists",
+          message: "Department name already exists in your company",
         });
       }
 
-      departmentListCache = null;
       return ctx.prisma.department.update({
         where: { id: input.id },
         data: { name: input.name },
@@ -81,8 +75,9 @@ export const departmentRouter = router({
   delete: orgManageProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.department.findUnique({
-        where: { id: input.id },
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const existing = await ctx.prisma.department.findFirst({
+        where: { id: input.id, organizationId: orgId },
         include: { _count: { select: { employees: true } } },
       });
       if (!existing) {
@@ -97,7 +92,6 @@ export const departmentRouter = router({
           message: "Cannot delete department with assigned employees",
         });
       }
-      departmentListCache = null;
       await ctx.prisma.department.delete({ where: { id: input.id } });
       return { success: true };
     }),

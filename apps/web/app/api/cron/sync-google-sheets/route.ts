@@ -40,7 +40,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const config = getActiveGoogleSheetConfig();
+    const config = await getActiveGoogleSheetConfig(prisma);
     const reportData = await generateDailyAttendanceData(prisma, targetDate);
     const result = await syncReportToGoogleSheet(config, reportData);
 

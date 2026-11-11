@@ -9,9 +9,19 @@ import { invalidatePunchGeofenceCache } from "../lib/work-location";
 
 export const companySettingsRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.companySettings.findUnique({
-      where: { id: "singleton" },
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
+
+    let settings = await ctx.prisma.companySettings.findFirst({
+      where: { organizationId: orgId },
     });
+
+    if (!settings && orgId === "org_default_realty") {
+      settings = await ctx.prisma.companySettings.findUnique({
+        where: { id: "singleton" },
+      });
+    }
+
+    return settings;
   }),
 
   update: protectedProcedure
@@ -25,14 +35,27 @@ export const companySettingsRouter = router({
         });
       }
 
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+
+      const existing = await ctx.prisma.companySettings.findFirst({
+        where: { organizationId: orgId },
+      });
+
+      const targetId = existing?.id || (orgId === "org_default_realty" ? "singleton" : `cs_${orgId}`);
+
       const settings = await ctx.prisma.companySettings.upsert({
-        where: { id: "singleton" },
+        where: { id: targetId },
         create: {
-          id: "singleton",
+          id: targetId,
+          organizationId: orgId,
           ...input,
         },
-        update: input,
+        update: {
+          ...input,
+          organizationId: orgId,
+        },
       });
+
       await invalidatePunchGeofenceCache();
       return settings;
     }),

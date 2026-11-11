@@ -51,7 +51,8 @@ function formatTime12(date?: Date | string | null): string {
  */
 export async function generateDailyAttendanceData(
   prisma: PrismaClient,
-  targetDate: Date
+  targetDate: Date,
+  organizationId?: string
 ): Promise<{ dateStr: string; formattedDate: string; rows: DailyReportRow[]; rawValues: (string | number)[][] }> {
   // First ensure any pending unclosed logs are auto-punched out to 7:00 PM IST
   await ensureAutoPunchOut(prisma);
@@ -68,9 +69,11 @@ export async function generateDailyAttendanceData(
   const dayStart = startOfDayUTC(targetDate);
 
 
-  // 1. Fetch all active or on-leave employees
+  const orgId = organizationId || "org_default_realty";
+  // 1. Fetch all active or on-leave employees for this organization
   const employees = await prisma.employee.findMany({
     where: {
+      organizationId: orgId,
       status: { in: ["ACTIVE", "ON_LEAVE"] },
     },
     include: {
@@ -322,10 +325,10 @@ export async function syncReportToGoogleSheet(
     };
   }
 
-  // Option B: Official Google Sheets API v4 with Service Account
-  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-  const clientEmail = process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
+  // Option B: Official Google Sheets API v4 with Service Account (Per-tenant with fallback)
+  const spreadsheetId = config.spreadsheetId || process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  const clientEmail = config.serviceAccountEmail || process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = config.privateKey || process.env.GOOGLE_SHEETS_PRIVATE_KEY;
 
   if (!spreadsheetId) {
     throw new Error(
