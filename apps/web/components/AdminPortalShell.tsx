@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminNotificationBell } from "@/components/AdminNotificationBell";
-import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { AdminChangePasswordModal } from "@/components/AdminChangePasswordModal";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +28,6 @@ interface AdminPortalShellProps {
 export function AdminPortalShell({ children }: AdminPortalShellProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [showInstallModal, setShowInstallModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { data: session, status } = useSession();
@@ -162,15 +160,6 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
               type="button"
-              onClick={() => setShowInstallModal(true)}
-              className="flex h-8 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 sm:px-2.5"
-            >
-              <Download className="h-3.5 w-3.5 text-[#5145CD]" />
-              <span className="hidden sm:inline">Install</span>
-            </button>
-            
-            <button
-              type="button"
               onClick={() => setShowChangePasswordModal(true)}
               className="flex h-8 items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 sm:px-2.5"
               title="Change Password"
@@ -260,11 +249,6 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
             </Link>
           </div>
         </header>
-
-        <InstallGuideModal
-          isOpen={showInstallModal}
-          onClose={() => setShowInstallModal(false)}
-        />
 
         <AdminChangePasswordModal
           isOpen={showChangePasswordModal}

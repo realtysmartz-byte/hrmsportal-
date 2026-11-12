@@ -17,6 +17,12 @@ import {
   Gift,
   Cake,
   ArrowRight,
+  Target,
+  TrendingUp,
+  BarChart2,
+  Clock,
+  Banknote,
+  CheckCircle2,
 } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
@@ -64,6 +70,12 @@ export default function AdminDashboardPage() {
     staleTime: 5 * 60_000,
   });
 
+  const now = new Date();
+  const { data: targetsData } = trpc.target.listAdmin.useQuery(
+    { year: now.getFullYear(), month: now.getMonth() + 1 },
+    { enabled: loadExtra, staleTime: 60_000 }
+  );
+
   if (isLoading) {
     return <PageSkeleton />;
   }
@@ -73,6 +85,34 @@ export default function AdminDashboardPage() {
   const pendingLeaveCount = pendingLeave?.length ?? 0;
   const openJobsCount = jobs?.length ?? 0;
   const adminName = session?.user?.name ?? "HR Admin";
+
+  // Target and Performance Metrics for Dashboard
+  const targetSheets = targetsData?.targets ?? [];
+  const targetSummary = targetsData?.summary ?? {
+    totalTargetRevenue: 0,
+    totalAchievedRevenue: 0,
+    avgScore: 0,
+    totalAssigned: 0,
+  };
+  const targetAssignedCount = targetSheets.length;
+  const avgTargetScore = targetSummary.avgScore || (targetAssignedCount > 0
+    ? Math.round(targetSheets.reduce((acc: number, t: any) => acc + (t.scorecard?.totalScore ?? 0), 0) / targetAssignedCount)
+    : 0);
+  const avgDisciplineScore = targetAssignedCount > 0
+    ? Math.round((targetSheets.reduce((acc: number, t: any) => acc + (t.discipline?.score ?? 0), 0) / targetAssignedCount) * 10) / 10
+    : 0;
+  const avgRoleKpiScore = Math.max(0, Math.round((avgTargetScore - avgDisciplineScore) * 10) / 10);
+  const totalTargetRev = targetSummary.totalTargetRevenue || targetSheets.reduce((acc: number, t: any) => acc + (t.targetRevenue ?? 0), 0);
+  const totalAchievedRev = targetSummary.totalAchievedRevenue || targetSheets.reduce((acc: number, t: any) => acc + (t.currentRevenue ?? 0), 0);
+  const revProgress = totalTargetRev > 0 ? Math.min(100, Math.round((totalAchievedRev / totalTargetRev) * 100)) : 0;
+  const highAchieversCount = targetSheets.filter((t: any) => (t.scorecard?.totalScore ?? 0) >= 80).length;
+  const onTrackCount = targetSheets.filter((t: any) => (t.scorecard?.totalScore ?? 0) >= 50 && (t.scorecard?.totalScore ?? 0) < 80).length;
+  const needsAttnCount = targetSheets.filter((t: any) => (t.scorecard?.totalScore ?? 0) < 50).length;
+
+  const targetDonutRadius = 52;
+  const targetCircumference = 2 * Math.PI * targetDonutRadius; // ~326.73
+  const targetDashScore = (avgTargetScore / 100) * targetCircumference;
+  const targetDashDiscipline = ((avgDisciplineScore / 10) * 100 / 100) * targetCircumference;
 
   // Attendance metrics calculation
   const presence = data?.presence;
@@ -246,6 +286,219 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </Link>
+      </div>
+
+      {/* Targets & Performance Overview (Light Sky Blue Visual Graph Widget) */}
+      <div className="rounded-2xl border border-sky-100 bg-white p-6 shadow-xs">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-sky-100/70">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-[#0284C7] shadow-2xs">
+              <Target className="h-5 w-5 stroke-[2.2px]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-neutral-900 tracking-tight">
+                  Targets & Performance Overview
+                </h2>
+                <span className="rounded-full bg-sky-50 border border-sky-200/80 px-2 py-0.5 text-[10px] font-extrabold text-[#0284C7]">
+                  {now.toLocaleString("en-IN", { month: "long" })} {now.getFullYear()}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Pro-rata 100% Scorecard · 10% Attendance Discipline + 90% Role Targets
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/admin-portal/targets"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/70 px-3.5 py-1.5 text-xs font-bold text-[#0284C7] hover:bg-sky-100 transition-colors shadow-2xs"
+          >
+            <span>Manage Targets & Scorecards</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {/* 3-Column Visual Layout */}
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          {/* Chart Col: SVG Radial Gauge (4 cols) */}
+          <div className="md:col-span-4 flex flex-col items-center justify-center p-3 rounded-2xl bg-sky-50/40 border border-sky-100/60">
+            <div className="relative flex h-40 w-40 shrink-0 items-center justify-center">
+              <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
+                {/* Track background */}
+                <circle
+                  cx="70"
+                  cy="70"
+                  r={targetDonutRadius}
+                  fill="none"
+                  stroke="#E0F2FE"
+                  strokeWidth="14"
+                />
+                {/* Discipline Arc (Sky 400) */}
+                <circle
+                  cx="70"
+                  cy="70"
+                  r={targetDonutRadius}
+                  fill="none"
+                  stroke="#38BDF8"
+                  strokeWidth="14"
+                  strokeDasharray={`${(targetDashDiscipline / 10)} ${targetCircumference}`}
+                  strokeDashoffset={0}
+                  strokeLinecap="round"
+                />
+                {/* Overall Score Arc (Sky 600) */}
+                <circle
+                  cx="70"
+                  cy="70"
+                  r={targetDonutRadius}
+                  fill="none"
+                  stroke="#0284C7"
+                  strokeWidth="14"
+                  strokeDasharray={`${targetDashScore} ${targetCircumference}`}
+                  strokeDashoffset={0}
+                  strokeLinecap="round"
+                />
+              </svg>
+
+              {/* Center Counter */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                <span className="text-2xl font-black text-sky-950 tracking-tight">
+                  {avgTargetScore}%
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 mt-0.5">
+                  Avg Target Index
+                </span>
+              </div>
+            </div>
+
+            {/* Scorecard Mini Legend */}
+            <div className="mt-2 flex items-center justify-center gap-3 text-[11px] font-semibold text-neutral-600">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#38BDF8]" />
+                Discipline (10%): <strong className="text-sky-900">{avgDisciplineScore}%</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#0284C7]" />
+                Role KPIs (90%): <strong className="text-sky-900">{avgRoleKpiScore}%</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Metric Progress Bars (5 cols) */}
+          <div className="md:col-span-5 space-y-3.5">
+            {/* Revenue Deliverables Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-neutral-800 flex items-center gap-1.5">
+                  <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                  Target Revenue Achieved
+                </span>
+                <span className="font-extrabold text-[#0284C7]">
+                  ₹{totalAchievedRev.toLocaleString("en-IN")} / ₹{totalTargetRev.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-sky-100/70 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-400 to-[#0284C7] transition-all duration-500"
+                  style={{ width: `${revProgress}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-neutral-400 block text-right font-medium">
+                {revProgress}% of active monthly revenue target
+              </span>
+            </div>
+
+            {/* Attendance Discipline Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-neutral-800 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-sky-600" />
+                  Punctuality & Discipline Index
+                </span>
+                <span className="font-extrabold text-sky-700">
+                  {avgDisciplineScore}% / 10%
+                </span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-sky-100/70 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#38BDF8] transition-all duration-500"
+                  style={{ width: `${Math.min(100, (avgDisciplineScore / 10) * 100)}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-neutral-400 block text-right font-medium">
+                Evaluated daily: On-time credit, deductions for late punch-ins
+              </span>
+            </div>
+
+            {/* Team Tier Progress Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-neutral-800 flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-[#0284C7]" />
+                  Team Target Achievement Tiers
+                </span>
+                <span className="font-semibold text-neutral-500">
+                  {targetAssignedCount} Employees
+                </span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-neutral-100 flex overflow-hidden p-0.5 gap-0.5">
+                <div
+                  className="h-full rounded-l-full bg-[#0284C7]"
+                  style={{ width: `${targetAssignedCount > 0 ? (highAchieversCount / targetAssignedCount) * 100 : 0}%` }}
+                  title={`High Achievers (≥80%): ${highAchieversCount}`}
+                />
+                <div
+                  className="h-full bg-[#38BDF8]"
+                  style={{ width: `${targetAssignedCount > 0 ? (onTrackCount / targetAssignedCount) * 100 : 0}%` }}
+                  title={`On Track (50-79%): ${onTrackCount}`}
+                />
+                <div
+                  className="h-full rounded-r-full bg-[#BAE6FD]"
+                  style={{ width: `${targetAssignedCount > 0 ? (needsAttnCount / targetAssignedCount) * 100 : 0}%` }}
+                  title={`Needs Attention (<50%): ${needsAttnCount}`}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-semibold text-neutral-500 pt-0.5">
+                <span className="text-[#0284C7]">≥80%: {highAchieversCount}</span>
+                <span className="text-sky-700">50-79%: {onTrackCount}</span>
+                <span className="text-neutral-600">&lt;50%: {needsAttnCount}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Snapshot Cards (3 cols) */}
+          <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-1 gap-2.5">
+            <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3 shadow-2xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                Target Sheets
+              </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-xl font-bold text-neutral-900">{targetAssignedCount}</span>
+                <span className="text-xs text-neutral-500">Assigned</span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3 shadow-2xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                Target Revenue
+              </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-base font-bold text-emerald-600">
+                  ₹{totalAchievedRev.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
+            <Link
+              href="/admin-portal/targets"
+              className="col-span-2 md:col-span-1 flex items-center justify-between p-2.5 rounded-xl bg-white border border-sky-200 text-xs font-bold text-[#0284C7] hover:bg-sky-50 transition-colors shadow-2xs"
+            >
+              <span>View Individual Scorecards</span>
+              <ChevronRight className="h-4 w-4 text-sky-400" />
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* 3. Middle Section: Attendance Overview (Donut Chart) & Pending Requests */}

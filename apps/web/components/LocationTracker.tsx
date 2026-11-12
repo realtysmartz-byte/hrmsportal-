@@ -212,6 +212,13 @@ export function LocationTracker() {
         status === "denied" && "border-rose-200 text-rose-700 bg-rose-50/90",
         (status === "error" || status === "idle") && "border-neutral-200 text-neutral-600"
       )}
+
+      style={{
+        transform: "translate3d(0, 0, 0)",
+        WebkitTransform: "translate3d(0, 0, 0)",
+        WebkitBackfaceVisibility: "hidden",
+        backfaceVisibility: "hidden",
+      }}
       title="While punched in, location is recorded every 1 hour with high-accuracy GPS."
     >
       <span

@@ -12,6 +12,7 @@ import { emailSettingsRouter } from "./routers/emailSettings";
 import { telegramRouter } from "./routers/telegram";
 import { holidayRouter } from "./routers/holiday";
 import { organizationRouter } from "./routers/organization";
+import { targetRouter } from "./routers/target";
 
 export const appRouter = router({
   employee: employeeRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   telegram: telegramRouter,
   holiday: holidayRouter,
   organization: organizationRouter,
+  target: targetRouter,
 });
 
 export type AppRouter = typeof appRouter;

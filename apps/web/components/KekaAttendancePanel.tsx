@@ -309,6 +309,12 @@ export function KekaAttendancePanel({
     ) / 10;
     const avgDailyHours = presentCount > 0 ? (totalHours / presentCount).toFixed(1) : "0.0";
 
+    // Punctuality & Salary Deduction calculation
+    const lateCutDays = Math.floor(lateCount / 3) * 0.5;
+    const halfDayCutDays = halfDayCount * 0.5;
+    const totalDeductionDays = lateCutDays + halfDayCutDays;
+    const latesToNextCut = 3 - (lateCount % 3);
+
     return {
       totalDays,
       presentCount,
@@ -318,6 +324,10 @@ export function KekaAttendancePanel({
       absentCount,
       totalHours,
       avgDailyHours,
+      lateCutDays,
+      halfDayCutDays,
+      totalDeductionDays,
+      latesToNextCut,
     };
   }, [logs]);
 
@@ -384,32 +394,53 @@ export function KekaAttendancePanel({
             <span className="text-[11px] font-semibold text-neutral-400">Last 30 Days</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+          <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
             <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
-              <span className="text-lg font-extrabold text-emerald-800">
+              <span className="text-base sm:text-lg font-extrabold text-emerald-800">
                 {stats.presentCount}
               </span>
-              <span className="block text-[10px] font-semibold text-emerald-700 uppercase mt-0.5">
+              <span className="block text-[9px] font-bold text-emerald-700 uppercase mt-0.5 truncate">
                 Present
               </span>
             </div>
 
             <div className="p-2 rounded-xl bg-amber-50/70 border border-amber-100">
-              <span className="text-lg font-extrabold text-amber-800">
+              <span className="text-base sm:text-lg font-extrabold text-amber-800">
                 {stats.lateCount}
               </span>
-              <span className="block text-[10px] font-semibold text-amber-700 uppercase mt-0.5">
-                Late Marks
+              <span className="block text-[9px] font-bold text-amber-700 uppercase mt-0.5 truncate">
+                Late (10:30+)
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-orange-50/70 border border-orange-100">
+              <span className="text-base sm:text-lg font-extrabold text-orange-800">
+                {stats.halfDayCount}
+              </span>
+              <span className="block text-[9px] font-bold text-orange-700 uppercase mt-0.5 truncate">
+                Half Day (11+)
               </span>
             </div>
 
             <div className="p-2 rounded-xl bg-rose-50/70 border border-rose-100">
-              <span className="text-lg font-extrabold text-rose-800">
-                {stats.absentCount}
+              <span className="text-base sm:text-lg font-extrabold text-rose-800">
+                -{stats.totalDeductionDays}d
               </span>
-              <span className="block text-[10px] font-semibold text-rose-700 uppercase mt-0.5">
-                Absent / Leave
+              <span className="block text-[9px] font-bold text-rose-700 uppercase mt-0.5 truncate">
+                Salary Cut
               </span>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-neutral-50 border border-neutral-200/80 p-2 text-[11px] text-neutral-600 space-y-1">
+            <div className="flex items-center justify-between font-semibold text-neutral-800">
+              <span>Punctuality Deduction:</span>
+              <span className="text-rose-700 font-bold">-{stats.totalDeductionDays} Day(s)</span>
+            </div>
+            <div className="text-[10px] text-neutral-500 leading-snug">
+              • 3 Lates = 0.5 Day Cut ({stats.lateCount} late = -{stats.lateCutDays}d, {stats.latesToNextCut} more until next cut)
+              <br />
+              • Check-in after 11:00 AM = 0.5 Day Cut ({stats.halfDayCount} half day = -{stats.halfDayCutDays}d)
             </div>
           </div>
         </div>

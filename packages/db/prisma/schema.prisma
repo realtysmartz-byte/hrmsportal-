@@ -34,6 +34,7 @@ model Organization {
   settings           CompanySettings[]
   googleSheetConfig  GoogleSheetConfig?
   telegramConfigs    TelegramAutomationConfig[]
+  targets            EmployeeTarget[]
 }
 
 model Employee {
@@ -83,6 +84,9 @@ model Employee {
   reviewsReceived    Review[]             @relation("EmployeeReviews")
   reviewsGiven       Review[]             @relation("ReviewsGiven")
   createdCycles      PerformanceCycle[]   @relation("CreatedCycles")
+  assignedTargets    EmployeeTarget[]     @relation("EmployeeAssignedTargets")
+  createdTargets     EmployeeTarget[]     @relation("EmployeeCreatedTargets")
+  targetActivities   TargetActivity[]     @relation("EmployeeTargetActivities")
   gender               String?
   emergencyContactName String?
   emergencyContactPhone String?
@@ -237,7 +241,12 @@ model CompanySettings {
   officeLng       Float
   geofenceRadiusM Int    @default(200)
   /// JS getDay(): 0=Sun … 6=Sat. Realty Smartz Private Limited weekly off = Tuesday (2).
-  weeklyOffDay    Int    @default(2)
+  weeklyOffDay        Int     @default(2)
+  lateCheckInTime     String  @default("10:30")
+  halfDayCheckInTime  String  @default("11:00")
+  latesPerHalfDayCut  Int     @default(3)
+  probationMonths     Int     @default(6)
+  sandwichRuleEnabled Boolean @default(true)
 }
 
 model LocationPing {
@@ -544,3 +553,87 @@ model TelegramAutomationConfig {
   @@unique([organizationId, channelType])
 }
 
+
+
+model EmployeeTarget {
+  id               String           @id @default(cuid())
+  organizationId   String?          @default("org_default_realty") @map("organization_id")
+  organization     Organization?    @relation(fields: [organizationId], references: [id])
+  employeeId       String           @map("employee_id")
+  employee         Employee         @relation("EmployeeAssignedTargets", fields: [employeeId], references: [id], onDelete: Cascade)
+  title            String
+  periodType       String           @default("MONTHLY") @map("period_type")
+  month            Int?
+  year             Int
+  startDate        DateTime         @db.Date @map("start_date")
+  endDate          DateTime         @db.Date @map("end_date")
+  targetVisits     Int              @default(0) @map("target_visits")
+  currentVisits    Int              @default(0) @map("current_visits")
+  targetBookings   Int              @default(0) @map("target_bookings")
+  currentBookings  Int              @default(0) @map("current_bookings")
+  targetRevenue    Float            @default(0) @map("target_revenue")
+  currentRevenue   Float            @default(0) @map("current_revenue")
+  incentiveAmount  Float            @default(0) @map("incentive_amount")
+  incentivePercent Float            @default(0) @map("incentive_percent")
+  status           String           @default("IN_PROGRESS")
+  isBonusAwarded   Boolean          @default(false) @map("is_bonus_awarded")
+  createdById      String           @map("created_by_id")
+  createdBy        Employee         @relation("EmployeeCreatedTargets", fields: [createdById], references: [id])
+  notes            String?
+  items            TargetItem[]
+  activities       TargetActivity[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  @@index([organizationId, employeeId, year, month])
+  @@map("employee_targets")
+}
+
+model TargetItem {
+  id             String           @id @default(cuid())
+  targetId       String           @map("target_id")
+  target         EmployeeTarget   @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  title          String
+  category       String           @default("GENERAL") // SALES, HR, IT, OPERATIONS, GENERAL
+  targetValue    Float            @default(0) @map("target_value")
+  achievedValue  Float            @default(0) @map("achieved_value")
+  unit           String           @default("Units") // "Visits", "Bookings", "Joinings", "Tasks", "INR", "Units"
+  weightPercent  Float            @default(0) @map("weight_percent")
+  notes          String?
+  submissions    TargetActivity[]
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  @@index([targetId])
+  @@map("target_items")
+}
+
+model TargetActivity {
+  id              String          @id @default(cuid())
+  targetId        String          @map("target_id")
+  target          EmployeeTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  targetItemId    String?         @map("target_item_id")
+  targetItem      TargetItem?     @relation(fields: [targetItemId], references: [id], onDelete: SetNull)
+  employeeId      String          @map("employee_id")
+  employee        Employee        @relation("EmployeeTargetActivities", fields: [employeeId], references: [id], onDelete: Cascade)
+  activityType    String          @map("activity_type")
+  title           String?
+  projectName     String?         @map("project_name")
+  clientName      String?         @map("client_name")
+  clientPhone     String?         @map("client_phone")
+  unitNumber      String?         @map("unit_number")
+  quantity        Float           @default(1)
+  revenueAmount   Float           @default(0) @map("revenue_amount")
+  activityDate    DateTime        @db.Date @map("activity_date")
+  notes           String?
+  proofUrl        String?         @map("proof_url")
+  status          String          @default("PENDING") // PENDING, APPROVED, REJECTED
+  verifiedById    String?         @map("verified_by_id")
+  verifiedAt      DateTime?       @map("verified_at")
+  rejectionReason String?         @map("rejection_reason")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@index([targetId, employeeId])
+  @@index([targetItemId])
+  @@map("target_activities")
+}

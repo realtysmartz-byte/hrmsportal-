@@ -131,6 +131,38 @@ export const leaveRouter = router({
     });
   }),
 
+  myProbationStatus: protectedProcedure.query(async ({ ctx }) => {
+    const employee = await ctx.prisma.employee.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { id: true, dateOfJoining: true, organizationId: true },
+    });
+    const settings = employee?.organizationId
+      ? await ctx.prisma.companySettings.findFirst({ where: { organizationId: employee.organizationId } })
+      : null;
+
+    const probationMonths = settings?.probationMonths ?? 6;
+    const sandwichRuleEnabled = settings?.sandwichRuleEnabled ?? true;
+    let isUnderProbation = false;
+    let probationEndDate: Date | null = null;
+
+    if (employee?.dateOfJoining) {
+      const joiningDate = new Date(employee.dateOfJoining);
+      probationEndDate = new Date(joiningDate);
+      probationEndDate.setMonth(probationEndDate.getMonth() + probationMonths);
+      isUnderProbation = new Date() < probationEndDate;
+    }
+
+    return {
+      isUnderProbation,
+      probationMonths,
+      probationEndDate,
+      sandwichRuleEnabled,
+      lateCheckInTime: settings?.lateCheckInTime ?? "10:30",
+      halfDayCheckInTime: settings?.halfDayCheckInTime ?? "11:00",
+      latesPerHalfDayCut: settings?.latesPerHalfDayCut ?? 3,
+    };
+  }),
+
   myRequests: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.leaveRequest.findMany({
       where: { employeeId: ctx.session.user.id },
@@ -174,15 +206,15 @@ export const leaveRouter = router({
 
       const year = startDate.getUTCFullYear();
 
-      // Prefer live employee id (session id may be stale after reseed)
+      // Prefer live employee id with organization and joining date
       const actor =
         (await ctx.prisma.employee.findUnique({
           where: { id: ctx.session.user.id },
-          select: { id: true },
+          select: { id: true, dateOfJoining: true, organizationId: true },
         })) ??
         (await ctx.prisma.employee.findUnique({
           where: { email: ctx.session.user.email.toLowerCase() },
-          select: { id: true },
+          select: { id: true, dateOfJoining: true, organizationId: true },
         }));
 
       if (!actor) {
@@ -192,6 +224,110 @@ export const leaveRouter = router({
             "Your session is out of date. Sign out and sign in again, then retry.",
         });
       }
+
+      // Company settings for probation and sandwich rules
+      const companySettings = actor?.organizationId
+        ? await ctx.prisma.companySettings.findFirst({ where: { organizationId: actor.organizationId } })
+        : null;
+
+      const probationMonths = companySettings?.probationMonths ?? 6;
+      const sandwichRuleEnabled = companySettings?.sandwichRuleEnabled ?? true;
+
+      // 1. Enforce probation rule: New employees (<= probationMonths) have 0 paid leaves and can only apply for Unpaid Leave
+      let isUnderProbation = false;
+      let probationEndDate: Date | null = null;
+      if (actor?.dateOfJoining) {
+        const joiningDate = new Date(actor.dateOfJoining);
+        probationEndDate = new Date(joiningDate);
+        probationEndDate.setMonth(probationEndDate.getMonth() + probationMonths);
+        if (new Date() < probationEndDate) {
+          isUnderProbation = true;
+        }
+      }
+
+      const isUnpaidType =
+        leaveType.annualQuota === 0 ||
+        leaveType.name.toLowerCase().includes("unpaid") ||
+        leaveType.name.toLowerCase().includes("loss of pay") ||
+        leaveType.name.toLowerCase().includes("lop");
+
+      if (isUnderProbation && !isUnpaidType) {
+        const formattedDate = probationEndDate
+          ? probationEndDate.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : `${probationMonths} months after joining`;
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `You are currently on your ${probationMonths}-month probation period (until ${formattedDate}). During probation, paid leaves cannot be applied. Please apply for Unpaid Leave (Loss of Pay).`,
+        });
+      }
+
+      // 2. Enforce sandwich rule: If enabled, weekend days spanned or connected to leaves are counted as leave days
+      let sandwichDays = 0;
+      let sandwichNote = "";
+
+      if (sandwichRuleEnabled && !input.isHalfDay) {
+        // Range check: if range spans weekend days
+        const cur = new Date(startDate);
+        let hasWeekdayBefore = false;
+        let weekendInSpan = 0;
+        while (cur <= endDate) {
+          const d = cur.getUTCDay();
+          if (d >= 1 && d <= 5) {
+            if (weekendInSpan > 0) {
+              sandwichDays += weekendInSpan;
+              weekendInSpan = 0;
+            }
+            hasWeekdayBefore = true;
+          } else {
+            if (hasWeekdayBefore) {
+              weekendInSpan++;
+            }
+          }
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+
+        // Check if starts on Monday (day 1) and preceding Friday was on leave
+        if (startDate.getUTCDay() === 1) {
+          const prevFriday = new Date(startDate);
+          prevFriday.setUTCDate(prevFriday.getUTCDate() - 3);
+          const hasPrevFridayLeave = await ctx.prisma.leaveRequest.findFirst({
+            where: {
+              employeeId: actor.id,
+              status: { in: ["APPROVED", "PENDING"] },
+              startDate: { lte: prevFriday },
+              endDate: { gte: prevFriday },
+            },
+          });
+          if (hasPrevFridayLeave) {
+            sandwichDays += 2;
+            sandwichNote += " [Sandwich Rule: 2 weekend days added due to leave on preceding Friday]";
+          }
+        }
+
+        // Check if ends on Friday (day 5) and following Monday is on leave
+        if (endDate.getUTCDay() === 5) {
+          const nextMonday = new Date(endDate);
+          nextMonday.setUTCDate(nextMonday.getUTCDate() + 3);
+          const hasNextMondayLeave = await ctx.prisma.leaveRequest.findFirst({
+            where: {
+              employeeId: actor.id,
+              status: { in: ["APPROVED", "PENDING"] },
+              startDate: { lte: nextMonday },
+              endDate: { gte: nextMonday },
+            },
+          });
+          if (hasNextMondayLeave) {
+            sandwichDays += 2;
+            sandwichNote += " [Sandwich Rule: 2 weekend days added due to leave on following Monday]";
+          }
+        }
+      }
+
+      const totalLeaveDays = numberOfDays + sandwichDays;
 
       const balance = await ctx.prisma.leaveBalance.findUnique({
         where: {
@@ -203,7 +339,7 @@ export const leaveRouter = router({
         },
       });
 
-      const exceedsBalance = !balance || balance.remaining < numberOfDays;
+      const exceedsBalance = !balance || balance.remaining < totalLeaveDays;
 
       const created = await ctx.prisma.leaveRequest.create({
         data: {
@@ -211,13 +347,13 @@ export const leaveRouter = router({
           leaveTypeId: input.leaveTypeId,
           startDate,
           endDate,
-          numberOfDays,
+          numberOfDays: totalLeaveDays,
           isHalfDay: input.isHalfDay,
           halfDaySlot: input.isHalfDay ? (input.halfDaySlot ?? "FIRST_HALF") : null,
           reason:
             exceedsBalance
-              ? `${input.reason}\n\n[Note: Request exceeds available balance]`
-              : input.reason,
+              ? `${input.reason}${sandwichNote}\n\n[Note: Request exceeds available balance]`
+              : `${input.reason}${sandwichNote}`,
           status: leaveType.requiresApproval ? "PENDING" : "APPROVED",
           ...(leaveType.requiresApproval
             ? {}

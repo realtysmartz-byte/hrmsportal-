@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download, X, Share, PlusSquare, Smartphone } from "lucide-react";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 
@@ -15,6 +16,7 @@ const DISMISS_DAYS = 14;
 const DISMISS_MS = DISMISS_DAYS * 24 * 60 * 60 * 1000;
 
 export function PwaInstallBanner() {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIosDevice, setIsIosDevice] = useState(false);
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
@@ -152,8 +154,8 @@ export function PwaInstallBanner() {
     setShowGuide(true);
   };
 
-  // Do not render if app is running in standalone mode or not visible
-  if (isStandaloneMode || !isVisible) {
+  // Only render on employee portal pages, never on admin portal or login
+  if (!pathname || !pathname.startsWith("/employee-portal") || pathname.startsWith("/admin") || isStandaloneMode || !isVisible) {
     return null;
   }
 

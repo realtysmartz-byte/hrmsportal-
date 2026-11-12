@@ -17,6 +17,7 @@ import { canManageCompanySettings } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import Link from "next/link";
 import {
+  Clock,
   FileSpreadsheet,
   Mail,
   Palette,
@@ -50,7 +51,7 @@ export default function CompanySettingsPage() {
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
   const allowed = canManageCompanySettings(role);
 
-  const [activeTab, setActiveTab] = useState<"branding" | "geofence" | "integrations">("branding");
+  const [activeTab, setActiveTab] = useState<"branding" | "geofence" | "integrations" | "attendance-policy">("branding");
 
   // Geofence data & mutation
   const { data: geofenceData, isLoading: geofenceLoading } = trpc.companySettings.get.useQuery(undefined, {
@@ -82,6 +83,15 @@ export default function CompanySettingsPage() {
 
   const [brandingSuccess, setBrandingSuccess] = useState("");
   const [brandingError, setBrandingError] = useState("");
+
+  // Attendance & Policy State
+  const [lateCheckInTime, setLateCheckInTime] = useState("10:30");
+  const [halfDayCheckInTime, setHalfDayCheckInTime] = useState("11:00");
+  const [latesPerHalfDayCut, setLatesPerHalfDayCut] = useState("3");
+  const [probationMonths, setProbationMonths] = useState("6");
+  const [sandwichRuleEnabled, setSandwichRuleEnabled] = useState(true);
+  const [policySuccess, setPolicySuccess] = useState("");
+  const [policyError, setPolicyError] = useState("");
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "banner") {
     const file = e.target.files?.[0];
@@ -153,8 +163,38 @@ export default function CompanySettingsPage() {
       setOfficeLat(String(geofenceData.officeLat));
       setOfficeLng(String(geofenceData.officeLng));
       setGeofenceRadiusM(String(geofenceData.geofenceRadiusM));
+      setLateCheckInTime(geofenceData.lateCheckInTime || "10:30");
+      setHalfDayCheckInTime(geofenceData.halfDayCheckInTime || "11:00");
+      setLatesPerHalfDayCut(String(geofenceData.latesPerHalfDayCut ?? 3));
+      setProbationMonths(String(geofenceData.probationMonths ?? 6));
+      setSandwichRuleEnabled(geofenceData.sandwichRuleEnabled !== false);
     }
   }, [geofenceData]);
+
+  const updatePolicy = trpc.companySettings.update.useMutation({
+    onSuccess: () => {
+      setPolicySuccess("Attendance & Leave Policy saved successfully!");
+      setPolicyError("");
+      utils.companySettings.get.invalidate();
+    },
+    onError: (err) => {
+      setPolicyError(userFacingErrorMessage(err));
+      setPolicySuccess("");
+    },
+  });
+
+  function onSavePolicy(e: FormEvent) {
+    e.preventDefault();
+    setPolicySuccess("");
+    setPolicyError("");
+    updatePolicy.mutate({
+      lateCheckInTime: lateCheckInTime.trim() || "10:30",
+      halfDayCheckInTime: halfDayCheckInTime.trim() || "11:00",
+      latesPerHalfDayCut: parseInt(latesPerHalfDayCut, 10) || 3,
+      probationMonths: parseInt(probationMonths, 10) || 6,
+      sandwichRuleEnabled,
+    });
+  }
 
   const updateBranding = trpc.organization.updateCurrent.useMutation({
     onSuccess: () => {
@@ -287,6 +327,18 @@ export default function CompanySettingsPage() {
         >
           <FileSpreadsheet className="h-4 w-4" />
           Integrations & Reports
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("attendance-policy")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeTab === "attendance-policy"
+              ? "bg-[#5D3EBC] text-white shadow-sm"
+              : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
+          }`}
+        >
+          <Clock className="h-4 w-4" />
+          Attendance & Leave Policy
         </button>
       </div>
 
@@ -874,6 +926,154 @@ export default function CompanySettingsPage() {
                   View Email Service →
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB 4: ATTENDANCE & LEAVE POLICY */}
+      {activeTab === "attendance-policy" && (
+        <div className="space-y-6">
+          <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
+            <CardHeader className="p-5 sm:p-6 pb-3 border-b border-neutral-100 bg-neutral-50/50">
+              <CardTitle className="text-base font-bold text-neutral-900 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-[#5D3EBC]" />
+                Corporate Attendance & Leave Policy Settings
+              </CardTitle>
+              <CardDescription className="text-xs text-neutral-500">
+                Configure punctuality thresholds, late salary cut formulas, probation restrictions, and sandwich rules.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-5 sm:p-6">
+              <form onSubmit={onSavePolicy} className="space-y-6">
+                {policySuccess && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-600" />
+                    {policySuccess}
+                  </div>
+                )}
+                {policyError && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold">
+                    {policyError}
+                  </div>
+                )}
+
+                {/* Section 1: Punctuality & Late Marks */}
+                <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50/50 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900">1. Punctuality & Salary Cut Formula</h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      Define the check-in time thresholds and how many late arrivals trigger a half-day salary cut.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-neutral-700">Late Check-In Time (HH:mm)</Label>
+                      <Input
+                        type="time"
+                        value={lateCheckInTime}
+                        onChange={(e) => setLateCheckInTime(e.target.value)}
+                        className="rounded-xl border-neutral-200 text-sm"
+                      />
+                      <p className="text-[11px] text-neutral-500">
+                        Check-ins past this time are tagged as <span className="font-bold text-amber-700">LATE</span>. Default: 10:30.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-neutral-700">Direct Half-Day Time (HH:mm)</Label>
+                      <Input
+                        type="time"
+                        value={halfDayCheckInTime}
+                        onChange={(e) => setHalfDayCheckInTime(e.target.value)}
+                        className="rounded-xl border-neutral-200 text-sm"
+                      />
+                      <p className="text-[11px] text-neutral-500">
+                        Check-ins past this time are tagged as <span className="font-bold text-rose-700">HALF DAY</span>. Default: 11:00.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-neutral-700">Lates Per 0.5 Day Cut</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={latesPerHalfDayCut}
+                        onChange={(e) => setLatesPerHalfDayCut(e.target.value)}
+                        className="rounded-xl border-neutral-200 text-sm"
+                      />
+                      <p className="text-[11px] text-neutral-500">
+                        Every <strong>{latesPerHalfDayCut}</strong> late marks trigger a <strong>0.5 day</strong> salary deduction.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Probation Period */}
+                <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50/50 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900">2. Employee Probation Policy</h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      New employees under probation cannot claim paid leaves and can only apply for Unpaid Leave (Loss of Pay).
+                    </p>
+                  </div>
+
+                  <div className="max-w-xs space-y-1.5">
+                    <Label className="text-xs font-semibold text-neutral-700">Probation Duration (Months)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="24"
+                      value={probationMonths}
+                      onChange={(e) => setProbationMonths(e.target.value)}
+                      className="rounded-xl border-neutral-200 text-sm"
+                    />
+                    <p className="text-[11px] text-neutral-500">
+                      Employees joining within the last {probationMonths} months are restricted to unpaid leave only. Default: 6 months.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section 3: Sandwich Rule */}
+                <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50/50 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-neutral-900">3. Leave Sandwich Rule</h3>
+                      <p className="text-xs text-neutral-500 mt-0.5 max-w-xl">
+                        When enabled, intervening weekend off-days (e.g. Saturday & Sunday) or holidays between approved leaves are counted towards total leave days and salary deductions.
+                      </p>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                      <input
+                        type="checkbox"
+                        checked={sandwichRuleEnabled}
+                        onChange={(e) => setSandwichRuleEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5D3EBC]"></div>
+                    </label>
+                  </div>
+
+                  <div className="text-xs text-neutral-600 bg-white p-3 rounded-lg border border-neutral-200">
+                    <span className="font-semibold text-neutral-800">Rule Logic:</span> If an employee takes leave on Friday and Monday, the intermediate weekend days (Saturday & Sunday) are counted as sandwich leaves (4 days total deduction).
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={updatePolicy.isPending}
+                    className="bg-[#5D3EBC] hover:bg-[#4E24C9] text-white px-6 font-bold text-xs rounded-xl shadow-sm"
+                  >
+                    {updatePolicy.isPending ? "Saving Policy..." : "Save Policy Settings"}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

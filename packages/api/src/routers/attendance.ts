@@ -585,13 +585,17 @@ export const attendanceRouter = router({
       enforcePunchRateLimit(employeeId, ctx.ip);
 
       const today = startOfDayUTC(new Date());
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
       // Parallel independent reads (geofence uses Haversine + cached office)
-      const [existing, geo, firstHalfDaySlot] = await Promise.all([
+      const [existing, geo, firstHalfDaySlot, compSettings] = await Promise.all([
         ctx.prisma.attendanceLog.findUnique({
           where: { employeeId_date: { employeeId, date: today } },
         }),
         resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
         getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
+        ctx.prisma.companySettings.findFirst({
+          where: { organizationId: orgId },
+        }),
       ]);
 
       // Idempotent: already on duty → acknowledge the repeated tap.
@@ -632,7 +636,11 @@ export const attendanceRouter = router({
           ? existing.status
           : halfDaySlot
             ? "HALF_DAY"
-            : statusFromFirstCheckIn(now);
+            : statusFromFirstCheckIn(
+                now,
+                compSettings?.lateCheckInTime,
+                compSettings?.halfDayCheckInTime
+              );
 
       const finalAddress = workLocation.name;
       const meta = reviewNotes({
@@ -814,7 +822,8 @@ export const attendanceRouter = router({
         (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
       const cumulativeHours = (existing.totalHours || 0) + sessionHours;
 
-      const [firstPunch, halfDaySlot, geo] = await Promise.all([
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const [firstPunch, halfDaySlot, geo, compSettings] = await Promise.all([
         ctx.prisma.attendancePunch.findFirst({
           where: { attendanceLogId: existing.id },
           orderBy: { checkInTime: "asc" },
@@ -822,6 +831,9 @@ export const attendanceRouter = router({
         }),
         getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
         resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
+        ctx.prisma.companySettings.findFirst({
+          where: { organizationId: orgId },
+        }),
       ]);
 
       const status =
@@ -831,6 +843,8 @@ export const attendanceRouter = router({
               firstCheckIn: firstPunch?.checkInTime ?? checkInTime,
               cumulativeHours,
               halfDaySlot,
+              lateTimeStr: compSettings?.lateCheckInTime,
+              halfDayTimeStr: compSettings?.halfDayCheckInTime,
             });
       const earlyCheckOut = isEarlyCheckOut(now, halfDaySlot);
       const roundedHours = Math.round(cumulativeHours * 100) / 100;

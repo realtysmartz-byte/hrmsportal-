@@ -1,7 +1,7 @@
 "use client";
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,7 @@ export default function EmployeeLeavePage() {
   const { data: balances } = trpc.leave.myBalances.useQuery();
   const { data: requests } = trpc.leave.myRequests.useQuery();
   const { data: types } = trpc.leave.types.useQuery();
+  const { data: probationStatus } = trpc.leave.myProbationStatus.useQuery();
 
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -91,6 +92,30 @@ export default function EmployeeLeavePage() {
           {showForm ? "Close" : "Apply"}
         </Button>
       </div>
+
+      {/* Probation Period Banner */}
+      {probationStatus?.isUnderProbation && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 text-xs text-amber-950 space-y-1.5 shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-amber-900">
+            <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Probation Period Active ({probationStatus.probationMonths} Months)</span>
+          </div>
+          <p className="text-[11px] text-amber-800 leading-relaxed">
+            You are currently in your probation period (active until{' '}
+            <strong>
+              {probationStatus.probationEndDate
+                ? new Date(probationStatus.probationEndDate).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "completion"}
+            </strong>
+            ). Per corporate policy, employees under probation are strictly limited to{' '}
+            <strong className="underline">Unpaid Leave (Loss of Pay)</strong>. Paid leave quotas will become available once your probation concludes.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {balances?.map((b) => (

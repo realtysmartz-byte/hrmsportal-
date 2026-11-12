@@ -19,6 +19,7 @@ import {
   ArrowLeftRight,
   ChevronRight,
   Award,
+  Target,
   PanelLeftClose,
   PanelLeftOpen,
   MapPin,
@@ -33,7 +34,6 @@ import {
   Layers,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { cn } from "@/lib/utils";
 
 const coreNavItems = [
@@ -45,6 +45,7 @@ const coreNavItems = [
   { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin, permission: "attendance" },
   { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation, permission: "attendance" },
   { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText, permission: "leave" },
+  { href: "/admin-portal/targets", label: "Targets & Revenue", icon: Target, permission: "performance" },
   { href: "/admin-portal/performance", label: "Performance", icon: Award, permission: "performance" },
   { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness, permission: "recruitment" },
   { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote, permission: "payroll" },
@@ -73,7 +74,6 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [showInstallModal, setShowInstallModal] = useState(false);
 
   const userInitial = session?.user?.name?.[0] ?? "H";
   const userName = session?.user?.name ?? "HR Admin";
@@ -346,31 +346,8 @@ export function AdminSidebar({
         </div>
       )}
 
-      {/* Footer Profile & Portal Switcher */}
-      <div className={cn("border-t border-white/[0.08] space-y-2 bg-[#080D1D] shrink-0", isCollapsed ? "p-2" : "p-3")}>
-        {/* Install App Button */}
-        <button
-          type="button"
-          onClick={() => setShowInstallModal(true)}
-          className={cn(
-            "flex w-full items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-neutral-300 hover:bg-white/[0.07] hover:text-white transition-all",
-            isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "justify-between px-3 py-2"
-          )}
-          title="Install Realty Smartz App (Mobile & Desktop)"
-        >
-          <span className="flex items-center gap-2">
-            <Download className="h-3.5 w-3.5 text-[#A78BFA]" />
-            {!isCollapsed && <span>Install App</span>}
-          </span>
-          {!isCollapsed && (
-            <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90">
-              Install
-            </span>
-          )}
-        </button>
-
-        
-
+      {/* Footer Profile */}
+      <div className={cn("border-t border-white/[0.08] bg-[#080D1D] shrink-0", isCollapsed ? "p-2" : "p-3")}>
         {/* User Card as in reference design */}
         <div
           className={cn(
@@ -436,11 +413,6 @@ export function AdminSidebar({
           </div>
         )}
       </div>
-
-      <InstallGuideModal
-        isOpen={showInstallModal}
-        onClose={() => setShowInstallModal(false)}
-      />
     </aside>
   );
 }

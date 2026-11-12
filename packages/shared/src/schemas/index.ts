@@ -148,11 +148,16 @@ export const teamAttendanceSchema = z.object({
 });
 
 export const updateCompanySettingsSchema = z.object({
-  officeName: z.string().trim().min(1, "Office name required").max(200),
-  officeLat: z.number().min(-90).max(90),
-  officeLng: z.number().min(-180).max(180),
-  geofenceRadiusM: z.number().int().min(50).max(5000),
+  officeName: z.string().trim().min(1, "Office name required").max(200).optional(),
+  officeLat: z.number().min(-90).max(90).optional(),
+  officeLng: z.number().min(-180).max(180).optional(),
+  geofenceRadiusM: z.number().int().min(50).max(5000).optional(),
   weeklyOffDay: z.number().int().min(0).max(6).optional(),
+  lateCheckInTime: z.string().regex(/^\d{1,2}:\d{2}$/, "Invalid time format (HH:MM)").optional(),
+  halfDayCheckInTime: z.string().regex(/^\d{1,2}:\d{2}$/, "Invalid time format (HH:MM)").optional(),
+  latesPerHalfDayCut: z.number().int().min(1).max(10).optional(),
+  probationMonths: z.number().int().min(0).max(24).optional(),
+  sandwichRuleEnabled: z.boolean().optional(),
 });
 
 export const locationPingSchema = z.object({
@@ -262,6 +267,92 @@ export const updateHolidaySchema = z.object({
   type: holidayTypeSchema.optional(),
   description: z.string().trim().max(300).optional().nullable(),
 });
+
+export const targetItemSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().trim().min(1, "Target item title is required").max(200),
+  category: z.enum(["SALES", "HR", "IT", "OPERATIONS", "GENERAL"]).default("GENERAL"),
+  targetValue: z.number().min(0.01, "Target value must be greater than 0"),
+  unit: z.string().trim().min(1).max(50).default("Units"),
+  weightPercent: z.number().min(0).max(100, "Weight percentage cannot exceed 100%"),
+  notes: z.string().trim().max(500).optional().nullable(),
+});
+
+export const createTargetSchema = z.object({
+  employeeId: z.string().min(1, "Employee is required"),
+  title: z.string().trim().min(1, "Title is required").max(200),
+  periodType: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).default("MONTHLY"),
+  month: z.number().int().min(1).max(12).optional().nullable(),
+  year: z.number().int().min(2020).max(2100),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  targetVisits: z.number().int().min(0).default(0),
+  targetBookings: z.number().int().min(0).default(0),
+  targetRevenue: z.number().min(0).default(0),
+  incentiveAmount: z.number().min(0).default(0),
+  incentivePercent: z.number().min(0).max(100).default(0),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  items: z.array(targetItemSchema).optional(),
+});
+
+export const updateTargetSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().trim().min(1).max(200).optional(),
+  periodType: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
+  month: z.number().int().min(1).max(12).optional().nullable(),
+  year: z.number().int().min(2020).max(2100).optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  targetVisits: z.number().int().min(0).optional(),
+  targetBookings: z.number().int().min(0).optional(),
+  targetRevenue: z.number().min(0).optional(),
+  incentiveAmount: z.number().min(0).optional(),
+  incentivePercent: z.number().min(0).max(100).optional(),
+  status: z.enum(["IN_PROGRESS", "COMPLETED", "MISSED", "CANCELLED"]).optional(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  items: z.array(targetItemSchema).optional(),
+});
+
+export const logTargetActivitySchema = z.object({
+  targetId: z.string().min(1, "Target is required"),
+  targetItemId: z.string().optional().nullable(),
+  activityType: z.enum([
+    "SITE_VISIT",
+    "BOOKING",
+    "TASK_COMPLETION",
+    "JOINING",
+    "INTERVIEW",
+    "OTHER",
+  ]).default("SITE_VISIT"),
+  title: z.string().trim().max(200).optional().nullable(),
+  projectName: z.string().trim().max(200).optional().nullable(),
+  clientName: z.string().trim().max(200).optional().nullable(),
+  clientPhone: z.string().trim().max(50).optional().nullable(),
+  unitNumber: z.string().trim().max(100).optional().nullable(),
+  quantity: z.number().min(0.01).default(1),
+  revenueAmount: z.number().min(0).default(0),
+  activityDate: z.coerce.date(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  proofUrl: z.string().trim().max(2048).optional().nullable(),
+});
+
+export const verifyTargetActivitySchema = z.object({
+  activityId: z.string().min(1, "Activity ID is required"),
+  action: z.enum(["APPROVE", "REJECT"]),
+  rejectionReason: z.string().trim().max(500).optional().nullable(),
+});
+
+export const syncTargetBonusSchema = z.object({
+  targetId: z.string().min(1),
+  customBonusAmount: z.number().min(0).optional().nullable(),
+});
+
+export type TargetItemInput = z.infer<typeof targetItemSchema>;
+export type CreateTargetInput = z.infer<typeof createTargetSchema>;
+export type UpdateTargetInput = z.infer<typeof updateTargetSchema>;
+export type LogTargetActivityInput = z.infer<typeof logTargetActivitySchema>;
+export type VerifyTargetActivityInput = z.infer<typeof verifyTargetActivitySchema>;
+export type SyncTargetBonusInput = z.infer<typeof syncTargetBonusSchema>;
 
 export type AnnounceHolidaysInput = z.infer<typeof announceHolidaysSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

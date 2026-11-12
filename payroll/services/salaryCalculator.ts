@@ -10,9 +10,12 @@ import {
 export interface PayrollSettings {
   working_hours_full_day: number;
   working_hours_half_day: number;
-  late_after_time: string; // e.g. "10:15"
+  late_after_time: string; // e.g. "10:30"
+  half_day_after_time?: string; // e.g. "11:00"
   lates_per_half_day_cut: number;
   weekly_off_day: number; // JS getDay: 0=Sun, 1=Mon, 2=Tue, etc.
+  sandwich_rule_enabled?: boolean;
+  probation_months?: number;
 }
 
 export interface EmployeePayrollRow {
@@ -71,9 +74,12 @@ export interface EmployeePayrollRow {
 export const DEFAULT_PAYROLL_SETTINGS: PayrollSettings = {
   working_hours_full_day: 8.0,
   working_hours_half_day: 4.0,
-  late_after_time: "10:15",
+  late_after_time: "10:30",
+  half_day_after_time: "11:00",
   lates_per_half_day_cut: 3,
   weekly_off_day: 2, // Tuesday default
+  sandwich_rule_enabled: true,
+  probation_months: 6,
 };
 
 function parseTimeToMinutes(timeStr: string): number {
@@ -165,7 +171,7 @@ export async function getPayrollSettings(prisma: PrismaClient): Promise<PayrollS
   const rows = await safeQueryRaw<any>(
     prisma,
     "payroll_settings",
-    `SELECT working_hours_full_day, working_hours_half_day, late_after_time, lates_per_half_day_cut, weekly_off_day 
+    `SELECT working_hours_full_day, working_hours_half_day, late_after_time, half_day_after_time, lates_per_half_day_cut, weekly_off_day, sandwich_rule_enabled, probation_months 
      FROM payroll_settings WHERE id = 'singleton' LIMIT 1`
   );
   if (rows && rows.length > 0) {
@@ -173,9 +179,12 @@ export async function getPayrollSettings(prisma: PrismaClient): Promise<PayrollS
     return {
       working_hours_full_day: Number(r.working_hours_full_day) || 8.0,
       working_hours_half_day: Number(r.working_hours_half_day) || 4.0,
-      late_after_time: String(r.late_after_time || "10:15"),
+      late_after_time: String(r.late_after_time || "10:30"),
+      half_day_after_time: String(r.half_day_after_time || "11:00"),
       lates_per_half_day_cut: Number(r.lates_per_half_day_cut) || 3,
       weekly_off_day: Number(r.weekly_off_day ?? 2),
+      sandwich_rule_enabled: r.sandwich_rule_enabled !== false,
+      probation_months: Number(r.probation_months) || 6,
     };
   }
   return DEFAULT_PAYROLL_SETTINGS;
@@ -188,7 +197,8 @@ export async function calculateMonthlyPayroll(
   organizationId?: string
 ): Promise<EmployeePayrollRow[]> {
   const settings = await getPayrollSettings(prisma);
-  const lateCutoffMinutes = parseTimeToMinutes(settings.late_after_time);
+  const lateCutoffMinutes = parseTimeToMinutes(settings.late_after_time || "10:30");
+  const halfDayCutoffMinutes = parseTimeToMinutes(settings.half_day_after_time || "11:00");
   const totalDaysInMonth = new Date(year, month, 0).getDate();
 
   // 1. Read Eligible Active and Separated Employees via configured mapping (Excludes Admin accounts)
@@ -434,13 +444,35 @@ export async function calculateMonthlyPayroll(
         const isWeeklyOff = dayOfWeek === settings.weekly_off_day;
         const isHoliday = holidaySet.has(dateStr);
 
-        if (isHoliday) {
-          holidayDays++;
-          continue;
-        }
-        if (isWeeklyOff) {
-          weeklyOffDays++;
-          continue;
+        if (isHoliday || isWeeklyOff) {
+          if (settings.sandwich_rule_enabled) {
+            const prevDayDate = new Date(year, month - 1, day - 1);
+            const nextDayDate = new Date(year, month - 1, day + 1);
+            const prevStr = prevDayDate.toISOString().slice(0, 10);
+            const nextStr = nextDayDate.toISOString().slice(0, 10);
+            const hadLeaveBefore = empLeaves.some((l) => {
+              const s = l.startDate.toISOString().slice(0, 10);
+              const e = l.endDate.toISOString().slice(0, 10);
+              return prevStr >= s && prevStr <= e;
+            });
+            const hadLeaveAfter = empLeaves.some((l) => {
+              const s = l.startDate.toISOString().slice(0, 10);
+              const e = l.endDate.toISOString().slice(0, 10);
+              return nextStr >= s && nextStr <= e;
+            });
+            if (hadLeaveBefore && hadLeaveAfter) {
+              // Sandwiched: converted to deduction, not paid off day
+              continue;
+            }
+          }
+          if (isHoliday) {
+            holidayDays++;
+            continue;
+          }
+          if (isWeeklyOff) {
+            weeklyOffDays++;
+            continue;
+          }
         }
 
         // Check if employee has an approved leave covering this date
@@ -476,7 +508,9 @@ export async function calculateMonthlyPayroll(
 
         if (log.checkInTime) {
           const checkInISTMinutes = getISTMinutesFromMidnight(new Date(log.checkInTime));
-          if (checkInISTMinutes > lateCutoffMinutes) {
+          if (checkInISTMinutes > halfDayCutoffMinutes) {
+            halfDays++;
+          } else if (checkInISTMinutes > lateCutoffMinutes) {
             lateMarks++;
           }
         }

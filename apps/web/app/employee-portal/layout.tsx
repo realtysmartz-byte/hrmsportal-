@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { EmployeeTopNav } from "@/components/EmployeeTopNav";
+import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { authOptions } from "@/lib/auth";
 import { canAccessAdminPortal } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
@@ -19,14 +20,12 @@ export default async function EmployeePortalLayout({
     redirect("/login?error=SessionExpired");
   }
 
-  // Admin and HR staff (like HR Admin, Sushant, Priyanka) must exclusively use the admin portal
   const role = (session.user.role || "EMPLOYEE") as Role;
-  if (canAccessAdminPortal(role)) {
-    redirect("/admin-portal/dashboard");
-  }
+  const isAdmin = canAccessAdminPortal(role);
 
   return (
-    <div className="min-h-dvh bg-[#F9F7FD] lg:bg-[#F5F2FC]">
+    <div className="min-h-screen min-h-dvh bg-[#F9F7FD] lg:bg-[#F5F2FC]">
+      {!isAdmin && <PwaInstallBanner />}
       <EmployeeTopNav />
       <main
         className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-8 lg:pb-20"

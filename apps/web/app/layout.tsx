@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Providers } from "@/components/Providers";
-import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { LocationTracker } from "@/components/LocationTracker";
 import { AppSplash } from "@/components/AppSplash";
 import { NativeAppBoot } from "@/components/NativeAppBoot";
@@ -57,7 +56,6 @@ export default function RootLayout({
         <Providers>
           <NativeAppBoot />
           <AppSplash />
-          <PwaInstallBanner />
           {children}
           <LocationTracker />
         </Providers>

@@ -14,6 +14,7 @@ import {
   UsersRound,
   Shield,
   Award,
+  Target,
   Download,
   Menu,
   X,
@@ -342,7 +343,14 @@ export function EmployeeTopNav() {
 
       <nav
         className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur-md border-t border-[#ECE6F8] shadow-[0_-4px_24px_rgba(78,36,201,0.06)]"
-        style={{ paddingBottom: "max(0.6rem, env(safe-area-inset-bottom, 0px))" }}
+        style={{
+          paddingBottom: "max(0.6rem, env(safe-area-inset-bottom, 0px))",
+          transform: "translate3d(0, 0, 0)",
+          WebkitTransform: "translate3d(0, 0, 0)",
+          WebkitBackfaceVisibility: "hidden",
+          backfaceVisibility: "hidden",
+          willChange: "transform",
+        }}
       >
         <div className="grid grid-cols-4 max-w-md mx-auto px-2">
           {bottomTabs.map((tab) => {

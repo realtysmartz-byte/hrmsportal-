@@ -82,11 +82,18 @@ export const EMPLOYEE_CODE_PREFIX = "RS-";
 
 export const HR_ADMIN_ROLES: Role[] = ["ADMIN", "HR"];
 
-/** Check-in after this local hour is marked LATE */
+/** Check-in after this local IST time (10:30 AM) is marked LATE */
 export const LATE_CHECK_IN_HOUR = 10;
+export const LATE_CHECK_IN_MINUTE = 30;
 
-/** First punch-in after this IST time (hour, minute) marks the day HALF_DAY */
-export const HALF_DAY_CHECK_IN_AFTER = { hour: 11, minute: 30 } as const;
+/** First punch-in after this IST time (11:00 AM) marks the day HALF_DAY */
+export const HALF_DAY_CHECK_IN_AFTER = { hour: 11, minute: 0 } as const;
+
+/** Probation period default in months for new employees (unpaid leave only) */
+export const DEFAULT_PROBATION_MONTHS = 6;
+
+/** Number of late check-ins that trigger 1 half-day salary deduction */
+export const DEFAULT_LATES_PER_HALF_DAY_CUT = 3;
 
 /** Punch-out before this IST time sends an early clock-out mail */
 export const SHIFT_END_TIME = { hour: 17, minute: 0 } as const;

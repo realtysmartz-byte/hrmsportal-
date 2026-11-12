@@ -112,7 +112,7 @@ async function ensurePayrollHolidaysTable(prisma: any): Promise<void> {
   }
 }
 
-async function getHolidaysForOrg(prisma: any, orgId: string): Promise<HolidayItem[]> {
+export async function getHolidaysForOrg(prisma: any, orgId: string): Promise<HolidayItem[]> {
   await ensurePayrollHolidaysTable(prisma);
   try {
     const rows = await prisma.$queryRawUnsafe(
