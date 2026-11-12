@@ -13,6 +13,7 @@ import {
   Briefcase,
   ChevronRight,
   ExternalLink,
+  Target,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
@@ -81,6 +82,8 @@ export function AdminNotificationBell() {
         return <Clock className="h-4 w-4 text-rose-600" />;
       case "CANDIDATE":
         return <Briefcase className="h-4 w-4 text-blue-600" />;
+      case "TARGET":
+        return <Target className="h-4 w-4 text-[#0284C7]" />;
       default:
         return <Bell className="h-4 w-4 text-neutral-600" />;
     }

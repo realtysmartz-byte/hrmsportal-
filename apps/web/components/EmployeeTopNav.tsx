@@ -50,22 +50,23 @@ export function EmployeeTopNav() {
   const userInitials = profileHubData?.employee
     ? `${(profileHubData.employee.firstName?.[0] ?? "").toUpperCase()}${(profileHubData.employee.lastName?.[0] ?? "").toUpperCase()}`
     : (session?.user?.name
-        ?.split(" ")
-        .filter(Boolean)
-        .map((s) => s[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase() || "RS");
+      ?.split(" ")
+      .filter(Boolean)
+      .map((s) => s[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "RS");
 
   const links = [
     { href: "/employee-portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/employee-portal/attendance", label: "Attendance", icon: Clock },
     { href: "/employee-portal/leave", label: "Leave", icon: CalendarDays },
+    { href: "/employee-portal/targets", label: "Targets & Scorecard", icon: Target },
     { href: "/employee-portal/performance", label: "Performance", icon: Award },
     ...(isManager(role)
       ? [
-          { href: "/employee-portal/my-team", label: "My Team", icon: UsersRound },
-        ]
+        { href: "/employee-portal/my-team", label: "My Team", icon: UsersRound },
+      ]
       : []),
     { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
     { href: "/employee-portal/payslips", label: "My Payslips", icon: Receipt },

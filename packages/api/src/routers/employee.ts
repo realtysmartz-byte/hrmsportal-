@@ -174,13 +174,13 @@ export const employeeRouter = router({
           { role: "EMPLOYEE" as Role },
           search
             ? {
-                OR: [
-                  { firstName: { contains: search, mode: "insensitive" as const } },
-                  { lastName: { contains: search, mode: "insensitive" as const } },
-                  { email: { contains: search, mode: "insensitive" as const } },
-                  { employeeCode: { contains: search, mode: "insensitive" as const } },
-                ],
-              }
+              OR: [
+                { firstName: { contains: search, mode: "insensitive" as const } },
+                { lastName: { contains: search, mode: "insensitive" as const } },
+                { email: { contains: search, mode: "insensitive" as const } },
+                { employeeCode: { contains: search, mode: "insensitive" as const } },
+              ],
+            }
             : {},
           departmentId ? { departmentId } : {},
           status ? { status } : {},
@@ -244,14 +244,14 @@ export const employeeRouter = router({
       const canViewSensitive = visibility === "FULL";
       const statusHistory = canManageEmployees(actor.role as Role)
         ? await ctx.prisma.employeeJobHistory.findFirst({
-            where: {
-              employeeId: employee.id,
-              fieldChanged: "status",
-              newValue: employee.status,
-            },
-            orderBy: { effectiveDate: "desc" },
-            select: { effectiveDate: true },
-          })
+          where: {
+            employeeId: employee.id,
+            fieldChanged: "status",
+            newValue: employee.status,
+          },
+          orderBy: { effectiveDate: "desc" },
+          select: { effectiveDate: true },
+        })
         : null;
 
       const { passwordHash: _, ...safe } = employee;
@@ -332,56 +332,56 @@ export const employeeRouter = router({
         await Promise.all([
           canViewSensitive
             ? ctx.prisma.employeeJobHistory.findMany({
-                where: { employeeId: employee.id },
-                include: {
-                  changedBy: {
-                    select: { id: true, firstName: true, lastName: true },
-                  },
+              where: { employeeId: employee.id },
+              include: {
+                changedBy: {
+                  select: { id: true, firstName: true, lastName: true },
                 },
-                orderBy: { effectiveDate: "desc" },
-                take: 20,
-              })
+              },
+              orderBy: { effectiveDate: "desc" },
+              take: 20,
+            })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.attendanceLog.findMany({
-                where: { employeeId: employee.id },
-                orderBy: { date: "desc" },
-                take: 5,
-              })
+              where: { employeeId: employee.id },
+              orderBy: { date: "desc" },
+              take: 5,
+            })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.leaveRequest.findMany({
-                where: { employeeId: employee.id },
-                include: { leaveType: true },
-                orderBy: { appliedAt: "desc" },
-                take: 3,
-              })
+              where: { employeeId: employee.id },
+              include: { leaveType: true },
+              orderBy: { appliedAt: "desc" },
+              take: 3,
+            })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.leaveBalance.findMany({
-                where: { employeeId: employee.id, year },
-                include: { leaveType: true },
-              })
+              where: { employeeId: employee.id, year },
+              include: { leaveType: true },
+            })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.attendanceLog.findMany({
-                where: {
-                  employeeId: employee.id,
-                  date: { gte: monthStart, lte: monthEnd },
-                },
-                select: { status: true },
-              })
+              where: {
+                employeeId: employee.id,
+                date: { gte: monthStart, lte: monthEnd },
+              },
+              select: { status: true },
+            })
             : Promise.resolve([]),
           canViewSensitive
             ? ctx.prisma.employeeJobHistory.findFirst({
-                where: {
-                  employeeId: employee.id,
-                  fieldChanged: "status",
-                  newValue: employee.status,
-                },
-                orderBy: { effectiveDate: "desc" },
-                select: { effectiveDate: true },
-              })
+              where: {
+                employeeId: employee.id,
+                fieldChanged: "status",
+                newValue: employee.status,
+              },
+              orderBy: { effectiveDate: "desc" },
+              select: { effectiveDate: true },
+            })
             : Promise.resolve(null),
         ]);
 
@@ -411,7 +411,7 @@ export const employeeRouter = router({
           0,
           Math.floor(
             (Date.now() - employee.dateOfJoining.getTime()) /
-              (1000 * 60 * 60 * 24)
+            (1000 * 60 * 60 * 24)
           )
         );
       }
@@ -620,12 +620,12 @@ export const employeeRouter = router({
             const single =
               input.workLocationLat != null && input.workLocationLng != null
                 ? [
-                    {
-                      name: input.workLocationName || "Assigned site",
-                      lat: input.workLocationLat,
-                      lng: input.workLocationLng,
-                    },
-                  ]
+                  {
+                    name: input.workLocationName || "Assigned site",
+                    lat: input.workLocationLat,
+                    lng: input.workLocationLng,
+                  },
+                ]
                 : [];
             return syncLegacyWorkLocation(single);
           })(),
@@ -676,11 +676,11 @@ export const employeeRouter = router({
             department: employee.department?.name,
             dateOfJoining: employee.dateOfJoining
               ? employee.dateOfJoining.toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                  timeZone: "Asia/Kolkata",
-                })
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                timeZone: "Asia/Kolkata",
+              })
               : null,
             email: employee.email,
             phone: employee.phone,
@@ -1000,23 +1000,23 @@ export const employeeRouter = router({
       const effectiveDate = statusEffectiveDate ?? new Date();
       const latestStatusHistory =
         data.status !== undefined &&
-        (statusChanged || statusEffectiveDate != null)
+          (statusChanged || statusEffectiveDate != null)
           ? await ctx.prisma.employeeJobHistory.findFirst({
-              where: {
-                employeeId: id,
-                fieldChanged: "status",
-                newValue: nextStatus,
-              },
-              orderBy: { effectiveDate: "desc" },
-              select: { effectiveDate: true },
-            })
+            where: {
+              employeeId: id,
+              fieldChanged: "status",
+              newValue: nextStatus,
+            },
+            orderBy: { effectiveDate: "desc" },
+            select: { effectiveDate: true },
+          })
           : null;
       const shouldWriteStatusHistory =
         statusChanged ||
         (statusEffectiveDate != null &&
           (!latestStatusHistory ||
             latestStatusHistory.effectiveDate.toISOString().slice(0, 10) !==
-              effectiveDate.toISOString().slice(0, 10)));
+            effectiveDate.toISOString().slice(0, 10)));
       const employee = await ctx.prisma.$transaction(async (tx) => {
         const updated = await tx.employee.update({
           where: { id },
@@ -1151,17 +1151,17 @@ export const employeeRouter = router({
       const statusHistories =
         separatedIds.length > 0
           ? await ctx.prisma.employeeJobHistory.findMany({
-              where: {
-                employeeId: { in: separatedIds },
-                fieldChanged: "status",
-              },
-              orderBy: { effectiveDate: "desc" },
-              select: {
-                employeeId: true,
-                newValue: true,
-                effectiveDate: true,
-              },
-            })
+            where: {
+              employeeId: { in: separatedIds },
+              fieldChanged: "status",
+            },
+            orderBy: { effectiveDate: "desc" },
+            select: {
+              employeeId: true,
+              newValue: true,
+              effectiveDate: true,
+            },
+          })
           : [];
 
       const latestStatusMap = new Map<string, Date>();
@@ -1389,85 +1389,85 @@ export const employeeRouter = router({
 
   getUpcomingBirthdays: protectedProcedure.query(
     async ({ ctx }): Promise<UpcomingBirthdayItem[]> => {
-    if (
-      upcomingBirthdaysCache &&
-      Date.now() - upcomingBirthdaysCache.at < UPCOMING_BIRTHDAYS_TTL_MS
-    ) {
-      return upcomingBirthdaysCache.data;
-    }
-
-    const orgId = ctx.session.user.organizationId || "org_default_realty";
-    const employees = await ctx.prisma.employee.findMany({
-      where: {
-        organizationId: orgId,
-        status: { in: ["ACTIVE", "ON_LEAVE"] },
-        dateOfBirth: { not: null },
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        profilePhotoUrl: true,
-        dateOfBirth: true,
-        department: { select: { name: true } },
-        designation: { select: { title: true } },
-      },
-      take: 200,
-    });
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const today = new Date(currentYear, now.getMonth(), now.getDate());
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-
-    const upcoming: {
-      id: string;
-      name: string;
-      firstName: string;
-      lastName: string;
-      profilePhotoUrl: string | null;
-      department: string | null;
-      designation: string | null;
-      birthdayDate: string;
-      isToday: boolean;
-      daysUntil: number;
-    }[] = [];
-
-    for (const emp of employees) {
-      if (!emp.dateOfBirth) continue;
-      const dob = new Date(emp.dateOfBirth);
-      const birthMonth = dob.getMonth();
-      const birthDay = dob.getDate();
-      let nextBirthday = new Date(currentYear, birthMonth, birthDay);
-      if (nextBirthday.getTime() < today.getTime()) {
-        nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
+      if (
+        upcomingBirthdaysCache &&
+        Date.now() - upcomingBirthdaysCache.at < UPCOMING_BIRTHDAYS_TTL_MS
+      ) {
+        return upcomingBirthdaysCache.data;
       }
-      const diffDays = Math.round(
-        (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      if (diffDays < 0 || diffDays > 30) continue;
-      upcoming.push({
-        id: emp.id,
-        name: `${emp.firstName} ${emp.lastName}`.trim(),
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        profilePhotoUrl: emp.profilePhotoUrl,
-        department: emp.department?.name ?? null,
-        designation: emp.designation?.title ?? null,
-        birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
-        isToday: diffDays === 0,
-        daysUntil: diffDays,
-      });
-    }
 
-    upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
-    const result = upcoming.slice(0, 12);
-    upcomingBirthdaysCache = { at: Date.now(), data: result };
-    return result;
-  }),
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const employees = await ctx.prisma.employee.findMany({
+        where: {
+          organizationId: orgId,
+          status: { in: ["ACTIVE", "ON_LEAVE"] },
+          dateOfBirth: { not: null },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          profilePhotoUrl: true,
+          dateOfBirth: true,
+          department: { select: { name: true } },
+          designation: { select: { title: true } },
+        },
+        take: 200,
+      });
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const today = new Date(currentYear, now.getMonth(), now.getDate());
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+      ];
+
+      const upcoming: {
+        id: string;
+        name: string;
+        firstName: string;
+        lastName: string;
+        profilePhotoUrl: string | null;
+        department: string | null;
+        designation: string | null;
+        birthdayDate: string;
+        isToday: boolean;
+        daysUntil: number;
+      }[] = [];
+
+      for (const emp of employees) {
+        if (!emp.dateOfBirth) continue;
+        const dob = new Date(emp.dateOfBirth);
+        const birthMonth = dob.getMonth();
+        const birthDay = dob.getDate();
+        let nextBirthday = new Date(currentYear, birthMonth, birthDay);
+        if (nextBirthday.getTime() < today.getTime()) {
+          nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
+        }
+        const diffDays = Math.round(
+          (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (diffDays < 0 || diffDays > 30) continue;
+        upcoming.push({
+          id: emp.id,
+          name: `${emp.firstName} ${emp.lastName}`.trim(),
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          profilePhotoUrl: emp.profilePhotoUrl,
+          department: emp.department?.name ?? null,
+          designation: emp.designation?.title ?? null,
+          birthdayDate: `${monthNames[birthMonth]} ${birthDay}`,
+          isToday: diffDays === 0,
+          daysUntil: diffDays,
+        });
+      }
+
+      upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+      const result = upcoming.slice(0, 12);
+      upcomingBirthdaysCache = { at: Date.now(), data: result };
+      return result;
+    }),
 
   notifications: protectedProcedure.query(async ({ ctx }) => {
     const role = ctx.session.user.role as Role;
@@ -1484,7 +1484,7 @@ export const employeeRouter = router({
         },
       };
 
-      const [pendingLeaves, outsideGeofenceLogs, lateLogs, newCandidates] =
+      const [pendingLeaves, outsideGeofenceLogs, lateLogs, newCandidates, pendingTargetActivities] =
         await Promise.all([
           ctx.prisma.leaveRequest.findMany({
             where: leaveWhere,
@@ -1543,20 +1543,39 @@ export const employeeRouter = router({
           }),
           role === "ADMIN" || role === "HR"
             ? ctx.prisma.candidate.findMany({
-                where: {
-                  currentStage: "APPLIED",
-                  jobPosting: { postedBy: { organizationId: orgId } },
-                },
-                include: { jobPosting: { select: { title: true } } },
-                orderBy: { appliedAt: "desc" },
-                take: 5,
-              })
+              where: {
+                currentStage: "APPLIED",
+                jobPosting: { postedBy: { organizationId: orgId } },
+              },
+              include: { jobPosting: { select: { title: true } } },
+              orderBy: { appliedAt: "desc" },
+              take: 5,
+            })
             : Promise.resolve([]),
+          ctx.prisma.targetActivity.findMany({
+            where: {
+              status: "PENDING",
+              target: { organizationId: orgId },
+            },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePhotoUrl: true,
+                },
+              },
+              targetItem: true,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          }),
         ]);
 
       type NotificationItem = {
         id: string;
-        type: "LEAVE" | "GEOFENCE" | "LATE" | "CANDIDATE";
+        type: "LEAVE" | "GEOFENCE" | "LATE" | "CANDIDATE" | "TARGET";
         title: string;
         subtitle: string;
         time: Date | null;
@@ -1625,6 +1644,20 @@ export const employeeRouter = router({
         });
       }
 
+      for (const pta of pendingTargetActivities) {
+        items.push({
+          id: `target-act-${pta.id}`,
+          type: "TARGET" as const,
+          title: `${pta.employee.firstName} ${pta.employee.lastName}`,
+          subtitle: `Completed deliverable: ${pta.title || pta.targetItem?.title || "Role task"} (${pta.quantity} qty) - requires verification`,
+          time: pta.createdAt,
+          href: "/admin-portal/targets",
+          avatar: pta.employee.profilePhotoUrl,
+          badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
+          badgeText: "Target Verification",
+        });
+      }
+
       items.sort((a, b) => {
         const tA = a.time ? new Date(a.time).getTime() : 0;
         const tB = b.time ? new Date(b.time).getTime() : 0;
@@ -1636,42 +1669,114 @@ export const employeeRouter = router({
         pendingLeavesCount: pendingLeaves.length,
         anomaliesCount: outsideGeofenceLogs.length + lateLogs.length,
         candidatesCount: newCandidates.length,
+        pendingVerificationsCount: pendingTargetActivities.length,
         items,
       };
     } else {
-      const recentLeaves = await ctx.prisma.leaveRequest.findMany({
-        where: {
-          employeeId: ctx.session.user.id,
-          respondedAt: { not: null },
-        },
-        include: { leaveType: true },
-        orderBy: { respondedAt: "desc" },
-        take: 5,
-      });
+        const [recentLeaves, recentTargets, recentActivities] = await Promise.all([
+          ctx.prisma.leaveRequest.findMany({
+            where: {
+              employeeId: ctx.session.user.id,
+              respondedAt: { not: null },
+            },
+            include: { leaveType: true },
+            orderBy: { respondedAt: "desc" },
+            take: 5,
+          }),
+          ctx.prisma.employeeTarget.findMany({
+            where: {
+              employeeId: ctx.session.user.id,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          }),
+          ctx.prisma.targetActivity.findMany({
+            where: {
+              employeeId: ctx.session.user.id,
+              verifiedAt: { not: null },
+            },
+            include: { targetItem: true },
+            orderBy: { verifiedAt: "desc" },
+            take: 5,
+          }),
+        ]);
 
-      const items = recentLeaves.map((l) => ({
-        id: `leave-res-${l.id}`,
-        type: "LEAVE" as const,
-        title: `Leave ${l.status === "APPROVED" ? "Approved" : "Rejected"}`,
-        subtitle: `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
-        time: l.respondedAt,
-        href: "/employee-portal/leaves",
-        avatar: null,
-        badgeColor:
-          l.status === "APPROVED"
-            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-            : "bg-rose-100 text-rose-700 border-rose-200",
-        badgeText: l.status,
-      }));
+        type EmpNotificationItem = {
+          id: string;
+          type: "LEAVE" | "TARGET";
+          title: string;
+          subtitle: string;
+          time: Date | null;
+          href: string;
+          avatar?: string | null;
+          badgeColor: string;
+          badgeText: string;
+        };
 
-      return {
-        unreadCount: items.length,
-        pendingLeavesCount: 0,
-        anomaliesCount: 0,
-        candidatesCount: 0,
-        items,
-      };
-    }
+        const items: EmpNotificationItem[] = [];
+
+        for(const l of recentLeaves) {
+          items.push({
+            id: `leave-res-${l.id}`,
+            type: "LEAVE" as const,
+            title: `Leave ${l.status === "APPROVED" ? "Approved" : "Rejected"}`,
+            subtitle: `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
+            time: l.respondedAt,
+            href: "/employee-portal/leaves",
+            avatar: null,
+            badgeColor:
+              l.status === "APPROVED"
+                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                : "bg-rose-100 text-rose-700 border-rose-200",
+            badgeText: l.status,
+          });
+        }
+
+      for(const t of recentTargets) {
+          items.push({
+            id: `target-assigned-${t.id}`,
+            type: "TARGET" as const,
+            title: `Target Assigned: ${t.title}`,
+            subtitle: `A new performance target sheet has been assigned to you. Track your 10% discipline and deliverables.`,
+            time: t.createdAt,
+            href: "/employee-portal/targets",
+            avatar: null,
+            badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
+            badgeText: "Target Assigned",
+          });
+        }
+
+      for(const a of recentActivities) {
+          items.push({
+            id: `target-act-res-${a.id}`,
+            type: "TARGET" as const,
+            title: a.status === "APPROVED" ? "Deliverable Verified & Approved" : "Deliverable Verification Rejected",
+            subtitle: `${a.title || a.targetItem?.title || "Deliverable"} (${a.quantity} qty) has been reviewed by management.`,
+            time: a.verifiedAt,
+            href: "/employee-portal/targets",
+            avatar: null,
+            badgeColor:
+              a.status === "APPROVED"
+                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                : "bg-rose-100 text-rose-700 border-rose-200",
+            badgeText: a.status === "APPROVED" ? "Verified" : "Rejected",
+          });
+        }
+
+      items.sort((a, b) => {
+          const tA = a.time ? new Date(a.time).getTime() : 0;
+          const tB = b.time ? new Date(b.time).getTime() : 0;
+          return tB - tA;
+        });
+
+        return {
+          unreadCount: items.length,
+          pendingLeavesCount: 0,
+          anomaliesCount: 0,
+          candidatesCount: 0,
+          items,
+        };
+      }
   }),
 
   changeMyPassword: protectedProcedure
