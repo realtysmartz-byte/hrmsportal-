@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Building,
   User,
+  Receipt,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -79,9 +80,23 @@ export function KekaAttendancePanel({
   const currentYearNum = now.getFullYear();
 
   // Selected period / month filter
-  const [selectedPeriod, setSelectedPeriod] = useState<"30_DAYS" | "OCT" | "SEP" | "AUG">("30_DAYS");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("30_DAYS");
   const [selectedMonth, setSelectedMonth] = useState(currentMonthNum);
   const [selectedYear, setSelectedYear] = useState(currentYearNum);
+
+  const availablePeriods = useMemo(() => {
+    const list: { key: string; label: string; year: number; month: number }[] = [
+      { key: "30_DAYS", label: "30 DAYS", year: currentYearNum, month: currentMonthNum },
+    ];
+    for (let i = 0; i < 4; i++) {
+      const d = new Date(currentYearNum, currentMonthNum - 1 - i, 1);
+      const mNum = d.getMonth() + 1;
+      const yNum = d.getFullYear();
+      const mLabel = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+      list.push({ key: `${mLabel}_${yNum}`, label: mLabel, year: yNum, month: mNum });
+    }
+    return list;
+  }, [currentYearNum, currentMonthNum]);
 
   // Active tab in Logs & Records
   const [activeTab, setActiveTab] = useState<"log" | "shifts">("log");
@@ -107,12 +122,15 @@ export function KekaAttendancePanel({
     }
   }, [currentUserWorkLoc?.serverTime]);
 
+  const isLast30Days = selectedPeriod === "30_DAYS";
+
   const { data: targetMonthData, isLoading: isTargetMonthLoading } =
     trpc.attendance.forEmployeeMonth.useQuery(
       {
         employeeId: targetEmployeeId ?? "",
         year: selectedYear,
         month: selectedMonth,
+        days: isLast30Days ? 30 : undefined,
       },
       { enabled: isTargetMode, staleTime: 60_000 }
     );
@@ -122,6 +140,7 @@ export function KekaAttendancePanel({
       {
         year: selectedYear,
         month: selectedMonth,
+        days: isLast30Days ? 30 : undefined,
       },
       { enabled: !isTargetMode, staleTime: 60_000 }
     );
@@ -234,7 +253,7 @@ export function KekaAttendancePanel({
 
   async function handlePunch(mode: "in" | "out") {
     if (busy) return;
-    if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => {});
+    if (mode === "in") void subscribeToLocationReminders(savePush.mutateAsync).catch(() => { });
     setPunchError("");
     setBusy(true);
     setPunchPhase("locating");
@@ -303,16 +322,20 @@ export function KekaAttendancePanel({
     const lateCount = logs.filter((l) => l.status === "LATE").length;
     const halfDayCount = logs.filter((l) => l.status === "HALF_DAY").length;
     const onLeaveCount = logs.filter((l) => l.status === "ON_LEAVE").length;
-    const absentCount = logs.filter((l) => l.status === "ABSENT" || !l.checkInTime).length;
+    const absentCount = logs.filter((l) => l.status === "ABSENT").length;
     const totalHours = Math.round(
       logs.reduce((acc, l) => acc + (l.totalHours || 0), 0) * 10
     ) / 10;
     const avgDailyHours = presentCount > 0 ? (totalHours / presentCount).toFixed(1) : "0.0";
 
-    // Punctuality & Salary Deduction calculation
+    // Punctuality & Salary Deduction calculation according to Realty Smartz rules:
+    // • Punctuality Rule: Every 3 lates (>10:30 AM) = 0.5 day cut
+    // • Half Day Rule: Arrival after 11:00 AM or <4 hrs worked = 0.5 day cut
+    // • Absence Rule: Unapproved absence = 1.0 day cut
     const lateCutDays = Math.floor(lateCount / 3) * 0.5;
     const halfDayCutDays = halfDayCount * 0.5;
-    const totalDeductionDays = lateCutDays + halfDayCutDays;
+    const absentCutDays = absentCount * 1.0;
+    const totalDeductionDays = lateCutDays + halfDayCutDays + absentCutDays;
     const latesToNextCut = 3 - (lateCount % 3);
 
     return {
@@ -326,6 +349,7 @@ export function KekaAttendancePanel({
       avgDailyHours,
       lateCutDays,
       halfDayCutDays,
+      absentCutDays,
       totalDeductionDays,
       latesToNextCut,
     };
@@ -369,7 +393,7 @@ export function KekaAttendancePanel({
 
             {/* Location Verification Pill */}
             <div className="flex items-center gap-2 text-xs text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200/70">
-              <MapPin className="h-4 w-4 text-[#5D3EBC] shrink-0" />
+              <MapPin className="h-4 w-4 text-[#0284C7] shrink-0" />
               <div className="min-w-0">
                 <span className="text-[10px] uppercase font-bold text-neutral-400 block">
                   Workplace Allocation
@@ -385,514 +409,529 @@ export function KekaAttendancePanel({
 
       {/* 2. THREE STATS & ACTION WIDGETS (Keka Style) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card A: Attendance Stats (Last 30 Days) */}
+        {/* Card A: Attendance Stats */}
         <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
               ATTENDANCE STATS
             </span>
-            <span className="text-[11px] font-semibold text-neutral-400">Last 30 Days</span>
+            <span className="text-[11px] font-semibold text-neutral-500">
+              {selectedPeriod === "30_DAYS"
+                ? "Last 30 Days"
+                : new Date(selectedYear, selectedMonth - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+            </span>
           </div>
 
           <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
-            <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
-              <span className="text-base sm:text-lg font-extrabold text-emerald-800">
-                {stats.presentCount}
-              </span>
-              <span className="block text-[9px] font-bold text-emerald-700 uppercase mt-0.5 truncate">
-                Present
-              </span>
-            </div>
-
-            <div className="p-2 rounded-xl bg-amber-50/70 border border-amber-100">
-              <span className="text-base sm:text-lg font-extrabold text-amber-800">
-                {stats.lateCount}
-              </span>
-              <span className="block text-[9px] font-bold text-amber-700 uppercase mt-0.5 truncate">
-                Late (10:30+)
-              </span>
-            </div>
-
-            <div className="p-2 rounded-xl bg-orange-50/70 border border-orange-100">
-              <span className="text-base sm:text-lg font-extrabold text-orange-800">
-                {stats.halfDayCount}
-              </span>
-              <span className="block text-[9px] font-bold text-orange-700 uppercase mt-0.5 truncate">
-                Half Day (11+)
-              </span>
-            </div>
-
-            <div className="p-2 rounded-xl bg-rose-50/70 border border-rose-100">
-              <span className="text-base sm:text-lg font-extrabold text-rose-800">
-                -{stats.totalDeductionDays}d
-              </span>
-              <span className="block text-[9px] font-bold text-rose-700 uppercase mt-0.5 truncate">
-                Salary Cut
-              </span>
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-neutral-50 border border-neutral-200/80 p-2 text-[11px] text-neutral-600 space-y-1">
-            <div className="flex items-center justify-between font-semibold text-neutral-800">
-              <span>Punctuality Deduction:</span>
-              <span className="text-rose-700 font-bold">-{stats.totalDeductionDays} Day(s)</span>
-            </div>
-            <div className="text-[10px] text-neutral-500 leading-snug">
-              • 3 Lates = 0.5 Day Cut ({stats.lateCount} late = -{stats.lateCutDays}d, {stats.latesToNextCut} more until next cut)
-              <br />
-              • Check-in after 11:00 AM = 0.5 Day Cut ({stats.halfDayCount} half day = -{stats.halfDayCutDays}d)
-            </div>
-          </div>
-        </div>
-
-        {/* Card B: Timings */}
-        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              TIMINGS
-            </span>
-            <span className="text-[11px] font-semibold text-neutral-400">Shift 10:00 - 19:00</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-100">
-              <span className="text-xs text-neutral-400 uppercase font-bold text-[10px]">
-                Total Gross Hours
-              </span>
-              <p className="text-lg font-extrabold text-neutral-900 mt-0.5">
-                {stats.totalHours} hrs
-              </p>
-            </div>
-
-            <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-100">
-              <span className="text-xs text-neutral-400 uppercase font-bold text-[10px]">
-                Avg Daily Hours
-              </span>
-              <p className="text-lg font-extrabold text-neutral-900 mt-0.5">
-                {stats.avgDailyHours} hrs
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Card C: Actions (Punch In / Punch Out with Location Enforcement) */}
-        <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              ACTIONS
-            </span>
-            <div className="flex items-center gap-1.5 text-xs font-semibold">
-              <span
-                className={cn(
-                  "h-2 w-2 rounded-full",
-                  isOnDuty ? "bg-emerald-500 animate-pulse" : "bg-neutral-300"
-                )}
-              />
-              <span className={isOnDuty ? "text-emerald-700" : "text-neutral-500"}>
-                {isOnDuty ? "Currently On Duty" : "Off Duty"}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            {isTargetMode ? (
-              <div className="space-y-2">
-                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-neutral-400 block">
-                    Today's Attendance Status
+                <div className="p-2 rounded-xl bg-emerald-50/80 border border-emerald-200/70 flex flex-col items-center justify-center">
+                  <span className="text-base sm:text-lg font-black text-emerald-800 leading-tight">
+                    {stats.presentCount}
                   </span>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-neutral-900">
-                      {isOnDuty
-                        ? "Currently On Duty"
-                        : hasCompletedSession
-                        ? "Shift Completed"
-                        : "Not Checked In Today"}
+                    <span className="text-[10px] font-bold text-emerald-700 tracking-tight leading-none mt-1">
+                      Present
                     </span>
-                    <span
-                      className={cn(
-                        "px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                        isOnDuty
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : hasCompletedSession
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                          : "bg-neutral-100 text-neutral-500 border-neutral-200"
-                      )}
-                    >
-                      {isOnDuty ? "Active" : hasCompletedSession ? "Done" : "Off"}
+                    <span className="text-[8px] font-semibold text-emerald-600/90 mt-0.5">
+                      On Duty
                     </span>
-                  </div>
-                  {todayAttendance?.checkInTime && (
-                    <div className="text-[11px] text-neutral-600 pt-1 border-t border-neutral-200/60 flex items-center justify-between flex-wrap gap-1">
-                      <span>In: <b className="text-neutral-900">{formatTimeIST(todayAttendance.checkInTime)}</b></span>
-                      {todayAttendance?.checkOutTime && (
-                        <span>Out: <b className="text-neutral-900">{formatTimeIST(todayAttendance.checkOutTime)}</b></span>
-                      )}
+                </div>
+
+                    <div className="p-2 rounded-xl bg-amber-50/80 border border-amber-200/70 flex flex-col items-center justify-center">
+                      <span className="text-base sm:text-lg font-black text-amber-800 leading-tight">
+                        {stats.lateCount}
+                      </span>
+                        <span className="text-[10px] font-bold text-amber-700 tracking-tight leading-none mt-1">
+                          Late Mark
+                        </span>
+                        <span className="text-[8px] font-semibold text-amber-600/90 mt-0.5">
+                          &gt;10:30 AM
+                        </span>
                     </div>
-                  )}
-                </div>
-                <p className="text-[10px] text-neutral-400 italic text-center">
-                  Staff punch in directly via employee portal
-                </p>
-              </div>
-            ) : isOnDuty && getISTDateParts(new Date()).hour >= 19 ? (
-              <div className="w-full h-10 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-semibold text-xs flex items-center justify-center gap-2">
-                <RotateCw className="h-3.5 w-3.5 animate-spin" />
-                Shift ended 7:00 PM — auto clock-out…
-              </div>
-            ) : isOnDuty ? (
-              <Button
-                onClick={() => handlePunch("out")}
-                disabled={busy}
-                className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-black text-white font-semibold text-xs gap-2"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span>
-                  {punchPhase === "saving"
-                    ? "Saving…"
-                    : punchPhase === "locating"
-                      ? "Getting location…"
-                      : "Clock Out"}
-                </span>
-              </Button>
-            ) : (
-              <Button
-                onClick={() => handlePunch("in")}
-                disabled={busy}
-                className="w-full h-10 rounded-xl bg-[#5D3EBC] text-white hover:opacity-95 font-semibold text-xs gap-2"
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                <span>
-                  {punchPhase === "saving"
-                    ? "Saving…"
-                    : punchPhase === "locating"
-                      ? "Getting location…"
-                      : hasCompletedSession
-                        ? "Clock In Again"
-                        : "Clock In"}
-                </span>
-              </Button>
-            )}
 
-            {punchError && (
-              <p className="mt-2 text-[11px] font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 leading-relaxed">
-                {punchError}
-              </p>
-            )}
-
-            {(() => {
-              const todayPunches =
-                todayAttendance &&
-                "punches" in todayAttendance &&
-                Array.isArray((todayAttendance as { punches?: unknown }).punches)
-                  ? (
-                      todayAttendance as {
-                        punches: {
-                          id: string;
-                          checkInTime: Date;
-                          checkOutTime: Date | null;
-                          checkInAddress: string | null;
-                          checkOutAddress: string | null;
-                        }[];
-                      }
-                    ).punches
-                  : [];
-              return todayPunches.length > 0 ? (
-                <div className="mt-3">
-                  <PunchList punches={todayPunches} />
-                </div>
-              ) : null;
-            })()}
-          </div>
-        </div>
-      </div>
-
-      {/* 3. LOGS & RECORDS SECTION (Keka Style Table with Visual Timeline) */}
-      <div className="rounded-lg border border-neutral-200/90 bg-white overflow-hidden">
-        {/* Top Header & Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-200 px-4 py-3 gap-3 bg-neutral-50/50">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-neutral-900">Logs & Records</h2>
-            <div className="flex items-center rounded-lg border border-neutral-200 p-0.5 bg-white text-xs ml-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab("log")}
-                className={cn(
-                  "px-3 py-1 rounded-md font-semibold transition-colors",
-                  activeTab === "log"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600 hover:text-neutral-900"
-                )}
-              >
-                Attendance Log
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("shifts")}
-                className={cn(
-                  "px-3 py-1 rounded-md font-semibold transition-colors",
-                  activeTab === "shifts"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600 hover:text-neutral-900"
-                )}
-              >
-                Shifts
-              </button>
-            </div>
-          </div>
-
-          {/* Period Selection Pills matching Screenshot 2 */}
-          <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPeriod("30_DAYS");
-                setSelectedMonth(currentMonthNum);
-              }}
-              className={cn(
-                "px-2.5 py-1 rounded-md transition-colors",
-                selectedPeriod === "30_DAYS"
-                  ? "bg-[#5D3EBC] text-white"
-                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-              )}
-            >
-              30 DAYS
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPeriod("OCT");
-                setSelectedMonth(10);
-              }}
-              className={cn(
-                "px-2 py-1 rounded-md transition-colors",
-                selectedPeriod === "OCT"
-                  ? "bg-[#5D3EBC] text-white"
-                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-              )}
-            >
-              OCT
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPeriod("SEP");
-                setSelectedMonth(9);
-              }}
-              className={cn(
-                "px-2 py-1 rounded-md transition-colors",
-                selectedPeriod === "SEP"
-                  ? "bg-[#5D3EBC] text-white"
-                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-              )}
-            >
-              SEP
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPeriod("AUG");
-                setSelectedMonth(8);
-              }}
-              className={cn(
-                "px-2 py-1 rounded-md transition-colors",
-                selectedPeriod === "AUG"
-                  ? "bg-[#5D3EBC] text-white"
-                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-              )}
-            >
-              AUG
-            </button>
-          </div>
-        </div>
-
-        {/* Table Content */}
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50/80 text-[11px] font-bold text-neutral-600">
-                <th className="py-3 px-4 w-[160px]">Date</th>
-                <th className="py-3 px-4 min-w-[200px]">Attendance Visual</th>
-                <th className="py-3 px-4 w-[100px]">Gross Hours</th>
-                <th className="py-3 px-4 w-[100px]">Effective Hours</th>
-                <th className="py-3 px-4 w-[110px]">Clock In</th>
-                <th className="py-3 px-4 w-[110px]">Clock Out</th>
-                <th className="py-3 px-4 w-[90px] text-center">Map View</th>
-                <th className="py-3 px-4 w-[100px] text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {isMonthLoading ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-neutral-400">
-                    Loading attendance logs...
-                  </td>
-                </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-neutral-400">
-                    No attendance records for this period.
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => {
-                  const dateStr = formatDateIST(log.date);
-                  const isCheckedIn = Boolean(log.checkInTime);
-                  const isCheckedOut = Boolean(log.checkOutTime);
-                  const hours = log.totalHours != null ? `${log.totalHours}h` : "—";
-
-                  // Calculate percentage for visual bar (e.g. 8 hours out of 9 hours standard shift)
-                  const hoursVal = log.totalHours || (isCheckedIn ? 6 : 0);
-                  const barWidthPercent = Math.min(100, Math.round((hoursVal / 9) * 100));
-
-                  const rawDateStr = new Date(log.date).toISOString().slice(0, 10);
-                  const punches =
-                    "punches" in log && Array.isArray(log.punches) ? log.punches : [];
-                  const firstIn = punches[0]?.checkInTime ?? log.checkInTime;
-                  const isExpanded = expandedLogId === log.id;
-
-                  return (
-                    <Fragment key={log.id}>
-                    <tr
-                      className="hover:bg-neutral-50/70 transition-colors"
-                    >
-                      {/* Date */}
-                      <td className="py-3 px-4 font-semibold text-neutral-900 whitespace-nowrap">
-                        {dateStr}
-                        {punches.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                            className="mt-1 flex items-center gap-0.5 text-[10px] font-bold text-[#5D3EBC] hover:underline"
-                          >
-                            {punches.length} punches
-                            <ChevronRight
-                              className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
-                            />
-                          </button>
-                        )}
-                      </td>
-
-                      {/* Visual Timeline Bar matching Screenshot 2 */}
-                      <td className="py-3 px-4">
-                        <div className="w-full max-w-[240px]">
-                          <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-1">
-                            <span>{firstIn ? formatTimeIST(firstIn) : "—"}</span>
-                            <span>{log.checkOutTime ? formatTimeIST(log.checkOutTime) : isCheckedIn ? "Active" : "—"}</span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
-                            {isCheckedIn && (
-                              <div
-                                className="h-full rounded-full bg-[#1AB3B6] transition-all"
-                                style={{ width: `${barWidthPercent}%` }}
-                              />
-                            )}
-                          </div>
+                        <div className="p-2 rounded-xl bg-orange-50/80 border border-orange-200/70 flex flex-col items-center justify-center">
+                          <span className="text-base sm:text-lg font-black text-orange-800 leading-tight">
+                            {stats.halfDayCount}
+                          </span>
+                            <span className="text-[10px] font-bold text-orange-700 tracking-tight leading-none mt-1">
+                              Half Day
+                            </span>
+                            <span className="text-[8px] font-semibold text-orange-600/90 mt-0.5">
+                              &gt;11:00 AM
+                            </span>
                         </div>
-                      </td>
 
-                      {/* Gross Hours */}
-                      <td className="py-3 px-4 font-bold text-neutral-800 whitespace-nowrap">
-                        {hours}
-                      </td>
+                            <div className="p-2 rounded-xl bg-rose-50/80 border border-rose-200/70 flex flex-col items-center justify-center">
+                              <span className="text-base sm:text-lg font-black text-rose-800 leading-tight">
+                                {stats.totalDeductionDays > 0 ? `-${stats.totalDeductionDays}d` : "0d"}
+                              </span>
+                                <span className="text-[10px] font-bold text-rose-700 tracking-tight leading-none mt-1">
+                                  Salary Cut
+                                </span>
+                                <span className="text-[8px] font-semibold text-rose-600/90 mt-0.5">
+                                  {stats.totalDeductionDays > 0 ? "Deducted" : "No Cut"}
+                                </span>
+                            </div>
+                        </div>
 
-                      {/* Effective Hours */}
-                      <td className="py-3 px-4 font-medium text-neutral-600 whitespace-nowrap">
-                        {hours}
-                      </td>
+                            <div className="rounded-xl bg-sky-50/80 border border-sky-200/80 p-3 text-xs text-slate-700 space-y-2">
+                              <div className="flex items-center justify-between font-bold text-sky-950">
+                                <span className="flex items-center gap-1.5 text-xs text-sky-900 font-bold">
+                                  <Receipt className="h-3.5 w-3.5 text-[#0284C7]" />
+                                  Salary Deduction Breakdown
+                                </span>
+                                <span
+                                  className={cn(
+                                    "px-2 py-0.5 rounded-full text-[10px] font-black border",
+                                    stats.totalDeductionDays > 0
+                                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  )}
+                                >
+                                  {stats.totalDeductionDays > 0
+                                    ? `-${stats.totalDeductionDays} Day(s) Cut`
+                                    : "0 Days Cut (100% Salary)"}
+                                </span>
+                              </div>
 
-                      {/* Clock In */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {isCheckedIn ? (
-                          <span className="font-semibold text-neutral-900">
-                            {formatTimeIST(firstIn)}
-                          </span>
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </td>
+                                <div className="text-[11px] text-slate-600 space-y-1 pt-1.5 border-t border-sky-100">
+                                  <div className="flex items-center justify-between">
+                                    <span>• <b>Late Rule:</b> 3 Lates = 0.5 Day Cut</span>
+                                    <span className="font-semibold text-slate-800 text-[10px]">
+                                      {stats.lateCount} late → -{stats.lateCutDays}d ({stats.latesToNextCut} more to next cut)
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span>• <b>Half Day:</b> Check-in after 11:00 AM = 0.5 Day Cut</span>
+                                    <span className="font-semibold text-slate-800 text-[10px]">
+                                      {stats.halfDayCount} half day → -{stats.halfDayCutDays}d
+                                    </span>
+                                  </div>
+                                  {stats.absentCount > 0 && (
+                                    <div className="flex items-center justify-between text-rose-700">
+                                      <span>• <b>Absence:</b> Unapproved Absence = 1.0 Day Cut</span>
+                                      <span className="font-bold text-[10px]">
+                                        {stats.absentCount} absent → -{stats.absentCutDays}d
+                                      </span>
+                                    </div>
+                                  )}
+                                  {stats.totalDeductionDays === 0 && (
+                                    <div className="text-[10px] text-emerald-700 font-semibold pt-0.5">
+                                      ✓ Full monthly salary protected. Zero attendance deduction penalty.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
 
-                      {/* Clock Out */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {isCheckedOut ? (
-                          <span className="font-semibold text-neutral-900">
-                            {formatTimeIST(log.checkOutTime)}
-                          </span>
-                        ) : isCheckedIn ? (
-                          <span className="font-bold text-[#5D3EBC]">On Duty</span>
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </td>
+                            {/* Card B: Timings */}
+                            <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                                  TIMINGS
+                                </span>
+                                <span className="text-[11px] font-semibold text-neutral-400">Shift 10:00 - 19:00</span>
+                              </div>
 
-                      {/* Map View Button (Opens Screenshot 1 Modal!) */}
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => setMapModalDate(rawDateStr)}
-                          title="Open Keka Map View"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700 hover:bg-[#5D3EBC] hover:text-white transition-colors"
-                        >
-                          <MapPin className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
+                              <div className="grid grid-cols-2 gap-2 pt-1">
+                                <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-100">
+                                  <span className="text-xs text-neutral-400 uppercase font-bold text-[10px]">
+                                    Total Gross Hours
+                                  </span>
+                                  <p className="text-lg font-extrabold text-neutral-900 mt-0.5">
+                                    {stats.totalHours} hrs
+                                  </p>
+                                </div>
 
-                      {/* Status */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        {log.status === "PRESENT" && (
-                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                            On Time
-                          </span>
-                        )}
-                        {log.status === "LATE" && (
-                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
-                            Late
-                          </span>
-                        )}
-                        {log.status === "HALF_DAY" && (
-                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-300">
-                            Half Day
-                          </span>
-                        )}
-                        {log.status === "ON_LEAVE" && (
-                          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-primary border border-indigo-200">
-                            Leave
-                          </span>
-                        )}
-                        {log.status === "ABSENT" && (
-                          <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-maroon border border-rose-200">
-                            Absent
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="bg-neutral-50/70">
-                        <td colSpan={8} className="px-4 py-3">
-                          <div className="max-w-md">
-                            <PunchList punches={punches} />
+                                <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-100">
+                                  <span className="text-xs text-neutral-400 uppercase font-bold text-[10px]">
+                                    Avg Daily Hours
+                                  </span>
+                                  <p className="text-lg font-extrabold text-neutral-900 mt-0.5">
+                                    {stats.avgDailyHours} hrs
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Card C: Actions (Punch In / Punch Out with Location Enforcement) */}
+                            <div className="rounded-lg border border-neutral-200/90 bg-white p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                                  ACTIONS
+                                </span>
+                                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                                  <span
+                                    className={cn(
+                                      "h-2 w-2 rounded-full",
+                                      isOnDuty ? "bg-emerald-500 animate-pulse" : "bg-neutral-300"
+                                    )}
+                                  />
+                                  <span className={isOnDuty ? "text-emerald-700" : "text-neutral-500"}>
+                                    {isOnDuty ? "Currently On Duty" : "Off Duty"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div>
+                                {isTargetMode ? (
+                                  <div className="space-y-2">
+                                    <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 space-y-1">
+                                      <span className="text-[10px] uppercase font-bold text-neutral-400 block">
+                                        Today's Attendance Status
+                                      </span>
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-bold text-xs text-neutral-900">
+                                          {isOnDuty
+                                            ? "Currently On Duty"
+                                            : hasCompletedSession
+                                              ? "Shift Completed"
+                                              : "Not Checked In Today"}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                            isOnDuty
+                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                              : hasCompletedSession
+                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                                          )}
+                                        >
+                                          {isOnDuty ? "Active" : hasCompletedSession ? "Done" : "Off"}
+                                        </span>
+                                      </div>
+                                      {todayAttendance?.checkInTime && (
+                                        <div className="text-[11px] text-neutral-600 pt-1 border-t border-neutral-200/60 flex items-center justify-between flex-wrap gap-1">
+                                          <span>In: <b className="text-neutral-900">{formatTimeIST(todayAttendance.checkInTime)}</b></span>
+                                          {todayAttendance?.checkOutTime && (
+                                            <span>Out: <b className="text-neutral-900">{formatTimeIST(todayAttendance.checkOutTime)}</b></span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-neutral-400 italic text-center">
+                                      Staff punch in directly via employee portal
+                                    </p>
+                                  </div>
+                                ) : isOnDuty && getISTDateParts(new Date()).hour >= 19 ? (
+                                  <div className="w-full h-10 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-semibold text-xs flex items-center justify-center gap-2">
+                                    <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                                    Shift ended 7:00 PM — auto clock-out…
+                                  </div>
+                                ) : isOnDuty ? (
+                                  <Button
+                                    onClick={() => handlePunch("out")}
+                                    disabled={busy}
+                                    className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-black text-white font-semibold text-xs gap-2"
+                                  >
+                                    <LogOut className="h-3.5 w-3.5" />
+                                    <span>
+                                      {punchPhase === "saving"
+                                        ? "Saving…"
+                                        : punchPhase === "locating"
+                                          ? "Getting location…"
+                                          : "Clock Out"}
+                                    </span>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    onClick={() => handlePunch("in")}
+                                    disabled={busy}
+                                    className="w-full h-10 rounded-xl bg-[#0284C7] text-white hover:bg-[#0369A1] font-semibold text-xs gap-2 shadow-sm"
+                                  >
+                                    <LogIn className="h-3.5 w-3.5" />
+                                    <span>
+                                      {punchPhase === "saving"
+                                        ? "Saving…"
+                                        : punchPhase === "locating"
+                                          ? "Getting location…"
+                                          : hasCompletedSession
+                                            ? "Clock In Again"
+                                            : "Clock In"}
+                                    </span>
+                                  </Button>
+                                )}
+
+                                {punchError && (
+                                  <p className="mt-2 text-[11px] font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 leading-relaxed">
+                                    {punchError}
+                                  </p>
+                                )}
+
+                                {(() => {
+                                  const todayPunches =
+                                    todayAttendance &&
+                                      "punches" in todayAttendance &&
+                                      Array.isArray((todayAttendance as { punches?: unknown }).punches)
+                                      ? (
+                                        todayAttendance as {
+                                          punches: {
+                                            id: string;
+                                            checkInTime: Date;
+                                            checkOutTime: Date | null;
+                                            checkInAddress: string | null;
+                                            checkOutAddress: string | null;
+                                          }[];
+                                        }
+                                      ).punches
+                                      : [];
+                                  return todayPunches.length > 0 ? (
+                                    <div className="mt-3">
+                                      <PunchList punches={todayPunches} />
+                                    </div>
+                                  ) : null;
+                                })()}
+                              </div>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                    </Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {/* 4. MODAL: KEKA MAP VIEW (Screenshot 1) */}
-      {mapModalDate && (
-        <KekaMapViewModal
-          employeeId={empId}
-          employeeName={displayName}
-          date={mapModalDate}
-          onClose={() => setMapModalDate(null)}
-        />
-      )}
-    </div>
-  );
+                          {/* 3. LOGS & RECORDS SECTION (Keka Style Table with Visual Timeline) */}
+                          <div className="rounded-lg border border-neutral-200/90 bg-white overflow-hidden">
+                            {/* Top Header & Tabs */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-200 px-4 py-3 gap-3 bg-neutral-50/50">
+                              <div className="flex items-center gap-2">
+                                <h2 className="text-sm font-bold text-neutral-900">Logs & Records</h2>
+                                <div className="flex items-center rounded-lg border border-neutral-200 p-0.5 bg-white text-xs ml-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab("log")}
+                                    className={cn(
+                                      "px-3 py-1 rounded-md font-semibold transition-colors",
+                                      activeTab === "log"
+                                        ? "bg-neutral-900 text-white"
+                                        : "text-neutral-600 hover:text-neutral-900"
+                                    )}
+                                  >
+                                    Attendance Log
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab("shifts")}
+                                    className={cn(
+                                      "px-3 py-1 rounded-md font-semibold transition-colors",
+                                      activeTab === "shifts"
+                                        ? "bg-neutral-900 text-white"
+                                        : "text-neutral-600 hover:text-neutral-900"
+                                    )}
+                                  >
+                                    Shifts
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Period Selection Pills with Blue Palette */}
+                              <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-bold">
+                                {availablePeriods.map((p) => {
+                                  const isActive = selectedPeriod === p.key;
+                                  return (
+                                    <button
+                                      key={p.key}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedPeriod(p.key);
+                                        setSelectedMonth(p.month);
+                                        setSelectedYear(p.year);
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 rounded-md transition-all font-bold text-[11px] whitespace-nowrap",
+                                        isActive
+                                          ? "bg-[#0284C7] text-white shadow-sm ring-1 ring-[#0284C7]"
+                                          : "bg-sky-50/70 text-slate-600 hover:bg-sky-100/80 border border-sky-200/60"
+                                      )}
+                                    >
+                                      {p.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Table Content */}
+                            <div className="overflow-x-auto w-full">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead>
+                                  <tr className="border-b border-neutral-200 bg-neutral-50/80 text-[11px] font-bold text-neutral-600">
+                                    <th className="py-3 px-4 w-[160px]">Date</th>
+                                    <th className="py-3 px-4 min-w-[200px]">Attendance Visual</th>
+                                    <th className="py-3 px-4 w-[100px]">Gross Hours</th>
+                                    <th className="py-3 px-4 w-[100px]">Effective Hours</th>
+                                    <th className="py-3 px-4 w-[110px]">Clock In</th>
+                                    <th className="py-3 px-4 w-[110px]">Clock Out</th>
+                                    <th className="py-3 px-4 w-[90px] text-center">Map View</th>
+                                    <th className="py-3 px-4 w-[100px] text-right">Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100">
+                                  {isMonthLoading ? (
+                                    <tr>
+                                      <td colSpan={8} className="py-12 text-center text-neutral-400">
+                                        Loading attendance logs...
+                                      </td>
+                                    </tr>
+                                  ) : logs.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={8} className="py-12 text-center text-neutral-400">
+                                        No attendance records for this period.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    logs.map((log) => {
+                                      const dateStr = formatDateIST(log.date);
+                                      const isCheckedIn = Boolean(log.checkInTime);
+                                      const isCheckedOut = Boolean(log.checkOutTime);
+                                      const hours = log.totalHours != null ? `${log.totalHours}h` : "—";
+
+                                      // Calculate percentage for visual bar (e.g. 8 hours out of 9 hours standard shift)
+                                      const hoursVal = log.totalHours || (isCheckedIn ? 6 : 0);
+                                      const barWidthPercent = Math.min(100, Math.round((hoursVal / 9) * 100));
+
+                                      const rawDateStr = new Date(log.date).toISOString().slice(0, 10);
+                                      const punches =
+                                        "punches" in log && Array.isArray(log.punches) ? log.punches : [];
+                                      const firstIn = punches[0]?.checkInTime ?? log.checkInTime;
+                                      const isExpanded = expandedLogId === log.id;
+
+                                      return (
+                                        <Fragment key={log.id}>
+                                          <tr
+                                            className="hover:bg-neutral-50/70 transition-colors"
+                                          >
+                                            {/* Date */}
+                                            <td className="py-3 px-4 font-semibold text-neutral-900 whitespace-nowrap">
+                                              {dateStr}
+                                              {punches.length > 1 && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                                  className="mt-1 flex items-center gap-0.5 text-[10px] font-bold text-[#0284C7] hover:underline"
+                                                >
+                                                  {punches.length} punches
+                                                  <ChevronRight
+                                                    className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
+                                                  />
+                                                </button>
+                                              )}
+                                            </td>
+
+                                            {/* Visual Timeline Bar matching Screenshot 2 */}
+                                            <td className="py-3 px-4">
+                                              <div className="w-full max-w-[240px]">
+                                                <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-1">
+                                                  <span>{firstIn ? formatTimeIST(firstIn) : "—"}</span>
+                                                  <span>{log.checkOutTime ? formatTimeIST(log.checkOutTime) : isCheckedIn ? "Active" : "—"}</span>
+                                                </div>
+                                                <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
+                                                  {isCheckedIn && (
+                                                    <div
+                                                      className="h-full rounded-full bg-[#1AB3B6] transition-all"
+                                                      style={{ width: `${barWidthPercent}%` }}
+                                                    />
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </td>
+
+                                            {/* Gross Hours */}
+                                            <td className="py-3 px-4 font-bold text-neutral-800 whitespace-nowrap">
+                                              {hours}
+                                            </td>
+
+                                            {/* Effective Hours */}
+                                            <td className="py-3 px-4 font-medium text-neutral-600 whitespace-nowrap">
+                                              {hours}
+                                            </td>
+
+                                            {/* Clock In */}
+                                            <td className="py-3 px-4 whitespace-nowrap">
+                                              {isCheckedIn ? (
+                                                <span className="font-semibold text-neutral-900">
+                                                  {formatTimeIST(firstIn)}
+                                                </span>
+                                              ) : (
+                                                <span className="text-neutral-400">—</span>
+                                              )}
+                                            </td>
+
+                                            {/* Clock Out */}
+                                            <td className="py-3 px-4 whitespace-nowrap">
+                                              {isCheckedOut ? (
+                                                <span className="font-semibold text-neutral-900">
+                                                  {formatTimeIST(log.checkOutTime)}
+                                                </span>
+                                              ) : isCheckedIn ? (
+                          <span className="font-bold text-[#0284C7]">On Duty</span>
+                                              ) : (
+                                                <span className="text-neutral-400">—</span>
+                                              )}
+                                            </td>
+
+                                            {/* Map View Button (Opens Screenshot 1 Modal!) */}
+                                            <td className="py-3 px-4 text-center">
+                                              <button
+                                                type="button"
+                                                onClick={() => setMapModalDate(rawDateStr)}
+                                                title="Open Keka Map View"
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700 hover:bg-[#0284C7] hover:text-white transition-colors"
+                                              >
+                                                <MapPin className="h-3.5 w-3.5" />
+                                              </button>
+                                            </td>
+
+                                            {/* Status */}
+                                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                                              {log.status === "PRESENT" && (
+                                                <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                                                  On Time
+                                                </span>
+                                              )}
+                                              {log.status === "LATE" && (
+                                                <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                                                  Late
+                                                </span>
+                                              )}
+                                              {log.status === "HALF_DAY" && (
+                                                <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-300">
+                                                  Half Day
+                                                </span>
+                                              )}
+                                              {log.status === "ON_LEAVE" && (
+                                                <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-primary border border-indigo-200">
+                                                  Leave
+                                                </span>
+                                              )}
+                                              {log.status === "ABSENT" && (
+                                                <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-maroon border border-rose-200">
+                                                  Absent
+                                                </span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                          {isExpanded && (
+                                            <tr className="bg-neutral-50/70">
+                                              <td colSpan={8} className="px-4 py-3">
+                                                <div className="max-w-md">
+                                                  <PunchList punches={punches} />
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </Fragment>
+                                      );
+                                    })
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* 4. MODAL: KEKA MAP VIEW (Screenshot 1) */}
+                          {mapModalDate && (
+                            <KekaMapViewModal
+                              employeeId={empId}
+                              employeeName={displayName}
+                              date={mapModalDate}
+                              onClose={() => setMapModalDate(null)}
+                            />
+                          )}
+                        </div>
+                        );
 }

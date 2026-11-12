@@ -147,41 +147,41 @@ function schedulePunchLocationWork(
     const addressUpdate =
       input.direction === "in"
         ? Promise.all([
-            ctx.prisma.attendanceLog.updateMany({
-              where: { id: input.logId, checkInTime: input.capturedAt },
-              data: { checkInAddress: address },
-            }),
-            ctx.prisma.attendancePunch.updateMany({
-              where: {
-                attendanceLogId: input.logId,
-                checkInTime: input.checkInTime,
-              },
-              data: { checkInAddress: address },
-            }),
-          ])
+          ctx.prisma.attendanceLog.updateMany({
+            where: { id: input.logId, checkInTime: input.capturedAt },
+            data: { checkInAddress: address },
+          }),
+          ctx.prisma.attendancePunch.updateMany({
+            where: {
+              attendanceLogId: input.logId,
+              checkInTime: input.checkInTime,
+            },
+            data: { checkInAddress: address },
+          }),
+        ])
         : Promise.all([
-            ctx.prisma.attendanceLog.updateMany({
-              where: { id: input.logId, checkOutTime: input.capturedAt },
-              data: { checkOutAddress: address },
-            }),
-            ctx.prisma.attendancePunch.updateMany({
-              where: {
-                attendanceLogId: input.logId,
-                checkInTime: input.checkInTime,
-                checkOutTime: input.capturedAt,
-              },
-              data: { checkOutAddress: address },
-            }),
-          ]);
+          ctx.prisma.attendanceLog.updateMany({
+            where: { id: input.logId, checkOutTime: input.capturedAt },
+            data: { checkOutAddress: address },
+          }),
+          ctx.prisma.attendancePunch.updateMany({
+            where: {
+              attendanceLogId: input.logId,
+              checkInTime: input.checkInTime,
+              checkOutTime: input.capturedAt,
+            },
+            data: { checkOutAddress: address },
+          }),
+        ]);
 
     await Promise.all([
       addressUpdate,
       pingPromise.then((ping) =>
         ping
           ? ctx.prisma.locationPing.update({
-              where: { id: ping.id },
-              data: { address },
-            })
+            where: { id: ping.id },
+            data: { address },
+          })
           : null
       ),
     ]);
@@ -458,19 +458,19 @@ export const attendanceRouter = router({
         isWeeklyOff: isOff,
         log: log
           ? {
-              id: log.id,
-              status: log.status,
-              checkInTime: log.checkInTime,
-              checkOutTime: log.checkOutTime,
-              checkInAddress: log.checkInAddress,
-              checkOutAddress: log.checkOutAddress,
-              totalHours: log.totalHours,
-              withinGeofence: log.withinGeofence,
-              notes: log.notes,
-              isAutoCheckedOut: Boolean(
-                log.checkOutTime && log.notes?.includes("Auto checked out")
-              ),
-            }
+            id: log.id,
+            status: log.status,
+            checkInTime: log.checkInTime,
+            checkOutTime: log.checkOutTime,
+            checkInAddress: log.checkInAddress,
+            checkOutAddress: log.checkOutAddress,
+            totalHours: log.totalHours,
+            withinGeofence: log.withinGeofence,
+            notes: log.notes,
+            isAutoCheckedOut: Boolean(
+              log.checkOutTime && log.notes?.includes("Auto checked out")
+            ),
+          }
           : null,
       };
     });
@@ -482,8 +482,15 @@ export const attendanceRouter = router({
     .input(myAttendanceMonthSchema)
     .query(async ({ ctx, input }) => {
       const employeeId = resolveEmployeeId(ctx);
-      const start = new Date(Date.UTC(input.year, input.month - 1, 1));
-      const end = new Date(Date.UTC(input.year, input.month, 0));
+      let start: Date;
+      let end: Date;
+      if (input.days) {
+        start = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+        end = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      } else {
+        start = new Date(Date.UTC(input.year, input.month - 1, 1));
+        end = new Date(Date.UTC(input.year, input.month, 0, 23, 59, 59, 999));
+      }
 
       // No punches include — month table uses log times; keeps payload small/fast
       const logs = await ctx.prisma.attendanceLog.findMany({
@@ -505,8 +512,15 @@ export const attendanceRouter = router({
     .input(employeeAttendanceSchema)
     .query(async ({ ctx, input }) => {
       await assertCanViewSensitive(ctx, input.employeeId);
-      const start = new Date(Date.UTC(input.year, input.month - 1, 1));
-      const end = new Date(Date.UTC(input.year, input.month, 0));
+      let start: Date;
+      let end: Date;
+      if (input.days) {
+        start = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+        end = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      } else {
+        start = new Date(Date.UTC(input.year, input.month - 1, 1));
+        end = new Date(Date.UTC(input.year, input.month, 0, 23, 59, 59, 999));
+      }
 
       const logs = await ctx.prisma.attendanceLog.findMany({
         where: {
@@ -637,10 +651,10 @@ export const attendanceRouter = router({
           : halfDaySlot
             ? "HALF_DAY"
             : statusFromFirstCheckIn(
-                now,
-                compSettings?.lateCheckInTime,
-                compSettings?.halfDayCheckInTime
-              );
+              now,
+              compSettings?.lateCheckInTime,
+              compSettings?.halfDayCheckInTime
+            );
 
       const finalAddress = workLocation.name;
       const meta = reviewNotes({
@@ -695,14 +709,14 @@ export const attendanceRouter = router({
           log = { id: existing.id };
         } else {
           log = await ctx.prisma.attendanceLog.create({
-              data: {
-                employeeId,
-                date: today,
-                ...locationData,
-                punches: { create: punchData },
-              },
-              select: { id: true },
-            });
+            data: {
+              employeeId,
+              date: today,
+              ...locationData,
+              punches: { create: punchData },
+            },
+            select: { id: true },
+          });
         }
       } catch (err: unknown) {
         const isUniqueConflict =
@@ -840,12 +854,12 @@ export const attendanceRouter = router({
         existing.status === "ON_LEAVE"
           ? existing.status
           : statusAfterCheckOut({
-              firstCheckIn: firstPunch?.checkInTime ?? checkInTime,
-              cumulativeHours,
-              halfDaySlot,
-              lateTimeStr: compSettings?.lateCheckInTime,
-              halfDayTimeStr: compSettings?.halfDayCheckInTime,
-            });
+            firstCheckIn: firstPunch?.checkInTime ?? checkInTime,
+            cumulativeHours,
+            halfDaySlot,
+            lateTimeStr: compSettings?.lateCheckInTime,
+            halfDayTimeStr: compSettings?.halfDayCheckInTime,
+          });
       const earlyCheckOut = isEarlyCheckOut(now, halfDaySlot);
       const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
@@ -1277,7 +1291,7 @@ export const attendanceRouter = router({
       if (!finalAddress || finalAddress.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) {
         try {
           finalAddress = await reverseGeocodePunchAddress(input.lat, input.lng);
-        } catch {}
+        } catch { }
       }
       if (!finalAddress) {
         finalAddress = geo.matched?.name ?? `${input.lat.toFixed(5)}, ${input.lng.toFixed(5)}`;
@@ -1459,43 +1473,43 @@ export const attendanceRouter = router({
         empIds.length === 0
           ? Promise.resolve([])
           : ctx.prisma.attendanceLog.findMany({
-              where: { date: day, employeeId: { in: empIds } },
-              select: {
-                id: true,
-                date: true,
-                employeeId: true,
-                status: true,
-                checkInTime: true,
-                checkInLat: true,
-                checkInLng: true,
-                checkInAddress: true,
-                checkOutTime: true,
-                checkOutLat: true,
-                checkOutLng: true,
-                checkOutAddress: true,
-                withinGeofence: true,
-              },
-            }),
+            where: { date: day, employeeId: { in: empIds } },
+            select: {
+              id: true,
+              date: true,
+              employeeId: true,
+              status: true,
+              checkInTime: true,
+              checkInLat: true,
+              checkInLng: true,
+              checkInAddress: true,
+              checkOutTime: true,
+              checkOutLat: true,
+              checkOutLng: true,
+              checkOutAddress: true,
+              withinGeofence: true,
+            },
+          }),
         empIds.length === 0
           ? Promise.resolve([])
           : ctx.prisma.locationPing.findMany({
-              where: {
-                employeeId: { in: empIds },
-                capturedAt: { gte: day, lt: next },
-              },
-              orderBy: { capturedAt: "desc" },
-              distinct: ["employeeId"],
-              select: {
-                id: true,
-                employeeId: true,
-                lat: true,
-                lng: true,
-                address: true,
-                capturedAt: true,
-                withinGeofence: true,
-                accuracyM: true,
-              },
-            }),
+            where: {
+              employeeId: { in: empIds },
+              capturedAt: { gte: day, lt: next },
+            },
+            orderBy: { capturedAt: "desc" },
+            distinct: ["employeeId"],
+            select: {
+              id: true,
+              employeeId: true,
+              lat: true,
+              lng: true,
+              address: true,
+              capturedAt: true,
+              withinGeofence: true,
+              accuracyM: true,
+            },
+          }),
       ]);
 
       const logMap = new Map(todayLogs.map((l) => [l.employeeId, l]));

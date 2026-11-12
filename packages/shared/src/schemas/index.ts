@@ -137,6 +137,7 @@ export const checkInOutSchema = z.object({
 export const myAttendanceMonthSchema = z.object({
   year: z.number().int().min(2000).max(2100),
   month: z.number().int().min(1).max(12),
+  days: z.number().int().min(1).max(365).optional(),
 });
 
 export const teamAttendanceSchema = z.object({
@@ -234,6 +235,7 @@ export const employeeAttendanceSchema = z.object({
   employeeId: z.string().min(1).max(100),
   year: z.number().int().min(2000).max(2100),
   month: z.number().int().min(1).max(12),
+  days: z.number().int().min(1).max(365).optional(),
 });
 
 export const employeeAttendanceHistorySchema = z.object({

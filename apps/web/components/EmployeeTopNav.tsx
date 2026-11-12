@@ -201,8 +201,8 @@ export function EmployeeTopNav() {
                   className={cn(
                     "border-b-2 py-2.5 text-xs font-medium uppercase tracking-wide",
                     active
-                      ? "border-[#5D3EBC] text-[#5D3EBC]"
-                      : "border-transparent text-neutral-600 hover:text-neutral-900"
+                        ? "border-[#0284C7] text-[#0284C7]"
+                        : "border-transparent text-neutral-600 hover:text-neutral-900"
                   )}
                 >
                   {item.label}
@@ -283,8 +283,8 @@ export function EmployeeTopNav() {
                       className={cn(
                         "flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-colors",
                         active
-                          ? "bg-[#5D3EBC] text-white"
-                          : "text-neutral-700 hover:bg-neutral-50"
+                            ? "bg-[#0284C7] text-white"
+                            : "text-neutral-700 hover:bg-neutral-50"
                       )}
                     >
                       <div className="flex items-center gap-3">
@@ -302,13 +302,13 @@ export function EmployeeTopNav() {
                     <Link
                       href="/admin-portal/dashboard"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold bg-indigo-50 text-indigo-900 hover:bg-indigo-100 transition-colors border border-indigo-200/60"
+                      className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors border border-sky-200/60"
                     >
                       <div className="flex items-center gap-3">
-                        <Shield className="h-4 w-4 text-primary" />
+                        <Shield className="h-4 w-4 text-[#0284C7]" />
                         <span>Admin Console Mode</span>
                       </div>
-                      <ChevronRight className="h-3.5 w-3.5 text-indigo-400" />
+                      <ChevronRight className="h-3.5 w-3.5 text-sky-400" />
                     </Link>
                   </div>
                 )}
@@ -324,7 +324,7 @@ export function EmployeeTopNav() {
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 py-2.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-100 transition-colors"
                 >
-                  <Download className="h-3.5 w-3.5 text-[#5D3EBC]" />
+                  <Download className="h-3.5 w-3.5 text-[#0284C7]" />
                   <span>Install App on Phone</span>
                 </button>
 
@@ -343,7 +343,7 @@ export function EmployeeTopNav() {
       </AnimatePresence>
 
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur-md border-t border-[#ECE6F8] shadow-[0_-4px_24px_rgba(78,36,201,0.06)]"
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur-md border-t border-sky-100 shadow-[0_-4px_24px_rgba(2,132,199,0.08)]"
         style={{
           paddingBottom: "max(0.6rem, env(safe-area-inset-bottom, 0px))",
           transform: "translate3d(0, 0, 0)",
@@ -366,29 +366,38 @@ export function EmployeeTopNav() {
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 pt-2.5 pb-1 min-h-[3.5rem] transition-all duration-150 relative group",
-                  active ? "text-[#4E24C9]" : "text-[#8D83A8] hover:text-[#4E24C9]"
+                  "flex flex-col items-center justify-center gap-1 pt-2 pb-1 min-h-[3.5rem] transition-all duration-150 relative group",
+                  active ? "text-[#0284C7]" : "text-neutral-400 hover:text-[#0284C7]"
                 )}
               >
-                <div className={cn(
-                  "flex items-center justify-center rounded-xl p-1 transition-all",
-                  active && "scale-105"
-                )}>
+                <div
+                  className={cn(
+                    "flex items-center justify-center rounded-xl px-3 py-1 transition-all",
+                    active
+                      ? "bg-sky-50 text-[#0284C7] ring-1 ring-sky-200/80 shadow-sm"
+                      : "group-hover:bg-neutral-50"
+                  )}
+                >
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-transform",
                       active
-                        ? "text-[#4E24C9] fill-[#4E24C9] stroke-[#4E24C9] drop-shadow-[0_2px_8px_rgba(78,36,201,0.3)]"
-                        : "text-[#8D83A8] stroke-[1.8px] group-hover:text-[#4E24C9]"
+                        ? "text-[#0284C7] stroke-[2.2px] drop-shadow-[0_1px_3px_rgba(2,132,199,0.3)]"
+                        : "text-neutral-400 stroke-[1.8px] group-hover:text-[#0284C7]"
                     )}
                   />
                 </div>
-                <span className={cn(
-                  "text-[9px] tracking-wider",
-                  active ? "font-bold text-[#4E24C9]" : "font-semibold text-[#8D83A8]"
-                )}>
+                <span
+                  className={cn(
+                    "text-[9px] tracking-wider",
+                    active ? "font-bold text-[#0284C7]" : "font-semibold text-neutral-500 group-hover:text-[#0284C7]"
+                  )}
+                >
                   {tab.label}
                 </span>
+                {active && (
+                  <span className="absolute bottom-0 w-6 h-0.5 rounded-full bg-[#0284C7]" />
+                )}
               </Link>
             );
           })}
@@ -400,5 +409,5 @@ export function EmployeeTopNav() {
         onClose={() => setShowInstallModal(false)}
       />
     </>
-  );
+        );
 }
