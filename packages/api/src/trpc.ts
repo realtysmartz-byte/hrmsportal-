@@ -6,6 +6,16 @@ import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        // Suppress stack traces in production to prevent information leakage
+        stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
+      },
+    };
+  },
 });
 
 export const router = t.router;
