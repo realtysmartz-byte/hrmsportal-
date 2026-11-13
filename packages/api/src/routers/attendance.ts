@@ -1712,6 +1712,146 @@ export const attendanceRouter = router({
     }),
 
   /**
+   * Admin / HR procedure to regularise an employee's attendance record.
+   * Converts Half Day / Absent / Late to Full Day (Present) or adjust status and hours.
+   * Stores regularisation notes and reason clearly.
+   */
+  regularise: hrAdminProcedure
+    .input(
+      z.object({
+        employeeId: z.string().min(1),
+        date: z.string().min(1), // "YYYY-MM-DD" or ISO string
+        status: z.enum(["PRESENT", "HALF_DAY", "LATE", "ABSENT", "ON_LEAVE"]),
+        totalHours: z.number().min(0).max(24).optional().nullable(),
+        checkInTime: z.string().optional().nullable(),
+        checkOutTime: z.string().optional().nullable(),
+        reason: z.string().min(2, "Reason for regularisation is required"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const actor = ctx.session.user;
+      const targetDate = startOfDayUTC(input.date);
+
+      // Verify employee exists
+      const emp = await ctx.prisma.employee.findUnique({
+        where: { id: input.employeeId },
+        select: { id: true, firstName: true, lastName: true, employeeCode: true },
+      });
+      if (!emp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+      }
+
+      const adminName = actor.name || "Admin/HR";
+      const cleanReason = input.reason.trim();
+      const regulariseTag = `[Regularised: ${cleanReason} (by ${adminName} on ${new Date().toISOString().slice(0, 10)})]`;
+
+      // Parse checkIn and checkOut
+      const datePart = input.date.slice(0, 10);
+      const [y, m, d] = datePart.split("-").map(Number);
+
+      let checkInDate: Date | null = null;
+      let checkOutDate: Date | null = null;
+
+      if (input.checkInTime) {
+        if (input.checkInTime.includes("T")) {
+          checkInDate = new Date(input.checkInTime);
+        } else if (input.checkInTime.includes(":")) {
+          const [hh, mm] = input.checkInTime.split(":").map(Number);
+          // IST is UTC+5:30
+          checkInDate = new Date(Date.UTC(y, m - 1, d, hh - 5, mm - 30));
+        }
+      }
+
+      if (input.checkOutTime) {
+        if (input.checkOutTime.includes("T")) {
+          checkOutDate = new Date(input.checkOutTime);
+        } else if (input.checkOutTime.includes(":")) {
+          const [hh, mm] = input.checkOutTime.split(":").map(Number);
+          checkOutDate = new Date(Date.UTC(y, m - 1, d, hh - 5, mm - 30));
+        }
+      }
+
+      // Default times if converting to PRESENT and no punch was recorded
+      if (input.status === "PRESENT" || input.status === "LATE" || input.status === "HALF_DAY") {
+        if (!checkInDate) {
+          // Standard check-in 10:00 AM IST (04:30 UTC)
+          checkInDate = new Date(Date.UTC(y, m - 1, d, 4, 30, 0));
+        }
+        if (!checkOutDate && (input.status === "PRESENT" || input.status === "LATE")) {
+          // Standard check-out 07:00 PM IST (13:30 UTC)
+          checkOutDate = new Date(Date.UTC(y, m - 1, d, 13, 30, 0));
+        } else if (!checkOutDate && input.status === "HALF_DAY") {
+          // Half day check-out 02:30 PM IST (09:00 UTC)
+          checkOutDate = new Date(Date.UTC(y, m - 1, d, 9, 0, 0));
+        }
+      }
+
+      const defaultHours =
+        input.status === "PRESENT" || input.status === "LATE"
+          ? 9.0
+          : input.status === "HALF_DAY"
+          ? 4.5
+          : 0.0;
+
+      const totalHours =
+        input.totalHours != null
+          ? input.totalHours
+          : checkInDate && checkOutDate
+          ? Math.round(
+              ((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60)) * 10
+            ) / 10
+          : defaultHours;
+
+      // Find existing log for employee and date
+      const existing = await ctx.prisma.attendanceLog.findUnique({
+        where: {
+          employeeId_date: {
+            employeeId: input.employeeId,
+            date: targetDate,
+          },
+        },
+      });
+
+      let updatedLog;
+      if (existing) {
+        const mergedNotes = existing.notes
+          ? `${regulariseTag}\n${existing.notes}`
+          : regulariseTag;
+
+        updatedLog = await ctx.prisma.attendanceLog.update({
+          where: { id: existing.id },
+          data: {
+            status: input.status,
+            totalHours: input.status === "ABSENT" || input.status === "ON_LEAVE" ? 0 : totalHours,
+            checkInTime: input.status === "ABSENT" || input.status === "ON_LEAVE" ? null : (checkInDate ?? existing.checkInTime),
+            checkOutTime: input.status === "ABSENT" || input.status === "ON_LEAVE" ? null : (checkOutDate ?? existing.checkOutTime),
+            withinGeofence: true,
+            notes: mergedNotes,
+          },
+        });
+      } else {
+        updatedLog = await ctx.prisma.attendanceLog.create({
+          data: {
+            employeeId: input.employeeId,
+            date: targetDate,
+            status: input.status,
+            totalHours: input.status === "ABSENT" || input.status === "ON_LEAVE" ? 0 : totalHours,
+            checkInTime: input.status === "ABSENT" || input.status === "ON_LEAVE" ? null : checkInDate,
+            checkOutTime: input.status === "ABSENT" || input.status === "ON_LEAVE" ? null : checkOutDate,
+            withinGeofence: true,
+            notes: regulariseTag,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: `Attendance regularised to ${input.status} for ${emp.firstName} ${emp.lastName}`,
+        log: updatedLog,
+      };
+    }),
+
+  /**
    * Complete daily location and timestamp breadcrumb trace for an employee.
    * Bundles check-in, check-out, interval pings, and assigned site for full map replay.
    */

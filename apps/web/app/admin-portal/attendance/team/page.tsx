@@ -18,8 +18,11 @@ import {
   CalendarDays,
   CalendarRange,
   Upload,
+  SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { ExcelImportModal } from "@/components/ExcelImportModal";
+import { AttendanceRegulariseModal } from "@/components/AttendanceRegulariseModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -66,6 +69,15 @@ function parseDateParam(d: unknown, fallback: string): string {
   return String(d).slice(0, 10);
 }
 
+function parseRegularisedInfo(notes?: string | null): { isRegularised: boolean; reason: string | null } {
+  if (!notes) return { isRegularised: false, reason: null };
+  const match = notes.match(/\[Regularised:\s*([^\]]+)\]/i);
+  return {
+    isRegularised: Boolean(match),
+    reason: match ? match[1] : null,
+  };
+}
+
 function attendanceLocationLabel(
   log:
     | {
@@ -107,6 +119,18 @@ export default function TeamAttendancePage() {
     employeeId: string;
     employeeName: string;
     date: string;
+  } | null>(null);
+
+  const [regulariseTarget, setRegulariseTarget] = useState<{
+    employeeId: string;
+    employeeName: string;
+    employeeCode?: string;
+    date: string;
+    currentStatus?: string | null;
+    currentCheckIn?: Date | string | null;
+    currentCheckOut?: Date | string | null;
+    currentHours?: number | null;
+    existingNotes?: string | null;
   } | null>(null);
 
   // Build query input based on active view mode
@@ -697,8 +721,8 @@ export default function TeamAttendancePage() {
                   </p>
                 </div>
 
-                {/* Status Badge */}
-                <div className="shrink-0">
+                {/* Status Badge & Regularised Flag */}
+                <div className="shrink-0 flex flex-col items-end gap-1">
                   {log?.status === "PRESENT" && (
                     <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
                       Present
@@ -727,6 +751,12 @@ export default function TeamAttendancePage() {
                   {!log && (
                     <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-500 border border-neutral-200">
                       Not Checked In
+                    </span>
+                  )}
+                  {parseRegularisedInfo(log?.notes).isRegularised && (
+                    <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[9px] font-extrabold text-[#5D3EBC] border border-[#5D3EBC]/30">
+                      <Sparkles className="h-2.5 w-2.5 text-[#5D3EBC]" />
+                      Regularised
                     </span>
                   )}
                 </div>
@@ -833,6 +863,40 @@ export default function TeamAttendancePage() {
                   </div>
                 </div>
               )}
+
+              {/* SECTION C: Regularisation Details & Action Button */}
+              <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  {parseRegularisedInfo(log?.notes).reason ? (
+                    <p className="text-[10px] text-[#5D3EBC] font-semibold italic truncate" title={parseRegularisedInfo(log?.notes).reason!}>
+                      Regularised: {parseRegularisedInfo(log?.notes).reason}
+                    </p>
+                  ) : (
+                    <span className="text-[10px] text-neutral-400">Regularise missed or half-day punches</span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setRegulariseTarget({
+                      employeeId: row.employee.id,
+                      employeeName: empName,
+                      employeeCode: row.employee.employeeCode,
+                      date: parseDateParam(log?.date, selectedDate),
+                      currentStatus: log?.status || "ABSENT",
+                      currentCheckIn: log?.checkInTime,
+                      currentCheckOut: log?.checkOutTime,
+                      currentHours: log?.totalHours,
+                      existingNotes: log?.notes,
+                    });
+                  }}
+                  className="h-7 px-2.5 text-xs font-bold text-[#5D3EBC] border-[#5D3EBC]/30 hover:bg-[#5D3EBC]/10 gap-1 shrink-0"
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  <span>Edit / Regularise</span>
+                </Button>
+              </div>
             </div>
           );
         })}
@@ -864,12 +928,15 @@ export default function TeamAttendancePage() {
               <TableHead className="w-[10%] min-w-[90px] font-bold text-neutral-700 text-xs">
                 Working Hours
               </TableHead>
+              <TableHead className="w-[12%] min-w-[130px] font-bold text-neutral-700 text-xs text-right">
+                Action
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={7} className="py-14 text-center text-xs text-neutral-400">
+                <TableCell colSpan={8} className="py-14 text-center text-xs text-neutral-400">
                   Loading attendance records for {activePeriodLabel}...
                 </TableCell>
               </TableRow>
@@ -877,7 +944,7 @@ export default function TeamAttendancePage() {
 
             {!isLoading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-14 text-center text-xs text-neutral-500">
+                <TableCell colSpan={8} className="py-14 text-center text-xs text-neutral-500">
                   No employee attendance records match your search for {activePeriodLabel}.
                 </TableCell>
               </TableRow>
@@ -991,7 +1058,7 @@ export default function TeamAttendancePage() {
                     )}
                   </TableCell>
 
-                  {/* 6. Status */}
+                  {/* 6. Status & Regularisation Flag */}
                   <TableCell className="align-middle whitespace-nowrap">
                     {log?.status === "PRESENT" && (
                       <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
@@ -1023,6 +1090,20 @@ export default function TeamAttendancePage() {
                         Not Checked In
                       </span>
                     )}
+
+                    {parseRegularisedInfo(log?.notes).isRegularised && (
+                      <div className="mt-1" title={parseRegularisedInfo(log?.notes).reason || "Regularised by Admin"}>
+                        <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-[#5D3EBC] border border-[#5D3EBC]/30">
+                          <Sparkles className="h-2.5 w-2.5 text-[#5D3EBC]" />
+                          Regularised
+                        </span>
+                        {parseRegularisedInfo(log?.notes).reason && (
+                          <p className="text-[10px] text-neutral-500 italic max-w-[150px] truncate mt-0.5">
+                            {parseRegularisedInfo(log?.notes).reason}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
 
                   {/* 7. Working Hours */}
@@ -1034,6 +1115,31 @@ export default function TeamAttendancePage() {
                     ) : (
                       <span className="text-neutral-400 font-normal">—</span>
                     )}
+                  </TableCell>
+
+                  {/* 8. Action (Edit / Regularise) */}
+                  <TableCell className="align-middle whitespace-nowrap text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setRegulariseTarget({
+                          employeeId: row.employee.id,
+                          employeeName: empName,
+                          employeeCode: row.employee.employeeCode,
+                          date: parseDateParam(log?.date, selectedDate),
+                          currentStatus: log?.status || "ABSENT",
+                          currentCheckIn: log?.checkInTime,
+                          currentCheckOut: log?.checkOutTime,
+                          currentHours: log?.totalHours,
+                          existingNotes: log?.notes,
+                        });
+                      }}
+                      className="h-7 px-2.5 text-xs font-bold text-[#5D3EBC] border-[#5D3EBC]/30 hover:bg-[#5D3EBC]/10 gap-1"
+                    >
+                      <SlidersHorizontal className="h-3 w-3" />
+                      <span>Edit / Regularise</span>
+                    </Button>
                   </TableCell>
                 </TableRow>
               );
@@ -1048,6 +1154,23 @@ export default function TeamAttendancePage() {
           employeeId={mapModalTarget.employeeId}
           employeeName={mapModalTarget.employeeName}
           date={mapModalTarget.date}
+        />
+      )}
+
+      {regulariseTarget && (
+        <AttendanceRegulariseModal
+          open={Boolean(regulariseTarget)}
+          onClose={() => setRegulariseTarget(null)}
+          employeeId={regulariseTarget.employeeId}
+          employeeName={regulariseTarget.employeeName}
+          employeeCode={regulariseTarget.employeeCode}
+          date={regulariseTarget.date}
+          currentStatus={regulariseTarget.currentStatus}
+          currentCheckIn={regulariseTarget.currentCheckIn}
+          currentCheckOut={regulariseTarget.currentCheckOut}
+          currentHours={regulariseTarget.currentHours}
+          existingNotes={regulariseTarget.existingNotes}
+          onSuccess={() => refetch()}
         />
       )}
     </div>

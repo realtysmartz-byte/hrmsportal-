@@ -278,6 +278,16 @@ export function EmployeeProfileHub({
                   {fullName(emp.firstName, emp.lastName)}
                 </h1>
                 <StatusBadge status={emp.status} />
+                {access.canManage && (
+                  <Link
+                    href={`/admin-portal/employees/${emp.id}/edit`}
+                    className="inline-flex items-center gap-1 rounded-md bg-neutral-100 hover:bg-neutral-200 px-2 py-0.5 text-[11px] font-semibold text-neutral-700 transition-colors"
+                    title="Change status or termination date"
+                  >
+                    <Pencil className="h-3 w-3 text-neutral-500" />
+                    <span>Change Status</span>
+                  </Link>
+                )}
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3EAFD] border border-[#E0D0FB] px-2.5 py-0.5 text-xs font-bold text-[#5B21B6] shadow-2xs">
                   <Building className="h-3 w-3 text-[#6D28D9]" />
                   Realty Smartz Pvt Ltd

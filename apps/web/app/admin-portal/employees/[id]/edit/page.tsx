@@ -14,9 +14,10 @@ export default function EditEmployeePage() {
   const { data: session, status } = useSession();
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
   const allowed = canManageEmployees(role);
-  const { data: emp, isLoading } = trpc.employee.byId.useQuery({
+  const { data: byIdData, isLoading } = trpc.employee.byId.useQuery({
     id: params.id,
   });
+  const emp = (byIdData as any)?.employee ?? (byIdData as any);
 
   useEffect(() => {
     if (status === "authenticated" && !allowed) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -69,6 +69,19 @@ export function ExcelImportModal({
   const importEmployees = trpc.employee.importExcel.useMutation();
   const importAttendance = trpc.attendance.importExcel.useMutation();
   const busy = importEmployees.isLoading || importAttendance.isLoading;
+
+  useEffect(() => {
+    if (!open) return;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalDocOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow || "";
+      document.documentElement.style.overflow = originalDocOverflow || "";
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -167,9 +180,8 @@ export function ExcelImportModal({
                 type="button"
                 disabled={busy}
                 onClick={() => reset(k)}
-                className={`rounded-md py-2 transition-colors ${
-                  kind === k ? "bg-white text-[#5D3EBC]" : "text-neutral-500"
-                }`}
+                className={`rounded-md py-2 transition-colors ${kind === k ? "bg-white text-[#5D3EBC]" : "text-neutral-500"
+                  }`}
               >
                 {k === "employees" ? "Employees" : "Attendance (6 months)"}
               </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +115,35 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     workLocationName: initial?.workLocationName ?? "",
     workLocationLat: initial?.workLocationLat ?? "",
     workLocationLng: initial?.workLocationLng ?? "",
+    status: initial?.status ?? "ACTIVE",
   });
+
+  useEffect(() => {
+    if (initial) {
+      setValues((prev) => ({
+        ...prev,
+        ...initial,
+        dateOfJoining: toDateInput(initial.dateOfJoining) || prev.dateOfJoining,
+        dateOfBirth: toDateInput(initial.dateOfBirth) || prev.dateOfBirth,
+        statusEffectiveDate: toDateInput(initial.statusEffectiveDate) || prev.statusEffectiveDate,
+        employeeCode: initial.employeeCode ?? prev.employeeCode,
+        phone: initial.phone ?? prev.phone,
+        gender: initial.gender ?? prev.gender,
+        emergencyContactName: initial.emergencyContactName ?? prev.emergencyContactName,
+        emergencyContactPhone: initial.emergencyContactPhone ?? prev.emergencyContactPhone,
+        bloodGroup: initial.bloodGroup ?? prev.bloodGroup,
+        designationId: initial.designationId ?? prev.designationId,
+        departmentId: initial.departmentId ?? prev.departmentId,
+        managerId: initial.managerId ?? prev.managerId,
+        address: initial.address ?? prev.address,
+        profilePhotoUrl: initial.profilePhotoUrl ?? prev.profilePhotoUrl,
+        workLocationName: initial.workLocationName ?? prev.workLocationName,
+        workLocationLat: initial.workLocationLat ?? prev.workLocationLat,
+        workLocationLng: initial.workLocationLng ?? prev.workLocationLng,
+        status: initial.status ?? prev.status,
+      }));
+    }
+  }, [initial]);
 
   const { data: departments } = trpc.department.list.useQuery();
   const { data: designations } = trpc.designation.list.useQuery();

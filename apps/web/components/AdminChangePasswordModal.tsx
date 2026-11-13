@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { KeyRound, Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -31,6 +31,19 @@ export function AdminChangePasswordModal({
       setError(err.message || "Failed to update password");
     },
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalDocOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow || "";
+      document.documentElement.style.overflow = originalDocOverflow || "";
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

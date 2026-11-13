@@ -249,7 +249,7 @@ export const employeeRouter = router({
             fieldChanged: "status",
             newValue: employee.status,
           },
-          orderBy: { effectiveDate: "desc" },
+          orderBy: [{ createdAt: "desc" }, { effectiveDate: "desc" }],
           select: { effectiveDate: true },
         })
         : null;
@@ -338,7 +338,7 @@ export const employeeRouter = router({
                   select: { id: true, firstName: true, lastName: true },
                 },
               },
-              orderBy: { effectiveDate: "desc" },
+              orderBy: [{ createdAt: "desc" }, { effectiveDate: "desc" }],
               take: 20,
             })
             : Promise.resolve([]),
@@ -379,7 +379,7 @@ export const employeeRouter = router({
                 fieldChanged: "status",
                 newValue: employee.status,
               },
-              orderBy: { effectiveDate: "desc" },
+              orderBy: [{ createdAt: "desc" }, { effectiveDate: "desc" }],
               select: { effectiveDate: true },
             })
             : Promise.resolve(null),
@@ -1007,8 +1007,8 @@ export const employeeRouter = router({
               fieldChanged: "status",
               newValue: nextStatus,
             },
-            orderBy: { effectiveDate: "desc" },
-            select: { effectiveDate: true },
+            orderBy: [{ createdAt: "desc" }, { effectiveDate: "desc" }],
+            select: { id: true, effectiveDate: true },
           })
           : null;
       const shouldWriteStatusHistory =
@@ -1027,16 +1027,27 @@ export const employeeRouter = router({
           await tx.employeeJobHistory.createMany({ data: historyEntries });
         }
         if (shouldWriteStatusHistory) {
-          await tx.employeeJobHistory.create({
-            data: {
-              employeeId: id,
-              fieldChanged: "status",
-              oldValue: previousStatus,
-              newValue: nextStatus,
-              effectiveDate,
-              changedById: actor.id,
-            },
-          });
+          if (!statusChanged && latestStatusHistory) {
+            // Update the existing status history entry's effective date directly
+            await tx.employeeJobHistory.update({
+              where: { id: latestStatusHistory.id },
+              data: {
+                effectiveDate,
+                changedById: actor.id,
+              },
+            });
+          } else {
+            await tx.employeeJobHistory.create({
+              data: {
+                employeeId: id,
+                fieldChanged: "status",
+                oldValue: previousStatus,
+                newValue: nextStatus,
+                effectiveDate,
+                changedById: actor.id,
+              },
+            });
+          }
         }
         return updated;
       });
@@ -1155,7 +1166,7 @@ export const employeeRouter = router({
               employeeId: { in: separatedIds },
               fieldChanged: "status",
             },
-            orderBy: { effectiveDate: "desc" },
+            orderBy: [{ createdAt: "desc" }, { effectiveDate: "desc" }],
             select: {
               employeeId: true,
               newValue: true,

@@ -20,6 +20,8 @@ import {
   Building,
   User,
   Receipt,
+  SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -45,8 +47,11 @@ import {
   formatTimeIST,
   getISTDateString,
   getISTDateParts,
+  canManageEmployees,
 } from "@realty-smartz/shared";
+import type { Role } from "@realty-smartz/shared";
 import { KekaMapViewModal } from "@/components/KekaMapViewModal";
+import { AttendanceRegulariseModal } from "@/components/AttendanceRegulariseModal";
 import { PunchList } from "@/components/PunchList";
 import { Button } from "@/components/ui/button";
 
@@ -104,6 +109,21 @@ export function KekaAttendancePanel({
   // State for Keka Map View Modal
   const [mapModalDate, setMapModalDate] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
+  const [regulariseTarget, setRegulariseTarget] = useState<{
+    employeeId: string;
+    employeeName: string;
+    employeeCode?: string;
+    date: string;
+    currentStatus?: string | null;
+    currentCheckIn?: Date | string | null;
+    currentCheckOut?: Date | string | null;
+    currentHours?: number | null;
+    existingNotes?: string | null;
+  } | null>(null);
+
+  const role = (session?.user?.role ?? "EMPLOYEE") as Role;
+  const canManage = canManageEmployees(role);
 
   const isTargetMode = Boolean(
     targetEmployeeId && targetEmployeeId !== session?.user?.id
@@ -758,18 +778,21 @@ export function KekaAttendancePanel({
                                     <th className="py-3 px-4 w-[110px]">Clock Out</th>
                                     <th className="py-3 px-4 w-[90px] text-center">Map View</th>
                                     <th className="py-3 px-4 w-[100px] text-right">Status</th>
+                                    {canManage && (
+                                      <th className="py-3 px-4 w-[100px] text-right">Action</th>
+                                    )}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100">
                                   {isMonthLoading ? (
                                     <tr>
-                                      <td colSpan={8} className="py-12 text-center text-neutral-400">
+                                      <td colSpan={canManage ? 9 : 8} className="py-12 text-center text-neutral-400">
                                         Loading attendance logs...
                                       </td>
                                     </tr>
                                   ) : logs.length === 0 ? (
                                     <tr>
-                                      <td colSpan={8} className="py-12 text-center text-neutral-400">
+                                      <td colSpan={canManage ? 9 : 8} className="py-12 text-center text-neutral-400">
                                         No attendance records for this period.
                                       </td>
                                     </tr>
@@ -903,11 +926,55 @@ export function KekaAttendancePanel({
                                                   Absent
                                                 </span>
                                               )}
+
+                                              {log.notes?.includes("[Regularised:") && (
+                                                <div className="mt-1 flex flex-col items-end">
+                                                  <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[9px] font-extrabold text-[#5D3EBC] border border-[#5D3EBC]/30">
+                                                    <Sparkles className="h-2.5 w-2.5 text-[#5D3EBC]" />
+                                                    Regularised
+                                                  </span>
+                                                  {(() => {
+                                                    const m = log.notes?.match(/\[Regularised:\s*([^\]]+)\]/i);
+                                                    return m ? (
+                                                      <p className="text-[9px] text-neutral-500 italic max-w-[130px] truncate mt-0.5" title={m[1]}>
+                                                        {m[1]}
+                                                      </p>
+                                                    ) : null;
+                                                  })()}
+                                                </div>
+                                              )}
                                             </td>
+
+                                            {/* Action (Edit / Regularise) */}
+                                            {canManage && (
+                                              <td className="py-3 px-4 text-right whitespace-nowrap">
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => {
+                                                    setRegulariseTarget({
+                                                      employeeId: targetEmployeeId || session?.user?.id || "",
+                                                      employeeName: displayName,
+                                                      employeeCode: displayCode,
+                                                      date: rawDateStr,
+                                                      currentStatus: log.status,
+                                                      currentCheckIn: log.checkInTime,
+                                                      currentCheckOut: log.checkOutTime,
+                                                      currentHours: log.totalHours,
+                                                      existingNotes: log.notes,
+                                                    });
+                                                  }}
+                                                  className="h-7 px-2 text-xs font-bold text-[#5D3EBC] border-[#5D3EBC]/30 hover:bg-[#5D3EBC]/10 gap-1"
+                                                >
+                                                  <SlidersHorizontal className="h-3 w-3" />
+                                                  <span>Edit</span>
+                                                </Button>
+                                              </td>
+                                            )}
                                           </tr>
                                           {isExpanded && (
                                             <tr className="bg-neutral-50/70">
-                                              <td colSpan={8} className="px-4 py-3">
+                                              <td colSpan={canManage ? 9 : 8} className="px-4 py-3">
                                                 <div className="max-w-md">
                                                   <PunchList punches={punches} />
                                                 </div>
@@ -930,6 +997,27 @@ export function KekaAttendancePanel({
                               employeeName={displayName}
                               date={mapModalDate}
                               onClose={() => setMapModalDate(null)}
+                            />
+                          )}
+
+                          {/* 5. MODAL: REGULARISE ATTENDANCE */}
+                          {regulariseTarget && (
+                            <AttendanceRegulariseModal
+                              open={Boolean(regulariseTarget)}
+                              onClose={() => setRegulariseTarget(null)}
+                              employeeId={regulariseTarget.employeeId}
+                              employeeName={regulariseTarget.employeeName}
+                              employeeCode={regulariseTarget.employeeCode}
+                              date={regulariseTarget.date}
+                              currentStatus={regulariseTarget.currentStatus}
+                              currentCheckIn={regulariseTarget.currentCheckIn}
+                              currentCheckOut={regulariseTarget.currentCheckOut}
+                              currentHours={regulariseTarget.currentHours}
+                              existingNotes={regulariseTarget.existingNotes}
+                              onSuccess={() => {
+                                utils.attendance.forEmployeeMonth.invalidate();
+                                utils.attendance.myMonth.invalidate();
+                              }}
                             />
                           )}
                         </div>
