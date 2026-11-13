@@ -1651,7 +1651,7 @@ export const employeeRouter = router({
           title: `${pta.employee.firstName} ${pta.employee.lastName}`,
           subtitle: `Completed deliverable: ${pta.title || pta.targetItem?.title || "Role task"} (${pta.quantity} qty) - requires verification`,
           time: pta.createdAt,
-          href: "/admin-portal/targets",
+          href: "/admin-portal/performance",
           avatar: pta.employee.profilePhotoUrl,
           badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
           badgeText: "Target Verification",
@@ -1739,7 +1739,7 @@ export const employeeRouter = router({
             title: `Target Assigned: ${t.title}`,
             subtitle: `A new performance target sheet has been assigned to you. Track your 10% discipline and deliverables.`,
             time: t.createdAt,
-            href: "/employee-portal/targets",
+            href: "/employee-portal/performance",
             avatar: null,
             badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
             badgeText: "Target Assigned",
@@ -1753,7 +1753,7 @@ export const employeeRouter = router({
             title: a.status === "APPROVED" ? "Deliverable Verified & Approved" : "Deliverable Verification Rejected",
             subtitle: `${a.title || a.targetItem?.title || "Deliverable"} (${a.quantity} qty) has been reviewed by management.`,
             time: a.verifiedAt,
-            href: "/employee-portal/targets",
+            href: "/employee-portal/performance",
             avatar: null,
             badgeColor:
               a.status === "APPROVED"

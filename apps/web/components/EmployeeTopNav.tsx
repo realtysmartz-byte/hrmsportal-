@@ -61,8 +61,7 @@ export function EmployeeTopNav() {
     { href: "/employee-portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/employee-portal/attendance", label: "Attendance", icon: Clock },
     { href: "/employee-portal/leave", label: "Leave", icon: CalendarDays },
-    { href: "/employee-portal/targets", label: "Targets & Scorecard", icon: Target },
-    { href: "/employee-portal/performance", label: "Performance", icon: Award },
+    { href: "/employee-portal/performance", label: "Performance", icon: Target },
     ...(isManager(role)
       ? [
         { href: "/employee-portal/my-team", label: "My Team", icon: UsersRound },

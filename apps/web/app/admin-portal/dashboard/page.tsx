@@ -312,10 +312,10 @@ export default function AdminDashboardPage() {
           </div>
 
           <Link
-            href="/admin-portal/targets"
+            href="/admin-portal/performance"
             className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/70 px-3.5 py-1.5 text-xs font-bold text-[#0284C7] hover:bg-sky-100 transition-colors shadow-2xs"
           >
-            <span>Manage Targets & Scorecards</span>
+            <span>Manage Performance & Scorecards</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -491,7 +491,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <Link
-              href="/admin-portal/targets"
+              href="/admin-portal/performance"
               className="col-span-2 md:col-span-1 flex items-center justify-between p-2.5 rounded-xl bg-white border border-sky-200 text-xs font-bold text-[#0284C7] hover:bg-sky-50 transition-colors shadow-2xs"
             >
               <span>View Individual Scorecards</span>

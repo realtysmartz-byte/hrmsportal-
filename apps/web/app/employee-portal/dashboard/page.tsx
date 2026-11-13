@@ -13,7 +13,7 @@ const quickActions = [
   { href: "/employee-portal/leave", label: "Apply Leave", icon: PlaneTakeoff },
   { href: "/employee-portal/leave", label: "Leave Balance", icon: ClipboardCheck },
   { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
-  { href: "/employee-portal/targets", label: "Target", icon: Target },
+  { href: "/employee-portal/performance", label: "Performance", icon: Target },
 ];
 
 function getInitials(firstOrFull?: string | null, last?: string | null): string {
@@ -131,7 +131,7 @@ export default function EmployeeDashboardPage() {
           {/* Active Target Notification Banner */}
           {activeTarget && (
             <Link
-              href="/employee-portal/targets"
+              href="/employee-portal/performance"
               className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-[#0284C7] text-white shadow-md hover:opacity-95 transition-all group"
             >
               <div className="flex items-center gap-3 min-w-0">

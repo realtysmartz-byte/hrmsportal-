@@ -45,8 +45,7 @@ const coreNavItems = [
   { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin, permission: "attendance" },
   { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation, permission: "attendance" },
   { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText, permission: "leave" },
-  { href: "/admin-portal/targets", label: "Targets & Revenue", icon: Target, permission: "performance" },
-  { href: "/admin-portal/performance", label: "Performance", icon: Award, permission: "performance" },
+  { href: "/admin-portal/performance", label: "Performance", icon: Target, permission: "performance" },
   { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness, permission: "recruitment" },
   { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote, permission: "payroll" },
 ];
