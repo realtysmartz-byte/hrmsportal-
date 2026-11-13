@@ -1,10 +1,11 @@
 "use client";
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Download, FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 type Kind = "employees" | "attendance";
 
@@ -70,18 +71,7 @@ export function ExcelImportModal({
   const importAttendance = trpc.attendance.importExcel.useMutation();
   const busy = importEmployees.isLoading || importAttendance.isLoading;
 
-  useEffect(() => {
-    if (!open) return;
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalDocOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = originalBodyOverflow || "";
-      document.documentElement.style.overflow = originalDocOverflow || "";
-    };
-  }, [open]);
+    useBodyScrollLock(open);
 
   if (!open) return null;
 
@@ -159,103 +149,109 @@ export function ExcelImportModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-xl sm:rounded-xl bg-white">
-        <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-          <h2 className="text-base font-semibold text-neutral-900">Import from Excel</h2>
-          <button
-            type="button"
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
           >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+            <div
+              className="relative w-full sm:max-w-lg max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto flex flex-col rounded-2xl bg-white shadow-2xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 flex items-center justify-between border-b border-neutral-100 px-5 py-4 bg-neutral-50/90">
+                <h2 className="text-base font-semibold text-neutral-900">Import from Excel</h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
 
-        <div className="space-y-4 p-5">
-          <div className="grid grid-cols-2 rounded-lg bg-neutral-100 p-1 text-sm font-medium">
-            {(["employees", "attendance"] as Kind[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                disabled={busy}
-                onClick={() => reset(k)}
-                className={`rounded-md py-2 transition-colors ${kind === k ? "bg-white text-[#5D3EBC]" : "text-neutral-500"
-                  }`}
-              >
-                {k === "employees" ? "Employees" : "Attendance (6 months)"}
-              </button>
-            ))}
-          </div>
-
-          <p className="text-xs text-neutral-500 leading-relaxed">
-            {kind === "employees"
-              ? "Existing employees are matched by Email and updated. New employees are created with the given Password (default Realty@123). Missing departments and designations are created automatically."
-              : "Each row is one day for one employee, matched by Employee Code or Email. Only dates within the last 6 months are imported; an existing record for the same day is replaced. Times are in IST."}
-          </p>
-
-          <button
-            type="button"
-            onClick={downloadTemplate}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[#5D3EBC] hover:underline"
-          >
-            <Download className="h-4 w-4" />
-            Download template
-          </button>
-
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-neutral-200 px-4 py-8 text-center hover:border-[#5D3EBC]/50 hover:bg-[#F3F0FC]/50">
-            <FileSpreadsheet className="h-8 w-8 text-[#5D3EBC]" />
-            <span className="text-sm font-medium text-neutral-800">
-              {fileName || "Choose Excel file"}
-            </span>
-            <span className="text-xs text-neutral-400">.xlsx, .xls or .csv</span>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={(e) => void onFile(e.target.files?.[0])}
-            />
-          </label>
-
-          {parseError && <p className="text-sm text-rose-600">{parseError}</p>}
-          {rows.length > 0 && (
-            <p className="text-sm text-neutral-700">
-              <span className="font-semibold">{rows.length}</span> rows ready to import
-            </p>
-          )}
-
-          {result && (
-            <div className="rounded-lg border border-neutral-200 p-3 text-sm">
-              <p className="font-semibold text-emerald-700">{result.summary}</p>
-              {result.errors.length > 0 && (
-                <>
-                  <p className="mt-2 font-semibold text-rose-600">
-                    {result.errors.length} rows skipped
-                  </p>
-                  <ul className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-neutral-600">
-                    {result.errors.map((e, i) => (
-                      <li key={i}>
-                        Row {e.row}: {userFacingErrorMessage(e.message)}
-                      </li>
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5 overscroll-contain">
+                  <div className="grid grid-cols-2 rounded-lg bg-neutral-100 p-1 text-sm font-medium">
+                    {(["employees", "attendance"] as Kind[]).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => reset(k)}
+                        className={`rounded-md py-2 transition-colors ${kind === k ? "bg-white text-[#5D3EBC]" : "text-neutral-500"
+                          }`}
+                      >
+                        {k === "employees" ? "Employees" : "Attendance (6 months)"}
+                      </button>
                     ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+                  </div>
 
-        <div className="flex justify-end gap-2 border-t border-neutral-100 px-5 py-4">
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            Close
-          </Button>
-          <Button onClick={() => void onImport()} disabled={busy || rows.length === 0}>
-            <Upload className="mr-2 h-4 w-4" />
-            {busy ? "Importing…" : "Import"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
+                  <p className="text-xs text-neutral-500 leading-relaxed">
+                    {kind === "employees"
+                      ? "Existing employees are matched by Email and updated. New employees are created with the given Password (default Realty@123). Missing departments and designations are created automatically."
+                      : "Each row is one day for one employee, matched by Employee Code or Email. Only dates within the last 6 months are imported; an existing record for the same day is replaced. Times are in IST."}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={downloadTemplate}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#5D3EBC] hover:underline"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download template
+                  </button>
+
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-neutral-200 px-4 py-8 text-center hover:border-[#5D3EBC]/50 hover:bg-[#F3F0FC]/50">
+                    <FileSpreadsheet className="h-8 w-8 text-[#5D3EBC]" />
+                    <span className="text-sm font-medium text-neutral-800">
+                      {fileName || "Choose Excel file"}
+                    </span>
+                    <span className="text-xs text-neutral-400">.xlsx, .xls or .csv</span>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => void onFile(e.target.files?.[0])}
+                    />
+                  </label>
+
+                  {parseError && <p className="text-sm text-rose-600">{parseError}</p>}
+                  {rows.length > 0 && (
+                    <p className="text-sm text-neutral-700">
+                      <span className="font-semibold">{rows.length}</span> rows ready to import
+                    </p>
+                  )}
+
+                  {result && (
+                    <div className="rounded-lg border border-neutral-200 p-3 text-sm">
+                      <p className="font-semibold text-emerald-700">{result.summary}</p>
+                      {result.errors.length > 0 && (
+                        <>
+                          <p className="mt-2 font-semibold text-rose-600">
+                            {result.errors.length} rows skipped
+                          </p>
+                          <ul className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-neutral-600">
+                            {result.errors.map((e, i) => (
+                              <li key={i}>
+                                Row {e.row}: {userFacingErrorMessage(e.message)}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-neutral-100 px-5 py-4">
+                  <Button variant="outline" onClick={onClose} disabled={busy}>
+                    Close
+                  </Button>
+                  <Button onClick={() => void onImport()} disabled={busy || rows.length === 0}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {busy ? "Importing…" : "Import"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            );
 }

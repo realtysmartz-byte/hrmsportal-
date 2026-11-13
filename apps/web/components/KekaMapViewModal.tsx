@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   X,
   MapPin,
@@ -13,6 +13,7 @@ import {
   Navigation,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { cn } from "@/lib/utils";
 import { formatDateIST, formatTimeIST } from "@realty-smartz/shared";
 
@@ -38,18 +39,7 @@ export function KekaMapViewModal({
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [mapProvider, setMapProvider] = useState<"google" | "osm">("google");
 
-    useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = originalOverflow || "";
-      document.documentElement.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-    };
-  }, []);
+    useBodyScrollLock(true);
 
   const log = data?.log;
   const events = data?.events ?? [];
@@ -324,8 +314,8 @@ export function KekaMapViewModal({
                     {activePoint.type === "CHECK_IN"
                       ? "Clock-In Point (A)"
                       : activePoint.type === "CHECK_OUT"
-                      ? "Clock-Out Point (B)"
-                      : "Location Punch"}
+                        ? "Clock-Out Point (B)"
+                        : "Location Punch"}
                   </span>
                   <span className="text-neutral-400">·</span>
                   <span className="text-neutral-600 font-medium">

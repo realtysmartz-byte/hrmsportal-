@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { KeyRound, Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "@/lib/toast";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 interface AdminChangePasswordModalProps {
   isOpen: boolean;
@@ -32,18 +33,7 @@ export function AdminChangePasswordModal({
     },
   });
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalDocOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = originalBodyOverflow || "";
-      document.documentElement.style.overflow = originalDocOverflow || "";
-    };
-  }, [isOpen]);
+    useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
 
@@ -66,11 +56,11 @@ export function AdminChangePasswordModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overscroll-contain"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200 animate-in fade-in zoom-in-95 duration-150"
+        className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200 overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-neutral-100 pb-4">

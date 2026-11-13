@@ -170,17 +170,17 @@ export async function getEligiblePayrollEmployees(
     const statusHistories =
       separatedEmpIds.length > 0
         ? await prisma.employeeJobHistory.findMany({
-            where: {
-              employeeId: { in: separatedEmpIds },
-              fieldChanged: "status",
-            },
-            orderBy: { effectiveDate: "desc" },
-            select: {
-              employeeId: true,
-              newValue: true,
-              effectiveDate: true,
-            },
-          })
+          where: {
+            employeeId: { in: separatedEmpIds },
+            fieldChanged: "status",
+          },
+          orderBy: [{ createdAt: "desc" }, { effectiveDate: "desc" }],
+          select: {
+            employeeId: true,
+            newValue: true,
+            effectiveDate: true,
+          },
+        })
         : [];
 
     const latestStatusHistoryMap = new Map<string, { effectiveDate: Date; newValue: string | null }>();

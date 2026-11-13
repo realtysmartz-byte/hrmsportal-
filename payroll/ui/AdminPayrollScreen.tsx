@@ -133,16 +133,33 @@ export function AdminPayrollScreen() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isResettingEdit, setIsResettingEdit] = useState(false);
 
-  // Lock body scroll when any modal popup is open
+  // Lock body & html scroll completely when any modal popup is open
   const isAnyModalOpen = Boolean(showPayoutModal || editingEmp || adjEmpId || editingRow);
   useEffect(() => {
-    if (isAnyModalOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = originalOverflow || "unset";
-      };
-    }
+    if (!isAnyModalOpen) return;
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalDocOverflow = document.documentElement.style.overflow;
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalDocOverflow;
+      window.scrollTo(0, scrollY);
+    };
   }, [isAnyModalOpen]);
 
   // Fetch Company Account Info
@@ -1523,686 +1540,704 @@ export function AdminPayrollScreen() {
       {/* MODAL 1: PAYOUT CONFIRMATION DIALOG (STRICT REQUIREMENT) */}
       {/* ========================================================================= */}
       {showPayoutModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-neutral-200 space-y-4">
-            <div className="border-b border-neutral-200 pb-3">
-              <h2 className="text-base font-bold text-neutral-900">Confirm Monthly Salary Payout</h2>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Review payout parameters before executing transfer. Money moves only after confirmation.
-              </p>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-neutral-100">
-                <span className="text-neutral-500">Period:</span>
-                <span className="font-semibold text-neutral-900">{selectedMonth}/{selectedYear}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-neutral-100">
-                <span className="text-neutral-500">Company Source A/C:</span>
-                <span className="font-mono font-semibold text-neutral-900">
-                  {companyAccount?.maskedAccountNumber} ({companyAccount?.providerName})
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-neutral-100">
-                <span className="text-neutral-500">Eligible Employees:</span>
-                <span className="font-semibold text-emerald-600">{payoutStats.eligibleCount} employees</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-neutral-100">
-                <span className="text-neutral-500">Skipped Employees:</span>
-                <span className="font-semibold text-neutral-600">{payoutStats.skippedCount} employees</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-neutral-100">
-                <span className="text-neutral-700 font-bold">Total Payout Amount:</span>
-                <span className="text-base font-bold text-neutral-900">
-                  ₹{payoutStats.totalNet.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              {companyAccount?.isSandbox && (
-                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
-                  <strong>Sandbox / Test Mode Active:</strong> No real bank funds will be transferred. Provider calls are simulated safely.
+            <div
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+              onClick={() => setShowPayoutModal(false)}
+            >
+              <div
+                className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-neutral-200 space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="border-b border-neutral-200 pb-3">
+                  <h2 className="text-base font-bold text-neutral-900">Confirm Monthly Salary Payout</h2>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Review payout parameters before executing transfer. Money moves only after confirmation.
+                  </p>
                 </div>
-              )}
 
-              {payoutStats.skippedDetails.length > 0 && (
-                <div className="p-2 rounded bg-neutral-50 border border-neutral-200 max-h-24 overflow-y-auto">
-                  <div className="font-semibold text-neutral-600 text-[10px] uppercase mb-1">Skipped Reasons:</div>
-                  {payoutStats.skippedDetails.slice(0, 5).map((d, i) => (
-                    <div key={i} className="text-[10px] text-neutral-500">
-                      • {d.name}: {d.reason}
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-neutral-100">
+                    <span className="text-neutral-500">Period:</span>
+                    <span className="font-semibold text-neutral-900">{selectedMonth}/{selectedYear}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-100">
+                    <span className="text-neutral-500">Company Source A/C:</span>
+                    <span className="font-mono font-semibold text-neutral-900">
+                      {companyAccount?.maskedAccountNumber} ({companyAccount?.providerName})
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-100">
+                    <span className="text-neutral-500">Eligible Employees:</span>
+                    <span className="font-semibold text-emerald-600">{payoutStats.eligibleCount} employees</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-100">
+                    <span className="text-neutral-500">Skipped Employees:</span>
+                    <span className="font-semibold text-neutral-600">{payoutStats.skippedCount} employees</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-neutral-100">
+                    <span className="text-neutral-700 font-bold">Total Payout Amount:</span>
+                    <span className="text-base font-bold text-neutral-900">
+                      ₹{payoutStats.totalNet.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {companyAccount?.isSandbox && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                      <strong>Sandbox / Test Mode Active:</strong> No real bank funds will be transferred. Provider calls are simulated safely.
                     </div>
-                  ))}
-                  {payoutStats.skippedDetails.length > 5 && (
-                    <div className="text-[10px] text-neutral-400 mt-0.5">
-                      + {payoutStats.skippedDetails.length - 5} more
+                  )}
+
+                  {payoutStats.skippedDetails.length > 0 && (
+                    <div className="p-2 rounded bg-neutral-50 border border-neutral-200 max-h-24 overflow-y-auto">
+                      <div className="font-semibold text-neutral-600 text-[10px] uppercase mb-1">Skipped Reasons:</div>
+                      {payoutStats.skippedDetails.slice(0, 5).map((d, i) => (
+                        <div key={i} className="text-[10px] text-neutral-500">
+                          • {d.name}: {d.reason}
+                        </div>
+                      ))}
+                      {payoutStats.skippedDetails.length > 5 && (
+                        <div className="text-[10px] text-neutral-400 mt-0.5">
+                          + {payoutStats.skippedDetails.length - 5} more
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowPayoutModal(false)}
-                disabled={isInitiatingPayout}
-                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmPayout}
-                disabled={isInitiatingPayout || payoutStats.eligibleCount === 0}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-2xs"
-              >
-                {isInitiatingPayout ? "Initiating Payout..." : "Confirm & Initiate Payout"}
-              </button>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPayoutModal(false)}
+                    disabled={isInitiatingPayout}
+                    className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmPayout}
+                    disabled={isInitiatingPayout || payoutStats.eligibleCount === 0}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-2xs"
+                  >
+                    {isInitiatingPayout ? "Initiating Payout..." : "Confirm & Initiate Payout"}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL 2: EDIT SALARY & BANK DETAILS (ADMIN ONLY) */}
-      {/* ========================================================================= */}
-      {editingEmp && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setEditingEmp(null)}
-        >
-          <div
-            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 my-auto animate-in fade-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-neutral-200 pb-3 mb-4">
-              <div>
-                <h2 className="text-base font-bold text-neutral-900">
-                  Edit Salary &amp; Bank Details
-                </h2>
-                <p className="text-xs text-neutral-500 mt-0.5 font-medium">
-                  {editingEmp.name} ({editingEmp.employeeCode} • {editingEmp.department})
-                </p>
-              </div>
-              <button
-                type="button"
+            {/* ========================================================================= */}
+            {/* MODAL 2: EDIT SALARY & BANK DETAILS (ADMIN ONLY) */}
+            {/* ========================================================================= */}
+            {editingEmp && (
+              <div
+                className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
                 onClick={() => setEditingEmp(null)}
-                className="text-neutral-400 hover:text-neutral-700 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
-                title="Close"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSalaryAndBank} className="space-y-4 text-xs">
-              {/* Section 1: Salary Configuration */}
-              <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200 space-y-3">
-                <div className="font-semibold text-neutral-800 text-xs">Monthly Compensation</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">
-                      Monthly Gross Salary (₹)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step="1"
-                      value={modalGross}
-                      onChange={(e) => setModalGross(e.target.value)}
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">
-                      Fixed Monthly Deductions (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={modalFixedDed}
-                      onChange={(e) => setModalFixedDed(e.target.value)}
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Bank Details with Double Account Entry & Validation */}
-              <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-neutral-800 text-xs">Bank Account Information</span>
-                  <span className="text-[10px] text-neutral-400 font-mono">AES-256 Encrypted</span>
-                </div>
-
-                {editingEmp.hasBankDetails && !modalAccountNum && (
-                  <div className="text-[11px] text-neutral-600 bg-white p-2 rounded border border-neutral-200 font-mono">
-                    Current Account: {editingEmp.accountNumberMasked} ({editingEmp.ifsc} • {editingEmp.bankName})
-                    <div className="text-[10px] text-neutral-400 mt-0.5">
-                      Leave account number fields blank to keep existing details.
+                <div
+                  className="relative bg-white rounded-2xl max-w-lg w-full max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden my-auto shadow-2xl border border-neutral-200 animate-in fade-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="shrink-0 flex items-center justify-between border-b border-neutral-200 px-5 py-3.5 bg-neutral-50/90">
+                      <div>
+                          <h2 className="text-sm sm:text-base font-bold text-neutral-900">
+                            Edit Salary &amp; Bank Details
+                          </h2>
+                          <p className="text-xs text-neutral-500 mt-0.5 font-medium">
+                            {editingEmp.name} ({editingEmp.employeeCode} • {editingEmp.department})
+                          </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmp(null)}
+                        className="text-neutral-400 hover:text-neutral-700 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
+                        title="Close"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                  </div>
-                )}
 
-                <div>
-                  <label className="block text-neutral-600 font-medium mb-1">
-                    Account Holder Name
-                  </label>
-                  <input
-                    type="text"
-                    value={modalHolderName}
-                    onChange={(e) => setModalHolderName(e.target.value)}
-                    placeholder="As printed on bank passbook"
-                    className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white"
-                  />
-                </div>
+                            <form onSubmit={handleSaveSalaryAndBank} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                              <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4 text-xs overscroll-contain">
+                                {/* Section 1: Salary Configuration */}
+                                <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200 space-y-3">
+                                  <div className="font-semibold text-neutral-800 text-xs">Monthly Compensation</div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">
+                                        Monthly Gross Salary (₹)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        required
+                                        min="0"
+                                        step="1"
+                                        value={modalGross}
+                                        onChange={(e) => setModalGross(e.target.value)}
+                                        className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">
+                                        Fixed Monthly Deductions (₹)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={modalFixedDed}
+                                        onChange={(e) => setModalFixedDed(e.target.value)}
+                                        className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">
-                      Account Number (9-18 digits)
-                    </label>
-                    <input
-                      type="password"
-                      autoComplete="new-password"
-                      value={modalAccountNum}
-                      onChange={(e) => setModalAccountNum(e.target.value)}
-                      placeholder="Enter 9-18 digit account number"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">
-                      Confirm Account Number
-                    </label>
-                    <input
-                      type="password"
-                      autoComplete="new-password"
-                      value={modalConfirmAccountNum}
-                      onChange={(e) => setModalConfirmAccountNum(e.target.value)}
-                      placeholder="Re-enter account number"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
-                    />
-                  </div>
-                </div>
+                                {/* Section 2: Bank Details with Double Account Entry & Validation */}
+                                <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-neutral-800 text-xs">Bank Account Information</span>
+                                    <span className="text-[10px] text-neutral-400 font-mono">AES-256 Encrypted</span>
+                                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">
-                      IFSC Code (11 chars, e.g. HDFC0001234)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={11}
-                      value={modalIFSC}
-                      onChange={(e) => setModalIFSC(e.target.value.toUpperCase())}
-                      placeholder="HDFC0001234"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium uppercase tracking-wider"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Bank Name</label>
-                    <input
-                      type="text"
-                      value={modalBankName}
-                      onChange={(e) => setModalBankName(e.target.value)}
-                      placeholder="e.g. HDFC Bank"
-                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white"
-                    />
-                  </div>
-                </div>
+                                  {editingEmp.hasBankDetails && !modalAccountNum && (
+                                    <div className="text-[11px] text-neutral-600 bg-white p-2 rounded border border-neutral-200 font-mono">
+                                      Current Account: {editingEmp.accountNumberMasked} ({editingEmp.ifsc} • {editingEmp.bankName})
+                                      <div className="text-[10px] text-neutral-400 mt-0.5">
+                                        Leave account number fields blank to keep existing details.
+                                      </div>
+                                    </div>
+                                  )}
 
-                <div>
-                  <label className="block text-neutral-600 font-medium mb-1">
-                    UPI ID (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={modalUpiId}
-                    onChange={(e) => setModalUpiId(e.target.value)}
-                    placeholder="e.g. name@upi"
-                    className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
-                  />
-                </div>
-              </div>
+                                  <div>
+                                    <label className="block text-neutral-600 font-medium mb-1">
+                                      Account Holder Name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={modalHolderName}
+                                      onChange={(e) => setModalHolderName(e.target.value)}
+                                      placeholder="As printed on bank passbook"
+                                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white"
+                                    />
+                                  </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingEmp(null)}
-                  disabled={isSavingSalaryBank}
-                  className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingSalaryBank}
-                  className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold"
-                >
-                  {isSavingSalaryBank ? "Saving Details..." : "Save Details"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">
+                                        Account Number (9-18 digits)
+                                      </label>
+                                      <input
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={modalAccountNum}
+                                        onChange={(e) => setModalAccountNum(e.target.value)}
+                                        placeholder="Enter 9-18 digit account number"
+                                        className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">
+                                        Confirm Account Number
+                                      </label>
+                                      <input
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={modalConfirmAccountNum}
+                                        onChange={(e) => setModalConfirmAccountNum(e.target.value)}
+                                        placeholder="Re-enter account number"
+                                        className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">
+                                        IFSC Code (11 chars, e.g. HDFC0001234)
+                                      </label>
+                                      <input
+                                        type="text"
+                                        maxLength={11}
+                                        value={modalIFSC}
+                                        onChange={(e) => setModalIFSC(e.target.value.toUpperCase())}
+                                        placeholder="HDFC0001234"
+                                        className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium uppercase tracking-wider"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">Bank Name</label>
+                                      <input
+                                        type="text"
+                                        value={modalBankName}
+                                        onChange={(e) => setModalBankName(e.target.value)}
+                                        placeholder="e.g. HDFC Bank"
+                                        className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-neutral-600 font-medium mb-1">
+                                      UPI ID (Optional)
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={modalUpiId}
+                                      onChange={(e) => setModalUpiId(e.target.value)}
+                                      placeholder="e.g. name@upi"
+                                      className="w-full border border-neutral-300 rounded-lg px-2.5 py-1.5 bg-white font-medium"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                                {/* Action buttons footer */}
+                                <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3.5 border-t border-neutral-200 bg-neutral-50/90">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingEmp(null)}
+                                    disabled={isSavingSalaryBank}
+                                    className="px-3.5 py-2 border border-neutral-300 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="submit"
+                                    disabled={isSavingSalaryBank}
+                                    className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                  >
+                                    {isSavingSalaryBank ? "Saving Details..." : "Save Details"}
+                                  </button>
+                                </div>
+                            </form>
+                          </div>
+                        </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL 3: ADJUSTMENT MODAL (BONUS / DEDUCTION) */}
-      {/* ========================================================================= */}
-      {adjEmpId && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-neutral-200 space-y-3">
-            <h2 className="text-sm font-bold text-neutral-900">Add Manual Adjustment</h2>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-neutral-600 font-medium mb-1">Type</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAdjType("bonus")}
-                    className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "bonus"
-                      ? "bg-emerald-50 border-emerald-500 text-emerald-800"
-                      : "border-neutral-300 text-neutral-600"
-                      }`}
-                  >
-                    Bonus (+)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAdjType("deduction")}
-                    className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "deduction"
-                      ? "bg-rose-50 border-rose-500 text-rose-800"
-                      : "border-neutral-300 text-neutral-600"
-                      }`}
-                  >
-                    Deduction (-)
-                  </button>
-                </div>
-              </div>
+                        {/* ========================================================================= */}
+                        {/* MODAL 3: ADJUSTMENT MODAL (BONUS / DEDUCTION) */}
+                        {/* ========================================================================= */}
+                        {adjEmpId && (
+                              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" onClick={() => setAdjEmpId(null)}>
+                                <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-neutral-200 space-y-3 my-auto animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                                  <h2 className="text-sm font-bold text-neutral-900">Add Manual Adjustment</h2>
+                                  <div className="space-y-3 text-xs">
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">Type</label>
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setAdjType("bonus")}
+                                          className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "bonus"
+                                            ? "bg-emerald-50 border-emerald-500 text-emerald-800"
+                                            : "border-neutral-300 text-neutral-600"
+                                            }`}
+                                        >
+                                          Bonus (+)
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setAdjType("deduction")}
+                                          className={`flex-1 py-1.5 rounded-lg border font-medium ${adjType === "deduction"
+                                            ? "bg-rose-50 border-rose-500 text-rose-800"
+                                            : "border-neutral-300 text-neutral-600"
+                                            }`}
+                                        >
+                                          Deduction (-)
+                                        </button>
+                                      </div>
+                                    </div>
 
-              <div>
-                <label className="block text-neutral-600 font-medium mb-1">Amount (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={adjAmount || ""}
-                  onChange={(e) => setAdjAmount(parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-1.5"
-                />
-              </div>
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">Amount (₹)</label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={adjAmount || ""}
+                                        onChange={(e) => setAdjAmount(parseFloat(e.target.value) || 0)}
+                                        placeholder="0.00"
+                                        className="w-full border border-neutral-300 rounded-lg px-3 py-1.5"
+                                      />
+                                    </div>
 
-              <div>
-                <label className="block text-neutral-600 font-medium mb-1">Remark</label>
-                <input
-                  type="text"
-                  value={adjRemark}
-                  onChange={(e) => setAdjRemark(e.target.value)}
-                  placeholder="Reason for adjustment"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-1.5"
-                />
-              </div>
+                                    <div>
+                                      <label className="block text-neutral-600 font-medium mb-1">Remark</label>
+                                      <input
+                                        type="text"
+                                        value={adjRemark}
+                                        onChange={(e) => setAdjRemark(e.target.value)}
+                                        placeholder="Reason for adjustment"
+                                        className="w-full border border-neutral-300 rounded-lg px-3 py-1.5"
+                                      />
+                                    </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setAdjEmpId(null)}
-                  className="px-3 py-1.5 border border-neutral-300 rounded-lg text-neutral-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddAdjustment}
-                  disabled={isAddingAdj || adjAmount <= 0}
-                  className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-lg font-medium"
-                >
-                  {isAddingAdj ? "Saving..." : "Add"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+                                    <div className="flex items-center justify-end gap-2 pt-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setAdjEmpId(null)}
+                                        className="px-3 py-1.5 border border-neutral-300 rounded-lg text-neutral-700"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleAddAdjustment}
+                                        disabled={isAddingAdj || adjAmount <= 0}
+                                        className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-lg font-medium"
+                                      >
+                                        {isAddingAdj ? "Saving..." : "Add"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL 4: EDIT CALCULATION MODAL (GLITCHES / LOGIN ISSUES OVERRIDE) */}
-      {/* ========================================================================= */}
-      {editingRow && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 touch-none"
-          onClick={() => setEditingRow(null)}
-        >
-          <div
-            className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-neutral-200 max-h-[92vh] flex flex-col overflow-hidden my-auto overscroll-contain"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Top Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-200 bg-neutral-50/90 shrink-0">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-bold text-neutral-900">Edit Payroll Calculation</h2>
-                  {editingRow.is_manual_override && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      Currently Overridden
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  {editingRow.name} ({editingRow.employee_code}) • {editingRow.department} • {months[selectedMonth]} {selectedYear}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingRow(null)}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
-                aria-label="Close"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+                              {/* ========================================================================= */}
+                              {/* MODAL 4: EDIT CALCULATION MODAL (GLITCHES / LOGIN ISSUES OVERRIDE) */}
+                              {/* ========================================================================= */}
+                              {editingRow && (
+                                <div
+                                  className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+                                  onClick={() => setEditingRow(null)}
+                                >
+                                  <div
+                                    className="relative bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-neutral-200 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden my-auto overscroll-contain animate-in fade-in zoom-in-95 duration-150"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {/* Modal Top Header */}
+                                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-200 bg-neutral-50/90 shrink-0">
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <h2 className="text-sm font-bold text-neutral-900">Edit Payroll Calculation</h2>
+                                          {editingRow.is_manual_override && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                              Currently Overridden
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-neutral-500 mt-0.5">
+                                          {editingRow.name} ({editingRow.employee_code}) • {editingRow.department} • {months[selectedMonth]} {selectedYear}
+                                          {editingRow.separation_date && (
+                                            <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                              {editingRow.separation_type || "Separated"}: {new Date(editingRow.separation_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                            </span>
+                                          )}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingRow(null)}
+                                        className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
+                                        aria-label="Close"
+                                      >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </div>
 
-            {/* Scrollable Form Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs overscroll-contain">
-              {/* Info banner */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 text-amber-900">
-                <span className="text-base leading-none">⚠️</span>
-                <div className="text-[11px] leading-relaxed">
-                  Use this form to adjust attendance days and payable salary if this employee experienced <strong>login issues, portal glitches, missed punches, or field duty regularizations</strong>.
-                </div>
-              </div>
+                                    {/* Scrollable Form Body */}
+                                      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs overscroll-contain">
+                                        {/* Info banner */}
+                                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 text-amber-900">
+                                          <span className="text-base leading-none">⚠️</span>
+                                          <div className="text-[11px] leading-relaxed">
+                                            Use this form to adjust attendance days and payable salary if this employee experienced <strong>login issues, portal glitches, missed punches, or field duty regularizations</strong>.
+                                          </div>
+                                        </div>
 
-              {/* Section 1: Attendance Breakdown */}
-              <div className="border border-neutral-200 rounded-xl p-3.5 bg-neutral-50/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
-                    1. Attendance &amp; Working Days ({editingRow.total_days_in_month} Days in Month)
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const lateCuts = Math.floor(editLateMarks / (settings?.lates_per_half_day_cut || 3)) * 0.5;
-                      const calculated = Math.max(
-                        0,
-                        Math.min(
-                          editingRow.total_days_in_month,
-                          editPresentDays + (editHalfDays * 0.5) + editApprovedLeaveDays + editWeeklyOffDays + editHolidayDays - lateCuts
-                        )
-                      );
-                      const rounded = Math.round(calculated * 100) / 100;
-                      setEditPaidDays(rounded);
-                      const perDay = editingRow.total_days_in_month > 0 ? editMonthlyGross / editingRow.total_days_in_month : 0;
-                      const grossP = Math.round(perDay * rounded * 100) / 100;
-                      setEditGrossPayable(grossP);
-                      const net = Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100);
-                      setEditNetSalary(net);
-                      toast("success", "Paid days and salary figures recalculated");
-                    }}
-                    className="text-[11px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 font-semibold px-2 py-0.5 rounded transition-colors"
-                  >
-                    Auto-Calculate from Days
-                  </button>
-                </div>
+                                        {/* Section 1: Attendance Breakdown */}
+                                        <div className="border border-neutral-200 rounded-xl p-3.5 bg-neutral-50/50 space-y-3">
+                                          <div className="flex items-center justify-between">
+                                            <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
+                                              1. Attendance &amp; Working Days ({editingRow.total_days_in_month} Days in Month)
+                                              {editingRow.separation_date && (
+                                                <span className="ml-2 font-semibold text-rose-700 normal-case text-[11px]">
+                                                  (Separated: {new Date(editingRow.separation_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })})
+                                                </span>
+                                              )}
+                                            </h3>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const lateCuts = Math.floor(editLateMarks / (settings?.lates_per_half_day_cut || 3)) * 0.5;
+                                                const calculated = Math.max(
+                                                  0,
+                                                  Math.min(
+                                                    editingRow.total_days_in_month,
+                                                    editPresentDays + (editHalfDays * 0.5) + editApprovedLeaveDays + editWeeklyOffDays + editHolidayDays - lateCuts
+                                                  )
+                                                );
+                                                const rounded = Math.round(calculated * 100) / 100;
+                                                setEditPaidDays(rounded);
+                                                const perDay = editingRow.total_days_in_month > 0 ? editMonthlyGross / editingRow.total_days_in_month : 0;
+                                                const grossP = Math.round(perDay * rounded * 100) / 100;
+                                                setEditGrossPayable(grossP);
+                                                const net = Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100);
+                                                setEditNetSalary(net);
+                                                toast("success", "Paid days and salary figures recalculated");
+                                              }}
+                                              className="text-[11px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 font-semibold px-2 py-0.5 rounded transition-colors"
+                                            >
+                                              Auto-Calculate from Days
+                                            </button>
+                                          </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Present Days</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max={editingRow.total_days_in_month}
-                      value={editPresentDays}
-                      onChange={(e) => setEditPresentDays(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Half Days</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max={editingRow.total_days_in_month}
-                      value={editHalfDays}
-                      onChange={(e) => setEditHalfDays(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Approved Leaves</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max={editingRow.total_days_in_month}
-                      value={editApprovedLeaveDays}
-                      onChange={(e) => setEditApprovedLeaveDays(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Absent Days</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max={editingRow.total_days_in_month}
-                      value={editAbsentDays}
-                      onChange={(e) => setEditAbsentDays(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Late Marks</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={editLateMarks}
-                      onChange={(e) => setEditLateMarks(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Weekly Offs</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={editWeeklyOffDays}
-                      onChange={(e) => setEditWeeklyOffDays(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Holidays</label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={editHolidayDays}
-                      onChange={(e) => setEditHolidayDays(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div className="bg-emerald-50/80 border border-emerald-300 rounded-lg p-1.5">
-                    <label className="block text-emerald-800 font-bold mb-1">Total Paid Days *</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max={editingRow.total_days_in_month}
-                      value={editPaidDays}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setEditPaidDays(val);
-                        const perDay = editingRow.total_days_in_month > 0 ? editMonthlyGross / editingRow.total_days_in_month : 0;
-                        const grossP = Math.round(perDay * val * 100) / 100;
-                        setEditGrossPayable(grossP);
-                        const net = Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100);
-                        setEditNetSalary(net);
-                      }}
-                      className="w-full bg-white border border-emerald-400 rounded-md px-2.5 py-1 font-bold text-neutral-900"
-                    />
-                  </div>
-                </div>
-              </div>
+                                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Present Days</label>
+                                              <input
+                                                type="number"
+                                                step="0.5"
+                                                min="0"
+                                                max={editingRow.total_days_in_month}
+                                                value={editPresentDays}
+                                                onChange={(e) => setEditPresentDays(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Half Days</label>
+                                              <input
+                                                type="number"
+                                                step="1"
+                                                min="0"
+                                                max={editingRow.total_days_in_month}
+                                                value={editHalfDays}
+                                                onChange={(e) => setEditHalfDays(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Approved Leaves</label>
+                                              <input
+                                                type="number"
+                                                step="0.5"
+                                                min="0"
+                                                max={editingRow.total_days_in_month}
+                                                value={editApprovedLeaveDays}
+                                                onChange={(e) => setEditApprovedLeaveDays(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Absent Days</label>
+                                              <input
+                                                type="number"
+                                                step="1"
+                                                min="0"
+                                                max={editingRow.total_days_in_month}
+                                                value={editAbsentDays}
+                                                onChange={(e) => setEditAbsentDays(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Late Marks</label>
+                                              <input
+                                                type="number"
+                                                step="1"
+                                                min="0"
+                                                value={editLateMarks}
+                                                onChange={(e) => setEditLateMarks(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Weekly Offs</label>
+                                              <input
+                                                type="number"
+                                                step="1"
+                                                min="0"
+                                                value={editWeeklyOffDays}
+                                                onChange={(e) => setEditWeeklyOffDays(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Holidays</label>
+                                              <input
+                                                type="number"
+                                                step="1"
+                                                min="0"
+                                                value={editHolidayDays}
+                                                onChange={(e) => setEditHolidayDays(parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div className="bg-emerald-50/80 border border-emerald-300 rounded-lg p-1.5">
+                                              <label className="block text-emerald-800 font-bold mb-1">Total Paid Days *</label>
+                                              <input
+                                                type="number"
+                                                step="0.5"
+                                                min="0"
+                                                max={editingRow.total_days_in_month}
+                                                value={editPaidDays}
+                                                onChange={(e) => {
+                                                  const val = parseFloat(e.target.value) || 0;
+                                                  setEditPaidDays(val);
+                                                  const perDay = editingRow.total_days_in_month > 0 ? editMonthlyGross / editingRow.total_days_in_month : 0;
+                                                  const grossP = Math.round(perDay * val * 100) / 100;
+                                                  setEditGrossPayable(grossP);
+                                                  const net = Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100);
+                                                  setEditNetSalary(net);
+                                                }}
+                                                className="w-full bg-white border border-emerald-400 rounded-md px-2.5 py-1 font-bold text-neutral-900"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
 
-              {/* Section 2: Salary Figures */}
-              <div className="border border-neutral-200 rounded-xl p-3.5 bg-neutral-50/50 space-y-3">
-                <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
-                  2. Salary &amp; Deductions Breakdown
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Monthly Gross (₹)</label>
-                    <input
-                      type="number"
-                      step="100"
-                      min="0"
-                      value={editMonthlyGross}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setEditMonthlyGross(val);
-                        const perDay = editingRow.total_days_in_month > 0 ? Math.round((val / editingRow.total_days_in_month) * 100) / 100 : 0;
-                        setEditPerDaySalary(perDay);
-                        const grossP = Math.round(perDay * editPaidDays * 100) / 100;
-                        setEditGrossPayable(grossP);
-                        setEditNetSalary(Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100));
-                      }}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Per Day Salary (₹)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editPerDaySalary}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setEditPerDaySalary(val);
-                        const grossP = Math.round(val * editPaidDays * 100) / 100;
-                        setEditGrossPayable(grossP);
-                        setEditNetSalary(Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100));
-                      }}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-600 font-medium mb-1">Gross Payable (₹)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editGrossPayable}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setEditGrossPayable(val);
-                        setEditNetSalary(Math.max(0, Math.round((val + editAdditions - editDeductions) * 100) / 100));
-                      }}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-emerald-700 font-medium mb-1">Bonuses / Additions (+₹)</label>
-                    <input
-                      type="number"
-                      step="10"
-                      min="0"
-                      value={editAdditions}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setEditAdditions(val);
-                        setEditNetSalary(Math.max(0, Math.round((editGrossPayable + val - editDeductions) * 100) / 100));
-                      }}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-rose-700 font-medium mb-1">Total Deductions (-₹)</label>
-                    <input
-                      type="number"
-                      step="10"
-                      min="0"
-                      value={editDeductions}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setEditDeductions(val);
-                        setEditNetSalary(Math.max(0, Math.round((editGrossPayable + editAdditions - val) * 100) / 100));
-                      }}
-                      className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
-                    />
-                  </div>
-                  <div className="bg-neutral-900 text-white rounded-lg p-2.5 flex flex-col justify-between">
-                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Net Payable</span>
-                    <span className="text-lg font-black tracking-tight text-white">
-                      ₹{editNetSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                                        {/* Section 2: Salary Figures */}
+                                        <div className="border border-neutral-200 rounded-xl p-3.5 bg-neutral-50/50 space-y-3">
+                                          <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
+                                            2. Salary &amp; Deductions Breakdown
+                                          </h3>
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Monthly Gross (₹)</label>
+                                              <input
+                                                type="number"
+                                                step="100"
+                                                min="0"
+                                                value={editMonthlyGross}
+                                                onChange={(e) => {
+                                                  const val = parseFloat(e.target.value) || 0;
+                                                  setEditMonthlyGross(val);
+                                                  const perDay = editingRow.total_days_in_month > 0 ? Math.round((val / editingRow.total_days_in_month) * 100) / 100 : 0;
+                                                  setEditPerDaySalary(perDay);
+                                                  const grossP = Math.round(perDay * editPaidDays * 100) / 100;
+                                                  setEditGrossPayable(grossP);
+                                                  setEditNetSalary(Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100));
+                                                }}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Per Day Salary (₹)</label>
+                                              <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={editPerDaySalary}
+                                                onChange={(e) => {
+                                                  const val = parseFloat(e.target.value) || 0;
+                                                  setEditPerDaySalary(val);
+                                                  const grossP = Math.round(val * editPaidDays * 100) / 100;
+                                                  setEditGrossPayable(grossP);
+                                                  setEditNetSalary(Math.max(0, Math.round((grossP + editAdditions - editDeductions) * 100) / 100));
+                                                }}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-neutral-600 font-medium mb-1">Gross Payable (₹)</label>
+                                              <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={editGrossPayable}
+                                                onChange={(e) => {
+                                                  const val = parseFloat(e.target.value) || 0;
+                                                  setEditGrossPayable(val);
+                                                  setEditNetSalary(Math.max(0, Math.round((val + editAdditions - editDeductions) * 100) / 100));
+                                                }}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-emerald-700 font-medium mb-1">Bonuses / Additions (+₹)</label>
+                                              <input
+                                                type="number"
+                                                step="10"
+                                                min="0"
+                                                value={editAdditions}
+                                                onChange={(e) => {
+                                                  const val = parseFloat(e.target.value) || 0;
+                                                  setEditAdditions(val);
+                                                  setEditNetSalary(Math.max(0, Math.round((editGrossPayable + val - editDeductions) * 100) / 100));
+                                                }}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-rose-700 font-medium mb-1">Total Deductions (-₹)</label>
+                                              <input
+                                                type="number"
+                                                step="10"
+                                                min="0"
+                                                value={editDeductions}
+                                                onChange={(e) => {
+                                                  const val = parseFloat(e.target.value) || 0;
+                                                  setEditDeductions(val);
+                                                  setEditNetSalary(Math.max(0, Math.round((editGrossPayable + editAdditions - val) * 100) / 100));
+                                                }}
+                                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 font-medium"
+                                              />
+                                            </div>
+                                            <div className="bg-neutral-900 text-white rounded-lg p-2.5 flex flex-col justify-between">
+                                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Net Payable</span>
+                                              <span className="text-lg font-black tracking-tight text-white">
+                                                ₹{editNetSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
 
-              {/* Section 3: Reason / Notes */}
-              <div>
-                <label className="block text-neutral-700 font-semibold mb-1">
-                  Reason for Adjustment / Glitch Details
-                </label>
-                <input
-                  type="text"
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="e.g. Employee faced login issue Oct 1-5; punch regularized manually"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-neutral-900"
-                />
-              </div>
-            </div>
+                                        {/* Section 3: Reason / Notes */}
+                                        <div>
+                                          <label className="block text-neutral-700 font-semibold mb-1">
+                                            Reason for Adjustment / Glitch Details
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={editNotes}
+                                            onChange={(e) => setEditNotes(e.target.value)}
+                                            placeholder="e.g. Employee faced login issue Oct 1-5; punch regularized manually"
+                                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-neutral-900"
+                                          />
+                                        </div>
+                                      </div>
 
-            {/* Modal Bottom Controls */}
-            <div className="flex items-center justify-between p-3 sm:px-6 sm:py-3.5 border-t border-neutral-200 bg-neutral-50/80 shrink-0">
-              <div>
-                {editingRow.is_manual_override && (
-                  <button
-                    type="button"
-                    onClick={handleResetCalculation}
-                    disabled={isResettingEdit || isSavingEdit}
-                    className="text-xs text-rose-700 hover:text-rose-900 underline font-semibold transition-colors disabled:opacity-50"
-                  >
-                    {isResettingEdit ? "Resetting..." : "Reset to System Attendance"}
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingRow(null)}
-                  className="px-4 py-2 border border-neutral-300 text-xs font-semibold rounded-lg text-neutral-700 hover:bg-neutral-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveCalculationEdit}
-                  disabled={isSavingEdit || isResettingEdit}
-                  className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50"
-                >
-                  {isSavingEdit ? "Saving..." : "Save Calculation"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+                                      {/* Modal Bottom Controls */}
+                                      <div className="flex items-center justify-between p-3 sm:px-6 sm:py-3.5 border-t border-neutral-200 bg-neutral-50/80 shrink-0">
+                                        <div>
+                                          {editingRow.is_manual_override && (
+                                            <button
+                                              type="button"
+                                              onClick={handleResetCalculation}
+                                              disabled={isResettingEdit || isSavingEdit}
+                                              className="text-xs text-rose-700 hover:text-rose-900 underline font-semibold transition-colors disabled:opacity-50"
+                                            >
+                                              {isResettingEdit ? "Resetting..." : "Reset to System Attendance"}
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditingRow(null)}
+                                            className="px-4 py-2 border border-neutral-300 text-xs font-semibold rounded-lg text-neutral-700 hover:bg-neutral-100 transition-colors"
+                                          >
+                                            Cancel
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={handleSaveCalculationEdit}
+                                            disabled={isSavingEdit || isResettingEdit}
+                                            className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                                          >
+                                            {isSavingEdit ? "Saving..." : "Save Calculation"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
       )}
-    </div>
-  );
+                                </div>
+                              );
 }
