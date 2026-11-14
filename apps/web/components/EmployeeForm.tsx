@@ -35,6 +35,7 @@ type EmployeeFormValues = {
   address: string;
   profilePhotoUrl: string;
   status: (typeof EMPLOYEE_STATUSES)[number];
+  companyName: string;
   workLocationName: string;
   workLocationLat: string;
   workLocationLng: string;
@@ -61,6 +62,7 @@ const emptyValues: EmployeeFormValues = {
   address: "",
   profilePhotoUrl: "",
   status: "ACTIVE",
+  companyName: "Realty Smartz",
   workLocationName: "",
   workLocationLat: "",
   workLocationLng: "",
@@ -235,6 +237,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
       address: values.address || null,
       profilePhotoUrl: values.profilePhotoUrl || null,
       status: values.status,
+      companyName: (values.companyName as any) || "Realty Smartz",
       workLocationName: hasSite ? values.workLocationName.trim() || null : null,
       workLocationLat: hasSite ? parsedLat : null,
       workLocationLng: hasSite ? parsedLng : null,
@@ -444,6 +447,17 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
           <CardTitle className="text-base">Work Details</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Field label="Company Entity" required>
+            <Select
+              value={values.companyName}
+              onChange={(e) => setField("companyName", e.target.value)}
+            >
+              <option value="Realty Smartz">Realty Smartz</option>
+              <option value="Smartz Spaces">Smartz Spaces</option>
+              <option value="EngageXpert">EngageXpert</option>
+              <option value="BuySquad">BuySquad</option>
+            </Select>
+          </Field>
           <Field label="Employee ID">
             <Input
               value={values.employeeCode}

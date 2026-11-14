@@ -51,6 +51,10 @@ export const createEmployeeSchema = z.object({
     .optional()
     .transform((v) => (v === "" || v === undefined ? null : v)),
   status: z.enum(EMPLOYEE_STATUSES).default("ACTIVE"),
+  companyName: z
+    .enum(["Realty Smartz", "Smartz Spaces", "EngageXpert", "BuySquad"])
+    .default("Realty Smartz")
+    .optional(),
   workLocationLat: z.number().min(-90).max(90).optional().nullable(),
   workLocationLng: z.number().min(-180).max(180).optional().nullable(),
   workLocationName: z.string().trim().max(200).optional().nullable(),
@@ -86,9 +90,10 @@ export const updateEmployeeSchema = createEmployeeSchema
 export const employeeListFilterSchema = z.object({
   search: z.string().trim().max(100).optional(),
   departmentId: z.string().max(100).optional(),
+  companyName: z.string().optional(),
   status: z.enum(EMPLOYEE_STATUSES).optional(),
   page: z.number().int().min(1).default(1),
-  pageSize: z.number().int().min(1).max(100).default(20),
+  pageSize: z.number().int().min(1).max(500).default(20),
 });
 
 export const createDepartmentSchema = z.object({
@@ -243,7 +248,7 @@ export const employeeAttendanceHistorySchema = z.object({
   year: z.number().int().optional(),
   month: z.number().int().min(1).max(12).optional(),
   page: z.number().int().min(1).default(1),
-  pageSize: z.number().int().min(1).max(100).default(20),
+  pageSize: z.number().int().min(1).max(500).default(20),
 });
 
 export const holidayTypeSchema = z.enum(["PUBLIC", "RESTRICTED", "COMPANY"]);
@@ -273,7 +278,7 @@ export const updateHolidaySchema = z.object({
 export const targetItemSchema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(1, "Target item title is required").max(200),
-  category: z.enum(["SALES", "HR", "IT", "OPERATIONS", "GENERAL"]).default("GENERAL"),
+  category: z.enum(["SALES", "PRESALES", "HR", "IT", "OPERATIONS", "GENERAL"]).default("GENERAL"),
   targetValue: z.number().min(0.01, "Target value must be greater than 0"),
   unit: z.string().trim().min(1).max(50).default("Units"),
   weightPercent: z.number().min(0).max(100, "Weight percentage cannot exceed 100%"),
@@ -282,6 +287,7 @@ export const targetItemSchema = z.object({
 
 export const createTargetSchema = z.object({
   employeeId: z.string().min(1, "Employee is required"),
+  companyName: z.enum(["Realty Smartz", "Smartz Spaces", "EngageXpert", "BuySquad"]).default("Realty Smartz").optional(),
   title: z.string().trim().min(1, "Title is required").max(200),
   periodType: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).default("MONTHLY"),
   month: z.number().int().min(1).max(12).optional().nullable(),
@@ -299,6 +305,7 @@ export const createTargetSchema = z.object({
 
 export const updateTargetSchema = z.object({
   id: z.string().min(1),
+  companyName: z.enum(["Realty Smartz", "Smartz Spaces", "EngageXpert", "BuySquad"]).optional(),
   title: z.string().trim().min(1).max(200).optional(),
   periodType: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
   month: z.number().int().min(1).max(12).optional().nullable(),
@@ -321,6 +328,8 @@ export const logTargetActivitySchema = z.object({
   activityType: z.enum([
     "SITE_VISIT",
     "BOOKING",
+    "CALL_LEAD",
+    "QUALIFIED_LEAD",
     "TASK_COMPLETION",
     "JOINING",
     "INTERVIEW",

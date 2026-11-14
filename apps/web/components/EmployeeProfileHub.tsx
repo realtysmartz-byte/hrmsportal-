@@ -483,20 +483,18 @@ export function EmployeeProfileHub({
 
       {/* Photo Change Modal for Employee */}
       {showPhotoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 border border-neutral-200 animate-in fade-in zoom-in-95">
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
-              onClick={() => {
-                setShowPhotoModal(false);
-                setPhotoPreview(null);
-                setPhotoInputUrl("");
-              }}
-            >
-              <div
-                className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200 overflow-y-auto animate-in fade-in zoom-in-95"
-                onClick={(e) => e.stopPropagation()}
-              >
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
+          onClick={() => {
+            setShowPhotoModal(false);
+            setPhotoPreview(null);
+            setPhotoInputUrl("");
+          }}
+        >
+          <div
+            className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200 overflow-y-auto animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
                 <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                   <h3 className="font-display text-base font-bold text-neutral-900">
                     Profile Photo Settings

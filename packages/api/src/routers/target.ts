@@ -239,6 +239,7 @@ export const targetRouter = router({
           month: z.number().int().optional(),
           employeeId: z.string().optional(),
           departmentId: z.string().optional(),
+          companyName: z.string().optional(),
           status: z.string().optional(),
         })
         .optional()
@@ -257,6 +258,12 @@ export const targetRouter = router({
       if (input?.departmentId) {
         where.employee = { departmentId: input.departmentId };
       }
+      if (input?.companyName && input.companyName !== "ALL") {
+        where.OR = [
+          { companyName: input.companyName },
+          { employee: { companyName: input.companyName } },
+        ];
+      }
 
       const targets = await ctx.prisma.employeeTarget.findMany({
         where,
@@ -268,6 +275,27 @@ export const targetRouter = router({
               lastName: true,
               email: true,
               employeeCode: true,
+              companyName: true,
+              managerId: true,
+              manager: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeCode: true,
+                  designation: { select: { title: true } },
+                },
+              },
+              directReports: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeCode: true,
+                  companyName: true,
+                  designation: { select: { title: true } },
+                },
+              },
               department: { select: { id: true, name: true } },
               designation: { select: { id: true, title: true } },
             },
@@ -319,8 +347,12 @@ export const targetRouter = router({
             Math.round(totalEarnedScore * 10) / 10
           );
 
+          const resolvedCompanyName =
+            t.companyName || t.employee?.companyName || "Realty Smartz";
+
           return {
             ...t,
+            companyName: resolvedCompanyName,
             discipline,
             items: computedItems,
             scorecard: {
@@ -342,7 +374,193 @@ export const targetRouter = router({
         },
       });
 
-      // Overall company summary aggregates
+      // Company-wise calculations across the 4 companies
+      const TARGET_COMPANIES = [
+        "Realty Smartz",
+        "Smartz Spaces",
+        "EngageXpert",
+        "BuySquad",
+      ] as const;
+
+      const companyBreakdown = TARGET_COMPANIES.map((company) => {
+        const companyTargets = targetsWithScorecard.filter(
+          (t) => (t.companyName || "Realty Smartz") === company
+        );
+
+        let targetRevenue = 0;
+        let achievedRevenue = 0;
+        let targetVisits = 0;
+        let achievedVisits = 0;
+        let targetBookings = 0;
+        let achievedBookings = 0;
+        let targetCalls = 0;
+        let achievedCalls = 0;
+        let targetLeads = 0;
+        let achievedLeads = 0;
+        let scoreSum = 0;
+
+        for (const ct of companyTargets) {
+          targetRevenue += ct.targetRevenue || 0;
+          achievedRevenue += ct.currentRevenue || 0;
+          targetVisits += ct.targetVisits || 0;
+          achievedVisits += ct.currentVisits || 0;
+          targetBookings += ct.targetBookings || 0;
+          achievedBookings += ct.currentBookings || 0;
+          scoreSum += ct.scorecard.totalScore || 0;
+
+          for (const it of ct.items || []) {
+            const label = ((it.title || "") + " " + (it.category || "")).toLowerCase();
+            if (label.includes("call")) {
+              targetCalls += it.targetValue || 0;
+              achievedCalls += it.achievedValue || 0;
+            } else if (label.includes("lead")) {
+              targetLeads += it.targetValue || 0;
+              achievedLeads += it.achievedValue || 0;
+            }
+          }
+        }
+
+        const avgScore =
+          companyTargets.length > 0
+            ? Math.round((scoreSum / companyTargets.length) * 10) / 10
+            : 0;
+
+        const revenueProgressPct =
+          targetRevenue > 0
+            ? Math.min(100, Math.round((achievedRevenue / targetRevenue) * 100))
+            : 0;
+
+        return {
+          companyName: company,
+          targetsCount: companyTargets.length,
+          targetRevenue,
+          achievedRevenue,
+          targetVisits,
+          achievedVisits,
+          targetBookings,
+          achievedBookings,
+          targetCalls,
+          achievedCalls,
+          targetLeads,
+          achievedLeads,
+          avgScore,
+          revenueProgressPct,
+        };
+      });
+
+      // Team Leaders & their team member breakdown
+      const targetByEmpId = new Map<string, any>();
+      for (const t of targetsWithScorecard) {
+        targetByEmpId.set(t.employeeId, t);
+      }
+
+      const allEmployees = await ctx.prisma.employee.findMany({
+        where: { organizationId: orgId, role: "EMPLOYEE" },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          companyName: true,
+          managerId: true,
+          designation: { select: { title: true } },
+          department: { select: { name: true } },
+          directReports: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              companyName: true,
+              designation: { select: { title: true } },
+            },
+          },
+        },
+      });
+
+      const tlList = allEmployees.filter((emp) => {
+        const title = (emp.designation?.title || "").toLowerCase();
+        const isDesignatedTL =
+          title.includes("lead") || title.includes("manager") || title.includes("tl");
+        const hasReports = emp.directReports && emp.directReports.length > 0;
+        return hasReports || isDesignatedTL;
+      });
+
+      const teamLeaders = tlList.map((tl) => {
+        const tlTarget = targetByEmpId.get(tl.id);
+        const memberCards = (tl.directReports || []).map((rep) => {
+          const repTarget = targetByEmpId.get(rep.id);
+          return {
+            id: rep.id,
+            name: `${rep.firstName} ${rep.lastName}`.trim(),
+            employeeCode: rep.employeeCode || "RS",
+            companyName: rep.companyName || tl.companyName || "Realty Smartz",
+            designation: rep.designation?.title || "Executive",
+            hasTarget: !!repTarget,
+            targetId: repTarget?.id,
+            score: repTarget?.scorecard?.totalScore ?? 0,
+            targetRevenue: repTarget?.targetRevenue ?? 0,
+            achievedRevenue: repTarget?.currentRevenue ?? 0,
+            targetVisits: repTarget?.targetVisits ?? 0,
+            achievedVisits: repTarget?.currentVisits ?? 0,
+            targetBookings: repTarget?.targetBookings ?? 0,
+            achievedBookings: repTarget?.currentBookings ?? 0,
+          };
+        });
+
+        const teamTargetRevenue =
+          (tlTarget?.targetRevenue || 0) +
+          memberCards.reduce((acc, m) => acc + m.targetRevenue, 0);
+        const teamAchievedRevenue =
+          (tlTarget?.currentRevenue || 0) +
+          memberCards.reduce((acc, m) => acc + m.achievedRevenue, 0);
+        const teamTargetVisits =
+          (tlTarget?.targetVisits || 0) +
+          memberCards.reduce((acc, m) => acc + m.targetVisits, 0);
+        const teamAchievedVisits =
+          (tlTarget?.currentVisits || 0) +
+          memberCards.reduce((acc, m) => acc + m.achievedVisits, 0);
+        const teamTargetBookings =
+          (tlTarget?.targetBookings || 0) +
+          memberCards.reduce((acc, m) => acc + m.targetBookings, 0);
+        const teamAchievedBookings =
+          (tlTarget?.currentBookings || 0) +
+          memberCards.reduce((acc, m) => acc + m.achievedBookings, 0);
+
+        const sumScore =
+          (tlTarget?.scorecard?.totalScore || 0) +
+          memberCards.reduce((acc, m) => acc + m.score, 0);
+        const totalHeadcount = (tlTarget ? 1 : 0) + memberCards.length;
+        const teamAvgScore =
+          totalHeadcount > 0 ? Math.round((sumScore / totalHeadcount) * 10) / 10 : 0;
+
+        return {
+          id: tl.id,
+          name: `${tl.firstName} ${tl.lastName}`.trim(),
+          employeeCode: tl.employeeCode || "RS",
+          companyName: tl.companyName || "Realty Smartz",
+          designation: tl.designation?.title || "Team Leader",
+          department: tl.department?.name || "Sales",
+          memberCount: memberCards.length,
+          members: memberCards,
+          tlTarget,
+          teamStats: {
+            teamTargetRevenue,
+            teamAchievedRevenue,
+            teamTargetVisits,
+            teamAchievedVisits,
+            teamTargetBookings,
+            teamAchievedBookings,
+            teamAvgScore,
+            progressPct:
+              teamTargetRevenue > 0
+                ? Math.min(100, Math.round((teamAchievedRevenue / teamTargetRevenue) * 100))
+                : 0,
+          },
+        };
+      });
+
+      // Overall aggregates
       let totalTargetRevenue = 0;
       let totalAchievedRevenue = 0;
       let totalTargetVisits = 0;
@@ -375,6 +593,8 @@ export const targetRouter = router({
       return {
         targets: targetsWithScorecard,
         pendingVerificationsCount: pendingCount,
+        companyBreakdown,
+        teamLeaders,
         summary: {
           totalTargetRevenue,
           totalAchievedRevenue,
@@ -460,7 +680,7 @@ export const targetRouter = router({
 
       const employee = await ctx.prisma.employee.findFirst({
         where: { id: input.employeeId, organizationId: orgId },
-        include: { department: true },
+        include: { department: true, designation: true },
       });
 
       if (!employee) {
@@ -470,11 +690,23 @@ export const targetRouter = router({
         });
       }
 
+      const companyName =
+        input.companyName || employee.companyName || "Realty Smartz";
+
+      // Keep employee companyName synchronized
+      if (!employee.companyName || employee.companyName !== companyName) {
+        await ctx.prisma.employee.update({
+          where: { id: employee.id },
+          data: { companyName },
+        });
+      }
+
       // 1. Create target parent record
       const target = await ctx.prisma.employeeTarget.create({
         data: {
           organizationId: orgId,
           employeeId: input.employeeId,
+          companyName,
           title: input.title,
           periodType: input.periodType,
           month: input.month,
@@ -492,12 +724,80 @@ export const targetRouter = router({
         },
       });
 
-      // 2. Prepare items: either user provided or department-informed defaults
+      // 2. Prepare items: either user provided or role/department-informed defaults
       let itemsToCreate = input.items || [];
 
       if (itemsToCreate.length === 0) {
         const deptName = (employee.department?.name || "").toLowerCase();
-        if (deptName.includes("hr") || deptName.includes("human")) {
+        const desigName = (employee.designation?.title || "").toLowerCase();
+        const titleLower = (input.title || "").toLowerCase();
+
+        if (
+          deptName.includes("presales") ||
+          desigName.includes("presales") ||
+          titleLower.includes("presales")
+        ) {
+          // Presales Deliverables Preset
+          itemsToCreate = [
+            {
+              title: "Outbound Calling & Prospect Outreach",
+              category: "PRESALES",
+              targetValue: 500,
+              unit: "Calls",
+              weightPercent: 30,
+              notes: "Direct telephone outreach to prospective buyers",
+            },
+            {
+              title: "Verified Hot & Warm Buyer Leads",
+              category: "PRESALES",
+              targetValue: 40,
+              unit: "Leads",
+              weightPercent: 35,
+              notes: "Qualified prospective buyers matched with project portfolio",
+            },
+            {
+              title: "Confirmed Site Visits Coordinated",
+              category: "PRESALES",
+              targetValue: 20,
+              unit: "Visits",
+              weightPercent: 25,
+              notes: "Client site visits scheduled with sales executives",
+            },
+          ];
+        } else if (
+          desigName.includes("lead") ||
+          desigName.includes("manager") ||
+          desigName.includes("tl") ||
+          titleLower.includes("team leader")
+        ) {
+          // Team Leader Deliverables Preset
+          itemsToCreate = [
+            {
+              title: "Team Gross Booked Revenue",
+              category: "SALES",
+              targetValue: input.targetRevenue || 15000000,
+              unit: "INR",
+              weightPercent: 40,
+              notes: "Total gross deal revenue closed by reporting team",
+            },
+            {
+              title: "Team Confirmed Bookings",
+              category: "SALES",
+              targetValue: input.targetBookings || 6,
+              unit: "Bookings",
+              weightPercent: 30,
+              notes: "Verified unit bookings closed across the team",
+            },
+            {
+              title: "Team Buyer Site Visits",
+              category: "SALES",
+              targetValue: input.targetVisits || 40,
+              unit: "Visits",
+              weightPercent: 20,
+              notes: "Total prospective buyer site inspections logged by team",
+            },
+          ];
+        } else if (deptName.includes("hr") || deptName.includes("human")) {
           itemsToCreate = [
             {
               title: "New Candidate Joinings",
@@ -621,10 +921,11 @@ export const targetRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Target not found" });
       }
 
-      const { id, items, ...data } = input;
+      const { id, items, companyName, ...data } = input;
       const updated = await ctx.prisma.employeeTarget.update({
         where: { id },
         data: {
+          ...(companyName !== undefined ? { companyName } : {}),
           ...(data.title !== undefined ? { title: data.title } : {}),
           ...(data.periodType !== undefined ? { periodType: data.periodType } : {}),
           ...(data.month !== undefined ? { month: data.month } : {}),
@@ -640,6 +941,14 @@ export const targetRouter = router({
           ...(data.notes !== undefined ? { notes: data.notes } : {}),
         },
       });
+
+      // Synchronize employee companyName if updated
+      if (companyName && existing.employeeId) {
+        await ctx.prisma.employee.update({
+          where: { id: existing.employeeId },
+          data: { companyName },
+        });
+      }
 
       // If items provided, synchronize items
       if (items && items.length > 0) {
@@ -725,6 +1034,7 @@ export const targetRouter = router({
 
         return {
           ...t,
+          companyName: t.companyName || "Realty Smartz",
           discipline,
           items: computedItems,
           totalScore: Math.min(100, Math.round(totalEarnedScore * 10) / 10),
@@ -733,6 +1043,98 @@ export const targetRouter = router({
     );
 
     return enriched;
+  }),
+
+  // If the logged-in employee is a Team Leader/Manager, get team performance
+  myTeamPerformance: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
+    const employeeId = ctx.session.user.id;
+
+    const me = await ctx.prisma.employee.findUnique({
+      where: { id: employeeId },
+      include: {
+        designation: true,
+        department: true,
+        directReports: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            companyName: true,
+            designation: { select: { title: true } },
+          },
+        },
+      },
+    });
+
+    if (!me) return null;
+
+    const isTL =
+      (me.directReports && me.directReports.length > 0) ||
+      (me.designation?.title || "").toLowerCase().includes("lead") ||
+      (me.designation?.title || "").toLowerCase().includes("manager");
+
+    if (!isTL) return null;
+
+    const reportIds = me.directReports.map((r) => r.id);
+    const teamTargets = await ctx.prisma.employeeTarget.findMany({
+      where: {
+        employeeId: { in: reportIds },
+        organizationId: orgId,
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            companyName: true,
+            designation: { select: { title: true } },
+          },
+        },
+        items: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let teamTargetRevenue = 0;
+    let teamAchievedRevenue = 0;
+    let teamTargetVisits = 0;
+    let teamAchievedVisits = 0;
+    let teamTargetBookings = 0;
+    let teamAchievedBookings = 0;
+
+    for (const t of teamTargets) {
+      teamTargetRevenue += t.targetRevenue || 0;
+      teamAchievedRevenue += t.currentRevenue || 0;
+      teamTargetVisits += t.targetVisits || 0;
+      teamAchievedVisits += t.currentVisits || 0;
+      teamTargetBookings += t.targetBookings || 0;
+      teamAchievedBookings += t.currentBookings || 0;
+    }
+
+    return {
+      isTeamLeader: true,
+      leaderName: `${me.firstName} ${me.lastName}`,
+      companyName: me.companyName || "Realty Smartz",
+      memberCount: me.directReports.length,
+      directReports: me.directReports,
+      teamTargets,
+      summary: {
+        teamTargetRevenue,
+        teamAchievedRevenue,
+        teamTargetVisits,
+        teamAchievedVisits,
+        teamTargetBookings,
+        teamAchievedBookings,
+        progressPct:
+          teamTargetRevenue > 0
+            ? Math.min(100, Math.round((teamAchievedRevenue / teamTargetRevenue) * 100))
+            : 0,
+      },
+    };
   }),
 
   // Employee or Admin logs activity / completion

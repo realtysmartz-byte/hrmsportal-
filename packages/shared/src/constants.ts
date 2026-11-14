@@ -363,3 +363,26 @@ export function formatDateTimeIST(date?: Date | string | null): string {
   return `${dateStr}, ${timeStr}`;
 }
 
+/** 4 Official Company Brands under Realty Smartz Group */
+export const TARGET_COMPANIES = [
+  "Realty Smartz",
+  "Smartz Spaces",
+  "EngageXpert",
+  "BuySquad",
+] as const;
+
+export type TargetCompany = (typeof TARGET_COMPANIES)[number];
+
+/** Target & Performance Functional Categories */
+export const TARGET_CATEGORIES = [
+  "SALES",
+  "PRESALES",
+  "HR",
+  "IT",
+  "OPERATIONS",
+  "GENERAL",
+] as const;
+
+export type TargetCategory = (typeof TARGET_CATEGORIES)[number];
+
+

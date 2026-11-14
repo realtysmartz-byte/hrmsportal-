@@ -60,6 +60,7 @@ model Employee {
   address          String?
   profilePhotoUrl  String?
   status           EmployeeStatus @default(ACTIVE)
+  companyName      String?        @default("Realty Smartz") @map("company_name")
   // Punch sites (legacy single + up to 3 in assignedLocations JSON)
   workLocationLat  Float?
   workLocationLng  Float?
@@ -562,6 +563,7 @@ model EmployeeTarget {
   employeeId       String           @map("employee_id")
   employee         Employee         @relation("EmployeeAssignedTargets", fields: [employeeId], references: [id], onDelete: Cascade)
   title            String
+  companyName      String?          @default("Realty Smartz") @map("company_name")
   periodType       String           @default("MONTHLY") @map("period_type")
   month            Int?
   year             Int

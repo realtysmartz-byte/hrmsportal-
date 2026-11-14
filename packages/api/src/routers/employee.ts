@@ -162,7 +162,7 @@ export const employeeRouter = router({
   list: protectedProcedure
     .input(employeeListFilterSchema)
     .query(async ({ ctx, input }) => {
-      const { search, departmentId, status, page, pageSize } = input;
+      const { search, departmentId, companyName, status, page, pageSize } = input;
       const role = ctx.session.user.role as Role;
       const canManage = canManageEmployees(role);
 
@@ -172,6 +172,7 @@ export const employeeRouter = router({
         AND: [
           { organizationId: orgId },
           { role: "EMPLOYEE" as Role },
+          companyName && companyName !== "ALL" ? { companyName } : {},
           search
             ? {
               OR: [
@@ -595,6 +596,7 @@ export const employeeRouter = router({
         data: {
           organizationId: orgId,
           employeeCode,
+          companyName: input.companyName || "Realty Smartz",
           firstName: input.firstName,
           lastName: input.lastName,
           email: input.email.toLowerCase(),
@@ -931,6 +933,7 @@ export const employeeRouter = router({
       if (data.profilePhotoUrl !== undefined)
         updateData.profilePhotoUrl = data.profilePhotoUrl || null;
       if (data.status !== undefined) updateData.status = data.status;
+      if (data.companyName !== undefined) updateData.companyName = data.companyName || "Realty Smartz";
       if (data.assignedLocations !== undefined) {
         Object.assign(
           updateData,
