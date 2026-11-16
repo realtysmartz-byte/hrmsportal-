@@ -22,12 +22,12 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     boolean isRunning = prefs.getBoolean("is_running", false);
     if (!isRunning) return;
 
-    // Shift hours are 9:00 AM to 7:00 PM IST (09:00 to 19:00)
+    // Duty window covers morning punch-ins through late shift (08:00 to 21:00 IST)
     java.util.Calendar cal =
         java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
     int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
 
-    if (hour >= 19 || hour < 9) {
+    if (hour >= 21 || hour < 8) {
       prefs.edit().putBoolean("is_running", false).apply();
       showShiftEndNotification(context);
       return;

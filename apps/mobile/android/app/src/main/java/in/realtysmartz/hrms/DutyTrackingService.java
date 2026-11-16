@@ -48,8 +48,8 @@ public class DutyTrackingService extends Service {
     java.util.Calendar cal =
         java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
     int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
-    // Duty shift is 09:00 AM to 19:00 (7:00 PM IST)
-    return hour >= 9 && hour < 19;
+    // Active duty window covers morning punch-ins through late shift (08:00 to 21:00 IST)
+    return hour >= 8 && hour < 21;
   }
   public static final String ACTION_START = "in.realtysmartz.hrms.DUTY_START";
   public static final String ACTION_STOP = "in.realtysmartz.hrms.DUTY_STOP";
@@ -278,19 +278,9 @@ public class DutyTrackingService extends Service {
             } else {
               stopTracking();
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-              stopForeground(Service.STOP_FOREGROUND_REMOVE);
-            } else {
-              stopForeground(true);
-            }
-            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            if (nm != null) {
-              nm.cancel(NOTIFICATION_ID);
-            }
             if (wakeLock != null && wakeLock.isHeld()) {
               wakeLock.release();
             }
-            stopSelf();
           }
         });
   }
@@ -606,12 +596,11 @@ public class DutyTrackingService extends Service {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
     NotificationChannel channel =
         new NotificationChannel(
-            CHANNEL_ID, "Background Duty Location", NotificationManager.IMPORTANCE_MIN);
+            CHANNEL_ID, "Background Duty Location", NotificationManager.IMPORTANCE_LOW);
     channel.setDescription("Silent periodic location checks during active duty hours");
     channel.setShowBadge(false);
     channel.enableLights(false);
     channel.enableVibration(false);
-    channel.setLockscreenVisibility(Notification.VISIBILITY_SECRET);
     NotificationManager nm = getSystemService(NotificationManager.class);
     if (nm != null) nm.createNotificationChannel(channel);
   }
@@ -626,14 +615,13 @@ public class DutyTrackingService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
     return new NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("RS HRMS")
-        .setContentText("Background duty tracking")
+        .setContentTitle("RS HRMS Duty Active")
+        .setContentText("Location tracking active (every 1 hour)")
         .setSmallIcon(R.drawable.ic_stat_notification)
-        .setOngoing(false)
+        .setOngoing(true)
         .setOnlyAlertOnce(true)
         .setContentIntent(pi)
-        .setPriority(NotificationCompat.PRIORITY_MIN)
-        .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
         .build();
   }

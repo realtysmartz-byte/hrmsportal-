@@ -130,7 +130,7 @@ export function LocationTracker() {
       }
     }
 
-    /** Only ping if half an hour (30 minutes) has passed since the last saved ping. */
+    /** Only ping if 1 hour (60 minutes) has passed since the last saved ping. */
     async function pingIfDue() {
       const last = readLastPingAt();
       if (Date.now() - last < LOCATION_PING_INTERVAL_MS) {
@@ -176,7 +176,7 @@ export function LocationTracker() {
     }
 
     // Web browser: never ping just because the page opened.
-    // Ping only when 30 minutes has actually elapsed (interval + optional due-check).
+    // Ping only when 1 hour has actually elapsed (interval + optional due-check).
     const last = readLastPingAt();
     if (last > 0) setLastAt(new Date(last));
     setStatus("on");
@@ -185,12 +185,26 @@ export function LocationTracker() {
 
     const intervalId = setInterval(() => void pingIfDue(), LOCATION_PING_INTERVAL_MS);
 
-    // If already past due (e.g. tab left open overnight), one catch-up — still respects 1h gap
+    // If already past due, one catch-up — still respects 1h gap
     void pingIfDue();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void pingIfDue();
+      }
+    };
+    const onFocus = () => {
+      void pingIfDue();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onFocus);
 
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onFocus);
       void wakeLock.current?.release();
     };
   }, [authStatus, isOnDuty, isPingPage, onEmployeeRoute]);
@@ -220,7 +234,7 @@ export function LocationTracker() {
         WebkitBackfaceVisibility: "hidden",
         backfaceVisibility: "hidden",
       }}
-      title="While punched in, location is recorded every 30 minutes with high-accuracy GPS."
+      title="While punched in, location is recorded every 1 hour with high-accuracy GPS."
     >
       <span
         className={cn(
@@ -233,7 +247,7 @@ export function LocationTracker() {
       <MapPin className="h-3 w-3 shrink-0" />
       {status === "on" && (
         <span className="truncate max-w-[220px]">
-          {isOnDuty ? "GPS Tracking Active (30m)" : "GPS Ready"}
+          {isOnDuty ? "GPS Tracking Active (1 hr)" : "GPS Ready"}
           {lastAt
             ? ` · ${lastAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
             : ""}

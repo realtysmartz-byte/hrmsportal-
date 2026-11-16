@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-const MIN_TRACKING_PING_GAP_MS = 50 * 60 * 1000; // 50 minutes debounce for 1 hour tracking
+const MIN_TRACKING_PING_GAP_MS = 45 * 60 * 1000; // 45 minutes debounce for 1 hour tracking
 
 const locationPingBodySchema = z
   .object({

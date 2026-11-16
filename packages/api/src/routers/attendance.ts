@@ -42,8 +42,8 @@ import { assertRateLimit } from "../lib/rate-limit";
 /** Reject pings whose GPS fix is older than this or stamped in the future. */
 const MAX_PING_AGE_MS = 5 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 0;
-/** Ignore duplicate tracking pings closer than this (1 hour cadence). */
-const MIN_TRACKING_PING_GAP_MS = 50 * 60 * 1000; // 50 minutes debounce for 1 hour tracking
+/** Ignore duplicate tracking pings closer than this (1 hour cadence with debounce). */
+const MIN_TRACKING_PING_GAP_MS = 45 * 60 * 1000; // 45 minutes debounce for 1 hour tracking
 /** Flag for admin review when GPS accuracy is worse than this (meters). */
 const REVIEW_ACCURACY_M = 100;
 const PUNCH_RATE_LIMIT = 10;

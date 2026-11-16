@@ -97,13 +97,23 @@ public class DutyTrackingPlugin extends Plugin {
     String apiUrl = call.getString("apiUrl", "https://rshrms.in/api/native/location-ping");
 
     try {
-      android.webkit.CookieManager.getInstance().flush();
-      String cookie = android.webkit.CookieManager.getInstance().getCookie("https://rshrms.in");
-      if (cookie != null && !cookie.isEmpty()) {
-        android.content.SharedPreferences prefs =
-            getContext().getSharedPreferences("duty_tracking", android.content.Context.MODE_PRIVATE);
-        prefs.edit().putString("auth_cookie", cookie).apply();
+      android.webkit.CookieManager cm = android.webkit.CookieManager.getInstance();
+      cm.flush();
+      String cookie = cm.getCookie("https://rshrms.in");
+      if (cookie == null || cookie.isEmpty()) {
+        cookie = cm.getCookie(apiUrl);
       }
+      android.content.SharedPreferences prefs =
+          getContext().getSharedPreferences("duty_tracking", android.content.Context.MODE_PRIVATE);
+      android.content.SharedPreferences.Editor editor = prefs.edit();
+      if (cookie != null && !cookie.isEmpty()) {
+        editor.putString("auth_cookie", cookie);
+      }
+      long lastPing = prefs.getLong("last_ping_at", 0L);
+      if (lastPing <= 0L || System.currentTimeMillis() - lastPing > 2 * 60 * 60 * 1000L) {
+        editor.putLong("last_ping_at", System.currentTimeMillis());
+      }
+      editor.apply();
     } catch (Exception ignored) {}
 
     String title = call.getString("title", null);
