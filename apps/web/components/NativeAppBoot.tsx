@@ -8,22 +8,24 @@ import { Capacitor } from "@capacitor/core";
  */
 export function NativeAppBoot() {
   useEffect(() => {
-    const isNative =
+    // Strictly detect native Android / iOS APK (never true in Chrome / Safari / web browsers)
+    const isStrictNative =
       typeof window !== "undefined" &&
-      (Capacitor.isNativePlatform() ||
-        Boolean((window as any).Capacitor) ||
-        (window as any).Capacitor?.getPlatform?.() === "android" ||
-        (window as any).Capacitor?.getPlatform?.() === "ios");
+    Capacitor.isNativePlatform() &&
+      Capacitor.getPlatform() !== "web";
 
-    if (isNative) {
-      document.documentElement.classList.add("is-native-app");
-      document.body.classList.add("is-native-app");
-      try {
-        sessionStorage.setItem("is_native_app", "1");
+      if (isStrictNative) {
+        document.documentElement.classList.add("is-native-app");
+        document.body.classList.add("is-native-app");
+      } else {
+        document.documentElement.classList.remove("is-native-app");
+        document.body.classList.remove("is-native-app");
+        try {
+        sessionStorage.removeItem("is_native_app");
       } catch { }
     }
 
-    if (!Capacitor.isNativePlatform()) return;
+    if (!isStrictNative) return;
 
     void (async () => {
       try {
