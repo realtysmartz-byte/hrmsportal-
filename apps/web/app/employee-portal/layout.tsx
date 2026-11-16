@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { EmployeeTopNav } from "@/components/EmployeeTopNav";
+import { EmployeePortalFooter } from "@/components/EmployeePortalFooter";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { EmployeePolicyAgreementModal } from "@/components/EmployeePolicyAgreementModal";
 import { authOptions } from "@/lib/auth";
@@ -38,6 +39,7 @@ export default async function EmployeePortalLayout({
         }}
       >
         {children}
+        <EmployeePortalFooter />
       </main>
     </div>
   );

@@ -445,6 +445,18 @@ export function EmployeeTopNav() {
             <LogOut className="w-5 h-5 stroke-[1.8]" />
           </button>
         </div>
+
+        {/* EngageXpert Branding in Drawer Footer */}
+        <div className="py-2.5 px-3 border-t border-[var(--line)] bg-[var(--soft)]/50 flex items-center justify-center gap-2">
+          <span className="text-[9.5px] font-bold tracking-[0.14em] text-[#0a4fa3] uppercase">
+            A Digital Experience By
+          </span>
+          <img
+            src="/images/engapexpert-logo@2x.png"
+            alt="EngageXpert"
+            className="h-4 w-auto object-contain"
+          />
+        </div>
       </aside>
 
       {/* 3. Bottom Navigation: Home, Attendance, Leaves, Me */}
