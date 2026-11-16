@@ -52,6 +52,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={display.variable} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if((window.Capacitor&&(window.Capacitor.isNativePlatform?window.Capacitor.isNativePlatform():true))||sessionStorage.getItem('is_native_app')==='1'){document.documentElement.classList.add('is-native-app');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <Providers>
           <NativeAppBoot />

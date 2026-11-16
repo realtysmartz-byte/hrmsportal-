@@ -232,3 +232,20 @@
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
+
+/* Native APK Android Status Bar Safe Spacing */
+html.is-native-app .employee-top-nav-header,
+html.is-native-app header.employee-top-nav-header {
+  padding-top: 30px !important;
+  height: calc(4rem + 30px) !important;
+  align-items: flex-end !important;
+  padding-bottom: 12px !important;
+}
+
+html.is-native-app aside[role="dialog"] {
+  padding-top: 30px !important;
+}
+
+html.is-native-app .notification-dropdown-panel {
+  top: calc(4rem + 30px + 6px) !important;
+}
