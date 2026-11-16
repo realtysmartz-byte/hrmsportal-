@@ -92,7 +92,7 @@ export const HALF_DAY_CHECK_IN_AFTER = { hour: 11, minute: 0 } as const;
 /** Probation period default in months for new employees (unpaid leave only) */
 export const DEFAULT_PROBATION_MONTHS = 6;
 
-/** Number of late check-ins that trigger 1 half-day salary deduction */
+/** Number of late check-ins that trigger 1 half-day compensation deduction */
 export const DEFAULT_LATES_PER_HALF_DAY_CUT = 3;
 
 /** Punch-out before this IST time sends an early clock-out mail */
@@ -185,7 +185,7 @@ export function isManager(role: Role): boolean {
  */
 export const WEEKLY_OFF_DAY = 2; // Tuesday
 
-export const LOCATION_PING_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+export const LOCATION_PING_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes (half an hour)
 
 export function isWeeklyOffDay(dayOfWeek: number): boolean {
   return dayOfWeek === WEEKLY_OFF_DAY;

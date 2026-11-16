@@ -9,12 +9,7 @@ import {
   Search,
   Users,
   ChevronRight,
-  Filter,
-  ArrowUpDown,
   Building2,
-  Mail,
-  Phone,
-  Sparkles,
   FileSpreadsheet,
   Download,
 } from "lucide-react";
@@ -106,36 +101,36 @@ function EmployeesInner() {
         "Address": r.address || "-",
         "Last Profile Update": r.updatedAt || "-",
       }));
-      const sheet = XLSX.utils.json_to_sheet(formattedRows);
+      const ws = XLSX.utils.json_to_sheet(formattedRows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, sheet, exportStatus);
+      XLSX.utils.book_append_sheet(wb, ws, "Employee Roster");
       XLSX.writeFile(
         wb,
-        `realty-smartz-employees-${exportStatus.toLowerCase()}-${new Date()
-          .toISOString()
-          .slice(0, 10)}.xlsx`
+        `Realty_Smartz_Roster_${exportStatus}_${new Date().toISOString().slice(0, 10)}.xlsx`
       );
+    } catch (e: any) {
+      alert("Failed to export: " + (e?.message || "Unknown error"));
     } finally {
       setExporting(false);
     }
   }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
-      {/* 1. TOP HEADER & QUICK STATS (Dashboards V3 Bento Style) */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 max-w-[1600px] mx-auto text-[var(--ink)]">
+      {/* 1. Top Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--line)] pb-5">
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
+          <h1 className="text-[26px] font-bold text-[var(--ink)] tracking-tight">
             Employees
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+          <p className="mt-0.5 text-xs sm:text-sm text-[var(--muted)]">
             Complete company staff roster, job designations, and live status
           </p>
         </div>
 
         {canManage && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white p-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--card)] p-1">
               <Select
                 value={exportStatus}
                 onChange={(e) =>
@@ -149,34 +144,34 @@ function EmployeesInner() {
                 <option value="TERMINATED">Terminated</option>
                 <option value="EXIT">Absconding</option>
                 <option value="RESIGNED">Resigned</option>
-                <option value="ON_LEAVE">On Leave</option>
+                <option value="ON_LEAVE">On leave</option>
                 <option value="ALL">All</option>
               </Select>
               <button
                 type="button"
                 onClick={() => void exportSheet()}
                 disabled={exporting}
-                className="flex items-center gap-1.5 rounded-md bg-neutral-900 px-3 py-2 text-xs font-bold text-white hover:bg-neutral-800 disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded bg-[var(--ink)] px-3 py-2 text-xs font-semibold text-[var(--card)] hover:opacity-90 disabled:opacity-50"
               >
-                <Download className="h-3.5 w-3.5" />
-                {exporting ? "Exporting…" : "Export Sheet"}
+                <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
+                {exporting ? "Exporting…" : "Export sheet"}
               </button>
             </div>
             <button
               type="button"
               onClick={() => setImportOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-[#5D3EBC]/30 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-[#5D3EBC] hover:bg-[#F3F0FC] transition-all"
+              className="flex items-center gap-2 rounded border border-[var(--line)] bg-[var(--card)] px-4 h-11 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--hover)] transition-colors"
             >
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
               Import Excel
             </button>
             <Link href="/admin-portal/employees/new">
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-lg bg-[#5D3EBC] px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95 active:scale-95 transition-all"
+                className="btn-chamfer flex items-center gap-2 bg-[var(--accent)] px-5 h-11 text-xs font-semibold text-white hover:brightness-110 transition-all"
               >
-                <Plus className="h-4 w-4" />
-                Add Employee
+                <Plus className="h-4 w-4" strokeWidth={1.8} />
+                Add employee
               </button>
             </Link>
           </div>
@@ -185,12 +180,12 @@ function EmployeesInner() {
 
       <ExcelImportModal open={importOpen} onClose={() => setImportOpen(false)} />
 
-      {/* 2. FILTER & SEARCH CONTROL BAR */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-3 sm:p-4 overflow-hidden">
+      {/* 2. Filter & Search Control Bar */}
+      <div className="rounded border border-[var(--line)] bg-[var(--card)] p-3 sm:p-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search Field */}
           <div className="relative min-w-0 sm:min-w-[200px] flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" strokeWidth={1.8} />
             <Input
               className="pl-10"
               placeholder="Search by name, email, employee code..."
@@ -211,7 +206,7 @@ function EmployeesInner() {
                 setPage(1);
               }}
             >
-              <option value="">All Departments</option>
+              <option value="">All departments</option>
               {departments?.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -229,7 +224,7 @@ function EmployeesInner() {
                 setPage(1);
               }}
             >
-              <option value="">All Statuses</option>
+              <option value="">All statuses</option>
               {EMPLOYEE_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {s.replace("_", " ")}
@@ -248,27 +243,27 @@ function EmployeesInner() {
                 setStatus("");
                 setPage(1);
               }}
-              className="rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+              className="rounded px-3 py-2 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--hover)] transition-colors"
             >
-              Reset Filters
+              Reset filters
             </button>
           )}
 
           {/* Total Counter Badge */}
-          <div className="ml-auto hidden xl:flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600 border border-neutral-200/60">
-            <Users className="h-3.5 w-3.5 text-neutral-500" />
-            <span>{data?.total ?? 0} Records</span>
+          <div className="ml-auto hidden xl:flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--field)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)]">
+            <Users className="h-3.5 w-3.5" strokeWidth={1.8} />
+            <span>{data?.total ?? 0} records</span>
           </div>
         </div>
       </div>
 
-      {/* 3. ROSTER DATA TABLE (Contained & Overflow-Hidden) */}
+      {/* 3. Roster Data Table */}
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : (
-        <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
+        <div className="rounded border border-[var(--line)] bg-[var(--card)] overflow-hidden">
           {/* Mobile Employee Cards (sm:hidden) */}
-          <div className="block sm:hidden divide-y divide-neutral-100">
+          <div className="block sm:hidden divide-y divide-[var(--line)]">
             {rows.length === 0 && (
               <EmptyState
                 title="No employees found"
@@ -277,7 +272,7 @@ function EmployeesInner() {
                 action={
                   canManage ? (
                     <Link href="/admin-portal/employees/new">
-                      <Button size="sm">Add Employee</Button>
+                      <Button size="sm">Add employee</Button>
                     </Link>
                   ) : undefined
                 }
@@ -287,10 +282,10 @@ function EmployeesInner() {
               <Link
                 key={emp.id}
                 href={`/admin-portal/employees/${emp.id}`}
-                className="flex items-center justify-between p-3.5 hover:bg-neutral-50/70 transition-colors gap-3"
+                className="flex items-center justify-between p-3.5 hover:bg-[var(--hover)] transition-colors gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--accent)] text-xs font-bold text-white">
                     {emp.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -303,26 +298,26 @@ function EmployeesInner() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-sm text-neutral-900 truncate">
+                    <p className="font-bold text-sm text-[var(--ink)] truncate">
                       {fullName(emp.firstName, emp.lastName)}
                     </p>
-                    <p className="text-[11px] text-neutral-500 truncate">
-                      {emp.designation?.title ?? "No designation"} {emp.department?.name ? `• ${emp.department.name}` : ""}
+                    <p className="text-[11px] text-[var(--muted)] truncate">
+                      {emp.designation?.title ?? "No designation"} {emp.department?.name ? `· ${emp.department.name}` : ""}
                     </p>
                     <div className="mt-1 flex items-center gap-2">
-                      <span className="tabular-nums text-[10px] text-neutral-400 font-medium">
+                      <span className="tabular-nums text-[10px] text-[var(--muted)] font-medium">
                         {emp.employeeCode}
                       </span>
                       <StatusBadge status={emp.status} />
                     </div>
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-[var(--muted)]" strokeWidth={1.8} />
               </Link>
             ))}
           </div>
 
-          {/* Desktop Table (hidden sm:block) */}
+          {/* Desktop Table */}
           <div className="hidden sm:block overflow-x-auto">
             <Table>
               <TableHeader>
@@ -345,7 +340,7 @@ function EmployeesInner() {
                         action={
                           canManage ? (
                             <Link href="/admin-portal/employees/new">
-                              <Button size="sm">Add Employee</Button>
+                              <Button size="sm">Add employee</Button>
                             </Link>
                           ) : undefined
                         }
@@ -354,14 +349,14 @@ function EmployeesInner() {
                   </TableRow>
                 )}
                 {rows.map((emp) => (
-                  <TableRow key={emp.id} className="hover:bg-neutral-50/70 transition-colors">
+                  <TableRow key={emp.id} className="hover:bg-[var(--hover)] transition-colors">
                     {/* Employee Details Column */}
                     <TableCell>
                       <Link
                         href={`/admin-portal/employees/${emp.id}`}
                         className="flex items-center gap-3.5 group/emp"
                       >
-                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5D3EBC] text-xs font-bold text-white group-hover/emp:scale-105 transition-transform">
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--accent)] text-xs font-bold text-white">
                           {emp.profilePhotoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -374,10 +369,10 @@ function EmployeesInner() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-neutral-900 group-hover/emp:text-[#5D3EBC] transition-colors truncate">
+                          <p className="font-semibold text-[var(--ink)] group-hover/emp:text-[var(--accent)] transition-colors truncate">
                             {fullName(emp.firstName, emp.lastName)}
                           </p>
-                          <p className="text-[11px] tabular-nums text-neutral-400 font-medium">
+                          <p className="text-[11px] tabular-nums text-[var(--muted)] font-medium">
                             {emp.employeeCode}
                           </p>
                         </div>
@@ -385,14 +380,14 @@ function EmployeesInner() {
                     </TableCell>
 
                     {/* Designation Column */}
-                    <TableCell className="font-medium text-neutral-700">
+                    <TableCell className="font-medium text-[var(--ink)]">
                       {emp.designation?.title ?? "—"}
                     </TableCell>
 
                     {/* Department Column */}
                     <TableCell>
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100/80 px-2.5 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/60">
-                        <Building2 className="h-3 w-3 text-neutral-400" />
+                      <span className="inline-flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--field)] px-2.5 py-0.5 text-xs font-medium text-[var(--ink)]">
+                        <Building2 className="h-3 w-3 text-[var(--muted)]" strokeWidth={1.8} />
                         {emp.department?.name ?? "—"}
                       </span>
                     </TableCell>
@@ -406,10 +401,10 @@ function EmployeesInner() {
                     <TableCell className="text-right">
                       <Link
                         href={`/admin-portal/employees/${emp.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#5D3EBC] transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
                       >
                         <span>Manage</span>
-                        <ChevronRight className="h-3.5 w-3.5" />
+                        <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.8} />
                       </Link>
                     </TableCell>
                   </TableRow>
@@ -420,12 +415,12 @@ function EmployeesInner() {
         </div>
       )}
 
-      {/* 4. PAGINATION FOOTER */}
+      {/* 4. Pagination Footer */}
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <p className="text-xs sm:text-sm font-medium text-neutral-500">
-            Showing Page <span className="font-bold text-neutral-800">{data.page}</span> of{" "}
-            <span className="font-bold text-neutral-800">{data.totalPages}</span> ({data.total} total members)
+          <p className="text-xs sm:text-sm font-medium text-[var(--muted)]">
+            Showing page <span className="font-bold text-[var(--ink)]">{data.page}</span> of{" "}
+            <span className="font-bold text-[var(--ink)]">{data.totalPages}</span> ({data.total} total members)
           </p>
           <div className="flex gap-2">
             <Button

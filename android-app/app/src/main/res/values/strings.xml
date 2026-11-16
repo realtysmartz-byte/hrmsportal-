@@ -1,6 +1,6 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RS HRMS</string>
+    <string name="app_name">HRMS</string>
     <string name="hostName">rshrms.in</string>
     <string name="launchUrl">https://rshrms.in/?source=pwa</string>
     <string name="providerAuthority">com.realtysmartz.hrms.fileprovider</string>

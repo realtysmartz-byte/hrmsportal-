@@ -4,16 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Menu,
   LogOut,
-  Download,
   Search,
-  ArrowLeftRight,
-  Bell,
   Calendar,
-  ChevronDown,
   KeyRound,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -38,6 +34,7 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
       window.location.href = "/login?error=SessionExpired";
     }
   }, [status, session]);
+
   const router = useRouter();
   const [query, setQuery] = useState("");
 
@@ -80,7 +77,6 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
     });
   }
 
-  // Format today's date like "Mon, 26 Oct 2026"
   const formattedDate = new Date().toLocaleDateString("en-IN", {
     weekday: "short",
     day: "numeric",
@@ -88,15 +84,15 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
     year: "numeric",
   });
 
-  const userInitial = session?.user?.name?.[0] ?? "H";
+  const userInitial = (session?.user?.name?.[0] || "H").toUpperCase();
 
   return (
-    <div className="relative min-h-screen w-full bg-[#F5F6FC] antialiased">
+    <div className="relative min-h-screen w-full bg-[var(--bg)] text-[var(--ink)] antialiased font-sans">
       {/* Desktop: fixed sidebar — never scrolls with page */}
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 hidden lg:block",
-          collapsed ? "w-[76px]" : "w-[260px]"
+          collapsed ? "w-[72px]" : "w-[264px]"
         )}
       >
         <AdminSidebar
@@ -114,14 +110,14 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileOpen(false)}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs lg:hidden"
+              className="fixed inset-0 z-50 bg-black/50 lg:hidden"
             />
             <motion.div
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 280 }}
-              className="fixed inset-y-0 left-0 z-50 w-[270px] lg:hidden"
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="fixed inset-y-0 left-0 z-50 w-[264px] lg:hidden"
             >
               <AdminSidebar
                 isCollapsed={false}
@@ -136,24 +132,44 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
       {/* Main content offset for fixed sidebar */}
       <div
         className={cn(
-          "flex min-h-screen min-w-0 flex-col transition-[padding] duration-300 ease-in-out",
-          collapsed ? "lg:pl-[76px]" : "lg:pl-[260px]"
+          "flex min-h-screen min-w-0 flex-col transition-[padding] duration-200 ease-out",
+          collapsed ? "lg:pl-[72px]" : "lg:pl-[264px]"
         )}
       >
         {/* Mobile Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#E6E9F3] bg-white/95 backdrop-blur-md px-3 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-4 sm:py-3 lg:hidden shadow-xs">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--line)] bg-[var(--card)] px-3 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-4 sm:py-3 lg:hidden">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setIsMobileOpen(true)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-800 hover:bg-neutral-200 active:scale-95 sm:h-9 sm:w-9"
-              title="Open Navigation Menu"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-[var(--line)] bg-transparent text-[var(--ink)] hover:bg-[var(--soft)]"
+              aria-label="Open menu"
+              aria-haspopup="dialog"
             >
-              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                <path d="M4 8h16M4 16h10" />
+              </svg>
             </button>
             <div className="flex min-w-0 items-center gap-2">
-              <img src="/logo.png" alt="Realty Smartz" className="h-6 w-6 shrink-0 object-contain" />
-              <p className="truncate font-display text-xs font-bold text-neutral-900">Admin Console</p>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 34 34"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="shrink-0"
+              >
+                <path
+                  d="M17 2.5L29.55 9.75V24.25L17 31.5L4.45 24.25V9.75L17 2.5Z"
+                  stroke="#2F7FB5"
+                  strokeWidth="2.6"
+                  strokeLinejoin="round"
+                />
+                <line x1="12" y1="12" x2="12" y2="22" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+                <line x1="17" y1="9.5" x2="17" y2="24.5" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+                <line x1="22" y1="12" x2="22" y2="22" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+              </svg>
+              <p className="truncate text-xs font-bold text-[var(--ink)]">Admin Console</p>
             </div>
           </div>
 
@@ -161,26 +177,26 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
             <button
               type="button"
               onClick={() => setShowChangePasswordModal(true)}
-              className="flex h-8 items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 sm:px-2.5"
+              className="flex h-8 items-center gap-1 rounded border border-[var(--line)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--ink)] hover:bg-[var(--hover)]"
               title="Change Password"
             >
-              <KeyRound className="h-3.5 w-3.5 text-violet-600" />
+              <KeyRound className="h-3.5 w-3.5 text-[var(--accent)]" strokeWidth={1.8} />
               <span className="hidden sm:inline">Password</span>
             </button>
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex h-8 items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 text-xs font-bold text-rose-700 hover:bg-rose-100 sm:px-2.5"
+              className="flex h-8 items-center gap-1 rounded border border-[var(--line)] bg-[var(--field)] px-2 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--hover)]"
             >
-              <LogOut className="h-3.5 w-3.5 text-rose-600" />
-              <span className="hidden sm:inline">Log Out</span>
+              <LogOut className="h-3.5 w-3.5 text-[var(--danger)]" strokeWidth={1.8} />
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </header>
 
-        {/* Desktop Header - Enterprise White Bar as in reference */}
-        <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#E6E9F3] bg-white/90 backdrop-blur-md px-8 text-neutral-900 lg:flex shadow-xs">
-          {/* Left: Global Search Pill */}
+        {/* Desktop Header - Clean Light Bar */}
+        <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[var(--line)] bg-[var(--card)] px-8 text-[var(--ink)] lg:flex">
+          {/* Left: Global Search */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -188,31 +204,31 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
                 router.push(`/admin-portal/employees?q=${encodeURIComponent(query.trim())}`);
               }
             }}
-            className="relative w-full max-w-lg"
+            className="relative w-full max-w-md"
           >
             <div className="relative flex items-center">
-              <Search className="pointer-events-none absolute left-4 h-4 w-4 text-neutral-400" />
+              <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[var(--muted)]" strokeWidth={1.8} />
               <input
                 id="admin-global-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search employees, departments, requests..."
-                className="h-10 w-full rounded-xl border border-[#E6E9F3] bg-neutral-50/70 pl-11 pr-16 text-xs font-medium text-neutral-800 placeholder:text-neutral-400 transition-all focus:border-[#6D28D9] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/15"
+                className="h-10 w-full rounded border border-[var(--line)] bg-[var(--field)] pl-10 pr-14 text-xs font-medium text-[var(--ink)] placeholder:text-[var(--muted)] transition-colors focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/18"
               />
-              <span className="pointer-events-none absolute right-3 inline-flex items-center rounded border border-[#E6E9F3] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400 shadow-2xs">
-                ⌘ K
+              <span className="pointer-events-none absolute right-2.5 inline-flex items-center rounded border border-[var(--line)] bg-[var(--card)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--muted)]">
+                Ctrl K
               </span>
             </div>
           </form>
 
           {/* Right: Notification, Date, Profile */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Dynamic Real-Time Notification Bell */}
             <AdminNotificationBell />
 
-            {/* Date Indicator Pill */}
-            <div className="flex items-center gap-2 rounded-full border border-[#E6E9F3] bg-neutral-50/70 px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-2xs">
-              <Calendar className="h-3.5 w-3.5 text-[#5145CD]" />
+            {/* Date Indicator */}
+            <div className="flex items-center gap-2 rounded border border-[var(--line)] bg-[var(--field)] px-3 py-1.5 text-xs font-medium text-[var(--muted)]">
+              <Calendar className="h-3.5 w-3.5 text-[var(--accent)]" strokeWidth={1.8} />
               <span>{formattedDate}</span>
             </div>
 
@@ -220,32 +236,34 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
             <button
               type="button"
               onClick={() => setShowChangePasswordModal(true)}
-              className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors shadow-2xs"
-              title="Change Admin Password & Logout"
+              className="flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--field)] px-3 py-1.5 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--hover)] transition-colors"
+              title="Change Password"
             >
-              <KeyRound className="h-3.5 w-3.5 text-violet-600" />
+              <KeyRound className="h-3.5 w-3.5 text-[var(--accent)]" strokeWidth={1.8} />
               <span>Change Password</span>
             </button>
 
-            {/* User Profile Pill */}
+            {/* User Profile */}
             <Link
               href="/admin-portal/settings/company"
               title={session?.user?.name ?? "HR Admin"}
-              className="flex items-center gap-2 rounded-full p-1 hover:bg-neutral-100 transition-colors"
+              className="flex items-center gap-2 rounded p-1 hover:bg-[var(--hover)] transition-colors"
             >
-              <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#5145CD] to-[#7957FF] text-xs font-bold text-white shadow-sm">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-[var(--accent)] text-xs font-bold text-white">
                 {session?.user?.image ? (
                   <img
                     src={session.user.image}
                     alt={session?.user?.name || "Admin"}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover rounded"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   userInitial
                 )}
               </div>
-              <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
+              <span className="text-xs font-bold text-[var(--ink)] hidden sm:inline truncate max-w-[120px]">
+                {session?.user?.name ?? "Admin"}
+              </span>
             </Link>
           </div>
         </header>
@@ -265,4 +283,3 @@ export function AdminPortalShell({ children }: AdminPortalShellProps) {
     </div>
   );
 }
-

@@ -304,174 +304,108 @@ export function CheckInOutCard() {
   const activeQuote =
     punchQuote || (today as { quote?: string | null } | undefined)?.quote;
 
+  const formattedDate = `${now.toLocaleDateString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    day: "numeric",
+    month: "short",
+  })} ${now.toLocaleDateString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    weekday: "short",
+  })}`;
+
+  const currentTimeStr = now.toLocaleTimeString("en-IN", {
+    timeZone: TIMEZONE_IST,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).toLowerCase();
+
   return (
-    <div className="w-full rounded-2xl bg-white border border-[#ECE5F8] p-3.5 sm:p-4 shadow-[0_8px_30px_rgba(78,36,201,0.06)] transition-all">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold tracking-wider text-[#7A6E9B] uppercase">
-          10:00 AM - 07:00 PM • GENERAL
-        </p>
-        {gpsStatus === "active" && (
-          <span
-            className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200/80 transition-colors"
-            title="GPS location tracking is actively connected"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            GPS Active
-          </span>
-        )}
-        {gpsStatus === "ready" && (
-          <span
-            className="flex shrink-0 items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[9px] font-bold text-teal-700 border border-teal-200/80 transition-colors"
-            title="GPS location is available and ready for attendance"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
-            GPS Ready
-          </span>
-        )}
-        {gpsStatus === "denied" && (
-          <button
-            type="button"
-            onClick={() => {
-              toast("error", 
-                "Location access is blocked. Please allow location permissions in browser/phone settings to check in."
-              );
-            }}
-            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-bold text-rose-700 border border-rose-200/90 hover:bg-rose-100 transition-colors"
-            title="Location permission denied. Click for details."
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-            GPS Disabled
-          </button>
-        )}
-        {gpsStatus === "prompt" && (
-          <button
-            type="button"
-            onClick={() => {
-              navigator.geolocation.getCurrentPosition(
-                () => {
-                  setGpsStatus(isOnDuty ? "active" : "ready");
-                  toast("success", "GPS location connected");
-                },
-                (err) => {
-                  if (err.code === err.PERMISSION_DENIED) {
-                    setGpsStatus("denied");
-                    toast("error", "Location permission was denied.");
-                  }
-                },
-                { timeout: 8000 }
-              );
-            }}
-            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200/90 hover:bg-amber-100 transition-colors"
-            title="Click to connect GPS"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-            Connect GPS
-          </button>
-        )}
-        {gpsStatus === "unsupported" && (
-          <span
-            className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] font-bold text-neutral-600 border border-neutral-200"
-            title="Geolocation is not supported by your browser"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-            GPS Unavailable
-          </span>
-        )}
-      </div>
-
-      <div className="mt-2 flex items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5225C5] text-white shadow-[0_3px_10px_rgba(82,37,197,0.3)]">
-          <CalendarClock className="h-4.5 w-4.5 stroke-[2.2px]" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-bold tracking-tight text-[#1C113B] leading-snug">
-            {now.toLocaleDateString("en-IN", {
-              timeZone: TIMEZONE_IST,
-              day: "numeric",
-              month: "short",
-            })}{" "}
-            <span className="font-semibold text-[#1C113B]">
-              {now.toLocaleDateString("en-IN", {
-                timeZone: TIMEZONE_IST,
-                weekday: "short",
-              })}
-            </span>
-          </p>
-          <p className="text-[10px] font-medium text-[#7A6E9B] leading-none mt-0.5">{hours} worked</p>
+    <section className="w-full rounded-[4px] border border-[var(--line)] bg-[var(--bg)] p-5 text-[var(--ink)]">
+      {/* Row 1: Date & GPS Ready */}
+      <div className="flex justify-between items-center text-[13px] text-[var(--muted)]">
+        <span>{formattedDate}</span>
+        <div className="flex items-center gap-1.5 text-[var(--ink)] font-semibold text-[12px]">
+          <i
+            className={cn(
+              "w-2 h-2 rounded-full inline-block",
+              gpsStatus === "denied"
+                ? "bg-[var(--danger)]"
+                : gpsStatus === "ready" || gpsStatus === "active"
+                ? "bg-[var(--ok)]"
+                : "bg-amber-500"
+            )}
+          />
+          <span>{gpsStatus === "denied" ? "GPS ready" : "GPS ready"}</span>
         </div>
       </div>
 
+      {/* Big Display Time */}
+      <div className="mt-3.5 mb-1 text-[46px] leading-none font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
+        {isOnDuty ? formatClock(elapsed) : currentTimeStr}
+      </div>
+
+      {/* Shift & Work Meta */}
+      <div className="text-[13px] text-[var(--muted)]">10:00 AM - 07:00 PM • General</div>
+      <div className="text-[13px] text-[var(--muted)] mt-0.5">{hours} worked</div>
+
+      {/* Error if any */}
       {error && (
-        <div className="mt-2 flex items-start gap-1.5 rounded-xl bg-rose-50 px-2.5 py-1.5 text-[11px] font-medium text-rose-700 border border-rose-200/60">
+        <div className="mt-2.5 flex items-start gap-1.5 rounded-[2px] bg-rose-50 px-2.5 py-1.5 text-[11px] font-medium text-rose-700 border border-rose-200">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
+      {/* Chamfered Clock In / Out Button */}
       {isOnDuty && pastShiftEnd ? (
-        <div className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 text-[11px] font-semibold text-amber-900 shadow-2xs">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <div className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[2px] border border-amber-300 bg-amber-50 text-[13px] font-semibold text-amber-900">
+          <Loader2 className="h-4 w-4 animate-spin" />
           Shift ended 7:00 PM — auto clock-out…
         </div>
       ) : (
-        <div className="mt-2.5 flex gap-2">
-          {/* Left Solid Deep Purple Clock In / Out Button */}
-          <button
-            type="button"
-            disabled={busy || isLoading}
-            onClick={() => punch(isOnDuty ? "out" : "in")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 h-9 sm:h-10 rounded-xl font-bold text-xs text-white transition-all duration-200 active:scale-98 disabled:opacity-70",
-              isOnDuty
-                ? "bg-rose-500 hover:bg-rose-600 shadow-[0_4px_14px_rgba(244,63,94,0.3)]"
-                : "bg-[#5225C5] hover:bg-[#431EB3] shadow-[0_4px_14px_rgba(82,37,197,0.3)]"
-            )}
-          >
-            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            <span>
-              {busyLabel
-                ? busyLabel
-                : isOnDuty
-                  ? "Clock Out"
-                  : hasCompletedSession
-                    ? "Clock In Again"
-                    : "Clock In"}
-            </span>
-          </button>
-
-          {/* Right White Pill with Purple Border Showing Current Time */}
-          <div className="flex flex-1 items-center justify-center rounded-xl border border-[#E7E0F8] bg-[#FAF8FE] h-9 sm:h-10 px-2 shadow-2xs">
-            <span className="tabular-nums text-xs font-bold text-[#5225C5]">
-              {isOnDuty
-                ? formatClock(elapsed)
-                : now.toLocaleTimeString("en-IN", {
-                    timeZone: TIMEZONE_IST,
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  }).toLowerCase()}
-            </span>
-            {today?.checkInTime && (
-              <span className="ml-1.5 flex items-center gap-0.5 text-[9px] font-semibold text-neutral-500">
-                <ArrowDownLeft className="h-2.5 w-2.5 text-emerald-600" />
-                {formatTimeIST(today.checkInTime)}
-              </span>
-            )}
-          </div>
-        </div>
+        <button
+          type="button"
+          disabled={busy || isLoading}
+          onClick={() => punch(isOnDuty ? "out" : "in")}
+          className={cn(
+            "w-full h-[54px] my-4 mb-3.5 border-0 text-white text-[16px] font-semibold cursor-pointer active:brightness-92 transition-all flex items-center justify-center gap-2 select-none",
+            isOnDuty ? "bg-[var(--danger)]" : "bg-[var(--accent)]"
+          )}
+          style={{
+            clipPath:
+              "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)",
+          }}
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          <span>
+            {busyLabel
+              ? busyLabel
+              : isOnDuty
+              ? "Clock Out"
+              : hasCompletedSession
+              ? "Clock In Again"
+              : "Clock In"}
+          </span>
+        </button>
       )}
 
-      {activeQuote && (
-        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-[#FAF8FE] px-2 py-1 text-[10px] text-neutral-600 border border-purple-100/80">
-          <Sparkles className="h-3 w-3 text-[#5225C5] shrink-0" />
-          <p className="truncate italic leading-none">&ldquo;{activeQuote}&rdquo;</p>
-        </div>
-      )}
-
-      <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-[#7D7398]">
-        <MapPin className="h-3 w-3 text-[#8E84A8] shrink-0" />
+      {/* Work Location */}
+      <div className="flex items-center gap-2 text-[13px] text-[var(--muted)]">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-4 h-4 shrink-0"
+        >
+          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+          <circle cx="12" cy="10" r="3" />
+        </svg>
         <span className="truncate">{locationLabel}</span>
       </div>
-    </div>
+    </section>
   );
 }

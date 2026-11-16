@@ -8,7 +8,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "animate-pulse rounded-lg bg-neutral-200/80",
+        "animate-pulse rounded bg-[var(--field)] border border-[var(--line)]",
         className
       )}
     />
@@ -17,7 +17,7 @@ export function Skeleton({
 
 export function PageSkeleton() {
   return (
-    <div className="section-gap">
+    <div className="space-y-6">
       <div className="space-y-2">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-72" />
@@ -35,10 +35,10 @@ export function PageSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="space-y-2 rounded-xl border border-neutral-200 bg-white p-4">
+    <div className="space-y-2 rounded border border-[var(--line)] bg-[var(--card)] p-4">
       <Skeleton className="h-10 w-full" />
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-14 w-full" />
+        <Skeleton key={i} className="h-12 w-full" />
       ))}
     </div>
   );

@@ -127,7 +127,7 @@ export default function LeaveTypesPage() {
               type="checkbox"
               checked={carryForward}
               onChange={(e) => setCarryForward(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-300 text-[#5D3EBC] accent-[#5D3EBC]"
+              className="h-4 w-4 rounded border-neutral-300 text-[var(--accent)] accent-[var(--accent)]"
             />
             Carry forward unused days allowed
           </label>
@@ -136,7 +136,7 @@ export default function LeaveTypesPage() {
               type="checkbox"
               checked={requiresApproval}
               onChange={(e) => setRequiresApproval(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-300 text-[#5D3EBC] accent-[#5D3EBC]"
+              className="h-4 w-4 rounded border-neutral-300 text-[var(--accent)] accent-[var(--accent)]"
             />
             Requires managerial approval
           </label>
@@ -144,7 +144,7 @@ export default function LeaveTypesPage() {
             <button
               type="submit"
               disabled={createMutation.isLoading || !name.trim()}
-              className="flex items-center gap-2 rounded-xl bg-[#5D3EBC] px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
+              className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
             >
               <Plus className="h-4 w-4" />
               {createMutation.isLoading ? "Saving..." : "Add Leave Type"}

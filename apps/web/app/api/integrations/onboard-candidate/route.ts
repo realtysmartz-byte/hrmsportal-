@@ -3,6 +3,8 @@ import { prisma } from "@realty-smartz/db";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 const HRMS_SECRET_KEY = process.env.HRMS_SECRET_KEY || "rs_onboarding_secret_2026";
 const DEFAULT_EMPLOYEE_PASSWORD = "Realty@123";
 const EMPLOYEE_CODE_PREFIX = "RS-";

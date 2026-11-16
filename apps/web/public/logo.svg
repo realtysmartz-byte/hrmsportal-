@@ -1,4 +1,20 @@
-<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <polygon points="18,2 32,10 32,26 18,34 4,26 4,10" fill="#0F5C74"/>
-  <polygon points="18,8 26,13 26,23 18,28 10,23 10,13" fill="#A82A42" opacity="0.85"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="115" fill="#2B2FD1"/>
+  <path fill="#FFFFFF" d="
+    M 136 136
+    L 208 136
+    L 208 224
+    L 304 224
+    L 304 136
+    L 340 136
+    L 376 172
+    L 376 376
+    L 304 376
+    L 304 288
+    L 208 288
+    L 208 376
+    L 172 376
+    L 136 340
+    Z
+  "/>
 </svg>

@@ -1,4 +1,3 @@
-import { Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function EmptyState({
@@ -15,16 +14,13 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50/80 px-6 py-12 text-center",
+        "flex flex-col items-center justify-center rounded border border-[var(--line)] bg-[var(--card)] px-6 py-10 text-center",
         className
       )}
     >
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-        <Inbox className="h-5 w-5" />
-      </div>
-      <p className="font-display text-heading-md text-neutral-800">{title}</p>
+      <p className="text-sm font-semibold text-[var(--ink)]">{title}</p>
       {description && (
-        <p className="mt-1 max-w-sm text-caption text-neutral-500">
+        <p className="mt-1 max-w-sm text-xs text-[var(--muted)]">
           {description}
         </p>
       )}

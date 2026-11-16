@@ -146,10 +146,21 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
-/** ID-card brand colours (same as employee ID card UI) */
-const BRAND = "#1F5F7A";
-const BRAND_LIGHT = "#7CC0E4";
-const FONT = "Arial, Helvetica, sans-serif";
+/** Modern Realty Smartz Portal design tokens matching the new mobile & web UI */
+const BRAND = "#2B2FD1"; // Royal Blue primary accent
+const BRAND_SOFT = "#ECECFB"; // Soft blue badge background
+const BRAND_LINE = "#E6E7EA"; // 1px light border line
+const INK = "#111318"; // Dark heading and primary text
+const MUTED = "#6B7078"; // Secondary text
+const BG_PAGE = "#F6F6F8"; // Clean soft background
+const BG_CARD = "#FFFFFF"; // Pure white card
+const COLOR_OK = "#1FA36A"; // Emerald green
+const COLOR_OK_BG = "#E7F7EF";
+const COLOR_DANGER = "#D6283A"; // Ruby red
+const COLOR_DANGER_BG = "#FDE8E8";
+const COLOR_WARN = "#D97706"; // Amber
+const COLOR_WARN_BG = "#FEF3C7";
+const FONT = "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 function appBaseUrl(): string {
   const url = process.env.NEXTAUTH_URL;
@@ -165,40 +176,57 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Two-column rows styled like ID-card info lines */
+/** Two-column rows styled matching the new portal cards */
 export function detailsTable(rows: [string, string][]): string {
   const tr = rows
     .map(
       ([label, value], i) => `<tr>
-          <td style="padding:9px 0;font-size:13px;color:#1F2937;width:42%;font-weight:700;${i ? "border-top:1px solid #D7E8F2;" : ""}">${escapeHtml(label)}</td>
-          <td style="padding:9px 0;font-size:13px;color:#111827;font-weight:600;${i ? "border-top:1px solid #D7E8F2;" : ""}">${escapeHtml(String(value))}</td>
+          <td style="padding:9px 12px;font-size:12px;color:${MUTED};width:38%;font-weight:600;${i ? `border-top:1px solid ${BRAND_LINE};` : ""}font-family:${FONT};">${escapeHtml(label)}</td>
+          <td style="padding:9px 12px;font-size:13px;color:${INK};font-weight:600;${i ? `border-top:1px solid ${BRAND_LINE};` : ""}font-family:${FONT};">${escapeHtml(String(value))}</td>
         </tr>`
     )
     .join("");
-  return `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 4px 0;border-collapse:collapse;">${tr}</table>`;
+  return `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 4px 0;background:${BG_PAGE};border:1px solid ${BRAND_LINE};border-radius:4px;border-collapse:separate;border-spacing:0;overflow:hidden;">${tr}</table>`;
 }
 
 /**
- * ID-card style email shell (no signature block).
- * System fonts only — no external CSS/fonts (spam-safe).
+ * Modern email shell matching the new Realty Smartz design palette.
+ * System fonts with Manrope fallback — clean, spam-safe, and responsive.
  */
 function layout(args: {
   title: string;
   badge?: string;
   badgeColor?: string;
+  badgeBg?: string;
   body: string;
-  actionButton?: { text: string; url: string };
+  actionButton?: { text: string; url: string; color?: string };
 }) {
   const logo = `${appBaseUrl()}/logo.png`;
-  const color = args.badgeColor || BRAND;
+  let color = args.badgeColor || BRAND;
+  let bg = args.badgeBg || BRAND_SOFT;
+
+  if (args.badge) {
+    const b = args.badge.toUpperCase();
+    if (b.includes("APPROVED") || b.includes("PRESENT") || b.includes("ACTIVE") || b.includes("CONFIRMED") || b.includes("VERIFIED")) {
+      color = COLOR_OK;
+      bg = COLOR_OK_BG;
+    } else if (b.includes("REJECT") || b.includes("CANCEL") || b.includes("GEOFENCE") || b.includes("TERMINAT") || b.includes("EXIT") || b.includes("OFF")) {
+      color = COLOR_DANGER;
+      bg = COLOR_DANGER_BG;
+    } else if (b.includes("LATE") || b.includes("HALF") || b.includes("EARLY") || b.includes("PENDING") || b.includes("PROBATION")) {
+      color = COLOR_WARN;
+      bg = COLOR_WARN_BG;
+    }
+  }
 
   const badgeHtml = args.badge
-    ? `<span style="display:inline-block;padding:5px 12px;background:#E8F4FA;color:${color};border:1px solid #B8D9EA;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;font-family:${FONT};">${escapeHtml(args.badge)}</span>`
+    ? `<span style="display:inline-block;padding:4px 10px;background:${bg};color:${color};border:1px solid ${color}40;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;font-family:${FONT};">${escapeHtml(args.badge)}</span>`
     : "";
 
+  const buttonColor = args.actionButton?.color || BRAND;
   const buttonHtml = args.actionButton
-    ? `<table border="0" cellspacing="0" cellpadding="0" style="margin:20px 0 4px 0;"><tr><td style="background:${BRAND};border-radius:8px;">
-        <a href="${args.actionButton.url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 22px;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;font-family:${FONT};">${escapeHtml(args.actionButton.text)}</a>
+    ? `<table border="0" cellspacing="0" cellpadding="0" style="margin:20px 0 6px 0;"><tr><td style="background:${buttonColor};border-radius:4px;">
+        <a href="${args.actionButton.url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:14px;font-family:${FONT};border-radius:4px;">${escapeHtml(args.actionButton.text)}</a>
       </td></tr></table>`
     : "";
 
@@ -211,59 +239,62 @@ function layout(args: {
   <meta name="supported-color-schemes" content="light" />
   <title>${escapeHtml(args.title)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#EEF4F8;font-family:${FONT};color:#1F2937;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#EEF4F8;padding:24px 12px;">
+<body style="margin:0;padding:0;background-color:${BG_PAGE};font-family:${FONT};color:${INK};-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:${BG_PAGE};padding:32px 14px;">
     <tr>
       <td align="center">
-        <!-- ID-card shell -->
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:420px;background-color:#FFFFFF;border-radius:22px;border:1px solid #D5E4EE;overflow:hidden;">
+        <!-- Main Card Shell -->
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:440px;background-color:${BG_CARD};border-radius:4px;border:1px solid ${BRAND_LINE};overflow:hidden;">
+          <!-- Top Accent Band (Royal Blue #2B2FD1) -->
           <tr>
-            <td style="height:5px;background:${BRAND};font-size:0;line-height:0;">&nbsp;</td>
+            <td style="height:4px;background:${BRAND};font-size:0;line-height:0;">&nbsp;</td>
           </tr>
 
-          <!-- Brand row (matches ID card) -->
+          <!-- Header Row: Square Logo + Brand Title + Badge -->
           <tr>
-            <td style="padding:20px 24px 8px 24px;background-color:#FAFCFE;">
-              <table role="presentation" border="0" cellspacing="0" cellpadding="0">
+            <td style="padding:16px 22px;border-bottom:1px solid ${BRAND_LINE};background-color:${BG_CARD};">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td style="vertical-align:middle;">
-                    <img src="${logo}" width="36" height="36" alt="Realty Smartz" style="display:block;border:0;" />
+                  <td style="width:36px;vertical-align:middle;">
+                    <img src="${logo}" width="34" height="34" alt="Realty Smartz" style="display:block;border:0;border-radius:4px;" />
                   </td>
-                  <td style="vertical-align:middle;padding-left:10px;">
-                    <div style="font-size:12px;font-weight:800;letter-spacing:0.6px;color:${BRAND};font-family:${FONT};">REALTY SMARTZ</div>
-                    <div style="font-size:11px;font-weight:600;color:${BRAND_LIGHT};letter-spacing:1px;font-family:${FONT};">HRMS</div>
+                  <td style="vertical-align:middle;padding-left:12px;">
+                    <div style="font-size:13px;font-weight:700;color:${INK};letter-spacing:-0.2px;font-family:${FONT};line-height:1.2;">Realty Smartz</div>
+                    <div style="font-size:11px;font-weight:600;color:${BRAND};letter-spacing:0.6px;font-family:${FONT};margin-top:2px;">HRMS Portal</div>
                   </td>
-                  <td style="padding-left:12px;vertical-align:middle;">
-                    <div style="width:3px;height:36px;background:${BRAND_LIGHT};border-radius:2px;font-size:0;">&nbsp;</div>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;padding:3px 8px;background:${BRAND_SOFT};color:${BRAND};font-size:10px;font-weight:700;border-radius:2px;letter-spacing:0.5px;font-family:${FONT};">OFFICIAL</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
+          <!-- Content Body -->
           <tr>
-            <td style="padding:16px 24px 8px 24px;">
-              ${badgeHtml}
-              <h1 style="margin:12px 0 10px 0;font-size:20px;font-weight:700;color:#111827;line-height:1.3;font-family:${FONT};">${escapeHtml(args.title)}</h1>
-              <div style="font-size:14px;line-height:1.6;color:#374151;font-family:${FONT};">${args.body}</div>
+            <td style="padding:22px 22px 14px 22px;background-color:${BG_CARD};">
+              ${badgeHtml ? `<div style="margin-bottom:12px;">${badgeHtml}</div>` : ""}
+              <h1 style="margin:0 0 12px 0;font-size:18px;font-weight:700;color:${INK};line-height:1.3;letter-spacing:-0.3px;font-family:${FONT};">${escapeHtml(args.title)}</h1>
+              <div style="font-size:13px;line-height:1.6;color:${INK};font-family:${FONT};">${args.body}</div>
               ${buttonHtml}
             </td>
           </tr>
 
-          <!-- Minimal company footer — no signature -->
+          <!-- Footer -->
           <tr>
-            <td style="padding:16px 24px 22px 24px;border-top:1px solid #E3EEF6;">
-              <div style="font-size:12px;font-weight:700;color:${BRAND};font-family:${FONT};">Realty Smartz Private Limited</div>
-              <div style="font-size:11px;color:#6B7280;margin-top:4px;line-height:1.5;font-family:${FONT};">
-                www.realtysmartz.in &nbsp;|&nbsp; info@realtysmartz.in<br />
-                11th Floor, Spaze Palazo, Sector 69, Gurugram
+            <td style="padding:16px 22px;border-top:1px solid ${BRAND_LINE};background-color:${BG_PAGE};">
+              <div style="font-size:12px;font-weight:700;color:${INK};font-family:${FONT};">Realty Smartz Private Limited</div>
+              <div style="font-size:11px;color:${MUTED};margin-top:3px;line-height:1.5;font-family:${FONT};">
+                11th Floor, Spaze Palazo, Sector 69, Gurugram<br />
+                <a href="https://www.realtysmartz.in" target="_blank" style="color:${BRAND};text-decoration:none;font-weight:600;">www.realtysmartz.in</a> &nbsp;·&nbsp; info@realtysmartz.in
               </div>
             </td>
           </tr>
         </table>
 
-        <div style="max-width:420px;font-size:11px;color:#9CA3AF;line-height:1.5;padding:14px 8px 0 8px;text-align:center;font-family:${FONT};">
-          Official HRMS notification from Realty Smartz. Please do not reply to this message.
+        <!-- Sub-footer note -->
+        <div style="max-width:440px;font-size:11px;color:${MUTED};line-height:1.5;padding:14px 12px 0 12px;text-align:center;font-family:${FONT};">
+          This is an automated operational notification from Realty Smartz HRMS. Please do not reply directly to this email.
         </div>
       </td>
     </tr>
@@ -405,7 +436,7 @@ export async function notifyWelcomeEmployee(args: {
   const body = `
     <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>,</p>
     <p style="margin:0 0 14px 0;">Your Realty Smartz HRMS account is ready. Keep this employee card for your records:</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;margin:0 0 14px 0;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;margin:0 0 14px 0;">
       <tr>
         <td style="padding:16px 18px;">
           <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px;">${escapeHtml(args.employeeName)}</div>
@@ -421,7 +452,7 @@ export async function notifyWelcomeEmployee(args: {
         </td>
       </tr>
     </table>
-    <p style="margin:0;font-size:13px;color:#4B5563;">Please change your password after first login.</p>
+    <p style="margin:0;font-size:13px;color:#6B7078;">Please change your password after first login.</p>
   `;
 
   const html = layout({
@@ -487,7 +518,7 @@ export async function notifyPunchDetails(args: {
 
   const body = `
     <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, your check-in is recorded.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Employee", `${args.employeeName} (${args.employeeCode})`],
@@ -499,7 +530,7 @@ export async function notifyPunchDetails(args: {
         ])}
       </td></tr>
     </table>
-    <p style="margin:12px 0 0 0;font-size:13px;color:#4B5563;">${note}</p>
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7078;">${note}</p>
   `;
 
   const html = layout({
@@ -549,7 +580,7 @@ export async function notifyCheckOutDetails(args: {
 
   const body = `
     <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, your check-out is recorded.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Employee", `${args.employeeName} (${args.employeeCode})`],
@@ -620,7 +651,7 @@ export async function notifyOutsideGeofence(args: {
 
   const body = `
     <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, check-in at <strong>${escapeHtml(time)}</strong> was outside the office geofence.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Employee", `${args.employeeName} (${args.employeeCode})`],
@@ -659,7 +690,7 @@ export async function notifyLeaveApplied(args: {
 }) {
   const body = `
     <p style="margin:0 0 12px 0;">Leave request from <strong>${escapeHtml(args.employeeName)}</strong>.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Employee", args.employeeName],
@@ -702,7 +733,7 @@ export async function notifyLeaveDecision(args: {
 }) {
   const body = `
     <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, your leave was <strong>${args.action === "APPROVED" ? "approved" : "rejected"}</strong>.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Leave type", args.leaveType],
@@ -740,7 +771,7 @@ export async function notifyLeaveCancelled(args: {
 }) {
   const body = `
     <p style="margin:0 0 12px 0;"><strong>${escapeHtml(args.employeeName)}</strong> cancelled a leave request.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Leave type", args.leaveType],
@@ -840,7 +871,7 @@ export async function notifyEmployeeStatusChange(args: {
   const cfg = configs[args.newStatus] || configs.ACTIVE;
   const body = `
     <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, ${cfg.intro}</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px;">${escapeHtml(args.employeeName)}</div>
         ${detailsTable(meta)}
@@ -922,7 +953,7 @@ export async function notifyLocationDisabledAlert(args: {
 
   const body = `
     <p style="margin:0 0 12px 0;">Location services were off during attendance for <strong>${escapeHtml(args.employeeName)}</strong>.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F7FBFD;border:1px solid #C5DCE8;border-radius:14px;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
       <tr><td style="padding:16px 18px;">
         ${detailsTable([
           ["Employee", `${args.employeeName} (${args.employeeCode})`],
@@ -934,7 +965,7 @@ export async function notifyLocationDisabledAlert(args: {
         ])}
       </td></tr>
     </table>
-    <p style="margin:12px 0 0 0;font-size:13px;color:#4B5563;">Turn on GPS to punch within the 200m office geofence.</p>
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7078;">Turn on GPS to punch within the 200m office geofence.</p>
   `;
 
   const html = layout({
@@ -987,7 +1018,7 @@ export async function testSmtpConnection(
         badgeColor: BRAND,
         body: `
           <p style="margin:0 0 10px 0;">Hostinger SMTP is working for Realty Smartz HRMS.</p>
-          <p style="margin:0;font-size:13px;color:#4B5563;">Welcome, attendance, leave, and status emails will use this ID-card style template.</p>
+          <p style="margin:0;font-size:13px;color:#6B7078;">Welcome, attendance, leave, and status emails will use this ID-card style template.</p>
         `,
       }),
     });

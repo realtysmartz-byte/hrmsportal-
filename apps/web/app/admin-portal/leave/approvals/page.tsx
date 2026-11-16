@@ -108,7 +108,7 @@ export default function LeaveApprovalsPage() {
               type="button"
               onClick={() => setActiveTab("PENDING")}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${activeTab === "PENDING"
-                  ? "bg-[#5D3EBC] text-white shadow-xs"
+                  ? "bg-[var(--accent)] text-white"
                   : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-50"
                 }`}
             >
@@ -130,7 +130,7 @@ export default function LeaveApprovalsPage() {
               type="button"
               onClick={() => setActiveTab("APPROVED")}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${activeTab === "APPROVED"
-                  ? "bg-[#5D3EBC] text-white shadow-xs"
+                  ? "bg-[var(--accent)] text-white"
                   : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-50"
                 }`}
             >
@@ -142,7 +142,7 @@ export default function LeaveApprovalsPage() {
               type="button"
               onClick={() => setActiveTab("REJECTED")}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${activeTab === "REJECTED"
-                  ? "bg-[#5D3EBC] text-white shadow-xs"
+                  ? "bg-[var(--accent)] text-white"
                   : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-50"
                 }`}
             >
@@ -154,7 +154,7 @@ export default function LeaveApprovalsPage() {
               type="button"
               onClick={() => setActiveTab("ALL")}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${activeTab === "ALL"
-                  ? "bg-[#5D3EBC] text-white shadow-xs"
+                  ? "bg-[var(--accent)] text-white"
                   : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-50"
                 }`}
             >
@@ -206,7 +206,7 @@ export default function LeaveApprovalsPage() {
                         <TableRow key={r.id} className="hover:bg-neutral-50/70 transition-colors">
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-white">
                                 {r.employee.firstName?.[0]}
                                 {r.employee.lastName?.[0]}
                               </div>
@@ -242,21 +242,32 @@ export default function LeaveApprovalsPage() {
                           </TableCell>
 
                             <TableCell>
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${r.status === "APPROVED"
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : r.status === "REJECTED"
-                                      ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                      : r.status === "CANCELLED"
-                                        ? "bg-neutral-100 text-neutral-500 border border-neutral-200"
-                                        : "bg-amber-50 text-amber-700 border border-amber-200"
-                                  }`}
-                              >
-                                {r.status === "APPROVED" && <Check className="h-3 w-3" />}
-                                {r.status === "REJECTED" && <X className="h-3 w-3" />}
-                                {r.status === "PENDING" && <Clock className="h-3 w-3" />}
-                                {r.status}
-                              </span>
+                              <div className="space-y-1">
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-[2px] px-2 py-0.5 text-[11px] font-bold border ${r.status === "APPROVED"
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      : r.status === "REJECTED"
+                                        ? "bg-rose-50 text-rose-700 border-rose-200"
+                                        : r.status === "CANCELLED"
+                                          ? "bg-neutral-100 text-neutral-500 border-neutral-200"
+                                          : "bg-amber-50 text-amber-700 border-amber-200"
+                                    }`}
+                                >
+                                  {r.status === "APPROVED" && <Check className="h-3 w-3" />}
+                                  {r.status === "REJECTED" && <X className="h-3 w-3" />}
+                                  {r.status === "PENDING" && <Clock className="h-3 w-3" />}
+                                  {r.status}
+                                </span>
+                                {(r as any).managerStatus === "APPROVED" ? (
+                                  <span className="block text-[10px] font-semibold text-emerald-600">
+                                    ✓ Manager Approved
+                                  </span>
+                                ) : (r as any).managerStatus === "PENDING" && (r.employee as any).manager ? (
+                                  <span className="block text-[10px] font-semibold text-amber-600">
+                                    • Waiting for Manager
+                                  </span>
+                                ) : null}
+                              </div>
                             </TableCell>
 
                             <TableCell className="max-w-xs text-xs">
@@ -432,7 +443,7 @@ export default function LeaveApprovalsPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5D3EBC] text-xs font-bold text-white">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-white">
                             {r.employee.firstName?.[0]}
                             {r.employee.lastName?.[0]}
                           </div>
@@ -474,7 +485,7 @@ export default function LeaveApprovalsPage() {
                         </div>
                         <div className="flex items-center justify-between text-neutral-700">
                           <span className="text-neutral-400 font-medium">Duration:</span>
-                          <span className="font-bold text-[#5D3EBC]">
+                          <span className="font-bold text-[var(--accent)]">
                             {r.isHalfDay
                               ? r.halfDaySlot === "SECOND_HALF"
                                 ? HALF_DAY_SLOT_LABELS.SECOND_HALF

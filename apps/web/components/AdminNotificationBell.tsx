@@ -9,10 +9,7 @@ import {
   CalendarDays,
   MapPin,
   Clock,
-  UserCheck,
   Briefcase,
-  ChevronRight,
-  ExternalLink,
   Target,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -75,17 +72,17 @@ export function AdminNotificationBell() {
   const getIconForType = (type: string) => {
     switch (type) {
       case "LEAVE":
-        return <CalendarDays className="h-4 w-4 text-purple-600" />;
+        return <CalendarDays className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />;
       case "GEOFENCE":
-        return <MapPin className="h-4 w-4 text-amber-600" />;
+        return <MapPin className="h-4 w-4 text-[var(--warn)]" strokeWidth={1.8} />;
       case "LATE":
-        return <Clock className="h-4 w-4 text-rose-600" />;
+        return <Clock className="h-4 w-4 text-[var(--danger)]" strokeWidth={1.8} />;
       case "CANDIDATE":
-        return <Briefcase className="h-4 w-4 text-blue-600" />;
+        return <Briefcase className="h-4 w-4 text-[var(--info)]" strokeWidth={1.8} />;
       case "TARGET":
-        return <Target className="h-4 w-4 text-[#0284C7]" />;
+        return <Target className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />;
       default:
-        return <Bell className="h-4 w-4 text-neutral-600" />;
+        return <Bell className="h-4 w-4 text-[var(--muted)]" strokeWidth={1.8} />;
     }
   };
 
@@ -98,13 +95,13 @@ export function AdminNotificationBell() {
         aria-label="Toggle notifications menu"
         title={unreadCount > 0 ? `${unreadCount} Pending Notifications` : "Notifications"}
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-100 transition-colors cursor-pointer",
-          isOpen && "bg-neutral-100 text-neutral-900"
+          "relative flex h-9 w-9 items-center justify-center rounded text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] transition-colors cursor-pointer",
+          isOpen && "bg-[var(--hover)] text-[var(--ink)]"
         )}
       >
-        <Bell className="h-4 w-4" />
+        <Bell className="h-[19px] w-[19px]" strokeWidth={1.8} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[#6D28D9] text-[9px] font-bold text-white ring-2 ring-white animate-in zoom-in-50 duration-200">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[var(--accent)] text-[9px] font-bold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -114,18 +111,18 @@ export function AdminNotificationBell() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-neutral-200 bg-white shadow-2xl z-50 overflow-hidden"
+            className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded border border-[var(--line)] bg-[var(--card)] shadow-lg z-50 overflow-hidden text-[var(--ink)]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3 bg-neutral-50/80">
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3 bg-[var(--field)]">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-neutral-900">Notifications</span>
+                <span className="text-sm font-semibold text-[var(--ink)]">Notifications</span>
                 {unreadCount > 0 && (
-                  <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                  <span className="rounded px-2 py-0.5 text-[10px] font-semibold bg-[var(--accent)]/14 text-[var(--accent)]">
                     {unreadCount} pending
                   </span>
                 )}
@@ -133,25 +130,25 @@ export function AdminNotificationBell() {
               <Link
                 href="/admin-portal/leave/approvals"
                 onClick={() => setIsOpen(false)}
-                className="text-[11px] font-semibold text-[#5145CD] hover:underline"
+                className="text-[11px] font-semibold text-[var(--accent)] hover:underline"
               >
                 Approvals
               </Link>
             </div>
 
             {/* Notification List Body */}
-            <div className="max-h-[380px] overflow-y-auto divide-y divide-neutral-100">
+            <div className="max-h-[380px] overflow-y-auto divide-y divide-[var(--line)]">
               {isLoading ? (
-                <div className="p-6 text-center text-xs text-neutral-500">
+                <div className="p-6 text-center text-xs text-[var(--muted)]">
                   Loading notifications…
                 </div>
               ) : items.length === 0 ? (
                 <div className="p-8 text-center">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2.5">
-                    <CheckCircle2 className="h-5 w-5" />
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded bg-[var(--ok)]/14 text-[var(--ok)] mb-2.5">
+                    <CheckCircle2 className="h-5 w-5" strokeWidth={1.8} />
                   </div>
-                  <p className="text-sm font-bold text-neutral-800">All caught up!</p>
-                  <p className="text-xs text-neutral-500 mt-0.5">
+                  <p className="text-sm font-semibold text-[var(--ink)]">All caught up</p>
+                  <p className="text-xs text-[var(--muted)] mt-0.5">
                     No pending leave requests or attendance alerts right now.
                   </p>
                 </div>
@@ -163,7 +160,7 @@ export function AdminNotificationBell() {
                       setIsOpen(false);
                       router.push(item.href);
                     }}
-                    className="flex items-start gap-3 p-3.5 hover:bg-neutral-50 transition-colors cursor-pointer group"
+                    className="flex items-start gap-3 p-3.5 hover:bg-[var(--hover)] transition-colors cursor-pointer group"
                   >
                     {/* Icon or Avatar */}
                     <div className="shrink-0 mt-0.5">
@@ -171,10 +168,10 @@ export function AdminNotificationBell() {
                         <img
                           src={item.avatar}
                           alt=""
-                          className="h-8 w-8 rounded-full object-cover ring-1 ring-neutral-200"
+                          className="h-8 w-8 rounded object-cover border border-[var(--line)]"
                         />
                       ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100">
+                        <div className="flex h-8 w-8 items-center justify-center rounded bg-[var(--field)]">
                           {getIconForType(item.type)}
                         </div>
                       )}
@@ -182,45 +179,21 @@ export function AdminNotificationBell() {
 
                     {/* Content */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-xs font-bold text-neutral-900 truncate">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-[var(--ink)] truncate">
                           {item.title}
                         </p>
-                        <span className="text-[10px] text-neutral-400 shrink-0">
+                        <span className="text-[10px] text-[var(--muted)] shrink-0">
                           {formatRelativeTime(item.time)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-neutral-600 line-clamp-2 mt-0.5 leading-snug">
+                      <p className="text-xs text-[var(--muted)] line-clamp-2 mt-0.5">
                         {item.subtitle}
                       </p>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold border",
-                            item.badgeColor
-                          )}
-                        >
-                          {item.badgeText}
-                        </span>
-                        <span className="text-[10px] text-neutral-400 group-hover:text-[#5145CD] font-medium flex items-center gap-0.5 ml-auto transition-colors">
-                          Review <ChevronRight className="h-2.5 w-2.5" />
-                        </span>
-                      </div>
                     </div>
                   </div>
                 ))
               )}
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-neutral-100 p-2.5 bg-neutral-50/50 flex items-center justify-between text-xs">
-              <Link
-                href="/admin-portal/leave/approvals"
-                onClick={() => setIsOpen(false)}
-                className="w-full text-center py-1 font-semibold text-[#5145CD] hover:text-[#4338CA] transition-colors"
-              >
-                View All Pending Leave Approvals →
-              </Link>
             </div>
           </motion.div>
         )}
@@ -228,4 +201,3 @@ export function AdminNotificationBell() {
     </div>
   );
 }
-

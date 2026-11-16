@@ -1,69 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
-  Network,
   Building2,
   Briefcase,
-  UserPlus,
   Clock,
-  FileText,
-  Settings,
-  BriefcaseBusiness,
-  ArrowLeftRight,
-  ChevronRight,
-  Award,
-  Target,
-  PanelLeftClose,
-  PanelLeftOpen,
   MapPin,
   Navigation,
-  Download,
-  FileSpreadsheet,
-  Mail,
-  Bot,
-  Power,
+  FileText,
+  Target,
+  BriefcaseBusiness,
   Banknote,
+  Settings,
+  FileSpreadsheet,
+  Bot,
   ShieldCheck,
+  Mail,
   Layers,
+  PanelLeft,
+  SlidersHorizontal,
+  LogOut,
+  type LucideIcon,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
-const coreNavItems = [
-  { href: "/admin-portal/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { href: "/admin-portal/employees", label: "Employees", icon: Users, permission: "employees" },
-  { href: "/admin-portal/departments", label: "Departments", icon: Building2, permission: "departments" },
-  { href: "/admin-portal/designations", label: "Designations", icon: Briefcase, permission: "departments" },
-  { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock, permission: "attendance" },
-  { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin, permission: "attendance" },
-  { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation, permission: "attendance" },
-  { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText, permission: "leave" },
-  { href: "/admin-portal/performance", label: "Performance", icon: Target, permission: "performance" },
-  { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness, permission: "recruitment" },
-  { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote, permission: "payroll" },
-];
+interface NavItemDef {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  permission?: string;
+  adminOnly?: boolean;
+  superAdminOnly?: boolean;
+}
 
-const settingsNavItems = [
-  { href: "/admin-portal/organizations", label: "Companies (Multi-Tenant)", icon: Layers, superAdminOnly: true },
-  { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings, permission: "settings" },
-  { href: "/admin-portal/settings/google-sheets", label: "Google Sheets Sync", icon: FileSpreadsheet, permission: "settings" },
-  { href: "/admin-portal/settings/telegram", label: "Automations", icon: Bot, permission: "settings" },
-  { href: "/admin-portal/settings/staff-permissions", label: "Staff & Permissions", icon: ShieldCheck, adminOnly: true },
-  { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText, permission: "settings" },
-  { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail, superAdminOnly: true },
+interface NavGroupDef {
+  title: string;
+  items: NavItemDef[];
+}
+
+const navGroups: NavGroupDef[] = [
+  {
+    title: "Overview",
+    items: [
+      { href: "/admin-portal/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
+    ],
+  },
+  {
+    title: "People",
+    items: [
+      { href: "/admin-portal/employees", label: "Employees", icon: Users, permission: "employees" },
+      { href: "/admin-portal/departments", label: "Departments", icon: Building2, permission: "departments" },
+      { href: "/admin-portal/designations", label: "Designations", icon: Briefcase, permission: "departments" },
+    ],
+  },
+  {
+    title: "Attendance",
+    items: [
+      { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock, permission: "attendance" },
+      { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin, permission: "attendance" },
+      { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation, permission: "attendance" },
+    ],
+  },
+  {
+    title: "Work",
+    items: [
+      { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText, permission: "leave" },
+      { href: "/admin-portal/performance", label: "Performance", icon: Target, permission: "performance" },
+      { href: "/admin-portal/recruitment", label: "Recruitment", icon: BriefcaseBusiness, permission: "recruitment" },
+      { href: "/admin-portal/payroll", label: "Payroll", icon: Banknote, permission: "payroll" },
+    ],
+  },
+  {
+    title: "Settings",
+    items: [
+      { href: "/admin-portal/settings/company", label: "Company Settings", icon: Settings, permission: "settings" },
+      { href: "/admin-portal/settings/google-sheets", label: "Google Sheets", icon: FileSpreadsheet, permission: "settings" },
+      { href: "/admin-portal/settings/telegram", label: "Automations", icon: Bot, permission: "settings" },
+      { href: "/admin-portal/settings/staff-permissions", label: "Staff & Permissions", icon: ShieldCheck, adminOnly: true },
+      { href: "/admin-portal/settings/leave-types", label: "Leave Types", icon: FileText, permission: "settings" },
+      { href: "/admin-portal/settings/email", label: "Email Service", icon: Mail, superAdminOnly: true },
+      { href: "/admin-portal/organizations", label: "Multi-Tenant", icon: Layers, superAdminOnly: true },
+    ],
+  },
 ];
 
 interface AdminSidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onCloseMobile?: () => void;
+  hideCollapse?: boolean;
 }
 
 export function AdminSidebar({
@@ -74,23 +105,13 @@ export function AdminSidebar({
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const userInitial = session?.user?.name?.[0] ?? "H";
-  const userName = session?.user?.name ?? "HR Admin";
-  const userRole = (session?.user?.role ?? "ADMIN").replace("_", " ");
+  const userInitial = (session?.user?.name?.[0] || "H").toUpperCase();
+  const userName = session?.user?.name || "HR Admin";
+  const userRole = (session?.user?.role || "Admin").replace("_", " ");
 
   const { data: permData } = trpc.employee.getMyPermissions.useQuery(undefined, {
     staleTime: 60_000,
   });
-  const { data: orgData } = trpc.organization.getCurrent.useQuery(undefined, {
-    staleTime: 5 * 60_000,
-  });
-
-  const companyName = orgData?.name || "Realty Smartz";
-  const companyLogo = orgData?.logoUrl || "/logo.png";
-  const companyTagline =
-    orgData?.slug === "realty" || !orgData
-      ? "People • Process • Progress"
-      : "HR & Workforce Operations";
 
   const isSuperAdmin = session?.user?.role === "ADMIN" || Boolean(permData?.isSuperAdmin);
   const isPlatformSuperAdmin =
@@ -98,316 +119,218 @@ export function AdminSidebar({
     (session?.user?.organizationId === "org_default_realty" || !session?.user?.organizationId);
   const userPerms = permData?.permissions ?? ["dashboard", "attendance", "leave"];
 
-  const visibleCoreItems = coreNavItems.filter(
-    (item) => isSuperAdmin || userPerms.includes("*") || userPerms.includes(item.permission)
-  );
-
-  const visibleSettingsItems = settingsNavItems.filter((item) => {
-    if ((item as any).superAdminOnly) return isPlatformSuperAdmin;
+  const filterItem = (item: NavItemDef) => {
+    if (item.superAdminOnly) return isPlatformSuperAdmin;
     if (item.adminOnly) return isSuperAdmin;
-    return isSuperAdmin || userPerms.includes("*") || (item.permission ? userPerms.includes(item.permission) : false);
-  });
+    if (item.permission) {
+      return isSuperAdmin || userPerms.includes("*") || userPerms.includes(item.permission);
+    }
+    return true;
+  };
 
   return (
     <aside
       className={cn(
-        "relative flex h-full max-h-[100dvh] w-full shrink-0 flex-col select-none overflow-x-hidden border-r border-white/[0.08] bg-[#0B1024] text-white transition-all duration-300 ease-in-out shadow-2xl",
-        isCollapsed ? "w-[76px]" : "w-[260px]"
+        "relative flex h-full max-h-[100dvh] shrink-0 flex-col select-none border-r border-[var(--line)] bg-[var(--side)] text-[var(--ink)] transition-all duration-200 ease-out",
+        isCollapsed ? "w-[72px]" : "w-[264px]"
       )}
     >
-      {/* Brand & Stretch/Collapse Header */}
+      {/* Top Header: Logo 34px + Realty Smartz + HR Admin + Collapse Button */}
       <div
         className={cn(
-          "flex items-center border-b border-white/[0.08] transition-all",
-          isCollapsed ? "flex-col gap-2 py-3 px-2 justify-center" : "justify-between px-4 py-4"
+          "flex items-center border-b border-[var(--line)] transition-all",
+          isCollapsed ? "justify-center px-2 py-4 flex-col gap-2" : "justify-between px-4 py-3.5"
         )}
       >
         <Link
           href="/admin-portal/dashboard"
           onClick={onCloseMobile}
-          className="flex items-center gap-3 overflow-hidden group"
-          title={companyName}
+          className="flex items-center gap-3 overflow-hidden"
+          title="Realty Smartz"
         >
-          {/* Logo container without any white box or white background */}
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center transition-transform group-hover:scale-105">
-            <img
-              src={companyLogo}
-              alt={companyName}
-              width={34}
-              height={34}
-              className="h-8 w-8 object-contain drop-shadow-md"
-            />
+          {/* Logo Mark: Hexagon with 3 vertical bars */}
+          <div className="shrink-0 flex items-center justify-center">
+            <svg
+              width="34"
+              height="34"
+              viewBox="0 0 34 34"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="shrink-0"
+            >
+              <path
+                d="M17 2.5L29.55 9.75V24.25L17 31.5L4.45 24.25V9.75L17 2.5Z"
+                stroke="#2F7FB5"
+                strokeWidth="2.6"
+                strokeLinejoin="round"
+              />
+              <line x1="12" y1="12" x2="12" y2="22" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+              <line x1="17" y1="9.5" x2="17" y2="24.5" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+              <line x1="22" y1="12" x2="22" y2="22" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+            </svg>
           </div>
 
           {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.2 }}
-              className="min-w-0"
-            >
-              <span className="font-display text-[15px] font-bold tracking-tight text-white block truncate leading-tight">
-                {companyName}
+            <div className="min-w-0">
+              <span className="block truncate text-[15px] font-bold leading-tight tracking-[0.04em] text-[var(--ink)]">
+                Realty Smartz
               </span>
-              <span className="text-[10px] font-medium text-[#8E9BB5] block truncate tracking-wider mt-0.5">
-                {companyTagline}
+              <span className="block truncate text-[12px] leading-tight text-[var(--muted)]">
+                HR Admin
               </span>
-            </motion.div>
+            </div>
           )}
         </Link>
 
-        {/* Stretch / Collapse Action Button (Desktop Only) */}
+        {/* Collapse Button */}
         <button
           type="button"
           onClick={onToggleCollapse}
           title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-          className={cn(
-            "hidden lg:flex items-center justify-center rounded-xl bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08] hover:text-white transition-all active:scale-95 border border-white/[0.06]",
-            isCollapsed ? "h-7 w-7" : "h-8 w-8"
-          )}
+          className="flex h-8 w-8 items-center justify-center text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] rounded transition-colors"
         >
-          {isCollapsed ? (
-            <PanelLeftOpen className="h-4 w-4 text-[#7957FF]" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4" />
-          )}
+          <PanelLeft className="h-[19px] w-[19px]" strokeWidth={1.8} />
         </button>
       </div>
 
-      {/* Main Navigation Items */}
+      {/* Nav Groups */}
       <nav
         className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden py-3 overscroll-contain scrollbar-none",
-          isCollapsed ? "px-2 space-y-2.5" : "px-3 space-y-5"
+          "flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-none space-y-4",
+          isCollapsed ? "px-2" : "px-3"
         )}
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
       >
-        {/* Section: Core Operations */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#636B83]">
-              Navigation
-            </div>
-          )}
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter(filterItem);
+          if (visibleItems.length === 0) return null;
 
-          {visibleCoreItems.map((item) => {
-            const active =
-              pathname === item.href || (item.href !== "/admin-portal/dashboard" && pathname.startsWith(`${item.href}/`));
-            const Icon = item.icon;
+          return (
+            <div key={group.title} className="space-y-1">
+              {!isCollapsed && (
+                <div className="px-3 pb-1 text-[12px] font-semibold text-[var(--muted)]">
+                  {group.title}
+                </div>
+              )}
 
-            return (
-              <div key={item.href} className="relative group">
-                <Link
-                  href={item.href}
-                  onClick={onCloseMobile}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all duration-200",
-                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3.5 py-2.5",
-                    active
-                      ? "bg-[#6D28D9] text-white font-semibold shadow-[0_4px_16px_rgba(109,40,217,0.35)]"
-                      : "text-[#9AA5BE] hover:bg-white/[0.06] hover:text-white"
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-transform group-hover:scale-105",
-                      active ? "text-white" : "text-[#7B87A0] group-hover:text-white"
+              {visibleItems.map((item) => {
+                const active =
+                  pathname === item.href ||
+                  (item.href !== "/admin-portal/dashboard" && pathname.startsWith(`${item.href}/`));
+                const Icon = item.icon;
+
+                return (
+                  <div key={item.href} className="relative group">
+                    <Link
+                      href={item.href}
+                      onClick={onCloseMobile}
+                      title={isCollapsed ? item.label : undefined}
+                      className={cn(
+                        "flex items-center text-[14px] font-medium h-[42px] transition-colors duration-150 rounded",
+                        isCollapsed ? "justify-center px-0 w-[42px] mx-auto" : "px-3 gap-3",
+                        active
+                          ? "bg-[var(--active)] text-[var(--ink)] font-semibold border-l-[3px] border-[var(--accent)]"
+                          : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-[19px] w-[19px] shrink-0 transition-colors",
+                          active ? "text-[var(--accent)]" : "text-[var(--muted)] group-hover:text-[var(--ink)]"
+                        )}
+                        strokeWidth={1.8}
+                      />
+
+                      {!isCollapsed && (
+                        <span className="truncate">{item.label}</span>
+                      )}
+                    </Link>
+
+                    {/* Collapsed Tooltip */}
+                    {isCollapsed && (
+                      <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 whitespace-nowrap rounded bg-[var(--ink)] px-2.5 py-1 text-xs font-medium text-[var(--card)] opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
+                        {item.label}
+                      </div>
                     )}
-                  />
-
-                  {!isCollapsed && (
-                    <span className="truncate">{item.label}</span>
-                  )}
-
-                  {!isCollapsed && active && (
-                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/80 shrink-0" />
-                  )}
-                </Link>
-
-                {/* Floating Tooltip in Collapsed Dock Mode */}
-                {isCollapsed && (
-                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#111936] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 shadow-lg">
-                    {item.label}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Section: Management & Settings */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#636B83]">
-              Settings & Portal
+                );
+              })}
             </div>
-          )}
-
-          {visibleSettingsItems.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-
-            return (
-              <div key={item.href} className="relative group">
-                <Link
-                  href={item.href}
-                  onClick={onCloseMobile}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all duration-200",
-                    isCollapsed ? "justify-center px-0 h-10 w-10 mx-auto" : "gap-3 px-3.5 py-2.5",
-                    active
-                      ? "bg-[#6D28D9] text-white font-semibold shadow-[0_4px_16px_rgba(109,40,217,0.35)]"
-                      : "text-[#9AA5BE] hover:bg-white/[0.06] hover:text-white"
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-transform group-hover:scale-105",
-                      active ? "text-white" : "text-[#7B87A0] group-hover:text-white"
-                    )}
-                  />
-
-                  {!isCollapsed && (
-                    <span className="truncate">{item.label}</span>
-                  )}
-                </Link>
-
-                {/* Tooltip for collapsed dock mode */}
-                {isCollapsed && (
-                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-xl bg-[#111936] border border-white/10 px-3 py-1.5 text-xs font-semibold text-white opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 shadow-lg">
-                    {item.label}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Quick Add Employee Action */}
-        {!isCollapsed && (
-          <div className="pt-1">
-            <Link
-              href="/admin-portal/employees/new"
-              onClick={onCloseMobile}
-              className="flex items-center justify-between rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-3.5 py-2.5 text-xs font-medium text-neutral-300 hover:border-[#7957FF]/60 hover:text-white hover:bg-[#7957FF]/10 transition-all group"
-            >
-              <span className="flex items-center gap-2">
-                <UserPlus className="h-3.5 w-3.5 text-[#7957FF] group-hover:scale-110 transition-transform" />
-                Add Employee
-              </span>
-              <span className="text-[10px] font-bold text-[#A78BFA] bg-[#7957FF]/15 px-2 py-0.5 rounded-full">
-                +New
-              </span>
-            </Link>
-          </div>
-        )}
-
-        {/* Motivational skyscraper card as in reference design */}
-        {!isCollapsed && (
-          <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#121833] to-[#0A0E20] p-3.5 shadow-md">
-            <div className="relative z-10 max-w-[130px]">
-              <p className="text-xs font-bold leading-snug text-white">
-                Better People
-              </p>
-              <p className="text-xs font-bold leading-snug text-white/90">
-                Build Better
-              </p>
-              <p className="text-xs font-bold leading-snug text-[#7957FF]">
-                Tomorrow
-              </p>
-            </div>
-            {/* Background skyscraper graphic */}
-            <div className="absolute right-0 top-0 bottom-0 w-[95px] overflow-hidden opacity-45 pointer-events-none">
-              <img
-                src="/skyscraper-hero.jpg"
-                alt=""
-                className="h-full w-full object-cover object-left mix-blend-luminosity"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#121833] via-transparent to-transparent" />
-            </div>
-          </div>
-        )}
+          );
+        })}
       </nav>
 
-      {/* Dock Stretch Trigger Button (When Collapsed) */}
-      {isCollapsed && (
-        <div className="p-2 border-t border-white/[0.08] flex justify-center shrink-0">
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title="Expand sidebar (Ctrl+B)"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] text-[#7957FF] hover:bg-[#7957FF]/10 hover:text-white transition-all active:scale-95 border border-white/[0.06]"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Footer Profile */}
-      <div className={cn("border-t border-white/[0.08] bg-[#080D1D] shrink-0", isCollapsed ? "p-2" : "p-3")}>
-        {/* User Card as in reference design */}
-        <div
-          className={cn(
-            "flex items-center rounded-xl bg-white/[0.03] border border-white/[0.08] transition-all",
-            isCollapsed ? "flex-col gap-1.5 p-1.5" : "justify-between p-2.5"
-          )}
-        >
-          <Link
-            href="/admin-portal/settings/company"
-            onClick={onCloseMobile}
-            className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity"
-          >
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#6D28D9] text-xs font-bold text-white shadow-md">
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={userName}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                userInitial
-              )}
-              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0B1024]" />
-            </div>
-
-            {!isCollapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-white">
-                  {userName}
-                </p>
-                <p className="truncate text-[10px] text-[#8E9BB5] uppercase tracking-wider">
-                  {userRole}
-                </p>
-              </div>
+      {/* Bottom Profile Row */}
+      <div
+        className={cn(
+          "border-t border-[var(--line)] bg-[var(--side)] shrink-0 transition-all",
+          isCollapsed ? "p-2.5 flex flex-col items-center gap-3" : "px-4 py-3 flex items-center justify-between"
+        )}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Square Avatar 36px radius 4px with online dot */}
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[var(--accent)] text-white font-bold text-sm">
+            {session?.user?.image ? (
+              <img
+                src={session.user.image}
+                alt={userName}
+                className="h-full w-full object-cover rounded"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              userInitial
             )}
-          </Link>
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[var(--ok)] ring-2 ring-[var(--side)]" />
+          </div>
 
           {!isCollapsed && (
-            <ChevronRight className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-semibold text-[var(--ink)] leading-tight">
+                {userName}
+              </p>
+              <p className="truncate text-[12px] text-[var(--muted)] leading-tight capitalize">
+                {userRole.toLowerCase()}
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Bottom utility bar: Settings & Sign out */}
-        {!isCollapsed && (
-          <div className="flex items-center justify-between px-1 pt-1 text-xs text-[#8E9BB5]">
+        {/* Right utility buttons: Settings (34px) & Logout (34px) */}
+        {!isCollapsed ? (
+          <div className="flex items-center gap-1 shrink-0">
             <Link
               href="/admin-portal/settings/company"
               onClick={onCloseMobile}
-              className="flex items-center gap-1.5 hover:text-white transition-colors"
+              title="Settings"
+              className="flex h-[34px] w-[34px] items-center justify-center rounded text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] transition-colors"
             >
-              <Settings className="h-3.5 w-3.5" />
-              <span>Settings</span>
+              <SlidersHorizontal className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </Link>
             <button
               type="button"
-              title="Sign out of Realty Smartz"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center justify-center h-6 w-6 rounded-lg text-neutral-400 hover:bg-rose-500/20 hover:text-rose-400 transition-colors"
+              title="Sign out"
+              className="flex h-[34px] w-[34px] items-center justify-center rounded text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--hover)] transition-colors"
             >
-              <Power className="h-3.5 w-3.5" />
+              <LogOut className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <Link
+              href="/admin-portal/settings/company"
+              onClick={onCloseMobile}
+              title="Settings"
+              className="flex h-[34px] w-[34px] items-center justify-center rounded text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] transition-colors"
+            >
+              <SlidersHorizontal className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              title="Sign out"
+              className="flex h-[34px] w-[34px] items-center justify-center rounded text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--hover)] transition-colors"
+            >
+              <LogOut className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
           </div>
         )}
@@ -415,4 +338,3 @@ export function AdminSidebar({
     </aside>
   );
 }
-

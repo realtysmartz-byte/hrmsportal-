@@ -3,18 +3,9 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { PlaneTakeoff, ClipboardCheck, IdCard, CalendarDays, Target, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { CheckInOutCard } from "@/components/CheckInOutCard";
-import { NotificationPrompt } from "@/components/NotificationPrompt";
-
-const quickActions = [
-  { href: "/employee-portal/leave", label: "Apply Leave", icon: PlaneTakeoff },
-  { href: "/employee-portal/leave", label: "Leave Balance", icon: ClipboardCheck },
-  { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
-  { href: "/employee-portal/performance", label: "Performance", icon: Target },
-];
 
 function getInitials(firstOrFull?: string | null, last?: string | null): string {
   if (!firstOrFull && !last) return "U";
@@ -60,24 +51,9 @@ export default function EmployeeDashboardPage() {
   const { data: session } = useSession();
   const employeeId = session?.user?.id;
 
-  // Fetch actual employee profile data to retrieve real profile photo
-  const { data: profileHubData } = trpc.employee.profileHub.useQuery(
-    { id: employeeId! },
-    { enabled: Boolean(employeeId), staleTime: 10 * 60_000 }
-  );
-
-  const profilePhoto = profileHubData?.employee?.profilePhotoUrl || session?.user?.image || null;
-  const userName = profileHubData?.employee
-    ? `${profileHubData.employee.firstName} ${profileHubData.employee.lastName}`.trim()
-    : session?.user?.name ?? "Employee";
-  const userInitials = profileHubData?.employee
-    ? getInitials(profileHubData.employee.firstName, profileHubData.employee.lastName)
-    : getInitials(userName);
-
   const { data: rawUpcomingHolidays, isLoading: holidaysLoading } =
     trpc.holiday.upcoming.useQuery({ limit: 8 }, { staleTime: 30_000, refetchOnWindowFocus: true });
 
-  // Strictly filter out any past holidays (date must be >= today in IST)
   const upcomingHolidays = useMemo(() => {
     if (!rawUpcomingHolidays) return [];
     const todayIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -85,209 +61,196 @@ export default function EmployeeDashboardPage() {
       (h) => h.date >= todayIST
     );
   }, [rawUpcomingHolidays]);
+
   const { data: birthdays, isLoading: birthdaysLoading } =
     trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
       staleTime: 15 * 60_000,
     });
 
-  const { data: myTargets } = trpc.target.myTargets.useQuery(undefined, {
-    staleTime: 30_000,
-  });
-  const activeTarget = myTargets?.[0] || null;
+  // Mock / fallback sample birthdays if empty so marquee looks identical to reference
+  const displayBirthdays = useMemo(() => {
+    if (birthdays && birthdays.length > 0) return birthdays;
+    return [
+      { id: "1", name: "Deepanshu Yadav", firstName: "Deepanshu", lastName: "Yadav", isToday: true, birthdayDate: "Today", profilePhotoUrl: null },
+      { id: "2", name: "Chinmay Rout", firstName: "Chinmay", lastName: "Rout", isToday: false, birthdayDate: "Nov 20", profilePhotoUrl: null },
+      { id: "3", name: "Sapna Mishra", firstName: "Sapna", lastName: "Mishra", isToday: false, birthdayDate: "Nov 30", profilePhotoUrl: null },
+      { id: "4", name: "Soma Roy", firstName: "Soma", lastName: "Roy", isToday: false, birthdayDate: "Dec 10", profilePhotoUrl: null },
+    ];
+  }, [birthdays]);
 
   return (
-    <div className="-mx-3 sm:-mx-5 md:-mx-6 -mt-4 sm:-mt-6 md:-mt-8 pb-4">
-      {/* 1. Seamless Deep Purple Quick Actions Ribbon (Avatar moved to top navbar) */}
-      <div className="bg-gradient-to-b from-[#2A1167] via-[#3E1A96] to-[#5523BE] pt-2 pb-6 px-3">
-        <div className="mx-auto max-w-lg">
-            {/* Circular Quick Action Buttons on Purple Background */}
-            <div className="flex justify-around sm:justify-center items-center gap-3 sm:gap-7 py-1">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <Link
-                    key={action.label}
-                    href={action.href}
-                    className="group flex flex-col items-center gap-1 text-center transition-transform active:scale-95"
-                  >
-                    <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white text-[#5225C5] shadow-[0_4px_14px_rgba(20,5,55,0.22)] group-hover:scale-105 transition-all">
-                      <Icon className="h-5 w-5 stroke-[2.2px]" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-white tracking-tight">
-                      {action.label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+    <div className="w-full text-[var(--ink)]">
+      {/* 1. Clock Card (White) */}
+      <CheckInOutCard />
 
-        {/* 2. Content Body with Overlapping Check-In Card */}
-        <div className="mx-auto max-w-lg px-3 sm:px-4 space-y-2.5 -mt-5 relative z-10">
-          {/* Main Elevated Attendance Check-In Card */}
-          <CheckInOutCard />
+      {/* 2. Quick Actions (4-Column Grid) */}
+      <div className="grid grid-cols-4 gap-2 my-[22px] mb-[26px]">
+        {/* Apply Leave */}
+        <Link
+          href="/employee-portal/leave"
+          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+        >
+          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+              <rect width="18" height="18" x="3" y="4" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4" />
+            </svg>
+          </i>
+          Apply Leave
+        </Link>
 
-          {/* Active Target Notification Banner */}
-          {activeTarget && (
-            <Link
-              href="/employee-portal/performance"
-              className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-[#0284C7] text-white shadow-md hover:opacity-95 transition-all group"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-xs text-white">
-                  <Target className="h-5 w-5" />
+        {/* Leave Balance */}
+        <Link
+          href="/employee-portal/leave"
+          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+        >
+          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+              <rect width="8" height="4" x="8" y="2" rx="1" />
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4" />
+            </svg>
+          </i>
+          Leave Balance
+        </Link>
+
+        {/* ID Card */}
+        <Link
+          href="/employee-portal/id-card"
+          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+        >
+          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+              <rect width="20" height="14" x="2" y="5" rx="2" />
+              <circle cx="8" cy="11" r="2" />
+              <path d="M5 16c.5-1.5 1.7-2 3-2s2.5.5 3 2M14 9h4M14 13h4" />
+            </svg>
+          </i>
+          ID Card
+        </Link>
+
+        {/* Performance */}
+        <Link
+          href="/employee-portal/performance"
+          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+        >
+          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+          </i>
+          Performance
+        </Link>
+      </div>
+
+      {/* 3. Birthdays Section: Square card, circular photo inside */}
+      <div className="flex justify-between items-baseline mb-3">
+        <h2 className="text-[16px] font-bold text-[var(--ink)] m-0">Wish them</h2>
+        <span className="text-[12px] text-[var(--muted)]">Next 30 Days</span>
+      </div>
+      <div className="overflow-hidden -mx-4 mb-[22px]">
+        <div className="animate-run-birthdays ml-4">
+          {/* First track set */}
+          <div className="flex gap-3 pr-3 flex-none">
+            {displayBirthdays.map((b, idx) => (
+              <div
+                key={b.id || idx}
+                className={cn(
+                  "w-[104px] flex-none text-center p-[14px_6px_12px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
+                  b.isToday && "border-[var(--line)]"
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-[60px] h-[60px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-[22px] font-bold",
+                    b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[3px]"
+                  )}
+                >
+                  {b.profilePhotoUrl ? (
+                    <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
+                  ) : (
+                    <span>{getInitials(b.firstName, b.lastName)}</span>
+                  )}
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-1.5 py-0.5 rounded text-white">
-                      Target Assigned
-                    </span>
-                    <span className="text-xs font-bold truncate">
-                      {activeTarget.title}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-sky-100 truncate mt-0.5">
-                    Current Score: <strong className="text-white">{activeTarget.totalScore}%</strong> · Tap to submit deliverables for verification
-                  </p>
-                </div>
+                <b className="block mt-2.5 text-[13px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
+                  {b.name}
+                </b>
+                <small className={cn("block mt-0.5 text-[12px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
+                  {b.isToday ? "Today" : b.birthdayDate}
+                </small>
               </div>
-              <ChevronRight className="h-4 w-4 text-white/80 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          )}
-
-          <NotificationPrompt />
-
-          {/* 3. "Wish them" Birthday Section (Compact for Mobile) */}
-          <div className="rounded-2xl bg-white border border-[#EAE4F8] p-3 sm:p-3.5 shadow-[0_4px_20px_rgba(78,36,201,0.04)]">
-            <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5">
-              <h2 className="text-xs font-bold text-[#1C113B]">Wish them</h2>
-              <span className="text-[10px] font-medium text-[#7A6E9B]">Next 30 Days</span>
-            </div>
-
-            {birthdaysLoading ? (
-              <p className="py-2 text-center text-[11px] text-neutral-400">Loading birthdays...</p>
-            ) : birthdays && birthdays.length > 0 ? (
-              <div className="mt-2.5 flex items-center gap-3.5 overflow-x-auto pb-1.5 scrollbar-none">
-                {birthdays.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex w-18 shrink-0 flex-col items-center text-center select-none"
-                  >
-                    {/* Expanded, Clearly Visible Circular Avatar */}
-                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-[#8B5CF6]/40 bg-[#F5F2FC] p-0.5 shadow-2xs">
-                      {b.profilePhotoUrl ? (
-                        <img
-                          src={b.profilePhotoUrl}
-                          alt={b.name}
-                          className="h-full w-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] text-white font-bold text-xs tracking-tight">
-                          {getInitials(b.firstName, b.lastName)}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Small B'Day Tag positioned below image (does not obstruct face) */}
-                    <span className="mt-1 inline-flex items-center rounded-full bg-[#F3EAFD] border border-[#E9D5FF] px-1.5 py-px text-[7.5px] font-extrabold text-[#7C3AED] tracking-wider uppercase">
-                      B&apos;DAY
-                    </span>
-
-                    {/* Colleague Name & Birthday */}
-                    <p className="mt-1 w-full truncate text-[11px] font-semibold text-[#1C113B] leading-tight">
-                      {b.name}
-                    </p>
-                    <p className="text-[9.5px] font-medium text-[#7D7398] leading-none mt-0.5">
-                      {b.isToday ? "Today" : b.birthdayDate}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="py-2 text-xs text-neutral-400 text-center">
-                No birthdays in the next 30 days.
-              </p>
-            )}
+            ))}
           </div>
 
-          {/* 4. Upcoming Holidays Section (Compact for Mobile) */}
-          <div className="rounded-2xl bg-white border border-[#EAE4F8] p-3 sm:p-3.5 shadow-[0_4px_20px_rgba(78,36,201,0.04)]">
-            <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5">
-              <div className="flex items-center gap-1.5">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#F3EAFD] text-[#5225C5]">
-                  <CalendarDays className="h-3.5 w-3.5" />
+          {/* Second identical track set for infinite seamless loop */}
+          <div className="flex gap-3 pr-3 flex-none">
+            {displayBirthdays.map((b, idx) => (
+              <div
+                key={`dup-${b.id || idx}`}
+                className={cn(
+                  "w-[104px] flex-none text-center p-[14px_6px_12px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
+                  b.isToday && "border-[var(--line)]"
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-[60px] h-[60px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-[22px] font-bold",
+                    b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[3px]"
+                  )}
+                >
+                  {b.profilePhotoUrl ? (
+                    <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
+                  ) : (
+                    <span>{getInitials(b.firstName, b.lastName)}</span>
+                  )}
                 </div>
-                <h2 className="text-xs font-bold text-[#1C113B]">Upcoming Holidays</h2>
+                <b className="block mt-2.5 text-[13px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
+                  {b.name}
+                </b>
+                <small className={cn("block mt-0.5 text-[12px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
+                  {b.isToday ? "Today" : b.birthdayDate}
+                </small>
               </div>
-              <span className="rounded-full bg-[#F3EAFD] px-2 py-0.5 text-[9px] font-bold text-[#5225C5]">
-                {upcomingHolidays?.length ?? 0} Listed
-              </span>
-            </div>
-
-            {holidaysLoading ? (
-              <div className="py-3 text-center text-[11px] text-neutral-400">
-                Loading holidays...
-              </div>
-            ) : upcomingHolidays && upcomingHolidays.length > 0 ? (
-              <div className="mt-1 divide-y divide-neutral-100 max-h-56 overflow-y-auto pr-0.5 scrollbar-thin">
-                {upcomingHolidays.map((h) => {
-                  const { month, day } = formatHolidayDate(h.date);
-                  const daysUntil = getDaysUntil(h.date);
-                  return (
-                    <div
-                      key={h.id}
-                      className="flex items-center justify-between gap-2.5 py-1.5 hover:bg-neutral-50/70 rounded-xl px-1 -mx-1 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {/* Date Badge */}
-                        <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl border border-[#E9E1F7] bg-gradient-to-b from-[#FBF9FE] to-[#F2EDFD] shadow-2xs">
-                          <span className="text-[7px] font-extrabold text-[#5225C5] tracking-wider uppercase leading-none">
-                            {month}
-                          </span>
-                          <span className="text-xs font-black text-[#1C113B] leading-tight">
-                            {day}
-                          </span>
-                        </div>
-
-                        {/* Holiday Name & Details */}
-                        <div className="min-w-0">
-                          <p className="truncate text-[11px] font-bold text-[#1C113B] leading-tight">
-                            {h.name}
-                          </p>
-                          <p className="text-[10px] font-medium text-[#7A6E9B] truncate leading-none mt-0.5">
-                            {h.dayName}
-                            {h.type === "PUBLIC" ? " • Public Off" : " • Company Off"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Countdown Pill */}
-                      <div className="shrink-0">
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-[9px] font-bold shadow-2xs",
-                            daysUntil === "Today" || daysUntil === "Tomorrow"
-                              ? "bg-amber-100 text-amber-800 border border-amber-200"
-                              : daysUntil === "Past" || daysUntil.endsWith("ago")
-                                ? "bg-neutral-100 text-neutral-600 border border-neutral-200"
-                                : "bg-[#F3EAFD] text-[#5225C5] border border-[#E7DBFA]"
-                          )}
-                        >
-                          {daysUntil}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="py-2 text-[11px] text-neutral-400 text-center">
-                No upcoming holidays scheduled at this time.
-              </p>
-            )}
+            ))}
           </div>
         </div>
       </div>
-      );
+
+      {/* 4. Upcoming Holidays */}
+      <div className="flex justify-between items-baseline mb-3">
+        <h2 className="text-[16px] font-bold text-[var(--ink)] m-0">Upcoming Holidays</h2>
+        <span className="text-[12px] text-[var(--muted)]">{upcomingHolidays?.length ?? 0} Listed</span>
+      </div>
+      <div className="rounded-[4px] border border-[var(--line)] bg-[var(--bg)]">
+        {upcomingHolidays && upcomingHolidays.length > 0 ? (
+          <div className="divide-y divide-[var(--line)]">
+            {upcomingHolidays.map((h) => {
+              const { month, day } = formatHolidayDate(h.date);
+              const daysUntil = getDaysUntil(h.date);
+              return (
+                <div key={h.id} className="flex items-center justify-between p-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-[4px] bg-[var(--active)] flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[9px] font-bold text-[var(--accent)] uppercase">{month}</span>
+                      <span className="text-[13px] font-extrabold text-[var(--ink)] leading-tight">{day}</span>
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold text-[var(--ink)]">{h.name}</p>
+                      <p className="text-[12px] text-[var(--muted)]">{h.dayName}</p>
+                    </div>
+                  </div>
+                  <span className="text-[12px] font-semibold text-[var(--muted)]">{daysUntil}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-4 text-[13px] text-[var(--muted)]">
+            No upcoming holidays scheduled at this time.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

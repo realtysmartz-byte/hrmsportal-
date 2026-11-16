@@ -83,23 +83,23 @@ export default function DesignationsPage() {
       {/* 1. TOP HEADER (Dashboards V3 Style) */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
+          <h1 className="text-[26px] font-bold text-[var(--ink)] tracking-tight">
             Designations
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+          <p className="mt-0.5 text-xs sm:text-sm text-[var(--muted)]">
             Standard corporate titles, seniority levels, and professional tracks
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 py-1.5 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
-          <Briefcase className="h-4 w-4 text-[#5D3EBC]" />
+        <div className="flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--field)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)]">
+          <Briefcase className="h-4 w-4 text-[var(--accent)]" />
           <span>{data?.length ?? 0} Defined Titles</span>
         </div>
       </div>
 
       {/* 2. ADD DESIGNATION CARD (Sleek Glass Bento Card) */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-4 sm:p-5">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3">
+      <div className="rounded border border-[var(--line)] bg-[var(--card)] p-4 sm:p-5 text-[var(--ink)]">
+        <h2 className="text-xs font-semibold text-[var(--muted)] mb-3">
           Create New Designation
         </h2>
         <form onSubmit={onCreate} className="flex flex-wrap items-center gap-3">
@@ -113,7 +113,7 @@ export default function DesignationsPage() {
           <button
             type="submit"
             disabled={createMutation.isLoading || !title.trim()}
-            className="flex items-center gap-2 rounded-xl bg-[#5D3EBC] px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 active:scale-95 disabled:opacity-50 transition-all"
+            className="btn-chamfer flex items-center gap-2 bg-[var(--accent)] px-5 h-11 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-50 transition-all"
           >
             <Plus className="h-4 w-4" />
             {createMutation.isLoading ? "Adding..." : "Add Designation"}
@@ -126,7 +126,7 @@ export default function DesignationsPage() {
       </div>
 
       {/* 3. DESIGNATIONS TABLE (Contained & Overflow-Hidden) */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
+      <div className="rounded border border-[var(--line)] bg-[var(--card)] overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

@@ -297,7 +297,7 @@ export default function CompanySettingsPage() {
           onClick={() => setActiveTab("branding")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === "branding"
-              ? "bg-[#5D3EBC] text-white shadow-sm"
+              ? "bg-[var(--accent)] text-white shadow-sm"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >
@@ -309,7 +309,7 @@ export default function CompanySettingsPage() {
           onClick={() => setActiveTab("geofence")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === "geofence"
-              ? "bg-[#5D3EBC] text-white shadow-sm"
+              ? "bg-[var(--accent)] text-white shadow-sm"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >
@@ -321,7 +321,7 @@ export default function CompanySettingsPage() {
           onClick={() => setActiveTab("integrations")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === "integrations"
-              ? "bg-[#5D3EBC] text-white shadow-sm"
+              ? "bg-[var(--accent)] text-white shadow-sm"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >
@@ -333,7 +333,7 @@ export default function CompanySettingsPage() {
           onClick={() => setActiveTab("attendance-policy")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === "attendance-policy"
-              ? "bg-[#5D3EBC] text-white shadow-sm"
+              ? "bg-[var(--accent)] text-white shadow-sm"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >
@@ -350,7 +350,7 @@ export default function CompanySettingsPage() {
             <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
               <CardHeader className="p-5 sm:p-6 pb-3 border-b border-neutral-100 bg-neutral-50/50">
                 <CardTitle className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-[#5D3EBC]" />
+                  <Sparkles className="h-4 w-4 text-[var(--accent)]" />
                   White-label Branding & Login Design
                 </CardTitle>
                 <CardDescription className="text-xs text-neutral-500">
@@ -860,7 +860,7 @@ export default function CompanySettingsPage() {
               <Button
                 type="submit"
                 disabled={updateGeofence.isLoading}
-                className="w-full rounded-xl bg-[#5D3EBC] py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95"
+                className="w-full rounded-xl bg-[var(--accent)] py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95"
               >
                 {updateGeofence.isLoading ? "Saving Settings..." : "Save Office Geofence"}
               </Button>
@@ -883,7 +883,7 @@ export default function CompanySettingsPage() {
       {/* TAB 3: INTEGRATIONS & SYNC */}
       {activeTab === "integrations" && (
         <div className="space-y-4">
-          <Card className="rounded-2xl border-neutral-200/80 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border">
+          <Card className="rounded-2xl border-neutral-200/80 bg-[var(--field)] border">
             <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
@@ -906,7 +906,7 @@ export default function CompanySettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-neutral-200/80 bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border">
+          <Card className="rounded-2xl border-neutral-200/80 bg-[var(--field)] border">
             <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
@@ -937,11 +937,11 @@ export default function CompanySettingsPage() {
           <Card className="rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
             <CardHeader className="p-5 sm:p-6 pb-3 border-b border-neutral-100 bg-neutral-50/50">
               <CardTitle className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-[#5D3EBC]" />
+                <Clock className="h-4 w-4 text-[var(--accent)]" />
                 Corporate Attendance & Leave Policy Settings
               </CardTitle>
               <CardDescription className="text-xs text-neutral-500">
-                Configure punctuality thresholds, late salary cut formulas, probation restrictions, and sandwich rules.
+                Configure punctuality thresholds, late compensation cut formulas, probation restrictions, and sandwich rules.
               </CardDescription>
             </CardHeader>
 
@@ -962,9 +962,9 @@ export default function CompanySettingsPage() {
                 {/* Section 1: Punctuality & Late Marks */}
                 <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50/50 space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-neutral-900">1. Punctuality & Salary Cut Formula</h3>
+                    <h3 className="text-sm font-bold text-neutral-900">1. Punctuality & Compensation Deduction Formula</h3>
                     <p className="text-xs text-neutral-500 mt-0.5">
-                      Define the check-in time thresholds and how many late arrivals trigger a half-day salary cut.
+                      Define the check-in time thresholds and how many late arrivals trigger a half-day compensation cut.
                     </p>
                   </div>
 
@@ -1006,7 +1006,7 @@ export default function CompanySettingsPage() {
                         className="rounded-xl border-neutral-200 text-sm"
                       />
                       <p className="text-[11px] text-neutral-500">
-                        Every <strong>{latesPerHalfDayCut}</strong> late marks trigger a <strong>0.5 day</strong> salary deduction.
+                        Every <strong>{latesPerHalfDayCut}</strong> late marks trigger a <strong>0.5 day</strong> compensation deduction.
                       </p>
                     </div>
                   </div>
@@ -1043,7 +1043,7 @@ export default function CompanySettingsPage() {
                     <div>
                       <h3 className="text-sm font-bold text-neutral-900">3. Leave Sandwich Rule</h3>
                       <p className="text-xs text-neutral-500 mt-0.5 max-w-xl">
-                        When enabled, intervening weekend off-days (e.g. Saturday & Sunday) or holidays between approved leaves are counted towards total leave days and salary deductions.
+                        When enabled, intervening Tuesday weekly off-days or holidays between approved leaves are counted towards total leave days and compensation deductions.
                       </p>
                     </div>
 
@@ -1054,12 +1054,12 @@ export default function CompanySettingsPage() {
                         onChange={(e) => setSandwichRuleEnabled(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5D3EBC]"></div>
+                      <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]"></div>
                     </label>
                   </div>
 
                   <div className="text-xs text-neutral-600 bg-white p-3 rounded-lg border border-neutral-200">
-                    <span className="font-semibold text-neutral-800">Rule Logic:</span> If an employee takes leave on Friday and Monday, the intermediate weekend days (Saturday & Sunday) are counted as sandwich leaves (4 days total deduction).
+                    <span className="font-semibold text-neutral-800">Rule Logic:</span> Weekly off is Tuesday (Saturday & Sunday are working). If an employee takes leave on Monday and Wednesday, the intermediate Tuesday is counted as a sandwich leave (3 days total compensation deduction).
                   </div>
                 </div>
 
@@ -1068,7 +1068,7 @@ export default function CompanySettingsPage() {
                   <Button
                     type="submit"
                     disabled={updatePolicy.isPending}
-                    className="bg-[#5D3EBC] hover:bg-[#4E24C9] text-white px-6 font-bold text-xs rounded-xl shadow-sm"
+                    className="bg-[var(--accent)] hover:brightness-110 text-white px-6 font-bold text-xs rounded-xl shadow-sm"
                   >
                     {updatePolicy.isPending ? "Saving Policy..." : "Save Policy Settings"}
                   </Button>

@@ -1,116 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Primary Keka Purple (#5D3EBC) & Deep Obsidian */
-  --primary: #5D3EBC;
-  --primary-foreground: #ffffff;
-  --indigo-50: #f0f3fa;
-  --indigo-100: #dde3f4;
-  --indigo-200: #c1cce9;
-  --indigo-300: #97aadb;
-  --indigo-400: #6a82cb;
-  --indigo-500: #4a63b4;
-  --indigo-600: #374d97;
-  --indigo-700: #2b3a67;
-  --indigo-800: #232f53;
-  --indigo-900: #1c2642;
+  /* Step 1: Global Design Tokens (Light Mode) */
+  --bg: #FFFFFF;
+  --card: #FFFFFF;
+  --side: #FFFFFF;
+  --ink: #111318;
+  --muted: #6B7078;
+  --line: #E3E4E1;
+  --field: #FAFAF9;
+  --soft: #F6F6F8;
+  --active: #ECECFB;
+  --accent: #2B2FD1;
+  --accent-ink: #FFFFFF;
+  --ok: #1FA36A;
+  --warn: #D98A00;
+  --danger: #D6283A;
+  --info: #2F7FB5;
 
-  /* Brand Accents (used sparingly) */
-  --teal-50: #eaf3f5;
-  --teal-100: #d2e6eb;
-  --teal-200: #a8ced8;
-  --teal-300: #74b0c0;
-  --teal-400: #3f8fa5;
-  --teal-500: #1e738c;
-  --teal-600: #0f5c74; /* Brand accent teal */
-  --teal-700: #0c4d61;
-  --teal-800: #0a3d4e;
-  --teal-900: #072f3b;
+  /* Brand Fixed Colors */
+  --brand-blue: #2F7FB5;
+  --brand-red: #D6283A;
 
-  --maroon-50: #fdf2f4;
-  --maroon-100: #fbe6e9;
-  --maroon-200: #f7d0d6;
-  --maroon-300: #efa8b6;
-  --maroon-400: #e3748c;
-  --maroon-500: #d14968;
-  --maroon-600: #a82a42; /* Brand accent maroon / destructive */
-  --maroon-700: #8c2035;
-  --maroon-800: #741e2f;
-  --maroon-900: #631d2c;
+  /* Semantic Mappings for shadcn / legacy components */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
 
-  /* Clean, cool-toned neutral gray scale */
-  --neutral-50: #f7f8fa;
-  --neutral-100: #f0f2f5;
-  --neutral-200: #e4e7ec;
-  --neutral-300: #d0d5dd;
-  --neutral-400: #98a2b3;
-  --neutral-500: #667085;
-  --neutral-600: #475467;
-  --neutral-700: #344054;
-  --neutral-800: #1d2939;
-  --neutral-900: #1a1d23;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0B0C0F;
+    --card: #121419;
+    --side: #101217;
+    --ink: #F2F3F5;
+    --muted: #8A8F98;
+    --line: #212430;
+    --field: #0D0F13;
+    --hover: #181B22;
+    --active: #1D2030;
+    --accent: #7B7FF7;
+    --accent-ink: #FFFFFF;
+    --ok: #2FD08A;
+    --warn: #F0A93B;
+    --danger: #F0505F;
+    --info: #5BA8DB;
 
-  /* Semantic Colors */
-  --success: #2e9e5b;
-  --success-soft: rgb(46 158 91 / 0.12);
-  --warning: #d97706;
-  --warning-soft: rgb(217 119 6 / 0.12);
-  --danger: #a82a42;
-  --danger-soft: rgb(168 42 66 / 0.12);
-  --info: #3b82f6;
-  --info-soft: rgb(59 130 246 / 0.12);
+    --background: var(--bg);
+    --foreground: var(--ink);
+    --primary: var(--accent);
+    --primary-foreground: var(--accent-ink);
+    --border: var(--line);
+    --input: var(--line);
+    --ring: var(--accent);
+  }
+}
 
-  --brand-teal: var(--teal-600);
-  --brand-maroon: var(--maroon-600);
-  --brand-bg: var(--neutral-50);
-  --brand-text: var(--neutral-900);
-  --brand-success: var(--success);
-  --brand-warning: var(--warning);
-  --brand-danger: var(--danger);
+[data-theme="dark"],
+.dark {
+  --bg: #0B0C0F;
+  --card: #121419;
+  --side: #101217;
+  --ink: #F2F3F5;
+  --muted: #8A8F98;
+  --line: #212430;
+  --field: #0D0F13;
+  --hover: #181B22;
+  --active: #1D2030;
+  --accent: #7B7FF7;
+  --accent-ink: #FFFFFF;
+  --ok: #2FD08A;
+  --warn: #F0A93B;
+  --danger: #F0505F;
+  --info: #5BA8DB;
+
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
 }
 
 @layer base {
   * {
-    @apply border-neutral-200;
+    border-color: var(--line);
   }
 
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
     overflow-x: clip;
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
   body {
-    @apply bg-[#F6F8FB] font-sans text-neutral-900 antialiased;
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 0.9375rem;
     line-height: 1.5rem;
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: clip;
     -webkit-overflow-scrolling: touch;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-display), system-ui, sans-serif;
-    letter-spacing: -0.025em;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: -0.02em;
+    color: var(--ink);
   }
 
-  a,
-  button,
-  input,
-  select,
-  textarea {
-    @apply transition-colors duration-150 ease-out;
+  a, button, input, select, textarea {
+    transition: color 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
+
+  /* Global focus visible: 2px solid var(--accent) outline, offset 2px */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
-/* PWA safe area utilities & standalone polish */
+/* Primary chamfer button */
+.btn-chamfer {
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+
+/* Status chips helpers */
+.chip-ok {
+  background-color: rgb(31 163 106 / 0.14);
+  color: var(--ok);
+}
+.chip-warn {
+  background-color: rgb(217 138 0 / 0.14);
+  color: var(--warn);
+}
+.chip-danger {
+  background-color: rgb(214 40 58 / 0.14);
+  color: var(--danger);
+}
+.chip-info {
+  background-color: rgb(47 127 181 / 0.14);
+  color: var(--info);
+}
+
+/* PWA safe area utilities */
 .safe-top {
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
@@ -118,101 +167,62 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
-@media all and (display-mode: standalone) {
-  body {
-    -webkit-tap-highlight-color: transparent;
-    overscroll-behavior-y: auto;
-  }
-}
-
 @layer components {
-  .font-display {
-    font-family: var(--font-display), system-ui, sans-serif;
-  }
-
   .page-header {
     @apply mb-6 flex flex-wrap items-start justify-between gap-4 md:mb-8;
   }
 
   .page-title {
-    @apply text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight;
-    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
   }
 
   .page-subtitle {
-    @apply mt-0.5 text-xs sm:text-sm text-neutral-500;
-  }
-
-  .section-gap {
-    @apply space-y-6 max-w-full overflow-x-clip;
+    @apply mt-0.5 text-xs sm:text-sm;
+    color: var(--muted);
   }
 
   .card-table-wrapper {
-    @apply rounded-lg border border-neutral-200/80 bg-white overflow-hidden;
-  }
-
-  .smooth-hover {
-    @apply transition-all duration-150 ease-out;
-  }
-
-  /* Dashboards V3 Style Utilities */
-  .card-pastel-amber {
-    background-color: #fff9ee;
-    border: 1px solid rgba(253, 230, 138, 0.65);
-  }
-
-  .card-pastel-blue {
-    background-color: #f0f7ff;
-    border: 1px solid rgba(186, 230, 253, 0.65);
-  }
-
-  .card-pastel-rose {
-    background-color: #fff1f3;
-    border: 1px solid rgba(254, 205, 211, 0.65);
-  }
-
-  .card-pastel-mint {
-    background-color: #f0fdf4;
-    border: 1px solid rgba(187, 247, 208, 0.65);
-  }
-
-  .card-pastel-purple {
-    background-color: #f5f3ff;
-    border: 1px solid rgba(221, 214, 254, 0.65);
-  }
-
-  .glass-card {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(226, 232, 240, 0.85);
-  }
-
-  .glass-pill {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(226, 232, 240, 0.85);
-  }
-
-  .dark-capsule {
-    background: #181c26;
-    color: #ffffff;
-  }
-
-  /* Utility: Hide scrollbars completely while keeping scroll functionality */
-  .scrollbar-none::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-  }
-  .scrollbar-none {
-    -ms-overflow-style: none !important;
-    scrollbar-width: none !important;
+    background-color: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
   }
 }
 
-/* Global utility fallback for scrollbar-none */
+/* Reference styles for HRMS Mobile Home & Drawer */
+@keyframes run {
+  to { transform: translateX(-50%); }
+}
+.animate-run {
+  display: flex;
+  width: max-content;
+  animation: run 26s linear infinite;
+}
+.animate-run-header {
+  display: flex;
+  width: max-content;
+  animation: run 20s linear infinite;
+}
+.animate-run-birthdays {
+  display: flex;
+  width: max-content;
+  animation: run 24s linear infinite;
+}
+.animate-run:hover, .animate-run:active,
+.animate-run-header:hover, .animate-run-header:active,
+.animate-run-birthdays:hover, .animate-run-birthdays:active {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-run, .animate-run-header, .animate-run-birthdays {
+    animation: none;
+  }
+}
+
 .scrollbar-none::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
@@ -222,20 +232,3 @@
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
-
-@keyframes marquee-scroll {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
-}
-
-.animate-marquee-smooth {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: marquee-scroll 24s linear infinite;
-  will-change: transform;
-}
-.animate-marquee-smooth:hover {
-  animation-play-state: paused;
-}
-
-

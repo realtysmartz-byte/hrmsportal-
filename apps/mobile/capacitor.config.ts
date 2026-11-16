@@ -1,8 +1,8 @@
-﻿import type { CapacitorConfig } from "@capacitor/cli";
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "in.realtysmartz.hrms",
-  appName: "RS HRMS",
+  appName: "HRMS",
   webDir: "www",
   server: {
     url: "https://rshrms.in",
@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: "#5D3EBC",
+    backgroundColor: "#2B2FD1",
     // Helps Google Sign-In work inside the app WebView
     overrideUserAgent:
       "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
@@ -19,7 +19,7 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: "#5D3EBC",
+      backgroundColor: "#2B2FD1",
       showSpinner: false,
     },
     StatusBar: {

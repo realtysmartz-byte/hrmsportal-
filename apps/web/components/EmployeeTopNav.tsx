@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -8,24 +8,21 @@ import {
   LayoutDashboard,
   Home,
   Clock,
-  CalendarDays,
   User,
   LogOut,
-  UsersRound,
-  Shield,
-  Award,
-  Target,
-  Download,
-  Menu,
   X,
-  ChevronRight,
-  IdCard,
+  MapPin,
+  Navigation,
+  FileText,
+  Target,
+  Building2,
   Briefcase,
-  Receipt,
+  Users,
+  Settings,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
-import { canAccessAdminPortal, isManager } from "@realty-smartz/shared";
+import { EmployeeNotificationBell } from "@/components/EmployeeNotificationBell";
+import { canAccessAdminPortal } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
@@ -36,12 +33,16 @@ export function EmployeeTopNav() {
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
+  const isAdmin = canAccessAdminPortal(role);
 
   const employeeId = session?.user?.id;
   const { data: profileHubData } = trpc.employee.profileHub.useQuery(
     { id: employeeId! },
     { enabled: Boolean(employeeId), staleTime: 10 * 60_000 }
   );
+  const { data: teamPendingCount = 0 } = trpc.leave.myTeamPendingCount.useQuery(undefined, {
+    staleTime: 20_000,
+  });
   const profilePhoto = profileHubData?.employee?.profilePhotoUrl || session?.user?.image || null;
   const displayName = profileHubData?.employee
     ? `${profileHubData.employee.firstName} ${profileHubData.employee.lastName}`.trim()
@@ -55,222 +56,289 @@ export function EmployeeTopNav() {
       .map((s) => s[0])
       .slice(0, 2)
       .join("")
-      .toUpperCase() || "RS");
+      .toUpperCase() || "HA");
 
-  const links = [
-    { href: "/employee-portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/employee-portal/attendance", label: "Attendance", icon: Clock },
-    { href: "/employee-portal/leave", label: "Leave", icon: CalendarDays },
-    { href: "/employee-portal/performance", label: "Performance", icon: Target },
-    ...(isManager(role)
-      ? [
-        { href: "/employee-portal/my-team", label: "My Team", icon: UsersRound },
+  const roleLabel = isAdmin ? "Admin" : "Employee";
+
+  // Lock body scroll on drawer open with scroll restoration
+  const scrollYRef = useRef(0);
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      scrollYRef.current = window.scrollY;
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.overflow = "hidden";
+      if (scrollBarWidth > 0) {
+        document.body.style.paddingRight = `${scrollBarWidth}px`;
+      }
+    } else {
+      const top = document.body.style.top;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+      if (top) {
+        window.scrollTo(0, scrollYRef.current);
+      }
+    }
+    return () => {
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [mobileMenuOpen]);
+
+  // Close drawer on ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
+
+  // Drawer Nav Groups matching sample-2-sidebar-open.png
+  const drawerGroups = isAdmin
+    ? [
+        {
+          title: "Overview",
+          items: [
+            { href: "/admin-portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
+          ],
+        },
+        {
+          title: "People",
+          items: [
+            { href: "/admin-portal/employees", label: "Employees", icon: Users },
+            { href: "/admin-portal/departments", label: "Departments", icon: Building2 },
+            { href: "/admin-portal/designations", label: "Designations", icon: Briefcase },
+          ],
+        },
+        {
+          title: "Attendance",
+          items: [
+            { href: "/admin-portal/attendance/team", label: "Team Attendance", icon: Clock },
+            { href: "/admin-portal/attendance/locations", label: "Location Tracing", icon: MapPin },
+            { href: "/admin-portal/attendance/allocate-locations", label: "Allocate Locations", icon: Navigation },
+          ],
+        },
+        {
+          title: "Work",
+          items: [
+            { href: "/admin-portal/leave/approvals", label: "Leave Approvals", icon: FileText },
+            { href: "/admin-portal/performance", label: "Performance", icon: Target },
+          ],
+        },
       ]
-      : []),
-    { href: "/employee-portal/id-card", label: "ID Card", icon: IdCard },
-    { href: "/employee-portal/payslips", label: "My Payslips", icon: Receipt },
-    { href: "/employee-portal/profile", label: "Profile", icon: User },
-  ];
+    : [
+        {
+          title: "Overview",
+          items: [
+            { href: "/employee-portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
+          ],
+        },
+        {
+          title: "Attendance",
+          items: [
+            { href: "/employee-portal/attendance", label: "Attendance", icon: Clock },
+          ],
+        },
+        {
+          title: "Work",
+          items: [
+            { href: "/employee-portal/leave", label: "Leave Requests", icon: FileText },
+            ...(teamPendingCount > 0 || (profileHubData?.employee?.directReports && profileHubData.employee.directReports.length > 0) || role === "MANAGER"
+              ? [{ href: "/employee-portal/leave/approvals", label: "Team Leave Approvals", icon: FileText }]
+              : []),
+            { href: "/employee-portal/performance", label: "Performance", icon: Target },
+            { href: "/employee-portal/id-card", label: "ID Card", icon: Briefcase },
+            { href: "/employee-portal/payslips", label: "My Payslips", icon: FileText },
+          ],
+        },
+      ];
 
-  // Mobile Bottom Tabs (4 Core Destinations without Team/Directory)
+  // Mobile Bottom Tabs matching reference (Home, Attendance, Leaves, Me)
   const bottomTabs = [
-    { href: "/employee-portal/dashboard", label: "HOME", icon: Home },
-    { href: "/employee-portal/attendance", label: "ATTENDANCE", icon: Clock },
-    { href: "/employee-portal/leave", label: "LEAVES", icon: Briefcase },
-    { href: "/employee-portal/profile", label: "ME", icon: User },
+    { href: "/employee-portal/dashboard", label: "Home", icon: Home },
+    { href: "/employee-portal/attendance", label: "Attendance", icon: Clock },
+    { href: "/employee-portal/leave", label: "Leaves", icon: Briefcase },
+    { href: "/employee-portal/profile", label: "Me", icon: User },
   ];
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-[#2A1167]">
-        {/* Deep rich purple header with soft gradient - with safe area padding */}
-        <div className="bg-gradient-to-r from-[#220B57] via-[#2A1167] to-[#3A178D] pt-[env(safe-area-inset-top)] text-white">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-            {/* Left: Perfect Circular Profile Photo Avatar */}
-            <Link
-              href="/employee-portal/profile"
-              className="flex shrink-0 items-center justify-center transition-transform active:scale-95"
-              title={displayName || "My Profile"}
-              style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-            >
-              <div
-                className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/80 bg-gradient-to-tr from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6] text-white shadow-md ring-1 ring-white/20 select-none aspect-square"
-                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36, borderRadius: "50%" }}
-              >
-                {profilePhoto ? (
-                  <img
-                    src={profilePhoto}
-                    alt={displayName || "Profile"}
-                    className="h-full w-full object-cover rounded-full aspect-square"
-                    referrerPolicy="no-referrer"
-                    style={{ width: "100%", height: "100%", borderRadius: "50%" }}
-                  />
-                ) : (
-                  <span className="text-[11px] font-black tracking-normal leading-none text-white select-none">
-                    {userInitials || "RS"}
-                  </span>
-                )}
-              </div>
-            </Link>
+      {/* 1. Header: Avatar + Company Marquee + Sidebar Button (White bg, 64px height) */}
+      <header className="sticky top-0 z-30 flex items-center gap-3 h-16 px-3 sm:px-4 border-b border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]">
+        {/* Avatar: Square 40x40 with rounded 4px and accent background */}
+        <Link
+          href="/employee-portal/profile"
+          className="w-10 h-10 flex-none rounded-[4px] bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm select-none overflow-hidden"
+          title="My Profile"
+        >
+          {profilePhoto ? (
+            <img
+              src={profilePhoto}
+              alt={displayName}
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span>{userInitials}</span>
+          )}
+        </Link>
 
-            {/* Center: Running Marquee with Smooth Edge Masking */}
-            <div className="flex-1 overflow-hidden px-2 min-w-0 [mask-image:linear-gradient(to_right,transparent,black_10px,black_calc(100%-10px),transparent)]">
-              <div className="animate-marquee-smooth flex items-center gap-6 text-xs font-semibold text-white/95 whitespace-nowrap">
-                <span>Hey {displayName} • Welcome to Realty Smartz Private Limited</span>
-                <span className="text-white/40">•</span>
-                <span>Hey {displayName} • Welcome to Realty Smartz Private Limited</span>
-                <span className="text-white/40">•</span>
-                <span>Hey {displayName} • Welcome to Realty Smartz Private Limited</span>
-                <span className="text-white/40">•</span>
-              </div>
+        {/* Marquee: Seamless infinite running text */}
+        <div
+          className="flex-1 min-w-0 overflow-hidden"
+          aria-label={`Hey ${displayName} • Welcome to Realty Smartz Private Limited`}
+        >
+          <div className="animate-run-header">
+            <div className="flex flex-none items-center gap-8 pr-8">
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
             </div>
-
-            {/* Right: Desktop Actions & Mobile 3-line Menu */}
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="hidden lg:flex items-center gap-4">
-                {canAccessAdminPortal(role) && (
-                  <Link
-                    href="/admin-portal/dashboard"
-                    title="Switch to Admin Console"
-                    className="text-white/80 hover:text-white"
-                  >
-                    <Shield className="h-5 w-5" />
-                  </Link>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowInstallModal(true)}
-                  title="Install Realty Smartz App"
-                  className="text-white/80 hover:text-white"
-                >
-                  <Download className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                  title="Log Out"
-                  className="text-white/80 hover:text-white"
-                >
-                  <LogOut className="h-5 w-5" />
-                </button>
-                <Link
-                  href="/employee-portal/profile"
-                  title={displayName}
-                  className="h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#5145CD] to-[#7957FF] text-xs font-semibold text-white flex border border-white/20"
-                >
-                  {profilePhoto ? (
-                    <img
-                      src={profilePhoto}
-                      alt={displayName}
-                      className="h-full w-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : displayName ? (
-                    displayName.charAt(0).toUpperCase()
-                  ) : (
-                    "U"
-                  )}
-                </Link>
-              </div>
-
-              {/* Mobile: 3-line hamburger menu on right */}
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-white hover:bg-white/10 active:scale-95 transition-all lg:hidden"
-                title="Open Navigation Menu"
-              >
-                <Menu className="h-6 w-6 text-white stroke-[2.2px]" />
-              </button>
+            <div className="flex flex-none items-center gap-8 pr-8">
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
+              <span className="flex items-center gap-8 text-sm font-semibold whitespace-nowrap text-[var(--ink)]">
+                Hey {displayName} • Welcome to Realty Smartz Private Limited
+                <span className="w-[5px] h-[5px] bg-[var(--accent)] rotate-45 inline-block shrink-0" />
+              </span>
             </div>
           </div>
         </div>
 
-        <nav className="hidden border-b border-neutral-200 lg:block">
-          <div className="mx-auto flex max-w-7xl gap-7 px-4">
-            {links.map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== "/employee-portal/dashboard" &&
-                  pathname.startsWith(`${item.href}/`));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "border-b-2 py-2.5 text-xs font-medium uppercase tracking-wide",
-                    active
-                        ? "border-[#0284C7] text-[#0284C7]"
-                        : "border-transparent text-neutral-600 hover:text-neutral-900"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+        {/* Notification Bell */}
+        <EmployeeNotificationBell />
+
+        {/* Menu Button: Minimal two-line icon */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="w-10 h-10 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-colors"
+          aria-label="Open menu"
+          aria-haspopup="dialog"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-[22px] h-[22px]"
+          >
+            <path d="M4 8h16M4 16h10" />
+          </svg>
+        </button>
       </header>
 
-      {/* MOBILE SLIDE-OVER DRAWER FOR ALL LINKS */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs lg:hidden"
-            />
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 280 }}
-              className="fixed inset-y-0 right-0 z-50 w-[290px] max-w-[85vw] bg-white flex flex-col pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:hidden"
-            >
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between px-5 pb-4 border-b border-neutral-100">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-[#5145CD] to-[#7957FF] font-bold text-sm text-white shrink-0">
-                    {profilePhoto ? (
-                      <img
-                        src={profilePhoto}
-                        alt={displayName}
-                        className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : displayName ? (
-                      displayName.charAt(0).toUpperCase()
-                    ) : (
-                      "U"
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-display text-sm font-bold text-neutral-900 truncate">
-                      {displayName}
-                    </p>
-                    <p className="text-[11px] text-neutral-400 font-medium truncate">
-                      {session?.user?.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+      {/* 2. Slide-in Sidebar Drawer with Scrim */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-[rgba(17,19,24,0.45)] transition-opacity duration-200",
+          mobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
+        )}
+        onClick={() => setMobileMenuOpen(false)}
+        aria-hidden="true"
+      />
 
-              {/* Navigation Items in Drawer */}
-              <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-                {links.map((item) => {
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        className={cn(
+          "fixed top-0 bottom-0 right-0 z-50 w-[min(86vw,336px)] bg-[var(--bg)] border-l border-[var(--line)] flex flex-col transition-transform duration-240 ease-out pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
+          mobileMenuOpen ? "translate-x-0 visible" : "translate-x-full invisible pointer-events-none"
+        )}
+      >
+        {/* Drawer Header (.dh): Logo + Title + Close Button */}
+        <div className="flex items-center gap-3 h-[72px] px-3 sm:px-4 border-b border-[var(--line)] flex-none">
+          {/* Logo Mark: Hexagon with 3 lines */}
+          <svg
+            className="w-[34px] h-[34px] shrink-0"
+            viewBox="0 0 34 34"
+            fill="none"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M17 2.5L29.55 9.75V24.25L17 31.5L4.45 24.25V9.75L17 2.5Z"
+              stroke="#2F7FB5"
+              strokeWidth="2.6"
+            />
+            <line x1="12" y1="12" x2="12" y2="22" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+            <line x1="17" y1="9.5" x2="17" y2="24.5" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+            <line x1="22" y1="12" x2="22" y2="22" stroke="#D6283A" strokeWidth="3.4" strokeLinecap="round" />
+          </svg>
+
+          <div className="flex-1 min-w-0">
+            <span className="block truncate text-[15px] font-bold tracking-[0.03em] text-[var(--ink)]">
+              Realty Smartz
+            </span>
+            <small className="block truncate text-[12px] text-[var(--muted)] mt-0.5">
+              {roleLabel}
+            </small>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-10 h-10 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5 stroke-[1.8]" />
+          </button>
+        </div>
+
+        {/* Drawer Navigation (.dn): Grouped links */}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-2 space-y-4">
+          {drawerGroups.map((group) => (
+            <div key={group.title}>
+              <div className="px-3 py-1.5 text-[12px] font-semibold text-[var(--muted)]">
+                {group.title}
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
                   const active =
                     pathname === item.href ||
-                    (item.href !== "/employee-portal/dashboard" &&
+                    (item.href !== "/admin-portal/dashboard" &&
+                      item.href !== "/employee-portal/dashboard" &&
                       pathname.startsWith(`${item.href}/`));
                   const Icon = item.icon;
 
@@ -280,127 +348,103 @@ export function EmployeeTopNav() {
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-colors",
+                        "relative flex items-center gap-3.5 w-full h-[46px] px-3 rounded-[4px] text-[15px] font-medium transition-colors text-left",
                         active
-                            ? "bg-[#0284C7] text-white"
-                            : "text-neutral-700 hover:bg-neutral-50"
+                          ? "bg-[var(--active)] text-[var(--ink)] font-semibold before:content-[''] before:absolute before:left-0 before:top-[9px] before:bottom-[9px] before:w-[3px] before:bg-[var(--accent)]"
+                          : "text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--ink)]"
                       )}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </div>
-                      <ChevronRight className={cn("h-3.5 w-3.5", active ? "text-white" : "text-neutral-300")} />
+                      <Icon
+                        className={cn(
+                          "w-5 h-5 stroke-[1.8]",
+                          active ? "text-[var(--accent)]" : "text-inherit"
+                        )}
+                      />
+                      <span>{item.label}</span>
                     </Link>
                   );
                 })}
-
-                {/* Switch to Admin Mode if Role allows */}
-                {canAccessAdminPortal(role) && (
-                  <div className="pt-2">
-                    <Link
-                      href="/admin-portal/dashboard"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors border border-sky-200/60"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Shield className="h-4 w-4 text-[#0284C7]" />
-                        <span>Admin Console Mode</span>
-                      </div>
-                      <ChevronRight className="h-3.5 w-3.5 text-sky-400" />
-                    </Link>
-                  </div>
-                )}
               </div>
+            </div>
+          ))}
 
-              {/* Drawer Footer Actions */}
-              <div className="px-4 pt-3 border-t border-neutral-100 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setShowInstallModal(true);
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 py-2.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-100 transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5 text-[#0284C7]" />
-                  <span>Install App on Phone</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors"
-                >
-                  <LogOut className="h-3.5 w-3.5 text-rose-600" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      <nav
-        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur-md border-t border-sky-100 shadow-[0_-4px_24px_rgba(2,132,199,0.08)]"
-        style={{
-          paddingBottom: "max(0.6rem, env(safe-area-inset-bottom, 0px))",
-          transform: "translate3d(0, 0, 0)",
-          WebkitTransform: "translate3d(0, 0, 0)",
-          WebkitBackfaceVisibility: "hidden",
-          backfaceVisibility: "hidden",
-          willChange: "transform",
-        }}
-      >
-        <div className="grid grid-cols-4 max-w-md mx-auto px-2">
-          {bottomTabs.map((tab) => {
-            const active =
-              pathname === tab.href ||
-              (tab.href !== "/employee-portal/dashboard" &&
-                pathname.startsWith(`${tab.href}/`));
-            const Icon = tab.icon;
-
-            return (
+          {/* Switch Portal Button if Admin */}
+          {isAdmin && (
+            <div className="pt-2 px-1">
               <Link
-                key={tab.href}
-                href={tab.href}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 pt-2 pb-1 min-h-[3.5rem] transition-all duration-150 relative group",
-                  active ? "text-[#0284C7]" : "text-neutral-400 hover:text-[#0284C7]"
-                )}
+                href={pathname.startsWith("/admin-portal") ? "/employee-portal/dashboard" : "/admin-portal/dashboard"}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 w-full h-10 rounded-[4px] border border-[var(--line)] text-xs font-semibold text-[var(--ink)] hover:bg-[var(--soft)]"
               >
-                <div
-                  className={cn(
-                    "flex items-center justify-center rounded-xl px-3 py-1 transition-all",
-                    active
-                      ? "bg-sky-50 text-[#0284C7] ring-1 ring-sky-200/80 shadow-sm"
-                      : "group-hover:bg-neutral-50"
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "h-5 w-5 transition-transform",
-                      active
-                        ? "text-[#0284C7] stroke-[2.2px] drop-shadow-[0_1px_3px_rgba(2,132,199,0.3)]"
-                        : "text-neutral-400 stroke-[1.8px] group-hover:text-[#0284C7]"
-                    )}
-                  />
-                </div>
-                <span
-                  className={cn(
-                    "text-[9px] tracking-wider",
-                    active ? "font-bold text-[#0284C7]" : "font-semibold text-neutral-500 group-hover:text-[#0284C7]"
-                  )}
-                >
-                  {tab.label}
-                </span>
-                {active && (
-                  <span className="absolute bottom-0 w-6 h-0.5 rounded-full bg-[#0284C7]" />
-                )}
+                {pathname.startsWith("/admin-portal") ? "Switch to Employee Portal" : "Switch to Admin Portal"}
               </Link>
-            );
-          })}
+            </div>
+          )}
         </div>
+
+        {/* Drawer Footer (.df): HA avatar with online indicator + HR Admin + Settings + Log out */}
+        <div className="flex items-center gap-3 p-3.5 border-t border-[var(--line)] flex-none">
+          <div className="relative w-10 h-10 flex-none rounded-[4px] bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm select-none">
+            {userInitials}
+            <i className="absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full bg-[var(--ok)] border-2 border-[var(--bg)]" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <span className="block truncate text-sm font-semibold text-[var(--ink)]">
+              {displayName}
+            </span>
+            <small className="block truncate text-xs text-[var(--muted)]">
+              {roleLabel}
+            </small>
+          </div>
+
+          <Link
+            href="/employee-portal/profile"
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-10 h-10 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-colors"
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5 stroke-[1.8]" />
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="w-10 h-10 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-colors"
+            aria-label="Log out"
+          >
+            <LogOut className="w-5 h-5 stroke-[1.8]" />
+          </button>
+        </div>
+      </aside>
+
+      {/* 3. Bottom Navigation: Home, Attendance, Leaves, Me */}
+      <nav
+        aria-label="Main"
+        className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto grid grid-cols-4 bg-[var(--bg)] border-t border-[var(--line)] z-40 pb-[env(safe-area-inset-bottom,0px)]"
+      >
+        {bottomTabs.map((tab) => {
+          const active =
+            pathname === tab.href ||
+            (tab.href !== "/employee-portal/dashboard" && pathname.startsWith(`${tab.href}/`));
+          const Icon = tab.icon;
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                "relative h-16 flex flex-col items-center justify-center gap-1 text-[12px] font-semibold transition-colors",
+                active
+                  ? "text-[var(--accent)] before:content-[''] before:absolute before:-top-[1px] before:left-1/4 before:right-1/4 before:h-[2px] before:bg-[var(--accent)]"
+                  : "text-[var(--muted)] hover:text-[var(--ink)]"
+              )}
+            >
+              <Icon className="w-[22px] h-[22px] stroke-[1.8]" />
+              <span>{tab.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       <InstallGuideModal
@@ -408,5 +452,5 @@ export function EmployeeTopNav() {
         onClose={() => setShowInstallModal(false)}
       />
     </>
-        );
+  );
 }

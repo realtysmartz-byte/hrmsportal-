@@ -3,6 +3,8 @@ import { appRouter } from "@realty-smartz/api";
 import { after } from "next/server";
 import { createTRPCContext } from "@/server/context";
 
+export const dynamic = "force-dynamic";
+
 const handler = (req: Request) =>
   fetchRequestHandler({
     endpoint: "/api/trpc",

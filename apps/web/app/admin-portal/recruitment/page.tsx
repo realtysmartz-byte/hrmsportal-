@@ -30,10 +30,10 @@ export default function RecruitmentJobsPage() {
       {/* 1. TOP HEADER (Dashboards V3 Style) */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-neutral-900">
+          <h1 className="text-[26px] font-bold text-[var(--ink)] tracking-tight">
             Recruitment
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500">
+          <p className="mt-0.5 text-xs sm:text-sm text-[var(--muted)]">
             Corporate job postings, requisitions, and candidate application pipeline
           </p>
         </div>
@@ -41,7 +41,7 @@ export default function RecruitmentJobsPage() {
         <Link href="/admin-portal/recruitment/new">
           <button
             type="button"
-            className="flex items-center gap-2 rounded-lg bg-[#5D3EBC] px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:opacity-95 active:scale-95 transition-all"
+            className="btn-chamfer flex items-center gap-2 bg-[var(--accent)] px-5 h-11 text-xs font-semibold text-white hover:brightness-110 transition-all"
           >
             <Plus className="h-4 w-4" />
             New Job Posting
@@ -50,7 +50,7 @@ export default function RecruitmentJobsPage() {
       </div>
 
       {/* 2. FILTER BAR */}
-      <div className="rounded-lg border border-neutral-200/80 bg-white p-3.5 sm:p-4">
+      <div className="rounded border border-[var(--line)] bg-[var(--card)] p-3.5 sm:p-4 text-[var(--ink)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="w-full sm:w-56">
             <Select
@@ -64,8 +64,8 @@ export default function RecruitmentJobsPage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700 border border-neutral-200/60">
-            <Briefcase className="h-3.5 w-3.5 text-[#5D3EBC]" />
+          <div className="flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--field)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)]">
+            <Briefcase className="h-3.5 w-3.5 text-[var(--accent)]" />
             <span>{data?.length ?? 0} Total Postings</span>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function RecruitmentJobsPage() {
           />
         </div>
       ) : (
-        <div className="rounded-lg border border-neutral-200/80 bg-white overflow-hidden">
+        <div className="rounded border border-[var(--line)] bg-[var(--card)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -107,7 +107,7 @@ export default function RecruitmentJobsPage() {
                   <TableCell>
                     <Link
                       href={`/admin-portal/recruitment/${job.id}`}
-                      className="font-bold text-neutral-900 hover:text-[#5D3EBC] transition-colors"
+                      className="font-bold text-neutral-900 hover:text-[var(--accent)] transition-colors"
                     >
                       {job.title}
                     </Link>
@@ -129,7 +129,7 @@ export default function RecruitmentJobsPage() {
 
                   <TableCell>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-800">
-                      <Users className="h-3 w-3 text-[#5D3EBC]" />
+                      <Users className="h-3 w-3 text-[var(--accent)]" />
                       {job._count.candidates} Applied
                     </span>
                   </TableCell>
@@ -155,7 +155,7 @@ export default function RecruitmentJobsPage() {
                   <TableCell className="text-right">
                     <Link
                       href={`/admin-portal/recruitment/${job.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[#5D3EBC] transition-colors"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-[var(--accent)] transition-colors"
                     >
                       <span>Pipeline</span>
                       <ChevronRight className="h-3.5 w-3.5" />

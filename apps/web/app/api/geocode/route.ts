@@ -8,6 +8,8 @@ import {
   type PlaceItem,
 } from "@/lib/places-registry";
 
+export const dynamic = "force-dynamic";
+
 const MAX_QUERY_LENGTH = 600;
 
 type ReversePlace = { name: string; address: string; lat: number; lng: number };

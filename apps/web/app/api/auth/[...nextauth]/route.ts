@@ -2,6 +2,8 @@ import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 function getDynamicAuthOptions(req: NextRequest) {
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
   const proto =

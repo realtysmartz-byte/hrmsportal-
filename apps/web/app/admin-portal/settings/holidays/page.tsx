@@ -279,7 +279,7 @@ export default function HolidaysManagementPage() {
           <div className="flex items-center gap-2 text-xs font-semibold text-neutral-400 mb-1">
             <span>Settings</span>
             <span>/</span>
-            <span className="text-[#6D28D9]">Company Holidays</span>
+            <span className="text-[var(--accent)]">Company Holidays</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
             Holiday Management
@@ -296,7 +296,7 @@ export default function HolidaysManagementPage() {
                 cancelEdit();
                 setFormOpen(true);
               }}
-              className="gap-2 bg-[#6D28D9] hover:bg-[#5B21B6] text-white rounded-xl shadow-xs text-xs font-bold"
+              className="gap-2 bg-[var(--accent)] hover:brightness-110 text-white rounded-xl shadow-xs text-xs font-bold"
             >
               <Plus className="h-4 w-4" />
               <span>Add Holiday</span>
@@ -325,7 +325,7 @@ export default function HolidaysManagementPage() {
         <div className="rounded-2xl border border-[#EAEBF0] bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-neutral-500">Total Holidays</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F2FC] text-[#6D28D9]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--field)] text-[var(--accent)]">
               <Calendar className="h-4 w-4" />
             </div>
           </div>
@@ -368,7 +368,7 @@ export default function HolidaysManagementPage() {
           <p className="mt-2 text-sm font-bold text-neutral-900 truncate">
             {stats.next ? stats.next.name : "None scheduled"}
           </p>
-          <p className="text-[11px] font-semibold text-[#6D28D9] mt-0.5">
+          <p className="text-[11px] font-semibold text-[var(--accent)] mt-0.5">
             {stats.next ? getDaysUntil(stats.next.date).label : "All passed"}
           </p>
         </div>
@@ -376,10 +376,10 @@ export default function HolidaysManagementPage() {
 
       {/* 3. Add / Edit Holiday Form Drawer */}
       {formOpen && (
-        <div className="rounded-2xl border border-[#D8C7F8] bg-gradient-to-br from-white to-[#FAF8FE] p-5 sm:p-6 shadow-sm">
+        <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-neutral-100 pb-3 mb-4">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#6D28D9] text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-white">
                 {editingId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               </div>
               <div>
@@ -414,7 +414,7 @@ export default function HolidaysManagementPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="rounded-xl border-[#E2E4E9] text-xs font-medium focus:border-[#6D28D9]"
+                  className="rounded-xl border-[#E2E4E9] text-xs font-medium focus:border-[var(--accent)]"
                 />
               </div>
 
@@ -440,7 +440,7 @@ export default function HolidaysManagementPage() {
                 <Select
                   value={type}
                   onChange={(e) => setType(e.target.value as any)}
-                  className="rounded-xl border-[#E2E4E9] text-xs font-medium focus:border-[#6D28D9]"
+                  className="rounded-xl border-[#E2E4E9] text-xs font-medium focus:border-[var(--accent)]"
                 >
                   <option value="PUBLIC">Public / Gazetted Holiday</option>
                   <option value="RESTRICTED">Restricted / Optional Holiday</option>
@@ -457,7 +457,7 @@ export default function HolidaysManagementPage() {
                   placeholder="e.g. National holiday celebrating Constitution of India"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="rounded-xl border-[#E2E4E9] text-xs font-medium focus:border-[#6D28D9]"
+                  className="rounded-xl border-[#E2E4E9] text-xs font-medium focus:border-[var(--accent)]"
                 />
               </div>
             </div>
@@ -476,7 +476,7 @@ export default function HolidaysManagementPage() {
                 type="submit"
                 size="sm"
                 disabled={announceMutation.isPending || updateMutation.isPending}
-                className="rounded-xl bg-[#6D28D9] hover:bg-[#5B21B6] text-white text-xs font-bold px-4"
+                className="rounded-xl bg-[var(--accent)] hover:brightness-110 text-white text-xs font-bold px-4"
               >
                 {announceMutation.isPending || updateMutation.isPending
                   ? "Saving..."
@@ -501,7 +501,7 @@ export default function HolidaysManagementPage() {
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
               filterTab === "UPCOMING"
-                ? "bg-white text-[#6D28D9] shadow-xs"
+                ? "bg-white text-[var(--accent)] shadow-xs"
                 : "text-neutral-500 hover:text-neutral-900"
             )}
           >
@@ -513,7 +513,7 @@ export default function HolidaysManagementPage() {
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
               filterTab === "ALL"
-                ? "bg-white text-[#6D28D9] shadow-xs"
+                ? "bg-white text-[var(--accent)] shadow-xs"
                 : "text-neutral-500 hover:text-neutral-900"
             )}
           >
@@ -525,7 +525,7 @@ export default function HolidaysManagementPage() {
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
               filterTab === "PAST"
-                ? "bg-white text-[#6D28D9] shadow-xs"
+                ? "bg-white text-[var(--accent)] shadow-xs"
                 : "text-neutral-500 hover:text-neutral-900"
             )}
           >
@@ -539,7 +539,7 @@ export default function HolidaysManagementPage() {
           <Select
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
-            className="w-28 rounded-xl border-[#E2E4E9] text-xs font-semibold focus:border-[#6D28D9]"
+            className="w-28 rounded-xl border-[#E2E4E9] text-xs font-semibold focus:border-[var(--accent)]"
           >
             <option value="2026">2026</option>
             <option value="2027">2027</option>
@@ -555,7 +555,7 @@ export default function HolidaysManagementPage() {
               placeholder="Search holidays..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-xl border border-[#E2E4E9] bg-neutral-50/70 pl-8 pr-3 text-xs font-medium text-neutral-800 placeholder:text-neutral-400 transition-all focus:border-[#6D28D9] focus:bg-white focus:outline-none"
+              className="h-9 w-full rounded-xl border border-[#E2E4E9] bg-neutral-50/70 pl-8 pr-3 text-xs font-medium text-neutral-800 placeholder:text-neutral-400 transition-all focus:border-[var(--accent)] focus:bg-white focus:outline-none"
             />
           </div>
         </div>
@@ -600,8 +600,8 @@ export default function HolidaysManagementPage() {
                     {/* Date Block */}
                     <TableCell className="py-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border border-[#E7DBFA] bg-gradient-to-b from-[#FBF9FE] to-[#F3EEFD] shadow-2xs">
-                          <span className="text-[9px] font-extrabold text-[#6D28D9] tracking-wider uppercase leading-none">
+                        <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border border-[var(--line)] bg-gradient-to-b from-[#FBF9FE] to-[#F3EEFD] shadow-2xs">
+                          <span className="text-[9px] font-extrabold text-[var(--accent)] tracking-wider uppercase leading-none">
                             {month}
                           </span>
                           <span className="text-sm font-black text-neutral-900 leading-tight">
@@ -626,7 +626,7 @@ export default function HolidaysManagementPage() {
                         className={cn(
                           "rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide",
                           h.type === "PUBLIC"
-                            ? "bg-purple-100 text-[#6D28D9] border border-purple-200/60"
+                            ? "bg-purple-100 text-[var(--accent)] border border-purple-200/60"
                             : h.type === "COMPANY"
                               ? "bg-blue-100 text-blue-800 border border-blue-200/60"
                               : "bg-amber-100 text-amber-800 border border-amber-200/60"
@@ -658,7 +658,7 @@ export default function HolidaysManagementPage() {
                               ? "bg-amber-100 text-amber-800 border border-amber-300"
                               : isPast
                                 ? "bg-neutral-100 text-neutral-500"
-                                : "bg-[#F3EAFD] text-[#6D28D9] border border-[#E7DBFA]"
+                                : "bg-[var(--field)] text-[var(--accent)] border border-[var(--line)]"
                         )}
                       >
                         {daysUntilLabel}
@@ -672,7 +672,7 @@ export default function HolidaysManagementPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => startEdit(h)}
-                          className="h-8 w-8 p-0 rounded-lg text-neutral-500 hover:text-[#6D28D9] hover:bg-neutral-100"
+                          className="h-8 w-8 p-0 rounded-lg text-neutral-500 hover:text-[var(--accent)] hover:bg-neutral-100"
                           title="Edit Holiday"
                         >
                           <Pencil className="h-3.5 w-3.5" />

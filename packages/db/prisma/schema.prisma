@@ -71,6 +71,7 @@ model Employee {
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
   approvedLeaves   LeaveRequest[] @relation("LeaveApprover")
+  managerApprovedLeaves LeaveRequest[] @relation("LeaveManagerApprover")
   postedJobs         JobPosting[]
   referredCandidates Candidate[]      @relation("CandidateReferral")
   interviewRounds    InterviewRound[]
@@ -222,6 +223,11 @@ model LeaveRequest {
   approvedById String?
   approvedBy   Employee?   @relation("LeaveApprover", fields: [approvedById], references: [id])
   approverNote String?
+  managerStatus      String?     @default("PENDING")
+  managerId          String?
+  manager            Employee?   @relation("LeaveManagerApprover", fields: [managerId], references: [id])
+  managerNote        String?
+  managerRespondedAt DateTime?
   appliedAt    DateTime    @default(now())
   respondedAt  DateTime?
 }

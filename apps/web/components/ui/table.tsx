@@ -5,10 +5,10 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-x-auto scrollbar-thin">
+  <div className="relative w-full overflow-x-auto scrollbar-none">
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-xs sm:text-sm", className)}
+      className={cn("w-full caption-bottom text-xs sm:text-sm text-[var(--ink)]", className)}
       {...props}
     />
   </div>
@@ -22,7 +22,7 @@ const TableHeader = React.forwardRef<
   <thead
     ref={ref}
     className={cn(
-      "bg-neutral-50 border-b border-neutral-200 [&_tr]:border-b-0",
+      "bg-[var(--field)] border-b border-[var(--line)] [&_tr]:border-b-0",
       className
     )}
     {...props}
@@ -36,7 +36,7 @@ const TableBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tbody
     ref={ref}
-    className={cn("[&_tr:last-child]:border-0 divide-y divide-neutral-100/90 bg-white", className)}
+    className={cn("[&_tr:last-child]:border-0 divide-y divide-[var(--line)] bg-[var(--card)]", className)}
     {...props}
   />
 ));
@@ -49,7 +49,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b border-neutral-100 transition-colors duration-150 ease-out hover:bg-neutral-50/80 group",
+      "border-b border-[var(--line)] transition-colors duration-150 ease-out hover:bg-[var(--hover)]",
       className
     )}
     {...props}
@@ -64,7 +64,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 px-3 sm:px-5 text-left align-middle text-xs font-semibold text-neutral-500 whitespace-nowrap",
+      "h-10 px-4 text-left align-middle text-[12px] font-semibold text-[var(--muted)] whitespace-nowrap",
       className
     )}
     {...props}
@@ -78,7 +78,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("px-3 py-3 sm:px-5 sm:py-3.5 align-middle text-xs sm:text-sm text-neutral-800", className)}
+    className={cn("px-4 py-3 align-middle text-xs sm:text-sm text-[var(--ink)]", className)}
     {...props}
   />
 ));

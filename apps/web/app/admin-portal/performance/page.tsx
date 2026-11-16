@@ -980,7 +980,7 @@ export default function AdminTargetsPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   {/* Employee Info */}
                   <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0284C7] to-[#38BDF8] text-white font-extrabold text-lg shadow-sm">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-white font-extrabold text-lg shadow-sm">
                       {activeEmployeeTarget.employee.firstName.charAt(0)}
                       {activeEmployeeTarget.employee.lastName.charAt(0)}
                     </div>
@@ -1249,7 +1249,7 @@ export default function AdminTargetsPage() {
                           </div>
                           <div className="h-2.5 w-full rounded-full bg-sky-100/70 overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-[#0284C7] transition-all duration-500"
+                              className="h-full rounded-full bg-[var(--card)] from-sky-400 to-[#0284C7] transition-all duration-500"
                               style={{ width: `${completionPct}%` }}
                             />
                           </div>
@@ -1615,7 +1615,7 @@ export default function AdminTargetsPage() {
                   {/* TL Header & Aggregate Stats */}
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0284C7] to-sky-400 text-white font-extrabold text-base shadow-xs">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--card)] from-[#0284C7] to-sky-400 text-white font-extrabold text-base shadow-xs">
                         {tl.name.charAt(0)}
                       </div>
                       <div>

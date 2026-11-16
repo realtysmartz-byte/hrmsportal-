@@ -13,6 +13,7 @@ import {
 import type { Role } from "@realty-smartz/shared";
 import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
+import { sendEmployeePushNotification } from "../lib/push-notify";
 
 export const leaveRouter = router({
   types: protectedProcedure.query(async ({ ctx }) => {
@@ -171,6 +172,9 @@ export const leaveRouter = router({
         approvedBy: {
           select: { id: true, firstName: true, lastName: true },
         },
+        manager: {
+          select: { id: true, firstName: true, lastName: true },
+        },
       },
       orderBy: { appliedAt: "desc" },
     });
@@ -265,64 +269,65 @@ export const leaveRouter = router({
         });
       }
 
-      // 2. Enforce sandwich rule: If enabled, weekend days spanned or connected to leaves are counted as leave days
+      // 2. Enforce sandwich rule: If enabled, Tuesday weekly off days spanned or connected to leaves are counted as leave days
       let sandwichDays = 0;
       let sandwichNote = "";
 
       if (sandwichRuleEnabled && !input.isHalfDay) {
-        // Range check: if range spans weekend days
+        // Range check: if range spans Tuesday weekly off (day 2)
         const cur = new Date(startDate);
-        let hasWeekdayBefore = false;
-        let weekendInSpan = 0;
+        let hasWorkingDayBefore = false;
+        let offDaysInSpan = 0;
         while (cur <= endDate) {
           const d = cur.getUTCDay();
-          if (d >= 1 && d <= 5) {
-            if (weekendInSpan > 0) {
-              sandwichDays += weekendInSpan;
-              weekendInSpan = 0;
+          // Tuesday is weekly off (2); Saturday (6) and Sunday (0) are working days
+          if (d !== 2) {
+            if (offDaysInSpan > 0) {
+              sandwichDays += offDaysInSpan;
+              offDaysInSpan = 0;
             }
-            hasWeekdayBefore = true;
+            hasWorkingDayBefore = true;
           } else {
-            if (hasWeekdayBefore) {
-              weekendInSpan++;
+            if (hasWorkingDayBefore) {
+              offDaysInSpan++;
             }
           }
           cur.setUTCDate(cur.getUTCDate() + 1);
         }
 
-        // Check if starts on Monday (day 1) and preceding Friday was on leave
-        if (startDate.getUTCDay() === 1) {
-          const prevFriday = new Date(startDate);
-          prevFriday.setUTCDate(prevFriday.getUTCDate() - 3);
-          const hasPrevFridayLeave = await ctx.prisma.leaveRequest.findFirst({
+        // Check if starts on Wednesday (day 3) and preceding Monday (day 1) was on leave
+        if (startDate.getUTCDay() === 3) {
+          const prevMonday = new Date(startDate);
+          prevMonday.setUTCDate(prevMonday.getUTCDate() - 2);
+          const hasPrevMondayLeave = await ctx.prisma.leaveRequest.findFirst({
             where: {
               employeeId: actor.id,
               status: { in: ["APPROVED", "PENDING"] },
-              startDate: { lte: prevFriday },
-              endDate: { gte: prevFriday },
+              startDate: { lte: prevMonday },
+              endDate: { gte: prevMonday },
             },
           });
-          if (hasPrevFridayLeave) {
-            sandwichDays += 2;
-            sandwichNote += " [Sandwich Rule: 2 weekend days added due to leave on preceding Friday]";
+          if (hasPrevMondayLeave) {
+            sandwichDays += 1;
+            sandwichNote += " [Sandwich Rule: Tuesday weekly off added due to leave on preceding Monday]";
           }
         }
 
-        // Check if ends on Friday (day 5) and following Monday is on leave
-        if (endDate.getUTCDay() === 5) {
-          const nextMonday = new Date(endDate);
-          nextMonday.setUTCDate(nextMonday.getUTCDate() + 3);
-          const hasNextMondayLeave = await ctx.prisma.leaveRequest.findFirst({
+        // Check if ends on Monday (day 1) and following Wednesday (day 3) is on leave
+        if (endDate.getUTCDay() === 1) {
+          const nextWednesday = new Date(endDate);
+          nextWednesday.setUTCDate(nextWednesday.getUTCDate() + 2);
+          const hasNextWednesdayLeave = await ctx.prisma.leaveRequest.findFirst({
             where: {
               employeeId: actor.id,
               status: { in: ["APPROVED", "PENDING"] },
-              startDate: { lte: nextMonday },
-              endDate: { gte: nextMonday },
+              startDate: { lte: nextWednesday },
+              endDate: { gte: nextWednesday },
             },
           });
-          if (hasNextMondayLeave) {
-            sandwichDays += 2;
-            sandwichNote += " [Sandwich Rule: 2 weekend days added due to leave on following Monday]";
+          if (hasNextWednesdayLeave) {
+            sandwichDays += 1;
+            sandwichNote += " [Sandwich Rule: Tuesday weekly off added due to leave on following Wednesday]";
           }
         }
       }
@@ -341,6 +346,20 @@ export const leaveRouter = router({
 
       const exceedsBalance = !balance || balance.remaining < totalLeaveDays;
 
+      const empDetails = await ctx.prisma.employee.findUnique({
+        where: { id: actor.id },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          managerId: true,
+          organizationId: true,
+        },
+      });
+
+      const hasManager = Boolean(empDetails?.managerId);
+      const managerStatus = hasManager ? "PENDING" : "NOT_REQUIRED";
+
       const created = await ctx.prisma.leaveRequest.create({
         data: {
           employeeId: actor.id,
@@ -355,6 +374,7 @@ export const leaveRouter = router({
               ? `${input.reason}${sandwichNote}\n\n[Note: Request exceeds available balance]`
               : `${input.reason}${sandwichNote}`,
           status: leaveType.requiresApproval ? "PENDING" : "APPROVED",
+          managerStatus: leaveType.requiresApproval ? managerStatus : "NOT_REQUIRED",
           ...(leaveType.requiresApproval
             ? {}
             : {
@@ -419,6 +439,28 @@ export const leaveRouter = router({
             "notifyLeave",
             telegramMsg
           );
+
+          // Push Notifications to Manager and Applicant
+          if (hasManager && empDetails?.managerId) {
+            void sendEmployeePushNotification({
+              prisma: ctx.prisma,
+              employeeId: empDetails.managerId,
+              title: "Leave Approval Required",
+              body: `${emp.firstName} ${emp.lastName} applied for ${numberOfDays}d ${leaveType.name}. Action required.`,
+              url: "/employee-portal/leave/approvals",
+              type: "leave",
+            });
+          }
+          void sendEmployeePushNotification({
+            prisma: ctx.prisma,
+            employeeId: actor.id,
+            title: "Leave Application Submitted",
+            body: hasManager
+              ? `Your ${numberOfDays}d leave application has been submitted to your manager.`
+              : `Your ${numberOfDays}d leave application has been submitted to HR.`,
+            url: "/employee-portal/leave",
+            type: "leave",
+          });
         } catch (err) {
           console.error("[leave] apply alert failed:", err);
         }
@@ -484,9 +526,15 @@ export const leaveRouter = router({
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      const role = ctx.session.user.role as Role;
-      if (!canApproveLeave(role)) {
-        throw new TRPCError({ code: "FORBIDDEN" });
+      const approver = await ctx.prisma.employee.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { id: true, role: true, directReports: { select: { id: true } } },
+      });
+      const isManager = approver && (approver.role === "MANAGER" || approver.directReports.length > 0);
+      const isHRorAdmin = approver?.role === "ADMIN" || approver?.role === "HR";
+
+      if (!isManager && !isHRorAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied to leave approvals." });
       }
 
       const statusFilter = input?.status ?? "PENDING";
@@ -495,10 +543,15 @@ export const leaveRouter = router({
         where.status = statusFilter;
       }
       const orgId = ctx.session.user.organizationId || "org_default_realty";
-      where.employee = {
-        organizationId: orgId,
-        ...(role === "MANAGER" ? { managerId: ctx.session.user.id } : {}),
-      };
+
+      if (isManager && !isHRorAdmin) {
+        where.employee = {
+          organizationId: orgId,
+          managerId: approver.id,
+        };
+      } else {
+        where.employee = { organizationId: orgId };
+      }
 
       return ctx.prisma.leaveRequest.findMany({
         where,
@@ -510,10 +563,19 @@ export const leaveRouter = router({
               firstName: true,
               lastName: true,
               employeeCode: true,
+              profilePhotoUrl: true,
               department: { select: { name: true } },
+              manager: { select: { id: true, firstName: true, lastName: true } },
             },
           },
           approvedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          manager: {
             select: {
               id: true,
               firstName: true,
@@ -526,22 +588,51 @@ export const leaveRouter = router({
     }),
 
   pendingApprovals: protectedProcedure.query(async ({ ctx }) => {
-    const role = ctx.session.user.role as Role;
-    if (!canApproveLeave(role)) {
-      throw new TRPCError({ code: "FORBIDDEN" });
+    const approver = await ctx.prisma.employee.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { id: true, role: true, directReports: { select: { id: true } } },
+    });
+    const isManager = approver && (approver.role === "MANAGER" || approver.directReports.length > 0);
+    const isHRorAdmin = approver?.role === "ADMIN" || approver?.role === "HR";
+
+    if (!isManager && !isHRorAdmin) {
+      return [];
     }
 
     const orgId = ctx.session.user.organizationId || "org_default_realty";
-    const where: Record<string, unknown> = {
-      status: "PENDING",
-      employee: {
-        organizationId: orgId,
-        ...(role === "MANAGER" ? { managerId: ctx.session.user.id } : {}),
-      },
-    };
+
+    if (isManager && !isHRorAdmin) {
+      return ctx.prisma.leaveRequest.findMany({
+        where: {
+          status: "PENDING",
+          managerStatus: "PENDING",
+          employee: {
+            organizationId: orgId,
+            managerId: approver.id,
+          },
+        },
+        include: {
+          leaveType: true,
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              profilePhotoUrl: true,
+              department: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { appliedAt: "asc" },
+      });
+    }
 
     return ctx.prisma.leaveRequest.findMany({
-      where,
+      where: {
+        status: "PENDING",
+        employee: { organizationId: orgId },
+      },
       include: {
         leaveType: true,
         employee: {
@@ -550,11 +641,33 @@ export const leaveRouter = router({
             firstName: true,
             lastName: true,
             employeeCode: true,
+            profilePhotoUrl: true,
             department: { select: { name: true } },
+            manager: { select: { id: true, firstName: true, lastName: true } },
           },
+        },
+        manager: {
+          select: { id: true, firstName: true, lastName: true },
         },
       },
       orderBy: { appliedAt: "asc" },
+    });
+  }),
+
+  myTeamPendingCount: protectedProcedure.query(async ({ ctx }) => {
+    const approver = await ctx.prisma.employee.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { id: true, role: true, directReports: { select: { id: true } } },
+    });
+    if (!approver || (approver.role !== "MANAGER" && approver.directReports.length === 0)) {
+      return 0;
+    }
+    return ctx.prisma.leaveRequest.count({
+      where: {
+        status: "PENDING",
+        managerStatus: "PENDING",
+        employee: { managerId: approver.id },
+      },
     });
   }),
 
@@ -562,20 +675,15 @@ export const leaveRouter = router({
     .input(respondLeaveSchema)
     .mutation(async ({ ctx, input }) => {
       const role = ctx.session.user.role as Role;
-      if (!canApproveLeave(role)) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
-
-      // Resolve approver from DB — session id can go stale after a reseed
       const approver =
         (await ctx.prisma.employee.findUnique({
           where: { id: ctx.session.user.id },
-          select: { id: true },
+          select: { id: true, firstName: true, lastName: true, role: true, directReports: { select: { id: true } } },
         })) ??
         (ctx.session.user.email
           ? await ctx.prisma.employee.findUnique({
               where: { email: ctx.session.user.email.toLowerCase() },
-              select: { id: true },
+              select: { id: true, firstName: true, lastName: true, role: true, directReports: { select: { id: true } } },
             })
           : null);
 
@@ -583,23 +691,114 @@ export const leaveRouter = router({
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message:
-            "Your session is out of date (database was reseeded). Sign out and sign in again, then retry.",
+            "Your session is out of date. Sign out and sign in again, then retry.",
         });
+      }
+
+      const isManager = approver.role === "MANAGER" || approver.directReports.length > 0;
+      const isHRorAdmin = approver.role === "ADMIN" || approver.role === "HR" || role === "ADMIN" || role === "HR";
+
+      if (!isManager && !isHRorAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You are not authorized to approve leave requests." });
       }
 
       const req = await ctx.prisma.leaveRequest.findUnique({
         where: { id: input.id },
-        include: { employee: { select: { managerId: true } } },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              managerId: true,
+              organizationId: true,
+            },
+          },
+          leaveType: true,
+        },
       });
       if (!req) throw new TRPCError({ code: "NOT_FOUND" });
 
-      if (
-        role === "MANAGER" &&
-        req.employee.managerId !== approver.id
-      ) {
-        throw new TRPCError({ code: "FORBIDDEN" });
+      const isDirectManager = req.employee.managerId === approver.id;
+
+      if (!isDirectManager && !isHRorAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You can only approve leave requests for your direct reports." });
       }
 
+      // Case 1: Direct Manager Responding (Stage 1 Approval)
+      if (isDirectManager && !isHRorAdmin) {
+        if (input.action === "APPROVE") {
+          const updated = await ctx.prisma.leaveRequest.update({
+            where: { id: input.id },
+            data: {
+              managerStatus: "APPROVED",
+              managerId: approver.id,
+              managerNote: input.approverNote || null,
+              managerRespondedAt: new Date(),
+            },
+            include: { leaveType: true, employee: true },
+          });
+
+          // Push to employee
+          void sendEmployeePushNotification({
+            prisma: ctx.prisma,
+            employeeId: req.employeeId,
+            title: "Leave Approved by Manager",
+            body: `Your leave has been approved by ${approver.firstName} ${approver.lastName} and forwarded to HR for final authorization.`,
+            url: "/employee-portal/leave",
+            type: "leave",
+          });
+
+          // Push to HR / Admin team
+          const hrAdmins = await ctx.prisma.employee.findMany({
+            where: {
+              organizationId: req.employee.organizationId || "org_default_realty",
+              role: { in: ["ADMIN", "HR"] },
+              status: { in: ["ACTIVE", "ON_LEAVE"] },
+            },
+            select: { id: true },
+          });
+          if (hrAdmins.length > 0) {
+            void sendEmployeePushNotification({
+              prisma: ctx.prisma,
+              employeeId: hrAdmins.map((h) => h.id),
+              title: "Leave Ready for HR Sign-off",
+              body: `${req.employee.firstName} ${req.employee.lastName}'s leave was approved by manager. Final HR approval pending.`,
+              url: "/admin-portal/leave/approvals",
+              type: "leave",
+            });
+          }
+
+          return updated;
+        } else if (input.action === "REJECT") {
+          const updated = await ctx.prisma.leaveRequest.update({
+            where: { id: input.id },
+            data: {
+              status: "REJECTED",
+              managerStatus: "REJECTED",
+              managerId: approver.id,
+              managerNote: input.approverNote || null,
+              managerRespondedAt: new Date(),
+              respondedAt: new Date(),
+            },
+            include: { leaveType: true, employee: true },
+          });
+
+          void sendEmployeePushNotification({
+            prisma: ctx.prisma,
+            employeeId: req.employeeId,
+            title: "Leave Rejected by Manager",
+            body: `Your leave request was rejected by ${approver.firstName} ${approver.lastName}${input.approverNote ? `: ${input.approverNote}` : "."}`,
+            url: "/employee-portal/leave",
+            type: "leave",
+          });
+
+          return updated;
+        }
+      }
+
+      // Case 2: HR / Admin Responding (Stage 2 / Final Approval)
       const prevStatus = req.status;
       const newStatus =
         input.action === "APPROVE"
@@ -695,6 +894,7 @@ export const leaveRouter = router({
           where: { id: input.id },
           data: {
             status: newStatus,
+            managerStatus: req.managerStatus === "PENDING" && newStatus === "APPROVED" ? "APPROVED" : req.managerStatus,
             approvedById: newStatus === "PENDING" ? null : approver.id,
             approverNote: input.approverNote || null,
             respondedAt: newStatus === "PENDING" ? null : new Date(),
@@ -717,7 +917,7 @@ export const leaveRouter = router({
         });
       });
 
-      // Send decision email if Approved or Rejected
+      // Send decision email and push if Approved or Rejected
       if (newStatus !== "PENDING") {
         void (async () => {
           try {
@@ -736,6 +936,17 @@ export const leaveRouter = router({
             console.error("[leave] decision email failed:", err);
           }
         })();
+
+        void sendEmployeePushNotification({
+          prisma: ctx.prisma,
+          employeeId: req.employeeId,
+          title: newStatus === "APPROVED" ? "Leave Approved by HR" : "Leave Rejected by HR",
+          body: newStatus === "APPROVED"
+            ? `Your ${req.numberOfDays}d leave application has been approved by HR.`
+            : `Your leave application was rejected by HR${input.approverNote ? `: ${input.approverNote}` : "."}`,
+          url: "/employee-portal/leave",
+          type: "leave",
+        });
       }
 
       return updated;

@@ -1276,7 +1276,7 @@ export const employeeRouter = router({
   dashboardStats: protectedProcedure.query(async ({ ctx }) => {
     const orgId = ctx.session.user.organizationId || "org_default_realty";
     const today = startOfDayUTC(new Date());
-    const [totalEmployees, departmentCount, recentJoiners, todayLogs] =
+    const [totalEmployees, departmentCount, recentJoiners, todayLogs, departments, companyGroups, recentPunches, recentLeaves, recentTargetActs] =
       await Promise.all([
         ctx.prisma.employee.count({
           where: { organizationId: orgId, status: { in: ["ACTIVE", "ON_LEAVE"] }, role: "EMPLOYEE" },
@@ -1305,9 +1305,54 @@ export const employeeRouter = router({
             status: true,
             checkInTime: true,
             employee: {
-              select: { id: true, firstName: true, lastName: true },
+              select: { id: true, firstName: true, lastName: true, departmentId: true },
             },
           },
+        }),
+        ctx.prisma.department.findMany({
+          where: { organizationId: orgId },
+          select: {
+            id: true,
+            name: true,
+            _count: {
+              select: {
+                employees: {
+                  where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+                },
+              },
+            },
+          },
+          orderBy: {
+            employees: {
+              _count: "desc",
+            },
+          },
+        }),
+        ctx.prisma.employee.groupBy({
+          by: ["companyName"],
+          where: { organizationId: orgId, status: { in: ["ACTIVE", "ON_LEAVE"] } },
+          _count: { id: true },
+        }),
+        ctx.prisma.attendanceLog.findMany({
+          where: { employee: { organizationId: orgId }, checkInTime: { not: null } },
+          include: { employee: { select: { firstName: true, lastName: true } } },
+          orderBy: { checkInTime: "desc" },
+          take: 4,
+        }),
+        ctx.prisma.leaveRequest.findMany({
+          where: { employee: { organizationId: orgId } },
+          include: {
+            employee: { select: { firstName: true, lastName: true } },
+            leaveType: { select: { name: true } },
+          },
+          orderBy: { appliedAt: "desc" },
+          take: 4,
+        }),
+        ctx.prisma.targetActivity.findMany({
+          where: { target: { organizationId: orgId } },
+          include: { employee: { select: { firstName: true, lastName: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 4,
         }),
       ]);
 
@@ -1334,6 +1379,76 @@ export const employeeRouter = router({
     });
     const notInCount = Math.max(0, totalEmployees - checkedIds.size);
 
+    // Compute real operating units based on departments or companies with actual counts
+    const colors = ["var(--accent)", "var(--info)", "var(--ok)", "var(--warn)", "var(--danger)", "#8B5CF6"];
+    const operatingUnits = departments
+      .filter((d) => d._count.employees > 0)
+      .slice(0, 6)
+      .map((d, idx) => {
+        const empCount = d._count.employees;
+        const presentInDept = todayLogs.filter(
+          (l) => l.employee.departmentId === d.id && Boolean(l.checkInTime)
+        ).length;
+        const rate = empCount > 0 ? Math.min(100, Math.round((presentInDept / empCount) * 100)) : 100;
+        return {
+          id: d.id,
+          name: d.name,
+          tag: `${d.name} Division`,
+          members: empCount,
+          score: rate > 0 ? rate : 100,
+          color: colors[idx % colors.length],
+        };
+      });
+
+    // Real recent activities
+    type ActivityItem = {
+      id: string;
+      title: string;
+      subtitle: string;
+      time: Date | null;
+      type: "punch" | "leave" | "target";
+    };
+
+    const recentActivities: ActivityItem[] = [];
+
+    for (const p of recentPunches) {
+      if (p.checkInTime) {
+        recentActivities.push({
+          id: `punch-${p.id}`,
+          title: `${p.employee.firstName} ${p.employee.lastName} punched in`,
+          subtitle: p.status === "LATE" ? "Late check-in recorded" : "On-time arrival recorded",
+          time: p.checkInTime,
+          type: "punch",
+        });
+      }
+    }
+
+    for (const l of recentLeaves) {
+      recentActivities.push({
+        id: `leave-${l.id}`,
+        title: `${l.employee.firstName} ${l.employee.lastName} applied for leave`,
+        subtitle: `${l.numberOfDays}d ${l.leaveType.name} (${l.status})`,
+        time: l.appliedAt,
+        type: "leave",
+      });
+    }
+
+    for (const t of recentTargetActs) {
+      recentActivities.push({
+        id: `target-${t.id}`,
+        title: `${t.employee.firstName} ${t.employee.lastName} submitted activity`,
+        subtitle: `${t.title} (${t.status})`,
+        time: t.createdAt,
+        type: "target",
+      });
+    }
+
+    recentActivities.sort((a, b) => {
+      const tA = a.time ? new Date(a.time).getTime() : 0;
+      const tB = b.time ? new Date(b.time).getTime() : 0;
+      return tB - tA;
+    });
+
     return {
       totalEmployees,
       departmentCount,
@@ -1344,6 +1459,9 @@ export const employeeRouter = router({
         onLeave: { count: onLeave.length, sample: onLeave.slice(0, 4) },
         notIn: { count: notInCount, sample: notInSample },
       },
+      operatingUnits,
+      companyGroups,
+      recentActivities: recentActivities.slice(0, 5),
     };
   }),
 
@@ -1687,14 +1805,22 @@ export const employeeRouter = router({
         items,
       };
     } else {
-        const [recentLeaves, recentTargets, recentActivities] = await Promise.all([
+        const isDirectManager = await ctx.prisma.employee.findFirst({
+          where: { managerId: ctx.session.user.id },
+          select: { id: true },
+        });
+
+        const [recentLeaves, recentTargets, recentActivities, teamPendingLeaves] = await Promise.all([
           ctx.prisma.leaveRequest.findMany({
             where: {
               employeeId: ctx.session.user.id,
-              respondedAt: { not: null },
+              OR: [
+                { respondedAt: { not: null } },
+                { managerRespondedAt: { not: null } },
+              ],
             },
-            include: { leaveType: true },
-            orderBy: { respondedAt: "desc" },
+            include: { leaveType: true, manager: { select: { firstName: true, lastName: true } } },
+            orderBy: { appliedAt: "desc" },
             take: 5,
           }),
           ctx.prisma.employeeTarget.findMany({
@@ -1713,6 +1839,21 @@ export const employeeRouter = router({
             orderBy: { verifiedAt: "desc" },
             take: 5,
           }),
+          isDirectManager
+            ? ctx.prisma.leaveRequest.findMany({
+                where: {
+                  status: "PENDING",
+                  managerStatus: "PENDING",
+                  employee: { managerId: ctx.session.user.id },
+                },
+                include: {
+                  employee: { select: { firstName: true, lastName: true, profilePhotoUrl: true } },
+                  leaveType: { select: { name: true } },
+                },
+                orderBy: { appliedAt: "desc" },
+                take: 5,
+              })
+            : Promise.resolve([]),
         ]);
 
         type EmpNotificationItem = {
@@ -1729,24 +1870,48 @@ export const employeeRouter = router({
 
         const items: EmpNotificationItem[] = [];
 
-        for(const l of recentLeaves) {
+        for (const tpl of teamPendingLeaves) {
           items.push({
-            id: `leave-res-${l.id}`,
+            id: `team-leave-${tpl.id}`,
             type: "LEAVE" as const,
-            title: `Leave ${l.status === "APPROVED" ? "Approved" : "Rejected"}`,
-            subtitle: `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
-            time: l.respondedAt,
-            href: "/employee-portal/leaves",
-            avatar: null,
-            badgeColor:
-              l.status === "APPROVED"
-                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                : "bg-rose-100 text-rose-700 border-rose-200",
-            badgeText: l.status,
+            title: `Action Required: ${tpl.employee.firstName} ${tpl.employee.lastName}`,
+            subtitle: `Applied for ${tpl.numberOfDays}d ${tpl.leaveType.name}. Awaiting your manager approval.`,
+            time: tpl.appliedAt,
+            href: "/employee-portal/leave/approvals",
+            avatar: tpl.employee.profilePhotoUrl,
+            badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
+            badgeText: "Manager Approval",
           });
         }
 
-      for(const t of recentTargets) {
+        for (const l of recentLeaves) {
+          const isMgrApproved = l.managerStatus === "APPROVED" && l.status === "PENDING";
+          const isHrApproved = l.status === "APPROVED";
+
+          items.push({
+            id: `leave-res-${l.id}`,
+            type: "LEAVE" as const,
+            title: isMgrApproved
+              ? "Manager Approved Leave"
+              : isHrApproved
+                ? "Leave Approved by HR"
+                : "Leave Rejected",
+            subtitle: isMgrApproved
+              ? `Your ${l.leaveType.name} (${l.numberOfDays}d) was approved by manager. Awaiting HR.`
+              : `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
+            time: l.respondedAt || l.managerRespondedAt || l.appliedAt,
+            href: "/employee-portal/leave",
+            avatar: null,
+            badgeColor: isHrApproved
+              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+              : isMgrApproved
+                ? "bg-blue-100 text-blue-700 border-blue-200"
+                : "bg-rose-100 text-rose-700 border-rose-200",
+            badgeText: isHrApproved ? "HR Approved" : isMgrApproved ? "Manager Approved" : "Rejected",
+          });
+        }
+
+      for (const t of recentTargets) {
           items.push({
             id: `target-assigned-${t.id}`,
             type: "TARGET" as const,
@@ -1760,7 +1925,7 @@ export const employeeRouter = router({
           });
         }
 
-      for(const a of recentActivities) {
+      for (const a of recentActivities) {
           items.push({
             id: `target-act-res-${a.id}`,
             type: "TARGET" as const,
@@ -1785,7 +1950,7 @@ export const employeeRouter = router({
 
         return {
           unreadCount: items.length,
-          pendingLeavesCount: 0,
+          pendingLeavesCount: teamPendingLeaves.length,
           anomaliesCount: 0,
           candidatesCount: 0,
           items,

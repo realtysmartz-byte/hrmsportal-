@@ -191,7 +191,7 @@ export default function AutomationsPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-neutral-500 gap-2">
-        <RefreshCw className="h-4 w-4 animate-spin text-[#5D3EBC]" />
+        <RefreshCw className="h-4 w-4 animate-spin text-[var(--accent)]" />
         Loading Telegram automation settings...
       </div>
     );
@@ -217,7 +217,7 @@ export default function AutomationsPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 tracking-tight">
               Automations
             </h1>
-            <Badge className="bg-[#5D3EBC] text-white hover:bg-[#4C329B] font-semibold text-xs px-2.5">
+            <Badge className="bg-[var(--accent)] text-white hover:brightness-110 font-semibold text-xs px-2.5">
               Multi-Bot
             </Badge>
             {configs?.redisConnected && (
@@ -244,9 +244,9 @@ export default function AutomationsPage() {
       </div>
 
       {/* Guide Banner */}
-      <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-pink-50/30 p-4 sm:p-5 text-neutral-800">
+      <div className="rounded-xl border border-indigo-100 bg-[var(--field)] p-4 sm:p-5 text-neutral-800">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#5D3EBC] text-white shadow-sm mt-0.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm mt-0.5">
             <Bot className="h-5 w-5" />
           </div>
           <div className="space-y-2 text-xs">
@@ -302,7 +302,7 @@ export default function AutomationsPage() {
           onClick={() => setActiveTab("ATTENDANCE_LEAVE")}
           className={`flex items-center gap-2 py-3 px-4 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
             activeTab === "ATTENDANCE_LEAVE"
-              ? "border-[#5D3EBC] text-[#5D3EBC]"
+              ? "border-[#5D3EBC] text-[var(--accent)]"
               : "border-transparent text-neutral-500 hover:text-neutral-900"
           }`}
         >
@@ -320,7 +320,7 @@ export default function AutomationsPage() {
           onClick={() => setActiveTab("HR_LIFECYCLE")}
           className={`flex items-center gap-2 py-3 px-4 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
             activeTab === "HR_LIFECYCLE"
-              ? "border-[#5D3EBC] text-[#5D3EBC]"
+              ? "border-[#5D3EBC] text-[var(--accent)]"
               : "border-transparent text-neutral-500 hover:text-neutral-900"
           }`}
         >
@@ -343,7 +343,7 @@ export default function AutomationsPage() {
             <CardHeader className="pb-4 border-b border-neutral-100 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-[#5D3EBC]" />
+                  <Clock className="h-4 w-4 text-[var(--accent)]" />
                   Attendance & Leaves Bot Setup
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
@@ -358,7 +358,7 @@ export default function AutomationsPage() {
                   type="checkbox"
                   checked={attEnabled}
                   onChange={(e) => setAttEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC] cursor-pointer"
+                  className="h-4 w-4 rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18 cursor-pointer"
                 />
               </div>
             </CardHeader>
@@ -374,7 +374,7 @@ export default function AutomationsPage() {
                     value={attToken}
                     onChange={(e) => setAttToken(e.target.value)}
                     placeholder="e.g. 789123456:ABCdefGhIJKlmNoPQRsTUVwxyZ"
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 pr-10 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#5D3EBC]/30 focus:border-[#5D3EBC]"
+                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 pr-10 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/18 focus:border-[var(--accent)]"
                   />
                   <button
                     type="button"
@@ -411,7 +411,7 @@ export default function AutomationsPage() {
                     value={attChatId}
                     onChange={(e) => setAttChatId(e.target.value)}
                     placeholder="e.g. -1001234567890"
-                    className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#5D3EBC]/30 focus:border-[#5D3EBC]"
+                    className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/18 focus:border-[var(--accent)]"
                   />
                   <Button
                     type="button"
@@ -421,7 +421,7 @@ export default function AutomationsPage() {
                     onClick={() => autoDetectMutation.mutate({ botToken: attToken })}
                     className="shrink-0 text-xs font-semibold gap-1.5 bg-neutral-50 hover:bg-neutral-100"
                   >
-                    <Sparkles className="h-3.5 w-3.5 text-[#5D3EBC]" />
+                    <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
                     {autoDetectMutation.isLoading ? "Detecting..." : "Auto-Detect Group ID"}
                   </Button>
                 </div>
@@ -443,7 +443,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setAttFlags({ ...attFlags, notifyPunchIn: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">Punch-In Alert</div>
@@ -458,7 +458,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setAttFlags({ ...attFlags, notifyLeave: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">Leave Applications</div>
@@ -473,7 +473,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setAttFlags({ ...attFlags, notifyBirthday: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">Weekly Birthday Announcement</div>
@@ -510,7 +510,7 @@ export default function AutomationsPage() {
                   size="sm"
                   disabled={updateMutation.isLoading}
                   onClick={handleSaveAttendance}
-                  className="bg-[#5D3EBC] hover:bg-[#4C329B] text-white text-xs font-bold px-5"
+                  className="bg-[var(--accent)] hover:brightness-110 text-white text-xs font-bold px-5"
                 >
                   {updateMutation.isLoading ? "Saving..." : "Save Attendance Bot Settings"}
                 </Button>
@@ -529,7 +529,7 @@ export default function AutomationsPage() {
             <CardHeader className="pb-4 border-b border-neutral-100 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Users className="h-4 w-4 text-[#5D3EBC]" />
+                  <Users className="h-4 w-4 text-[var(--accent)]" />
                   HR & Lifecycle Bot Setup
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
@@ -544,7 +544,7 @@ export default function AutomationsPage() {
                   type="checkbox"
                   checked={hrEnabled}
                   onChange={(e) => setHrEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC] cursor-pointer"
+                  className="h-4 w-4 rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18 cursor-pointer"
                 />
               </div>
             </CardHeader>
@@ -560,7 +560,7 @@ export default function AutomationsPage() {
                     value={hrToken}
                     onChange={(e) => setHrToken(e.target.value)}
                     placeholder="e.g. 789123456:ABCdefGhIJKlmNoPQRsTUVwxyZ"
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 pr-10 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#5D3EBC]/30 focus:border-[#5D3EBC]"
+                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 pr-10 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/18 focus:border-[var(--accent)]"
                   />
                   <button
                     type="button"
@@ -597,7 +597,7 @@ export default function AutomationsPage() {
                     value={hrChatId}
                     onChange={(e) => setHrChatId(e.target.value)}
                     placeholder="e.g. -1009876543210"
-                    className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#5D3EBC]/30 focus:border-[#5D3EBC]"
+                    className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/18 focus:border-[var(--accent)]"
                   />
                   <Button
                     type="button"
@@ -607,7 +607,7 @@ export default function AutomationsPage() {
                     onClick={() => autoDetectMutation.mutate({ botToken: hrToken })}
                     className="shrink-0 text-xs font-semibold gap-1.5 bg-neutral-50 hover:bg-neutral-100"
                   >
-                    <Sparkles className="h-3.5 w-3.5 text-[#5D3EBC]" />
+                    <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
                     {autoDetectMutation.isLoading ? "Detecting..." : "Auto-Detect Group ID"}
                   </Button>
                 </div>
@@ -629,7 +629,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setHrFlags({ ...hrFlags, notifyNewJoin: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">New Employee Onboarded</div>
@@ -644,7 +644,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setHrFlags({ ...hrFlags, notifyCandidate: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">Candidate Applied / Referred</div>
@@ -659,7 +659,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setHrFlags({ ...hrFlags, notifyResigned: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">Employee Resigned</div>
@@ -674,7 +674,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setHrFlags({ ...hrFlags, notifyTerminated: e.target.checked })
                       }
-                      className="rounded border-neutral-300 text-[#5D3EBC] focus:ring-[#5D3EBC]"
+                      className="rounded border-neutral-300 text-[var(--accent)] focus:ring-[var(--accent)]/18"
                     />
                     <div>
                       <div className="font-semibold text-neutral-800">Employee Terminated</div>
@@ -709,7 +709,7 @@ export default function AutomationsPage() {
                   size="sm"
                   disabled={updateMutation.isLoading}
                   onClick={handleSaveHR}
-                  className="bg-[#5D3EBC] hover:bg-[#4C329B] text-white text-xs font-bold px-5"
+                  className="bg-[var(--accent)] hover:brightness-110 text-white text-xs font-bold px-5"
                 >
                   {updateMutation.isLoading ? "Saving..." : "Save HR Bot Settings"}
                 </Button>

@@ -249,9 +249,21 @@ export default function EmployeeLeavePage() {
                     : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
                 </p>
               </div>
-              <Badge variant={STATUS_VARIANT[r.status] ?? "secondary"}>
-                {r.status}
-              </Badge>
+              <div className="text-right shrink-0">
+                <Badge variant={STATUS_VARIANT[r.status] ?? "secondary"}>
+                  {r.status}
+                </Badge>
+                {(r as any).managerStatus === "APPROVED" && r.status === "PENDING" && (
+                  <span className="block text-[10px] font-semibold text-emerald-600 mt-1">
+                    ✓ Manager Approved (Waiting for HR)
+                  </span>
+                )}
+                {(r as any).managerStatus === "PENDING" && (r as any).manager && (
+                  <span className="block text-[10px] font-semibold text-amber-600 mt-1">
+                    • Waiting for Manager ({(r as any).manager.firstName})
+                  </span>
+                )}
+              </div>
             </div>
             {r.status === "PENDING" && (
               <Button

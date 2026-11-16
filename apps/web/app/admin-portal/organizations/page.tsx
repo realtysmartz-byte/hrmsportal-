@@ -124,7 +124,7 @@ export default function OrganizationsPage() {
             <h1 className="text-xl sm:text-2xl font-extrabold text-neutral-900 tracking-tight">
               Companies & Multi-Tenant Management
             </h1>
-            <Badge className="bg-[#5D3EBC] text-white text-[10px] font-bold">
+            <Badge className="bg-[var(--accent)] text-white text-[10px] font-bold">
               Super Admin
             </Badge>
           </div>
@@ -171,10 +171,10 @@ export default function OrganizationsPage() {
 
       {/* Onboard New Company Drawer / Form */}
       {isCreating && (
-        <Card className="border-2 border-[#5D3EBC]/30 shadow-lg bg-gradient-to-br from-white to-purple-50/20">
+        <Card className="border-2 border-[var(--line)] shadow-lg bg-[var(--card)]">
           <CardHeader className="border-b border-neutral-100 pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-neutral-900">
-              <Sparkles className="h-5 w-5 text-[#5D3EBC]" />
+              <Sparkles className="h-5 w-5 text-[var(--accent)]" />
               Onboard a New Client Company
             </CardTitle>
             <CardDescription className="text-xs">
@@ -185,7 +185,7 @@ export default function OrganizationsPage() {
             <form onSubmit={handleCreateSubmit} className="space-y-5">
               {/* Section 1: Company Profile */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#5D3EBC] mb-3 flex items-center gap-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--accent)] mb-3 flex items-center gap-1.5">
                   <Building2 className="h-3.5 w-3.5" /> 1. Company Information & Branding
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -255,7 +255,7 @@ export default function OrganizationsPage() {
 
               {/* Section 2: Primary Admin Account */}
               <div className="pt-3 border-t border-neutral-200/60">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#5D3EBC] mb-3 flex items-center gap-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--accent)] mb-3 flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5" /> 2. Primary HR / Admin Account
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -320,7 +320,7 @@ export default function OrganizationsPage() {
                 <Button
                   type="submit"
                   disabled={createMutation.isLoading}
-                  className="bg-[#5D3EBC] hover:bg-[#4d32a3] text-white font-bold text-xs gap-2"
+                  className="bg-[var(--accent)] hover:brightness-110 text-white font-bold text-xs gap-2"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   {createMutation.isLoading ? "Creating Portal..." : "Launch Organization"}
@@ -396,7 +396,7 @@ export default function OrganizationsPage() {
                       </div>
                       <div>
                         <span className="text-neutral-400 block text-[11px]">Subdomain:</span>
-                        <span className="font-mono text-[11px] text-[#5D3EBC] font-semibold truncate block">
+                        <span className="font-mono text-[11px] text-[var(--accent)] font-semibold truncate block">
                           {org.slug}.smartzhrms.com
                         </span>
                       </div>
@@ -420,7 +420,7 @@ export default function OrganizationsPage() {
       <Card className="border-neutral-200 bg-neutral-50/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
-            <Globe className="h-4 w-4 text-[#5D3EBC]" />
+            <Globe className="h-4 w-4 text-[var(--accent)]" />
             Deployment & Testing Quick Reference
           </CardTitle>
         </CardHeader>

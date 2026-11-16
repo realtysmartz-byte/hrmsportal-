@@ -234,7 +234,7 @@ export default function GoogleSheetsSettingsPage() {
       <Card className="border-neutral-200">
         <CardHeader className="pb-3 border-b border-neutral-100">
           <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4 text-[#5D3EBC]" />
+            <FileSpreadsheet className="h-4 w-4 text-[var(--accent)]" />
             Company Google Sheet Configuration
           </CardTitle>
           <CardDescription className="text-xs">
@@ -342,7 +342,7 @@ export default function GoogleSheetsSettingsPage() {
         <Card className="border-neutral-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-[#5D3EBC]" />
+              <FileSpreadsheet className="h-4 w-4 text-[var(--accent)]" />
               Trigger On-Demand Sync
             </CardTitle>
             <CardDescription className="text-xs">
@@ -394,7 +394,7 @@ export default function GoogleSheetsSettingsPage() {
         <Card className="border-neutral-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#5D3EBC]" />
+              <Clock className="h-4 w-4 text-[var(--accent)]" />
               Latest Sync Outcome
             </CardTitle>
             <CardDescription className="text-xs">

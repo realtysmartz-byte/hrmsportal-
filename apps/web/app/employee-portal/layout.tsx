@@ -2,9 +2,12 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { EmployeeTopNav } from "@/components/EmployeeTopNav";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
+import { EmployeePolicyAgreementModal } from "@/components/EmployeePolicyAgreementModal";
 import { authOptions } from "@/lib/auth";
 import { canAccessAdminPortal } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
+
+export const dynamic = "force-dynamic";
 
 export default async function EmployeePortalLayout({
   children,
@@ -24,14 +27,14 @@ export default async function EmployeePortalLayout({
   const isAdmin = canAccessAdminPortal(role);
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#F9F7FD] lg:bg-[#F5F2FC]">
+    <div className="min-h-screen min-h-dvh bg-white text-[var(--ink)]">
+      <EmployeePolicyAgreementModal />
       {!isAdmin && <PwaInstallBanner />}
       <EmployeeTopNav />
       <main
-        className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-8 lg:pb-20"
+        className="mx-auto max-w-[430px] px-4 py-4"
         style={{
-          // Bottom tabs (~64px) + GPS badge + Android gesture/safe area — prevents cut-off in APK
-          paddingBottom: "calc(7.5rem + env(safe-area-inset-bottom, 0px))",
+          paddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
         }}
       >
         {children}

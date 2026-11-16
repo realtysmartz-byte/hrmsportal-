@@ -139,7 +139,7 @@ export default function EmailSettingsPage() {
           <Card className="border-neutral-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Send className="h-4 w-4 text-[#5D3EBC]" />
+                <Send className="h-4 w-4 text-[var(--accent)]" />
                 Test Email Deliverability
               </CardTitle>
               <CardDescription className="text-xs">
@@ -226,7 +226,7 @@ export default function EmailSettingsPage() {
           <Card className="border-neutral-200 bg-gradient-to-br from-neutral-900 to-slate-900 text-white">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-white">
-                <ShieldCheck className="h-4 w-4 text-[#5D3EBC]" />
+                <ShieldCheck className="h-4 w-4 text-[var(--accent)]" />
                 Deliverability Standards
               </CardTitle>
             </CardHeader>
@@ -255,7 +255,7 @@ export default function EmailSettingsPage() {
           <Card className="border-neutral-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#5D3EBC]" />
+                <Sparkles className="h-4 w-4 text-[var(--accent)]" />
                 Automated System Triggers
               </CardTitle>
             </CardHeader>

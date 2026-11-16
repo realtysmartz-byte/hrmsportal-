@@ -476,7 +476,7 @@ export default function TeamAttendancePage() {
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
-              <Calendar className="h-3.5 w-3.5 text-[#5D3EBC]" />
+              <Calendar className="h-3.5 w-3.5 text-[var(--accent)]" />
               <span>Daily (1 Day)</span>
             </button>
 
@@ -490,7 +490,7 @@ export default function TeamAttendancePage() {
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
-              <CalendarDays className="h-3.5 w-3.5 text-[#5D3EBC]" />
+              <CalendarDays className="h-3.5 w-3.5 text-[var(--accent)]" />
               <span>1 Month Attendance</span>
             </button>
 
@@ -504,14 +504,14 @@ export default function TeamAttendancePage() {
                   : "text-neutral-600 hover:text-neutral-900"
               )}
             >
-              <CalendarRange className="h-3.5 w-3.5 text-[#5D3EBC]" />
+              <CalendarRange className="h-3.5 w-3.5 text-[var(--accent)]" />
               <span>Custom Range</span>
             </button>
           </div>
 
           <div className="text-[11px] font-semibold text-neutral-500">
             {viewMode === "monthly" && (
-              <span className="text-[#5D3EBC] font-bold">
+              <span className="text-[var(--accent)] font-bold">
                 Viewing full month of {formatMonthTitle(selectedMonth)}
               </span>
             )}
@@ -524,7 +524,7 @@ export default function TeamAttendancePage() {
           {viewMode === "daily" && (
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 shrink-0">
-                <Calendar className="h-4 w-4 text-[#5D3EBC]" />
+                <Calendar className="h-4 w-4 text-[var(--accent)]" />
                 <span>Date:</span>
               </div>
               <Input
@@ -537,7 +537,7 @@ export default function TeamAttendancePage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-xs text-[#5D3EBC] hover:bg-[#5D3EBC]/10 px-2 font-semibold"
+                  className="h-8 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/10 px-2 font-semibold"
                   onClick={() => setSelectedDate(todayIST)}
                 >
                   Today
@@ -550,7 +550,7 @@ export default function TeamAttendancePage() {
           {viewMode === "monthly" && (
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 shrink-0">
-                <CalendarDays className="h-4 w-4 text-[#5D3EBC]" />
+                <CalendarDays className="h-4 w-4 text-[var(--accent)]" />
                 <span>Select Month:</span>
               </div>
               <Input
@@ -565,7 +565,7 @@ export default function TeamAttendancePage() {
                 className={cn(
                   "h-8 text-xs px-2.5 font-semibold",
                   selectedMonth === currentMonthIST
-                    ? "bg-[#5D3EBC] hover:bg-[#FF6559] text-white"
+                    ? "bg-[var(--accent)] text-white hover:brightness-110"
                     : "text-neutral-700"
                 )}
                 onClick={handleSelectThisMonth}
@@ -587,7 +587,7 @@ export default function TeamAttendancePage() {
           {viewMode === "custom" && (
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 shrink-0">
-                <CalendarRange className="h-4 w-4 text-[#5D3EBC]" />
+                <CalendarRange className="h-4 w-4 text-[var(--accent)]" />
                 <span>From:</span>
               </div>
               <Input
@@ -639,7 +639,7 @@ export default function TeamAttendancePage() {
               aria-label="Filter attendance by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 focus:border-[#5D3EBC] focus:outline-none"
+              className="h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 focus:border-[var(--accent)] focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
               <option value="PRESENT">Present Only</option>
@@ -754,8 +754,8 @@ export default function TeamAttendancePage() {
                     </span>
                   )}
                   {parseRegularisedInfo(log?.notes).isRegularised && (
-                    <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[9px] font-extrabold text-[#5D3EBC] border border-[#5D3EBC]/30">
-                      <Sparkles className="h-2.5 w-2.5 text-[#5D3EBC]" />
+                    <span className="inline-flex items-center gap-1 rounded bg-[var(--field)] px-1.5 py-0.5 text-[9px] font-extrabold text-[var(--accent)] border border-[var(--line)]">
+                      <Sparkles className="h-2.5 w-2.5 text-[var(--accent)]" />
                       Regularised
                     </span>
                   )}
@@ -824,7 +824,7 @@ export default function TeamAttendancePage() {
                   {/* Location Address & Map Link Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 flex items-start gap-1.5 text-xs text-neutral-700">
-                      <MapPin className="h-3.5 w-3.5 text-[#5D3EBC] shrink-0 mt-0.5" />
+                      <MapPin className="h-3.5 w-3.5 text-[var(--accent)] shrink-0 mt-0.5" />
                       <span className="break-words line-clamp-2 text-[11px]">{addressText}</span>
                       {log?.notes?.includes("review:") && (
                         <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
@@ -846,14 +846,14 @@ export default function TeamAttendancePage() {
                           }}
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-neutral-900 hover:bg-black px-2.5 py-1 rounded-md shrink-0 transition-colors"
                         >
-                          <MapPin className="h-3 w-3 text-[#1AB3B6]" />
+                          <MapPin className="h-3 w-3 text-[var(--info)]" />
                           <span>Map View</span>
                         </button>
                         <a
                           href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5D3EBC] bg-[#5D3EBC]/10 hover:bg-[#5D3EBC]/20 p-1.5 rounded-md shrink-0 transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--accent)] bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 p-1.5 rounded-md shrink-0 transition-colors"
                           title="Open Google Maps"
                         >
                           <ExternalLink className="h-3 w-3" />
@@ -868,7 +868,7 @@ export default function TeamAttendancePage() {
               <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   {parseRegularisedInfo(log?.notes).reason ? (
-                    <p className="text-[10px] text-[#5D3EBC] font-semibold italic truncate" title={parseRegularisedInfo(log?.notes).reason!}>
+                    <p className="text-[10px] text-[var(--accent)] font-semibold italic truncate" title={parseRegularisedInfo(log?.notes).reason!}>
                       Regularised: {parseRegularisedInfo(log?.notes).reason}
                     </p>
                   ) : (
@@ -891,7 +891,7 @@ export default function TeamAttendancePage() {
                       existingNotes: log?.notes,
                     });
                   }}
-                  className="h-7 px-2.5 text-xs font-bold text-[#5D3EBC] border-[#5D3EBC]/30 hover:bg-[#5D3EBC]/10 gap-1 shrink-0"
+                  className="h-7 px-2.5 text-xs font-bold text-[var(--accent)] border-[var(--line)] hover:bg-[var(--accent)]/10 gap-1 shrink-0"
                 >
                   <SlidersHorizontal className="h-3 w-3" />
                   <span>Edit / Regularise</span>
@@ -966,7 +966,7 @@ export default function TeamAttendancePage() {
               return (
                 <TableRow
                   key={log?.id ?? `${row.employee.id}-${index}`}
-                  className="border-b border-neutral-100 transition-colors hover:bg-[#F8F7FC]"
+                  className="border-b border-neutral-100 transition-colors hover:bg-[var(--hover)]"
                 >
                   <TableCell className="py-3 align-middle">
                     <p className="text-sm font-semibold text-neutral-900">{empName}</p>
@@ -983,7 +983,7 @@ export default function TeamAttendancePage() {
                   <TableCell className="py-3 align-middle whitespace-nowrap text-xs">
                     {hasCheckedIn ? (
                       <div className="flex items-center gap-1.5 font-medium text-neutral-900">
-                        <Clock className="h-3.5 w-3.5 shrink-0 text-[#5D3EBC]" />
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
                         <span>{formatTimeIST(log!.checkInTime)}</span>
                       </div>
                     ) : (
@@ -1005,7 +1005,7 @@ export default function TeamAttendancePage() {
                         )}
                       </div>
                     ) : hasCheckedIn ? (
-                      <span className="inline-flex items-center rounded-full border border-[#5D3EBC]/25 bg-[#F3F0FC] px-2.5 py-0.5 text-[11px] font-semibold text-[#5D3EBC]">
+                      <span className="inline-flex items-center rounded-full border border-[var(--line)] bg-[var(--field)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--accent)]">
                         On Duty
                       </span>
                     ) : (
@@ -1045,7 +1045,7 @@ export default function TeamAttendancePage() {
                             href={`https://www.google.com/maps?q=${mapLat},${mapLng}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-[11px] font-semibold text-[#5D3EBC] hover:bg-neutral-50"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-[11px] font-semibold text-[var(--accent)] hover:bg-neutral-50"
                             title="Open in Google Maps"
                           >
                             <ExternalLink className="h-3 w-3" />
@@ -1093,8 +1093,8 @@ export default function TeamAttendancePage() {
 
                     {parseRegularisedInfo(log?.notes).isRegularised && (
                       <div className="mt-1" title={parseRegularisedInfo(log?.notes).reason || "Regularised by Admin"}>
-                        <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-[#5D3EBC] border border-[#5D3EBC]/30">
-                          <Sparkles className="h-2.5 w-2.5 text-[#5D3EBC]" />
+                        <span className="inline-flex items-center gap-1 rounded bg-[var(--field)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--accent)] border border-[var(--line)]">
+                          <Sparkles className="h-2.5 w-2.5 text-[var(--accent)]" />
                           Regularised
                         </span>
                         {parseRegularisedInfo(log?.notes).reason && (
@@ -1135,7 +1135,7 @@ export default function TeamAttendancePage() {
                           existingNotes: log?.notes,
                         });
                       }}
-                      className="h-7 px-2.5 text-xs font-bold text-[#5D3EBC] border-[#5D3EBC]/30 hover:bg-[#5D3EBC]/10 gap-1"
+                      className="h-7 px-2.5 text-xs font-bold text-[var(--accent)] border-[var(--line)] hover:bg-[var(--accent)]/10 gap-1"
                     >
                       <SlidersHorizontal className="h-3 w-3" />
                       <span>Edit / Regularise</span>

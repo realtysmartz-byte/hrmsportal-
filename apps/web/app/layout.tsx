@@ -15,25 +15,25 @@ const display = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Realty Smartz Private Limited HRMS",
+  title: "HRMS",
   description: "Internal HR management system — Realty Smartz Private Limited",
-  applicationName: "Realty Smartz Private Limited HRMS",
+  applicationName: "HRMS",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "RS HRMS",
+    title: "HRMS",
   },
   formatDetection: {
     telephone: true,
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon-192x192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png?v=2", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" },
     ],
   },
 };
@@ -42,7 +42,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#5D3EBC",
+  themeColor: "#2B2FD1",
 };
 
 export default function RootLayout({
