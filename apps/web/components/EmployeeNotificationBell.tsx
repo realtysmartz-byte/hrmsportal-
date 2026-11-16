@@ -120,14 +120,14 @@ export function EmployeeNotificationBell() {
         aria-label="Notifications"
         title="Notifications"
         className={cn(
-          "relative flex h-10 w-10 items-center justify-center rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors cursor-pointer",
+          "relative flex h-8 w-8 items-center justify-center rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors cursor-pointer",
           isOpen && "bg-[var(--soft)]"
         )}
       >
         <Bell className="h-4 w-4 text-[var(--ink)]" strokeWidth={1.8} />
 
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+          <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -135,7 +135,7 @@ export function EmployeeNotificationBell() {
 
       {/* Notifications Dropdown Panel */}
       {isOpen && (
-        <div className="fixed sm:absolute right-3 sm:right-0 top-16 sm:top-12 z-50 w-[calc(100vw-24px)] sm:w-96 max-w-sm rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed sm:absolute right-3 sm:right-0 top-16 sm:top-10 z-50 w-[calc(100vw-24px)] sm:w-96 max-w-sm rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3 bg-[var(--soft)]/50">
             <div className="flex items-center gap-2">

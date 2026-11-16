@@ -41,7 +41,12 @@ export async function sendEmployeePushNotification({
     where: { employeeId: { in: employeeIds } },
   });
 
-  if (subscriptions.length === 0) {
+  // Deduplicate by endpoint to avoid sending multiple identical notifications to the same client
+  const uniqueSubs = Array.from(
+    new Map(subscriptions.map((s) => [s.endpoint, s])).values()
+  );
+
+  if (uniqueSubs.length === 0) {
     return { sent: 0, failed: 0 };
   }
 
@@ -57,7 +62,7 @@ export async function sendEmployeePushNotification({
   let failed = 0;
 
   await Promise.all(
-    subscriptions.map(async (sub) => {
+    uniqueSubs.map(async (sub) => {
       try {
         await webpush.sendNotification(
           {

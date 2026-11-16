@@ -146,21 +146,12 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
-/** Modern Realty Smartz Portal design tokens matching the new mobile & web UI */
-const BRAND = "#2B2FD1"; // Royal Blue primary accent
-const BRAND_SOFT = "#ECECFB"; // Soft blue badge background
-const BRAND_LINE = "#E6E7EA"; // 1px light border line
-const INK = "#111318"; // Dark heading and primary text
-const MUTED = "#6B7078"; // Secondary text
-const BG_PAGE = "#F6F6F8"; // Clean soft background
-const BG_CARD = "#FFFFFF"; // Pure white card
-const COLOR_OK = "#1FA36A"; // Emerald green
-const COLOR_OK_BG = "#E7F7EF";
-const COLOR_DANGER = "#D6283A"; // Ruby red
-const COLOR_DANGER_BG = "#FDE8E8";
-const COLOR_WARN = "#D97706"; // Amber
-const COLOR_WARN_BG = "#FEF3C7";
-const FONT = "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+/** Modern Realty Smartz Portal design tokens for clean corporate email */
+const BRAND = "#2563EB"; // Blue accent for links/buttons
+const BRAND_LINE = "#E5E7EB"; // Light clean border line
+const INK = "#111827"; // Dark heading and primary text
+const MUTED = "#4B5563"; // Secondary text
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 function appBaseUrl(): string {
   const url = process.env.NEXTAUTH_URL;
@@ -176,22 +167,22 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Two-column rows styled matching the new portal cards */
+/** Two-column clean key-value rows in normal email styling (clean, border-based, no card box) */
 export function detailsTable(rows: [string, string][]): string {
   const tr = rows
     .map(
       ([label, value], i) => `<tr>
-          <td style="padding:9px 12px;font-size:12px;color:${MUTED};width:38%;font-weight:600;${i ? `border-top:1px solid ${BRAND_LINE};` : ""}font-family:${FONT};">${escapeHtml(label)}</td>
-          <td style="padding:9px 12px;font-size:13px;color:${INK};font-weight:600;${i ? `border-top:1px solid ${BRAND_LINE};` : ""}font-family:${FONT};">${escapeHtml(String(value))}</td>
+          <td style="padding:8px 12px 8px 0;font-size:13px;color:#4B5563;font-weight:500;width:34%;border-bottom:1px solid #E5E7EB;vertical-align:top;font-family:${FONT};">${escapeHtml(label)}</td>
+          <td style="padding:8px 0 8px 12px;font-size:13px;color:#111827;font-weight:600;border-bottom:1px solid #E5E7EB;vertical-align:top;font-family:${FONT};">${escapeHtml(String(value))}</td>
         </tr>`
     )
     .join("");
-  return `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 4px 0;background:${BG_PAGE};border:1px solid ${BRAND_LINE};border-radius:4px;border-collapse:separate;border-spacing:0;overflow:hidden;">${tr}</table>`;
+  return `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:14px 0 16px 0;border-top:1px solid #E5E7EB;border-collapse:collapse;">${tr}</table>`;
 }
 
 /**
- * Modern email shell matching the new Realty Smartz design palette.
- * System fonts with Manrope fallback — clean, spam-safe, and responsive.
+ * Standard corporate business email layout.
+ * Clean, standard white background, no outer grey box, no nested cards, natural text flow.
  */
 function layout(args: {
   title: string;
@@ -201,33 +192,11 @@ function layout(args: {
   body: string;
   actionButton?: { text: string; url: string; color?: string };
 }) {
-  const logo = `${appBaseUrl()}/logo.png`;
-  let color = args.badgeColor || BRAND;
-  let bg = args.badgeBg || BRAND_SOFT;
-
-  if (args.badge) {
-    const b = args.badge.toUpperCase();
-    if (b.includes("APPROVED") || b.includes("PRESENT") || b.includes("ACTIVE") || b.includes("CONFIRMED") || b.includes("VERIFIED")) {
-      color = COLOR_OK;
-      bg = COLOR_OK_BG;
-    } else if (b.includes("REJECT") || b.includes("CANCEL") || b.includes("GEOFENCE") || b.includes("TERMINAT") || b.includes("EXIT") || b.includes("OFF")) {
-      color = COLOR_DANGER;
-      bg = COLOR_DANGER_BG;
-    } else if (b.includes("LATE") || b.includes("HALF") || b.includes("EARLY") || b.includes("PENDING") || b.includes("PROBATION")) {
-      color = COLOR_WARN;
-      bg = COLOR_WARN_BG;
-    }
-  }
-
-  const badgeHtml = args.badge
-    ? `<span style="display:inline-block;padding:4px 10px;background:${bg};color:${color};border:1px solid ${color}40;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;font-family:${FONT};">${escapeHtml(args.badge)}</span>`
-    : "";
-
-  const buttonColor = args.actionButton?.color || BRAND;
+  const buttonColor = args.actionButton?.color || "#2563EB";
   const buttonHtml = args.actionButton
-    ? `<table border="0" cellspacing="0" cellpadding="0" style="margin:20px 0 6px 0;"><tr><td style="background:${buttonColor};border-radius:4px;">
-        <a href="${args.actionButton.url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:14px;font-family:${FONT};border-radius:4px;">${escapeHtml(args.actionButton.text)}</a>
-      </td></tr></table>`
+    ? `< table border = "0" cellspacing = "0" cellpadding = "0" style = "margin:22px 0 8px 0;" > <tr><td style="background-color:${buttonColor};border-radius:4px;" >
+    <a href="${args.actionButton.url}" target = "_blank" rel = "noopener noreferrer" style = "display:inline-block;padding:10px 22px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:13px;font-family:${FONT};border-radius:4px;" > ${ escapeHtml(args.actionButton.text) } </a>
+      < /td></tr > </table>`
     : "";
 
   return `<!DOCTYPE html>
@@ -235,66 +204,49 @@ function layout(args: {
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light" />
-  <meta name="supported-color-schemes" content="light" />
   <title>${escapeHtml(args.title)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:${BG_PAGE};font-family:${FONT};color:${INK};-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:${BG_PAGE};padding:32px 14px;">
+<body style="margin:0;padding:0;background-color:#FFFFFF;font-family:${FONT};color:#1F2937;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#FFFFFF;padding:24px 16px;">
     <tr>
-      <td align="center">
-        <!-- Main Card Shell -->
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:440px;background-color:${BG_CARD};border-radius:4px;border:1px solid ${BRAND_LINE};overflow:hidden;">
-          <!-- Top Accent Band (Royal Blue #2B2FD1) -->
-          <tr>
-            <td style="height:4px;background:${BRAND};font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
+      <td align="left">
+        <div style="max-width:580px;margin:0 auto;text-align:left;">
+          <!-- Corporate header line -->
+          <div style="padding-bottom:14px;border-bottom:1px solid #E5E7EB;margin-bottom:20px;">
+            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td style="vertical-align:middle;">
+                  <span style="font-size:16px;font-weight:700;color:#111827;letter-spacing:-0.2px;font-family:${FONT};">Realty Smartz</span>
+                  <span style="display:inline-block;margin:0 6px;color:#9CA3AF;">&bull;</span>
+                  <span style="font-size:13px;font-weight:600;color:#2563EB;font-family:${FONT};">HRMS</span>
+                </td>
+                <td align="right" style="vertical-align:middle;font-size:12px;color:#6B7280;font-family:${FONT};">
+                  Internal Notification
+                </td>
+              </tr>
+            </table>
+          </div>
 
-          <!-- Header Row: Square Logo + Brand Title + Badge -->
-          <tr>
-            <td style="padding:16px 22px;border-bottom:1px solid ${BRAND_LINE};background-color:${BG_CARD};">
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td style="width:36px;vertical-align:middle;">
-                    <img src="${logo}" width="34" height="34" alt="Realty Smartz" style="display:block;border:0;border-radius:4px;" />
-                  </td>
-                  <td style="vertical-align:middle;padding-left:12px;">
-                    <div style="font-size:13px;font-weight:700;color:${INK};letter-spacing:-0.2px;font-family:${FONT};line-height:1.2;">Realty Smartz</div>
-                    <div style="font-size:11px;font-weight:600;color:${BRAND};letter-spacing:0.6px;font-family:${FONT};margin-top:2px;">HRMS Portal</div>
-                  </td>
-                  <td align="right" style="vertical-align:middle;">
-                    <span style="display:inline-block;padding:3px 8px;background:${BRAND_SOFT};color:${BRAND};font-size:10px;font-weight:700;border-radius:2px;letter-spacing:0.5px;font-family:${FONT};">OFFICIAL</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          <!-- Main title -->
+          <h1 style="margin:0 0 16px 0;font-size:18px;font-weight:700;color:#111827;line-height:1.35;letter-spacing:-0.2px;font-family:${FONT};">${escapeHtml(args.title)}</h1>
 
-          <!-- Content Body -->
-          <tr>
-            <td style="padding:22px 22px 14px 22px;background-color:${BG_CARD};">
-              ${badgeHtml ? `<div style="margin-bottom:12px;">${badgeHtml}</div>` : ""}
-              <h1 style="margin:0 0 12px 0;font-size:18px;font-weight:700;color:${INK};line-height:1.3;letter-spacing:-0.3px;font-family:${FONT};">${escapeHtml(args.title)}</h1>
-              <div style="font-size:13px;line-height:1.6;color:${INK};font-family:${FONT};">${args.body}</div>
-              ${buttonHtml}
-            </td>
-          </tr>
+          <!-- Body content -->
+          <div style="font-size:14px;line-height:1.6;color:#374151;font-family:${FONT};">${args.body}</div>
 
-          <!-- Footer -->
-          <tr>
-            <td style="padding:16px 22px;border-top:1px solid ${BRAND_LINE};background-color:${BG_PAGE};">
-              <div style="font-size:12px;font-weight:700;color:${INK};font-family:${FONT};">Realty Smartz Private Limited</div>
-              <div style="font-size:11px;color:${MUTED};margin-top:3px;line-height:1.5;font-family:${FONT};">
-                11th Floor, Spaze Palazo, Sector 69, Gurugram<br />
-                <a href="https://www.realtysmartz.in" target="_blank" style="color:${BRAND};text-decoration:none;font-weight:600;">www.realtysmartz.in</a> &nbsp;·&nbsp; info@realtysmartz.in
-              </div>
-            </td>
-          </tr>
-        </table>
+          ${buttonHtml}
 
-        <!-- Sub-footer note -->
-        <div style="max-width:440px;font-size:11px;color:${MUTED};line-height:1.5;padding:14px 12px 0 12px;text-align:center;font-family:${FONT};">
-          This is an automated operational notification from Realty Smartz HRMS. Please do not reply directly to this email.
+          <!-- Normal corporate email sign-off -->
+          <div style="margin-top:26px;padding-top:18px;border-top:1px solid #E5E7EB;font-size:13px;line-height:1.6;color:#4B5563;font-family:${FONT};">
+            <p style="margin:0 0 4px 0;">Warm regards,</p>
+            <p style="margin:0;font-weight:700;color:#111827;font-family:${FONT};">HR Operations Team</p>
+            <p style="margin:0;color:#4B5563;font-family:${FONT};">Realty Smartz Private Limited</p>
+            <p style="margin:4px 0 0 0;font-size:12px;color:#9CA3AF;font-family:${FONT};">11th Floor, Spaze Palazo, Sector 69, Gurugram &bull; <a href="https://www.realtysmartz.in" target="_blank" style="color:#2563EB;text-decoration:none;">www.realtysmartz.in</a></p>
+          </div>
+
+          <!-- Subtle confidentiality note -->
+          <div style="margin-top:20px;font-size:11px;line-height:1.5;color:#9CA3AF;font-family:${FONT};">
+            This is an automated operational notification from Realty Smartz HRMS. Please do not reply directly to this email.
+          </div>
         </div>
       </td>
     </tr>
@@ -385,8 +337,7 @@ export async function sendMail(
     const responseCode =
       typeof details.responseCode === "number" ? details.responseCode : null;
     console.error(
-      `[email] Delivery failed (code: ${code}${
-        responseCode == null ? "" : `, SMTP response: ${responseCode}`
+      `[email] Delivery failed (code: ${code}${responseCode == null ? "" : `, SMTP response: ${responseCode}`
       }).`
     );
     return {
@@ -427,38 +378,29 @@ export async function notifyWelcomeEmployee(args: {
 
   const dojFormatted = args.dateOfJoining
     ? new Date(args.dateOfJoining).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
     : "Immediate";
 
   const body = `
-    <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>,</p>
-    <p style="margin:0 0 14px 0;">Your Realty Smartz HRMS account is ready. Keep this employee card for your records:</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;margin:0 0 14px 0;">
-      <tr>
-        <td style="padding:16px 18px;">
-          <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px;">${escapeHtml(args.employeeName)}</div>
-          ${detailsTable([
-            ["Employee Code", args.employeeCode],
-            ["Work Email", args.employeeEmail],
-            ["Login Password", args.rawPassword],
-            ["Role", args.role],
-            ["Department", args.departmentName || "General"],
-            ["Designation", args.designationTitle || "—"],
-            ["Date of Joining", dojFormatted],
-          ])}
-        </td>
-      </tr>
-    </table>
-    <p style="margin:0;font-size:13px;color:#6B7078;">Please change your password after first login.</p>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 14px 0;">Welcome to Realty Smartz Private Limited. Your HRMS employee portal account is active. Here are your account credentials and details:</p>
+    ${detailsTable([
+    ["Employee Code", args.employeeCode],
+    ["Work Email", args.employeeEmail],
+    ["Login Password", args.rawPassword],
+    ["Role", args.role],
+    ["Department", args.departmentName || "General"],
+    ["Designation", args.designationTitle || "—"],
+    ["Date of Joining", dojFormatted],
+  ])}
+    <p style="margin:14px 0 0 0;font-size:13px;color:#6B7280;">Please sign in to the employee portal and change your password upon your first login.</p>
   `;
 
   const html = layout({
     title: "Welcome to Realty Smartz",
-    badge: "NEW EMPLOYEE",
-    badgeColor: BRAND,
     body,
     actionButton: {
       text: "Open Employee Portal",
@@ -509,7 +451,6 @@ export async function notifyPunchDetails(args: {
     ? "Verified Inside Office Geofence"
     : "Outside Office Geofence Boundary";
 
-  const badge = isHalfDay ? "HALF DAY" : isLate ? "LATE" : "CHECK-IN";
   const note = isHalfDay
     ? "Punch after 11:30 AM is marked as Half Day. Contact HR if pre-approved."
     : isLate
@@ -517,26 +458,21 @@ export async function notifyPunchDetails(args: {
       : "Have a productive day at Realty Smartz.";
 
   const body = `
-    <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, your check-in is recorded.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Employee", `${args.employeeName} (${args.employeeCode})`],
-          ["Date", dateFormatted],
-          ["Time", timeFormatted],
-          ["Status", args.status],
-          ["Geofence", geoText],
-          ["Location", args.address || "Office"],
-        ])}
-      </td></tr>
-    </table>
-    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7078;">${note}</p>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your check-in has been successfully recorded on Realty Smartz HRMS.</p>
+    ${detailsTable([
+    ["Employee", `${args.employeeName} (${args.employeeCode})`],
+    ["Date", dateFormatted],
+    ["Check-In Time", timeFormatted],
+    ["Attendance Status", args.status],
+    ["Geofence", geoText],
+    ["Location", args.address || "Office HQ"],
+  ])}
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7280;">${note}</p>
   `;
 
   const html = layout({
     title: isHalfDay ? "Half Day Marked" : isLate ? "Late Check-In" : "Check-In Confirmed",
-    badge,
-    badgeColor: isLate ? "#B45309" : BRAND,
     body,
   });
 
@@ -545,8 +481,8 @@ export async function notifyPunchDetails(args: {
   const subject = isHalfDay
     ? `Attendance — Half Day | ${args.employeeName} (${timeFormatted})`
     : isLate
-    ? `Attendance — Late Check-In | ${args.employeeName} (${timeFormatted})`
-    : `Attendance — Check-In | ${args.employeeName} (${timeFormatted})`;
+      ? `Attendance — Late Check-In | ${args.employeeName} (${timeFormatted})`
+      : `Attendance — Check-In | ${args.employeeName} (${timeFormatted})`;
 
   return sendMail({
     to,
@@ -579,26 +515,21 @@ export async function notifyCheckOutDetails(args: {
   const isEarly = Boolean(args.expectedOutTime);
 
   const body = `
-    <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, your check-out is recorded.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Employee", `${args.employeeName} (${args.employeeCode})`],
-          ["Check-Out", timeFormatted],
-          ["Total Hours", `${args.totalHours ?? "—"} hrs`],
-          ["Location", args.address || "Office"],
-          ...(isEarly
-            ? ([["Note", `Early check-out before ${args.expectedOutTime}`]] as [string, string][])
-            : []),
-        ])}
-      </td></tr>
-    </table>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your check-out has been recorded for the day.</p>
+    ${detailsTable([
+    ["Employee", `${args.employeeName} (${args.employeeCode})`],
+    ["Check-Out Time", timeFormatted],
+    ["Total Hours", `${args.totalHours ?? "—"} hrs`],
+    ["Location", args.address || "Office HQ"],
+    ...(isEarly
+      ? ([["Note", `Early check-out before ${args.expectedOutTime}`]] as [string, string][])
+      : []),
+  ])}
   `;
 
   const html = layout({
     title: isEarly ? "Early Check-Out" : "Check-Out Confirmed",
-    badge: isEarly ? "EARLY" : "CHECK-OUT",
-    badgeColor: isEarly ? "#B45309" : BRAND,
     body,
   });
 
@@ -650,16 +581,14 @@ export async function notifyOutsideGeofence(args: {
   });
 
   const body = `
-    <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, check-in at <strong>${escapeHtml(time)}</strong> was outside the office geofence.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Employee", `${args.employeeName} (${args.employeeCode})`],
-          ["Time", time],
-          ["Location", args.address || "Outside office boundary"],
-        ])}
-      </td></tr>
-    </table>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your check-in at <strong>${escapeHtml(time)}</strong> was marked outside the office geofence boundary.</p>
+    ${detailsTable([
+    ["Employee", `${args.employeeName} (${args.employeeCode})`],
+    ["Check-In Time", time],
+    ["Location", args.address || "Outside office boundary"],
+  ])}
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7280;">Please ensure location services are enabled with precise GPS when punching attendance at the office.</p>
   `;
 
   const { to, bcc } = employeeWithStaffBcc(args.employeeEmail, [args.managerEmail]);
@@ -669,9 +598,7 @@ export async function notifyOutsideGeofence(args: {
     bcc,
     subject: `Attendance — Outside Geofence | ${args.employeeName}`,
     html: layout({
-      title: "Outside Geofence",
-      badge: "GEOFENCE",
-      badgeColor: BRAND,
+      title: "Outside Geofence Attendance",
       body,
     }),
   });
@@ -689,21 +616,19 @@ export async function notifyLeaveApplied(args: {
   managerEmail?: string | null;
 }) {
   const body = `
-    <p style="margin:0 0 12px 0;">Leave request from <strong>${escapeHtml(args.employeeName)}</strong>.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Employee", args.employeeName],
-          ["Email", args.employeeEmail],
-          ["Leave type", args.leaveType],
-          ["From", args.startDate],
-          ["To", args.endDate],
-          ["Days", String(args.days)],
-          ["Status", args.status],
-          ["Reason", args.reason || "—"],
-        ])}
-      </td></tr>
-    </table>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your leave application has been submitted and is pending authorization.</p>
+    ${detailsTable([
+    ["Employee", args.employeeName],
+    ["Work Email", args.employeeEmail],
+    ["Leave Type", args.leaveType],
+    ["From Date", args.startDate],
+    ["To Date", args.endDate],
+    ["Total Days", String(args.days)],
+    ["Status", args.status],
+    ["Reason", args.reason || "—"],
+  ])}
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7280;">Important: Leave applications must be approved within 24 hours. Requests not approved within 24 hours will automatically be rejected by the system.</p>
   `;
 
   const { to, bcc } = employeeWithStaffBcc(args.employeeEmail, [args.managerEmail]);
@@ -711,11 +636,48 @@ export async function notifyLeaveApplied(args: {
   return sendMail({
     to,
     bcc,
-    subject: `Leave ${args.status} — ${args.employeeName} (${args.startDate} to ${args.endDate})`,
+    subject: `Leave Application Submitted — ${args.employeeName} (${args.startDate} to ${args.endDate})`,
     html: layout({
       title: "Leave Request Submitted",
-      badge: args.status,
-      badgeColor: BRAND,
+      body,
+    }),
+  });
+}
+
+export async function notifyLeaveManagerApproval(args: {
+  employeeName: string;
+  employeeEmail: string;
+  managerName: string;
+  managerNote?: string | null;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+}) {
+  const body = `
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your leave request has been reviewed and approved by your reporting manager, <strong>${escapeHtml(args.managerName)}</strong>, and forwarded to HR for final sign-off.</p>
+    ${detailsTable([
+    ["Leave Type", args.leaveType],
+    ["From Date", args.startDate],
+    ["To Date", args.endDate],
+    ["Total Days", String(args.days)],
+    ["Manager Decision", "Approved"],
+    ["Reporting Manager", args.managerName],
+    ...(args.managerNote ? ([["Manager Remarks", args.managerNote]] as [string, string][]) : []),
+    ["Current Status", "Pending HR Sign-Off"],
+  ])}
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7280;">You will receive another notification once HR completes the final sign-off.</p>
+  `;
+
+  const { to, bcc } = employeeWithStaffBcc(args.employeeEmail);
+
+  return sendMail({
+    to,
+    bcc,
+    subject: `Leave Manager Approved — ${args.employeeName} | ${args.leaveType}`,
+    html: layout({
+      title: "Leave Approved by Manager",
       body,
     }),
   });
@@ -730,32 +692,68 @@ export async function notifyLeaveDecision(args: {
   days: number;
   action: "APPROVED" | "REJECTED";
   note?: string | null;
+  decisionBy?: string;
+  managerEmail?: string | null;
 }) {
+  const isApproved = args.action === "APPROVED";
   const body = `
-    <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, your leave was <strong>${args.action === "APPROVED" ? "approved" : "rejected"}</strong>.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Leave type", args.leaveType],
-          ["From", args.startDate],
-          ["To", args.endDate],
-          ["Days", String(args.days)],
-          ...(args.note ? ([["Note", args.note]] as [string, string][]) : []),
-        ])}
-      </td></tr>
-    </table>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your leave request has been <strong>${isApproved ? "approved" : "rejected"}</strong>${args.decisionBy ? ` by ${escapeHtml(args.decisionBy)}` : ""}.</p>
+    ${detailsTable([
+    ["Leave Type", args.leaveType],
+    ["From Date", args.startDate],
+    ["To Date", args.endDate],
+    ["Total Days", String(args.days)],
+    ["Decision", isApproved ? "Approved" : "Rejected"],
+    ...(args.note ? ([["Remarks / Note", args.note]] as [string, string][]) : []),
+  ])}
   `;
 
-  const { to, bcc } = employeeWithStaffBcc(args.employeeEmail);
+  const { to, bcc } = employeeWithStaffBcc(args.employeeEmail, [args.managerEmail]);
 
   return sendMail({
     to,
     bcc,
-    subject: `Leave ${args.action} — ${args.employeeName} | ${args.leaveType}`,
+    subject: `Leave ${args.action === "APPROVED" ? "Approved" : "Rejected"} — ${args.employeeName} | ${args.leaveType}`,
     html: layout({
       title: `Leave ${args.action === "APPROVED" ? "Approved" : "Rejected"}`,
-      badge: args.action,
-      badgeColor: BRAND,
+      body,
+    }),
+  });
+}
+
+export async function notifyLeaveAutoRejected(args: {
+  employeeName: string;
+  employeeEmail: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string;
+  managerEmail?: string | null;
+}) {
+  const body = `
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your leave request has been <strong>automatically rejected</strong> because it was not approved within the required 24-hour turnaround window.</p>
+    ${detailsTable([
+    ["Leave Type", args.leaveType],
+    ["From Date", args.startDate],
+    ["To Date", args.endDate],
+    ["Total Days", String(args.days)],
+    ["Reason Submitted", args.reason || "—"],
+    ["Status", "Auto-Rejected (24-Hour Expiry)"],
+  ])}
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7280;">Per company policy, leave applications must be authorized within 24 hours. If your leave is still required, please speak directly with your reporting manager or HR team and submit a new request if needed.</p>
+  `;
+
+  const { to, bcc } = employeeWithStaffBcc(args.employeeEmail, [args.managerEmail]);
+
+  return sendMail({
+    to,
+    bcc,
+    subject: `Leave Auto-Rejected (24h Expiry) — ${args.employeeName} | ${args.leaveType}`,
+    html: layout({
+      title: "Leave Request Auto-Rejected",
       body,
     }),
   });
@@ -770,17 +768,15 @@ export async function notifyLeaveCancelled(args: {
   days: number;
 }) {
   const body = `
-    <p style="margin:0 0 12px 0;"><strong>${escapeHtml(args.employeeName)}</strong> cancelled a leave request.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Leave type", args.leaveType],
-          ["From", args.startDate],
-          ["To", args.endDate],
-          ["Days", String(args.days)],
-        ])}
-      </td></tr>
-    </table>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your leave request has been cancelled.</p>
+    ${detailsTable([
+    ["Leave Type", args.leaveType],
+    ["From Date", args.startDate],
+    ["To Date", args.endDate],
+    ["Total Days", String(args.days)],
+    ["Status", "Cancelled"],
+  ])}
   `;
   const { to, bcc } = employeeWithStaffBcc(args.employeeEmail);
   return sendMail({
@@ -789,8 +785,6 @@ export async function notifyLeaveCancelled(args: {
     subject: `Leave Cancelled — ${args.employeeName} (${args.startDate} to ${args.endDate})`,
     html: layout({
       title: "Leave Cancelled",
-      badge: "CANCELLED",
-      badgeColor: BRAND,
       body,
     }),
   });
@@ -819,7 +813,7 @@ export async function notifyEmployeeStatusChange(args: {
         ? "Resignation Date"
         : args.newStatus === "EXIT"
           ? "Absconding Date"
-        : "Effective Date";
+          : "Effective Date";
   const meta: [string, string][] = [
     ["Employee", `${args.employeeName} (${args.employeeCode})`],
     ["Work Email", args.employeeEmail],
@@ -870,13 +864,9 @@ export async function notifyEmployeeStatusChange(args: {
 
   const cfg = configs[args.newStatus] || configs.ACTIVE;
   const body = `
-    <p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(args.employeeName)}</strong>, ${cfg.intro}</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px;">${escapeHtml(args.employeeName)}</div>
-        ${detailsTable(meta)}
-      </td></tr>
-    </table>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">${cfg.intro}</p>
+    ${detailsTable(meta)}
   `;
 
   const { to, bcc } = employeeWithStaffBcc(args.employeeEmail);
@@ -887,8 +877,6 @@ export async function notifyEmployeeStatusChange(args: {
     subject: cfg.subject,
     html: layout({
       title: cfg.title,
-      badge: cfg.badge,
-      badgeColor: BRAND,
       body,
       actionButton:
         args.newStatus === "ACTIVE"
@@ -905,18 +893,16 @@ export async function notifyPolicyUpdate(args: {
 }) {
   if (args.recipientEmails.length === 0) return;
   const body = `
-    <p>A company HR policy update was published:</p>
-    <p style="font-size:16px;font-weight:700;color:#111827;">${args.title}</p>
-    <p>${args.summary}</p>
+    <p style="margin:0 0 12px 0;">A company HR policy update has been published:</p>
+    <p style="font-size:15px;font-weight:700;color:#111827;margin:0 0 8px 0;">${escapeHtml(args.title)}</p>
+    <p style="margin:0;color:#4B5563;">${escapeHtml(args.summary)}</p>
   `;
 
   return sendMail({
     to: args.recipientEmails,
-    subject: `HRMS Policy — ${args.title}`,
+    subject: `HRMS Policy Update — ${args.title}`,
     html: layout({
       title: "Company Policy Update",
-      badge: "POLICY",
-      badgeColor: BRAND,
       body,
     }),
   });
@@ -952,26 +938,21 @@ export async function notifyLocationDisabledAlert(args: {
   });
 
   const body = `
-    <p style="margin:0 0 12px 0;">Location services were off during attendance for <strong>${escapeHtml(args.employeeName)}</strong>.</p>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#F6F6F8;border:1px solid #E6E7EA;border-radius:4px;">
-      <tr><td style="padding:16px 18px;">
-        ${detailsTable([
-          ["Employee", `${args.employeeName} (${args.employeeCode})`],
-          ["Email", args.employeeEmail],
-          ["Department", args.departmentName || "—"],
-          ["Date", dateFormatted],
-          ["Time", `${timeFormatted} IST`],
-          ["Reason", args.reason || "GPS / location permission off"],
-        ])}
-      </td></tr>
-    </table>
-    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7078;">Turn on GPS to punch within the 200m office geofence.</p>
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Location services were detected as turned off or inaccessible during your attendance action.</p>
+    ${detailsTable([
+    ["Employee", `${args.employeeName} (${args.employeeCode})`],
+    ["Work Email", args.employeeEmail],
+    ["Department", args.departmentName || "—"],
+    ["Date", dateFormatted],
+    ["Time", `${timeFormatted} IST`],
+    ["Reason", args.reason || "GPS / location permission off"],
+  ])}
+    <p style="margin:12px 0 0 0;font-size:13px;color:#6B7280;">Please ensure high-accuracy device GPS is enabled to complete attendance verification within the office geofence.</p>
   `;
 
   const html = layout({
-    title: "Location Services Off",
-    badge: "LOCATION",
-    badgeColor: BRAND,
+    title: "Location Services Alert",
     body,
   });
 
@@ -980,7 +961,7 @@ export async function notifyLocationDisabledAlert(args: {
   return sendMail({
     to,
     bcc,
-    subject: `Attendance — Location Off | ${args.employeeName} (${args.employeeCode})`,
+    subject: `Attendance Alert — Location Services Disabled | ${args.employeeName}`,
     html,
   });
 }
@@ -1014,11 +995,9 @@ export async function testSmtpConnection(
       subject: "Realty Smartz HRMS — Email service verified",
       html: layout({
         title: "Email System Verified",
-        badge: "VERIFIED",
-        badgeColor: BRAND,
         body: `
-          <p style="margin:0 0 10px 0;">Hostinger SMTP is working for Realty Smartz HRMS.</p>
-          <p style="margin:0;font-size:13px;color:#6B7078;">Welcome, attendance, leave, and status emails will use this ID-card style template.</p>
+          <p style="margin:0 0 10px 0;">Hostinger SMTP service is active and successfully configured for Realty Smartz HRMS.</p>
+          <p style="margin:0;font-size:13px;color:#6B7280;">Welcome, attendance, leave, and status communications will be delivered in this clean corporate format.</p>
         `,
       }),
     });

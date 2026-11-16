@@ -15,6 +15,88 @@ import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
 import { sendEmployeePushNotification } from "../lib/push-notify";
 
+/**
+ * Automatically rejects any leave request that has been pending for more than 24 hours.
+ * Sends clean corporate email and push notification to the applicant.
+ */
+export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const expired = await prisma.leaveRequest.findMany({
+      where: {
+        status: "PENDING",
+        appliedAt: { lte: cutoff },
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            manager: { select: { email: true } },
+          },
+        },
+        leaveType: true,
+      },
+    });
+
+    if (!expired || expired.length === 0) return 0;
+
+    for (const req of expired) {
+      try {
+        await prisma.leaveRequest.update({
+          where: { id: req.id },
+          data: {
+            status: "REJECTED",
+            managerStatus: req.managerStatus === "PENDING" ? "REJECTED" : req.managerStatus,
+            approverNote: "Auto-rejected: Request was not approved within 24 hours.",
+            respondedAt: new Date(),
+          },
+        });
+
+        // 1. Send clean corporate email notification to employee (BCC staff)
+        try {
+          const { notifyLeaveAutoRejected } = await import("../lib/email");
+          await notifyLeaveAutoRejected({
+            employeeName: `${req.employee.firstName} ${req.employee.lastName}`,
+            employeeEmail: req.employee.email,
+            leaveType: req.leaveType.name,
+            startDate: req.startDate.toISOString().slice(0, 10),
+            endDate: req.endDate.toISOString().slice(0, 10),
+            days: req.numberOfDays,
+            reason: req.reason,
+            managerEmail: req.employee.manager?.email,
+          });
+        } catch (mailErr) {
+          console.error("[leave:autoReject] email error for req", req.id, mailErr);
+        }
+
+        // 2. Send push notification to employee
+        try {
+          await sendEmployeePushNotification({
+            prisma,
+            employeeId: req.employee.id,
+            title: "Leave Auto-Rejected (24h Expiry)",
+            body: `Your leave request for ${req.numberOfDays}d (${req.leaveType.name}) was automatically rejected as it was not approved within 24 hours.`,
+            url: "/employee-portal/leave",
+            type: "leave",
+          });
+        } catch (pushErr) {
+          console.error("[leave:autoReject] push error for req", req.id, pushErr);
+        }
+      } catch (itemErr) {
+        console.error("[leave:autoReject] failed processing req", req.id, itemErr);
+      }
+    }
+
+    return expired.length;
+  } catch (err) {
+    console.error("[leave:autoReject] error:", err);
+    return 0;
+  }
+}
+
 export const leaveRouter = router({
   types: protectedProcedure.query(async ({ ctx }) => {
     const orgId = ctx.session.user.organizationId || "org_default_realty";
@@ -165,6 +247,7 @@ export const leaveRouter = router({
   }),
 
   myRequests: protectedProcedure.query(async ({ ctx }) => {
+    await autoRejectExpiredLeaves(ctx.prisma);
     return ctx.prisma.leaveRequest.findMany({
       where: { employeeId: ctx.session.user.id },
       include: {
@@ -183,6 +266,7 @@ export const leaveRouter = router({
   apply: protectedProcedure
     .input(applyLeaveSchema)
     .mutation(async ({ ctx, input }) => {
+      await autoRejectExpiredLeaves(ctx.prisma);
       const leaveType = await ctx.prisma.leaveType.findUnique({
         where: { id: input.leaveTypeId },
       });
@@ -440,8 +524,8 @@ export const leaveRouter = router({
             telegramMsg
           );
 
-          // Push Notifications to Manager and Applicant
-          if (hasManager && empDetails?.managerId) {
+          // Push Notifications to Manager and Applicant (avoid self-duplicate)
+          if (hasManager && empDetails?.managerId && empDetails.managerId !== actor.id) {
             void sendEmployeePushNotification({
               prisma: ctx.prisma,
               employeeId: empDetails.managerId,
@@ -526,6 +610,7 @@ export const leaveRouter = router({
         .optional()
     )
     .query(async ({ ctx, input }) => {
+      await autoRejectExpiredLeaves(ctx.prisma);
       const approver = await ctx.prisma.employee.findUnique({
         where: { id: ctx.session.user.id },
         select: { id: true, role: true, directReports: { select: { id: true } } },
@@ -588,6 +673,7 @@ export const leaveRouter = router({
     }),
 
   pendingApprovals: protectedProcedure.query(async ({ ctx }) => {
+    await autoRejectExpiredLeaves(ctx.prisma);
     const approver = await ctx.prisma.employee.findUnique({
       where: { id: ctx.session.user.id },
       select: { id: true, role: true, directReports: { select: { id: true } } },
@@ -655,6 +741,7 @@ export const leaveRouter = router({
   }),
 
   myTeamPendingCount: protectedProcedure.query(async ({ ctx }) => {
+    await autoRejectExpiredLeaves(ctx.prisma);
     const approver = await ctx.prisma.employee.findUnique({
       where: { id: ctx.session.user.id },
       select: { id: true, role: true, directReports: { select: { id: true } } },
@@ -674,6 +761,7 @@ export const leaveRouter = router({
   respond: protectedProcedure
     .input(respondLeaveSchema)
     .mutation(async ({ ctx, input }) => {
+      await autoRejectExpiredLeaves(ctx.prisma);
       const role = ctx.session.user.role as Role;
       const approver =
         (await ctx.prisma.employee.findUnique({
@@ -740,6 +828,25 @@ export const leaveRouter = router({
             include: { leaveType: true, employee: true },
           });
 
+          // Send corporate email to employee (BCC staff)
+          void (async () => {
+            try {
+              const { notifyLeaveManagerApproval } = await import("../lib/email");
+              await notifyLeaveManagerApproval({
+                employeeName: `${req.employee.firstName} ${req.employee.lastName}`,
+                employeeEmail: req.employee.email,
+                managerName: `${approver.firstName} ${approver.lastName}`,
+                managerNote: input.approverNote,
+                leaveType: req.leaveType.name,
+                startDate: req.startDate.toISOString().slice(0, 10),
+                endDate: req.endDate.toISOString().slice(0, 10),
+                days: req.numberOfDays,
+              });
+            } catch (err) {
+              console.error("[leave] manager approval email failed:", err);
+            }
+          })();
+
           // Push to employee
           void sendEmployeePushNotification({
             prisma: ctx.prisma,
@@ -784,6 +891,26 @@ export const leaveRouter = router({
             },
             include: { leaveType: true, employee: true },
           });
+
+          // Send corporate email to employee (BCC staff)
+          void (async () => {
+            try {
+              const { notifyLeaveDecision } = await import("../lib/email");
+              await notifyLeaveDecision({
+                employeeName: `${req.employee.firstName} ${req.employee.lastName}`,
+                employeeEmail: req.employee.email,
+                leaveType: req.leaveType.name,
+                startDate: req.startDate.toISOString().slice(0, 10),
+                endDate: req.endDate.toISOString().slice(0, 10),
+                days: req.numberOfDays,
+                action: "REJECTED",
+                note: input.approverNote || "Rejected by Reporting Manager",
+                decisionBy: `${approver.firstName} ${approver.lastName} (Reporting Manager)`,
+              });
+            } catch (err) {
+              console.error("[leave] manager rejection email failed:", err);
+            }
+          })();
 
           void sendEmployeePushNotification({
             prisma: ctx.prisma,
@@ -931,6 +1058,7 @@ export const leaveRouter = router({
               days: updated.numberOfDays,
               action: newStatus,
               note: input.approverNote,
+              decisionBy: `${approver.firstName} ${approver.lastName} (HR / Admin)`,
             });
           } catch (err) {
             console.error("[leave] decision email failed:", err);
@@ -956,6 +1084,7 @@ export const leaveRouter = router({
     .input(z.object({ employeeId: z.string() }))
     .query(async ({ ctx, input }) => {
       await assertCanViewSensitive(ctx, input.employeeId);
+      await autoRejectExpiredLeaves(ctx.prisma);
       const year = new Date().getFullYear();
 
       const [balances, requests] = await Promise.all([

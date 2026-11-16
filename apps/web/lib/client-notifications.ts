@@ -24,11 +24,22 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+/** Avoid firing duplicate notifications within 4 seconds */
+let lastNotificationSentAt = 0;
+let lastNotificationTitle = "";
+
 /**
  * Dispatches a device notification (Android native alert or Web Notification).
  */
 export async function sendDevicePushNotification(options: PushNotificationOptions): Promise<boolean> {
   const { title, body, tag } = options;
+
+  const now = Date.now();
+  if (now - lastNotificationSentAt < 4000 && lastNotificationTitle === title) {
+    return true; // deduplicate
+  }
+  lastNotificationSentAt = now;
+  lastNotificationTitle = title;
 
   // 1. If running on Android App (Capacitor), trigger native notification channel
   if (isNativeAndroidApp()) {

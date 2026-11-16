@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "HRMS",
   description: "Internal HR management system — Realty Smartz Private Limited",
   applicationName: "HRMS",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.webmanifest?v=3",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -29,11 +29,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192x192.png?v=2", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png?v=2", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon-192x192.png?v=3", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png?v=3", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" },
+      { url: "/icons/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" },
     ],
   },
 };
@@ -41,8 +41,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
-  themeColor: "#2B2FD1",
+  viewportFit: "auto",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({

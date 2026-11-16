@@ -204,7 +204,7 @@
 .animate-run-header {
   display: flex;
   width: max-content;
-  animation: run 20s linear infinite;
+  animation: run 55s linear infinite;
 }
 .animate-run-birthdays {
   display: flex;

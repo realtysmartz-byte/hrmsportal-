@@ -23,8 +23,8 @@ export function EmployeePolicyAgreementModal() {
   useEffect(() => {
     if (status === "authenticated" && employeeId) {
       const storageKey = `policy_agreed_${employeeId}`;
-      const hasAgreedInSession = sessionStorage.getItem(storageKey);
-      if (hasAgreedInSession !== "true") {
+      const hasAgreed = localStorage.getItem(storageKey);
+      if (hasAgreed !== "true") {
         setIsOpen(true);
       } else {
         setIsOpen(false);
@@ -41,7 +41,7 @@ export function EmployeePolicyAgreementModal() {
     setIsSubmitting(true);
     try {
       const storageKey = `policy_agreed_${employeeId}`;
-      sessionStorage.setItem(storageKey, "true");
+      localStorage.setItem(storageKey, "true");
       setIsOpen(false);
     } finally {
       setIsSubmitting(false);

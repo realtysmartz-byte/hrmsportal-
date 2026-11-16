@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@realty-smartz/db";
 import {
   ensureAutoPunchOut,
+  autoRejectExpiredLeaves,
   generateDailyAttendanceData,
   syncReportToGoogleSheet,
   getActiveGoogleSheetConfig,
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
     }
 
     const result = await ensureAutoPunchOut(prisma);
+    const autoRejectedLeaves = await autoRejectExpiredLeaves(prisma);
 
     // If records were auto-punched out, immediately sync each organization's report to their configured Google Sheet
     if (result.updatedCount > 0) {

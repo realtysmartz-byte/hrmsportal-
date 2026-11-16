@@ -1245,12 +1245,11 @@ export const attendanceRouter = router({
 
       const nowMs = Date.now();
       const capturedMs = input.capturedAt.getTime();
-      if (capturedMs > nowMs + MAX_CLOCK_SKEW_MS || nowMs - capturedMs > MAX_PING_AGE_MS) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Location fix is stale or has an invalid timestamp",
-        });
-      }
+      // Ensure real timestamp: if client clock is drifted or sent invalid fix time, clamp to real current server time
+      const realCapturedAt =
+        capturedMs > nowMs + MAX_CLOCK_SKEW_MS || nowMs - capturedMs > MAX_PING_AGE_MS
+          ? new Date()
+          : input.capturedAt;
 
       const todayLog = await ctx.prisma.attendanceLog.findUnique({
         where: {
@@ -1266,7 +1265,7 @@ export const attendanceRouter = router({
       }
 
       const duplicate = await ctx.prisma.locationPing.findFirst({
-        where: { employeeId, capturedAt: input.capturedAt },
+        where: { employeeId, capturedAt: realCapturedAt },
       });
       if (duplicate) return { success: true };
 
@@ -1305,7 +1304,7 @@ export const attendanceRouter = router({
           address: finalAddress,
           accuracyM: input.accuracyM ?? null,
           withinGeofence: geo.withinGeofence,
-          capturedAt: input.capturedAt,
+          capturedAt: realCapturedAt,
         },
       });
       return { success: true };

@@ -98,17 +98,18 @@ export function LocationTracker() {
       const { latitude, longitude, accuracy } = pos.coords;
       try {
         const place = await reverseGeocodePlace(latitude, longitude);
+        const realTimestamp = new Date();
         await pingRef.current({
           lat: latitude,
           lng: longitude,
           address: place.address,
           accuracyM: accuracy,
-          capturedAt: new Date(pos.timestamp),
+          capturedAt: realTimestamp,
         });
         if (!cancelled) {
           const now = Date.now();
           writeLastPingAt(now);
-          setLastAt(new Date(pos.timestamp));
+          setLastAt(realTimestamp);
           hasReportedRef.current = false;
           setStatus("on");
         }
@@ -163,7 +164,7 @@ export function LocationTracker() {
       navigator.geolocation.getCurrentPosition(
         () => !cancelled && setStatus("on"),
         handleError,
-        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 }
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 }
       );
       return () => {
         cancelled = true;

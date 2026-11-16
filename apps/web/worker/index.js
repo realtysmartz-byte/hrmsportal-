@@ -1,3 +1,11 @@
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -6,13 +14,14 @@ self.addEventListener("push", (event) => {
     data = {};
   }
 
+  const notifTag = data.tag || (data.type ? `hrms-${data.type}` : "hrms-notification");
   event.waitUntil(
-    self.registration.showNotification(data.title || "Update your location", {
-      body: data.body || "Tap to share your current location.",
+    self.registration.showNotification(data.title || "HRMS Notification", {
+      body: data.body || "",
       icon: "/icons/icon-192x192.png",
       badge: "/icons/icon-192x192.png",
-      tag: "location-reminder",
-      renotify: true,
+      tag: notifTag,
+      renotify: false,
       data: { url: data.url || "/employee-portal/dashboard", type: data.type || null },
     })
   );

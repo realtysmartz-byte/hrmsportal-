@@ -67,7 +67,9 @@ export {
   notifyOutsideGeofence,
   notifyEmployeeStatusChange,
   notifyLeaveApplied,
+  notifyLeaveManagerApproval,
   notifyLeaveDecision,
+  notifyLeaveAutoRejected,
   notifyLeaveCancelled,
   notifyLocationDisabledAlert,
   testSmtpConnection,
@@ -76,6 +78,7 @@ export {
   getHrNotifyEmails,
   getStaffNotifyEmails,
 } from "./lib/email";
+export { autoRejectExpiredLeaves } from "./routers/leave";
 
 export { ensureAutoPunchOut } from "./lib/attendance-auto";
 export { assertRateLimit } from "./lib/rate-limit";

@@ -84,14 +84,14 @@ export default function EmployeeDashboardPage() {
       <CheckInOutCard />
 
       {/* 2. Quick Actions (4-Column Grid) */}
-      <div className="grid grid-cols-4 gap-2 my-[22px] mb-[26px]">
+      <div className="grid grid-cols-4 gap-2 my-[18px] mb-[22px]">
         {/* Apply Leave */}
         <Link
           href="/employee-portal/leave"
-          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+          className="flex flex-col items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[11px] font-semibold text-center leading-[1.2] text-[var(--ink)] select-none group"
         >
-          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+          <i className="w-12 h-12 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
               <rect width="18" height="18" x="3" y="4" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4" />
             </svg>
@@ -102,10 +102,10 @@ export default function EmployeeDashboardPage() {
         {/* Leave Balance */}
         <Link
           href="/employee-portal/leave"
-          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+          className="flex flex-col items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[11px] font-semibold text-center leading-[1.2] text-[var(--ink)] select-none group"
         >
-          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+          <i className="w-12 h-12 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
               <rect width="8" height="4" x="8" y="2" rx="1" />
               <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4" />
             </svg>
@@ -116,10 +116,10 @@ export default function EmployeeDashboardPage() {
         {/* ID Card */}
         <Link
           href="/employee-portal/id-card"
-          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+          className="flex flex-col items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[11px] font-semibold text-center leading-[1.2] text-[var(--ink)] select-none group"
         >
-          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+          <i className="w-12 h-12 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
               <rect width="20" height="14" x="2" y="5" rx="2" />
               <circle cx="8" cy="11" r="2" />
               <path d="M5 16c.5-1.5 1.7-2 3-2s2.5.5 3 2M14 9h4M14 13h4" />
@@ -131,10 +131,10 @@ export default function EmployeeDashboardPage() {
         {/* Performance */}
         <Link
           href="/employee-portal/performance"
-          className="flex flex-col items-center gap-2 border-0 bg-transparent cursor-pointer text-[12px] font-semibold text-center leading-[1.25] text-[var(--ink)] select-none group"
+          className="flex flex-col items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[11px] font-semibold text-center leading-[1.2] text-[var(--ink)] select-none group"
         >
-          <i className="w-14 h-14 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[25px] h-[25px]">
+          <i className="w-12 h-12 grid place-items-center bg-[var(--active)] rounded-[4px] text-[var(--accent)] group-hover:brightness-95 transition-all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
               <circle cx="12" cy="12" r="10" />
               <circle cx="12" cy="12" r="6" />
               <circle cx="12" cy="12" r="2" />
@@ -144,76 +144,41 @@ export default function EmployeeDashboardPage() {
         </Link>
       </div>
 
-      {/* 3. Birthdays Section: Square card, circular photo inside */}
-      <div className="flex justify-between items-baseline mb-3">
-        <h2 className="text-[16px] font-bold text-[var(--ink)] m-0">Wish them</h2>
-        <span className="text-[12px] text-[var(--muted)]">Next 30 Days</span>
+      {/* 3. Birthdays Section: Stationary horizontally scrollable compact cards */}
+      <div className="flex justify-between items-baseline mb-2.5">
+        <h2 className="text-[15px] font-bold text-[var(--ink)] m-0">Wish them</h2>
+        <span className="text-[11px] text-[var(--muted)]">Next 30 Days</span>
       </div>
-      <div className="overflow-hidden -mx-4 mb-[22px]">
-        <div className="animate-run-birthdays ml-4">
-          {/* First track set */}
-          <div className="flex gap-3 pr-3 flex-none">
-            {displayBirthdays.map((b, idx) => (
+      <div className="-mx-4 px-4 overflow-x-auto scrollbar-none mb-[20px]">
+        <div className="flex gap-2.5 pb-1">
+          {displayBirthdays.map((b, idx) => (
+            <div
+              key={b.id || idx}
+              className={cn(
+                "w-[86px] flex-none text-center p-[10px_6px_8px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
+                b.isToday && "ring-1 ring-[var(--accent)] border-[var(--accent)]"
+              )}
+            >
               <div
-                key={b.id || idx}
                 className={cn(
-                  "w-[104px] flex-none text-center p-[14px_6px_12px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
-                  b.isToday && "border-[var(--line)]"
+                  "w-[44px] h-[44px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-sm font-bold",
+                  b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[2px]"
                 )}
               >
-                <div
-                  className={cn(
-                    "w-[60px] h-[60px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-[22px] font-bold",
-                    b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[3px]"
-                  )}
-                >
-                  {b.profilePhotoUrl ? (
-                    <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
-                  ) : (
-                    <span>{getInitials(b.firstName, b.lastName)}</span>
-                  )}
-                </div>
-                <b className="block mt-2.5 text-[13px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
-                  {b.name}
-                </b>
-                <small className={cn("block mt-0.5 text-[12px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
-                  {b.isToday ? "Today" : b.birthdayDate}
-                </small>
-              </div>
-            ))}
-          </div>
-
-          {/* Second identical track set for infinite seamless loop */}
-          <div className="flex gap-3 pr-3 flex-none">
-            {displayBirthdays.map((b, idx) => (
-              <div
-                key={`dup-${b.id || idx}`}
-                className={cn(
-                  "w-[104px] flex-none text-center p-[14px_6px_12px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
-                  b.isToday && "border-[var(--line)]"
+                {b.profilePhotoUrl ? (
+                  <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
+                ) : (
+                  <span>{getInitials(b.firstName, b.lastName)}</span>
                 )}
-              >
-                <div
-                  className={cn(
-                    "w-[60px] h-[60px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-[22px] font-bold",
-                    b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[3px]"
-                  )}
-                >
-                  {b.profilePhotoUrl ? (
-                    <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
-                  ) : (
-                    <span>{getInitials(b.firstName, b.lastName)}</span>
-                  )}
-                </div>
-                <b className="block mt-2.5 text-[13px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
-                  {b.name}
-                </b>
-                <small className={cn("block mt-0.5 text-[12px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
-                  {b.isToday ? "Today" : b.birthdayDate}
-                </small>
               </div>
-            ))}
-          </div>
+              <b className="block mt-1.5 text-[11px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
+                {b.name}
+              </b>
+              <small className={cn("block mt-0.5 text-[10px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
+                {b.isToday ? "Today" : b.birthdayDate}
+              </small>
+            </div>
+          ))}
         </div>
       </div>
 

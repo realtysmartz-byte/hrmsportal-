@@ -177,12 +177,12 @@ export function EmployeeTopNav() {
 
   return (
     <>
-      {/* 1. Header: Avatar + Company Marquee + Sidebar Button (White bg, 64px height) */}
-      <header className="sticky top-0 z-30 flex items-center gap-3 h-16 px-3 sm:px-4 border-b border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]">
-        {/* Avatar: Square 40x40 with rounded 4px and accent background */}
+      {/* 1. Header: Avatar + Company Marquee + Sidebar Button (Clean white header, perfect for mobile & web) */}
+      <header className="sticky top-0 z-30 flex items-center gap-2.5 h-16 px-3 sm:px-4 border-b border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]">
+        {/* Avatar: Square 32x32 with rounded 4px and accent background */}
         <Link
           href="/employee-portal/profile"
-          className="w-10 h-10 flex-none rounded-[4px] bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm select-none overflow-hidden"
+          className="w-8 h-8 flex-none rounded-[4px] bg-[var(--accent)] text-white flex items-center justify-center font-bold text-xs select-none overflow-hidden"
           title="My Profile"
         >
           {profilePhoto ? (
@@ -249,7 +249,7 @@ export function EmployeeTopNav() {
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
-          className="w-10 h-10 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-colors"
+          className="w-8 h-8 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-colors"
           aria-label="Open menu"
           aria-haspopup="dialog"
         >
@@ -260,7 +260,7 @@ export function EmployeeTopNav() {
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="w-[22px] h-[22px]"
+            className="w-[18px] h-[18px]"
           >
             <path d="M4 8h16M4 16h10" />
           </svg>
