@@ -120,30 +120,30 @@ export function EmployeeNotificationBell() {
         aria-label="Notifications"
         title="Notifications"
         className={cn(
-          "relative flex h-8 w-8 items-center justify-center rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors cursor-pointer",
+          "relative flex h-8 w-8 items-center justify-center rounded-[4px] border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors cursor-pointer",
           isOpen && "bg-[var(--soft)]"
         )}
       >
         <Bell className="h-4 w-4 text-[var(--ink)]" strokeWidth={1.8} />
 
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
+            <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-ink)] shadow-sm">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
         )}
-      </button>
+          </button>
 
       {/* Notifications Dropdown Panel */}
-      {isOpen && (
-        <div className="notification-dropdown-panel fixed sm:absolute right-3 sm:right-0 top-16 sm:top-10 z-50 w-[calc(100vw-24px)] sm:w-96 max-w-sm rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3 bg-[var(--soft)]/50">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--ink)]">
-                Notifications
-              </span>
-              {unreadCount > 0 && (
-                <span className="rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+        {isOpen && (
+            <div className="notification-dropdown-panel fixed sm:absolute right-3 sm:right-0 top-16 sm:top-10 z-50 w-[calc(100vw-24px)] sm:w-96 max-w-sm rounded-[4px] border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3 bg-[var(--soft)]/50">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--ink)]">
+                    Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                <span className="rounded-[2px] bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--accent-ink)]">
                   {unreadCount}
                 </span>
               )}
@@ -157,88 +157,88 @@ export function EmployeeNotificationBell() {
             </button>
           </div>
 
-          {/* Web Push Prompt if not subscribed */}
-          {pushSupported && !pushSubscribed && (
-              <div className="border-b border-[var(--line)] bg-[var(--active)] p-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold text-[var(--accent)]">
-                    Enable Push Notifications
-                  </p>
-                  <p className="text-[10px] text-[var(--muted)]">
-                    Receive instant alerts for leave approvals and attendance
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleEnablePush}
-                  className="shrink-0 rounded-[2px] bg-[var(--accent)] px-2.5 py-1 text-[10px] font-bold text-white hover:brightness-110 transition-all"
-                >
-                  Enable
-                </button>
-              </div>
-            )}
-
-              {/* Notification List */}
-              <div className="max-h-[360px] overflow-y-auto divide-y divide-[var(--line)]">
-                {items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-8 text-center">
-                    <CheckCircle2 className="h-8 w-8 text-[var(--muted)]/40 mb-2" strokeWidth={1.5} />
-                    <p className="text-xs font-semibold text-[var(--ink)]">All caught up</p>
-                    <p className="text-[11px] text-[var(--muted)] mt-0.5">
-                      No new notifications right now
-                    </p>
-                  </div>
-                ) : (
-                  items.map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => {
-                        setIsOpen(false);
-                        if (item.href) router.push(item.href);
-                      }}
-                      className="flex items-start gap-3 p-3.5 hover:bg-[var(--soft)] transition-colors cursor-pointer"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-[var(--soft)] border border-[var(--line)] text-[var(--accent)]">
-                        {item.type === "LEAVE" ? (
-                          <CalendarDays className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
-                        ) : item.type === "TARGET" ? (
-                          <Target className="h-4 w-4 text-[var(--ok)]" strokeWidth={1.8} />
-                        ) : (
-                          <Clock className="h-4 w-4 text-[var(--warn)]" strokeWidth={1.8} />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-semibold text-[var(--ink)] truncate">
-                            {item.title}
-                          </p>
-                          <span className="text-[10px] text-[var(--muted)] shrink-0">
-                            {formatRelativeTime(item.time)}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[var(--muted)] mt-0.5 line-clamp-2">
-                          {item.subtitle}
-                        </p>
-                        {item.badgeText && (
-                          <span
-                            className={cn(
-                              "mt-1.5 inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-[2px] border",
-                              item.badgeColor || "bg-[var(--soft)] text-[var(--ink)] border-[var(--line)]"
-                            )}
-                          >
-                            {item.badgeText}
-                          </span>
-                        )}
-                      </div>
-
-                      <ChevronRight className="h-3.5 w-3.5 text-[var(--muted)] shrink-0 self-center" strokeWidth={1.8} />
+                {/* Web Push Prompt if not subscribed */}
+                {pushSupported && !pushSubscribed && (
+                  <div className="border-b border-[var(--line)] bg-[var(--active)] p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold text-[var(--accent)]">
+                        Enable Push Notifications
+                      </p>
+                      <p className="text-[10px] text-[var(--muted)]">
+                        Receive instant alerts for leave approvals and attendance
+                      </p>
                     </div>
-                  ))
+                    <button
+                      type="button"
+                      onClick={handleEnablePush}
+                      className="shrink-0 rounded-[2px] bg-[var(--accent)] px-2.5 py-1 text-[10px] font-bold text-white hover:brightness-110 transition-all"
+                    >
+                      Enable
+                    </button>
+                  </div>
                 )}
+
+                {/* Notification List */}
+                <div className="max-h-[360px] overflow-y-auto divide-y divide-[var(--line)]">
+                  {items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <CheckCircle2 className="h-8 w-8 text-[var(--muted)]/40 mb-2" strokeWidth={1.5} />
+                      <p className="text-xs font-semibold text-[var(--ink)]">All caught up</p>
+                      <p className="text-[11px] text-[var(--muted)] mt-0.5">
+                        No new notifications right now
+                      </p>
+                    </div>
+                  ) : (
+                    items.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          setIsOpen(false);
+                          if (item.href) router.push(item.href);
+                        }}
+                        className="flex items-start gap-3 p-3.5 hover:bg-[var(--soft)] transition-colors cursor-pointer"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-[var(--soft)] border border-[var(--line)] text-[var(--accent)]">
+                          {item.type === "LEAVE" ? (
+                            <CalendarDays className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
+                          ) : item.type === "TARGET" ? (
+                            <Target className="h-4 w-4 text-[var(--ok)]" strokeWidth={1.8} />
+                          ) : (
+                            <Clock className="h-4 w-4 text-[var(--warn)]" strokeWidth={1.8} />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-[var(--ink)] truncate">
+                              {item.title}
+                            </p>
+                            <span className="text-[10px] text-[var(--muted)] shrink-0">
+                              {formatRelativeTime(item.time)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[var(--muted)] mt-0.5 line-clamp-2">
+                            {item.subtitle}
+                          </p>
+                          {item.badgeText && (
+                            <span
+                              className={cn(
+                                "mt-1.5 inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-[2px] border",
+                                item.badgeColor || "bg-[var(--soft)] text-[var(--ink)] border-[var(--line)]"
+                              )}
+                            >
+                              {item.badgeText}
+                            </span>
+                          )}
+                        </div>
+
+                        <ChevronRight className="h-3.5 w-3.5 text-[var(--muted)] shrink-0 self-center" strokeWidth={1.8} />
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
           )}
-        </div>
-      );
+            </div>
+            );
 }

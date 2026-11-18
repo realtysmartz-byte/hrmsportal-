@@ -37,24 +37,24 @@ export function EmployeeTopNav() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-        const isStrictNative =
-          Capacitor.isNativePlatform() &&
-          Capacitor.getPlatform() !== "web";
+      const isStrictNative =
+        Capacitor.isNativePlatform() &&
+        Capacitor.getPlatform() !== "web";
 
-        if (isStrictNative) {
-          setIsNativeApp(true);
-          document.documentElement.classList.add("is-native-app");
-          document.body.classList.add("is-native-app");
-        } else {
-          setIsNativeApp(false);
-          document.documentElement.classList.remove("is-native-app");
-          document.body.classList.remove("is-native-app");
-          try {
-            sessionStorage.removeItem("is_native_app");
-          } catch { }
-        }
+      if (isStrictNative) {
+        setIsNativeApp(true);
+        document.documentElement.classList.add("is-native-app");
+        document.body.classList.add("is-native-app");
+      } else {
+        setIsNativeApp(false);
+        document.documentElement.classList.remove("is-native-app");
+        document.body.classList.remove("is-native-app");
+        try {
+          sessionStorage.removeItem("is_native_app");
+        } catch { }
       }
-    }, []);
+    }
+  }, []);
 
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
   const isAdmin = canAccessAdminPortal(role);
@@ -447,51 +447,53 @@ export function EmployeeTopNav() {
         </div>
 
         {/* EngageXpert Branding in Drawer Footer */}
-        <div className="py-2.5 px-3 border-t border-[var(--line)] bg-[var(--soft)]/50 flex items-center justify-center gap-2">
-          <span className="text-[9.5px] font-bold tracking-[0.14em] text-[#0a4fa3] uppercase">
-            A Digital Experience By
-          </span>
-          <img
-            src="/images/engapexpert-logo@2x.png"
-            alt="EngageXpert"
-            className="h-4 w-auto object-contain"
-          />
-        </div>
-      </aside>
+            <div className="py-2.5 px-3 border-t border-[var(--line)] bg-[var(--card)] flex items-center justify-center gap-2.5">
+              <span className="text-[11px] font-semibold text-[var(--muted)]">
+                A digital experience by
+              </span>
+              <div className="flex items-center justify-center bg-[#FFFFFF] rounded-[4px] px-[8px] py-[4px]">
+                <img
+                  src="/images/engapexpert-logo@2x.png"
+                  alt="EngageXpert"
+                  className="h-3.5 w-auto object-contain"
+                />
+              </div>
+            </div>
+          </aside>
 
-      {/* 3. Bottom Navigation: Home, Attendance, Leaves, Me */}
-      <nav
-        aria-label="Main"
-        className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto grid grid-cols-4 bg-[var(--bg)] border-t border-[var(--line)] z-40 pb-[env(safe-area-inset-bottom,0px)]"
-      >
-        {bottomTabs.map((tab) => {
-          const active =
-            pathname === tab.href ||
-            (tab.href !== "/employee-portal/dashboard" && pathname.startsWith(`${tab.href}/`));
-          const Icon = tab.icon;
+          {/* 3. Bottom Navigation: Home, Attendance, Leaves, Me */}
+          <nav
+            aria-label="Main"
+            className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto grid grid-cols-4 bg-[var(--bg)] border-t border-[var(--line)] z-40 pb-[env(safe-area-inset-bottom,0px)]"
+          >
+            {bottomTabs.map((tab) => {
+              const active =
+                pathname === tab.href ||
+                (tab.href !== "/employee-portal/dashboard" && pathname.startsWith(`${tab.href}/`));
+              const Icon = tab.icon;
 
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={cn(
-                "relative h-16 flex flex-col items-center justify-center gap-1 text-[12px] font-semibold transition-colors",
-                active
-                  ? "text-[var(--accent)] before:content-[''] before:absolute before:-top-[1px] before:left-1/4 before:right-1/4 before:h-[2px] before:bg-[var(--accent)]"
-                  : "text-[var(--muted)] hover:text-[var(--ink)]"
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  className={cn(
+                    "relative h-16 flex flex-col items-center justify-center gap-1 text-[12px] font-semibold transition-colors",
+                    active
+                        ? "text-[var(--accent)] before:content-[''] before:absolute before:-top-[1px] before:left-0 before:right-0 before:h-[2px] before:bg-[var(--accent)]"
+                        : "text-[var(--muted)] hover:text-[var(--ink)]"
               )}
-            >
-              <Icon className="w-[22px] h-[22px] stroke-[1.8]" />
-              <span>{tab.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+                >
+                  <Icon className="w-[22px] h-[22px] stroke-[1.8]" />
+                  <span>{tab.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
-      <InstallGuideModal
-        isOpen={showInstallModal}
-        onClose={() => setShowInstallModal(false)}
-      />
-    </>
-  );
+          <InstallGuideModal
+            isOpen={showInstallModal}
+            onClose={() => setShowInstallModal(false)}
+          />
+        </>
+        );
 }

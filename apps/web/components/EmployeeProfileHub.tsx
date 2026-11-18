@@ -201,6 +201,8 @@ export function EmployeeProfileHub({
               "linear-gradient(135deg, rgba(36, 14, 89, 0.82) 0%, rgba(68, 28, 158, 0.72) 50%, rgba(106, 55, 207, 0.65) 100%), url('/skyscraper-hero.jpg')",
           }}
         >
+          {/* Dark mode overlay so banner does not glow */}
+          <div className="absolute inset-0 bg-transparent dark:bg-[rgba(11,12,15,0.45)] pointer-events-none" />
           <div className="absolute left-3 top-3 z-10 flex gap-2">
             <Link href={basePath}>
               <Button
@@ -219,9 +221,9 @@ export function EmployeeProfileHub({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="gap-1.5 bg-white/95 text-neutral-900 hover:bg-white"
+                  className="gap-1.5 bg-[var(--card)]/90 text-[var(--ink)] border border-[var(--line)] hover:bg-[var(--card)]"
                 >
-                  <Pencil className="h-3.5 w-3.5 text-[#5D3EBC]" />
+                  <Pencil className="h-3.5 w-3.5 text-[var(--accent)]" />
                   Edit
                 </Button>
               </Link>
@@ -252,83 +254,83 @@ export function EmployeeProfileHub({
         <div className="relative px-4 pb-0 pt-0 md:px-6 bg-[var(--card)]">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
             <div className="-mt-12 sm:-mt-14 relative group shrink-0">
-              <div className="flex h-24 w-24 aspect-square shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-[#5145CD] to-[#7957FF] font-display text-2xl font-bold text-white shadow-[0_8px_25px_rgba(30,10,80,0.25)] ring-2 ring-[#7957FF]/30">
-                {emp.profilePhotoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={emp.profilePhotoUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  initials(emp.firstName, emp.lastName)
-                )}
-              </div>
-              {access.isSelf && (
-                <button
-                  type="button"
-                  onClick={() => setShowPhotoModal(true)}
-                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#181C26] text-white hover:bg-neutral-800 transition-colors"
-                  title="Upload / Change profile photo"
-                >
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            <div className="min-w-0 flex-1 pt-3 pb-3">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-display text-2xl font-black tracking-tight text-[var(--ink)] md:text-3xl">
-                  {fullName(emp.firstName, emp.lastName)}
-                </h1>
-                <StatusBadge status={emp.status} />
-                {access.canManage && (
-                  <Link
-                    href={`/admin-portal/employees/${emp.id}/edit`}
-                    className="inline-flex items-center gap-1 rounded-md bg-[var(--field)] hover:bg-[var(--hover)] border border-[var(--line)] px-2 py-0.5 text-[11px] font-semibold text-[var(--ink)] transition-colors"
-                    title="Change status or termination date"
+                <div className="flex h-24 w-24 aspect-square shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[var(--card)] bg-gradient-to-tr from-[#5145CD] to-[#7957FF] font-display text-2xl font-bold text-white shadow-md">
+                  {emp.profilePhotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={emp.profilePhotoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials(emp.firstName, emp.lastName)
+                  )}
+                </div>
+                {access.isSelf && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotoModal(true)}
+                    className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--card)] border border-[var(--line)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors shadow-xs"
+                    title="Upload / Change profile photo"
                   >
-                    <Pencil className="h-3 w-3 text-[var(--muted)]" />
-                    <span>Change Status</span>
-                  </Link>
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
                 )}
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5D3EBC]/15 border border-[#5D3EBC]/30 px-2.5 py-0.5 text-xs font-bold text-[#7957FF] shadow-2xs">
-                  <Building className="h-3 w-3 text-[#7957FF]" />
-                  Realty Smartz Pvt Ltd
-                </span>
               </div>
-              <p className="mt-1 text-sm font-semibold text-[var(--ink)] flex items-center gap-2 flex-wrap">
-                <span className="text-[var(--ink)] font-bold">{emp.designation?.title ?? "Designation Pending"}</span>
-                {emp.department?.name && (
-                  <>
-                    <span className="text-[var(--muted)]">•</span>
-                    <span className="text-[#7957FF] font-medium">{emp.department.name} Department</span>
-                  </>
-                )}
-              </p>
-              <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[var(--muted)] font-medium">
-                <span className="inline-flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5 text-[var(--muted)]" />
-                  <span className="font-semibold text-[var(--ink)]">{emp.email}</span>
-                </span>
-                {emp.phone && (
+              <div className="min-w-0 flex-1 pt-3 pb-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="font-display text-2xl font-black tracking-tight text-[var(--ink)] md:text-3xl">
+                    {fullName(emp.firstName, emp.lastName)}
+                  </h1>
+                  <StatusBadge status={emp.status} />
+                  {access.canManage && (
+                    <Link
+                      href={`/admin-portal/employees/${emp.id}/edit`}
+                      className="inline-flex items-center gap-1 rounded-[4px] bg-[var(--field)] hover:bg-[var(--hover)] border border-[var(--line)] px-2 py-0.5 text-[11px] font-semibold text-[var(--ink)] transition-colors"
+                      title="Change status or termination date"
+                    >
+                      <Pencil className="h-3 w-3 text-[var(--muted)]" />
+                      <span>Change Status</span>
+                    </Link>
+                  )}
+                    <span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[var(--active)] border border-[var(--line)] px-2.5 py-0.5 text-xs font-bold text-[var(--accent)] shadow-2xs">
+                      <Building className="h-3 w-3 text-[var(--accent)]" />
+                      Realty Smartz Pvt Ltd
+                    </span>
+                </div>
+                <p className="mt-1 text-sm font-semibold text-[var(--ink)] flex items-center gap-2 flex-wrap">
+                  <span className="text-[var(--ink)] font-bold">{emp.designation?.title ?? "Designation Pending"}</span>
+                  {emp.department?.name && (
+                    <>
+                      <span className="text-[var(--muted)]">•</span>
+                      <span className="text-[var(--accent)] font-medium">{emp.department.name} Department</span>
+                    </>
+                  )}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[var(--muted)] font-medium">
                   <span className="inline-flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-[var(--muted)]" />
-                    <span className="text-[var(--ink)]">{emp.phone}</span>
+                    <Mail className="h-3.5 w-3.5 text-[var(--muted)]" />
+                    <span className="font-semibold text-[var(--ink)]">{emp.email}</span>
                   </span>
-                )}
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-[var(--muted)]" />
-                  <span className="text-[var(--ink)]">{emp.workLocationName || "Gurugram"}</span>
-                </span>
-                {emp.dateOfJoining && (
+                  {emp.phone && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 text-[var(--muted)]" />
+                      <span className="text-[var(--ink)]">{emp.phone}</span>
+                    </span>
+                  )}
                   <span className="inline-flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-[var(--muted)]" />
-                    <span className="text-[var(--ink)]">Joined {formatDate(emp.dateOfJoining)}</span>
+                    <MapPin className="h-3.5 w-3.5 text-[var(--muted)]" />
+                    <span className="text-[var(--ink)]">{emp.workLocationName || "Gurugram"}</span>
                   </span>
-                )}
-                {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
-                  <span className="inline-flex items-center gap-1.5 font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
-                    <Calendar className="h-3.5 w-3.5 text-rose-600" />
+                  {emp.dateOfJoining && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-[var(--muted)]" />
+                      <span className="text-[var(--ink)]">Joined {formatDate(emp.dateOfJoining)}</span>
+                    </span>
+                  )}
+                  {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
+                  <span className="inline-flex items-center gap-1.5 font-bold text-[var(--danger)] bg-[var(--soft)] border border-[var(--line)] px-2 py-0.5 rounded-[2px]">
+                    <Calendar className="h-3.5 w-3.5 text-[var(--danger)]" />
                     <span>
                       {emp.status === "TERMINATED"
                         ? "Terminated On"
@@ -341,24 +343,28 @@ export function EmployeeProfileHub({
                 )}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Badge variant="outline">{emp.employeeCode}</Badge>
-                <Badge variant="secondary">{emp.role}</Badge>
+                <span className="bg-[var(--soft)] border border-[var(--line)] text-[var(--ink)] rounded-[2px] px-2 py-0.5 text-xs font-semibold">
+                  {emp.employeeCode}
+                </span>
+                <span className="bg-[var(--soft)] border border-[var(--line)] text-[var(--ink)] rounded-[2px] px-2 py-0.5 text-xs font-semibold">
+                  {emp.role}
+                </span>
                 {access.canViewSensitive ? (
                   <div className="flex min-w-[140px] max-w-xs flex-1 items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--line)]">
                       <div
-                        className="h-full rounded-full bg-[#5D3EBC] transition-all duration-200"
+                        className="h-full rounded-full bg-[var(--accent)] transition-all duration-200"
                         style={{ width: `${emp.profileCompletion}%` }}
                       />
                     </div>
-                    <span className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
+                    <span className="text-[11px] font-semibold text-[var(--muted)]">
                       {emp.profileCompletion}% Complete
                     </span>
                   </div>
                 ) : (
                   <Badge
                     variant="outline"
-                    className="border-neutral-200 bg-neutral-100/70 text-[11px] font-semibold text-neutral-700"
+                    className="border-[var(--line)] bg-[var(--soft)] text-[11px] font-semibold text-[var(--ink)]"
                   >
                     Colleague Directory
                   </Badge>
@@ -367,8 +373,8 @@ export function EmployeeProfileHub({
                 {/* Photo source indicator & change control for own profile */}
                 {access.isSelf && (
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-neutral-400 font-medium">Photo source:</span>
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700">
+                    <span className="text-[var(--muted)] font-medium">Photo source:</span>
+                    <span className="inline-flex items-center rounded-[2px] px-2 py-0.5 text-[10px] font-semibold bg-[var(--soft)] text-[var(--ink)] border border-[var(--line)]">
                       {emp.profilePhotoUrl
                         ? emp.profilePhotoUrl.includes("googleusercontent.com") ||
                           emp.profilePhotoUrl.includes("google")
@@ -379,7 +385,7 @@ export function EmployeeProfileHub({
                     <button
                       type="button"
                       onClick={() => setShowPhotoModal(true)}
-                      className="text-[11px] font-bold text-[#5D3EBC] hover:underline"
+                      className="text-[11px] font-bold text-[var(--accent)] hover:underline"
                     >
                       Change Photo
                     </button>
@@ -388,233 +394,233 @@ export function EmployeeProfileHub({
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Either Limited Colleague Profile View OR Full Tabbed Profile Hub */}
-      {!access.canViewSensitive ? (
-        <LimitedColleagueProfileView emp={emp} basePath={basePath} />
-      ) : (
-        <>
-          {/* Tabs - Mobile horizontal scrollable */}
-          <div className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--card)] overflow-x-auto no-scrollbar scroll-smooth">
-            <div className="flex min-w-max gap-0 px-1 md:px-4">
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    "relative px-3.5 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors duration-150 shrink-0 whitespace-nowrap",
-                    tab === t.id
-                      ? "text-[#7957FF] font-bold"
-                      : "text-[var(--muted)] hover:text-[var(--ink)]"
-                  )}
-                >
-                  {t.label}
-                  {tab === t.id && (
-                    <motion.span
-                      layoutId="profile-tab"
-                      className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-[#7957FF]"
-                    />
-                  )}
-                </button>
-              ))}
+              </div>
             </div>
-          </div>
 
-          <div className="bg-[var(--field)] p-4 md:p-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={tab}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                {tab === "overview" && (
-                  <OverviewTab
-                    emp={emp}
-                    overview={overview}
-                    basePath={basePath}
-                    canViewSensitive={access.canViewSensitive}
-                  />
-                )}
-                {tab === "job" && (
-                  <JobTab emp={emp} jobHistory={jobHistory} basePath={basePath} />
-                )}
-                {tab === "attendance" && (
-                  <AttendanceTab
-                    employeeId={emp.id}
-                    emp={emp}
-                    canManage={portal === "admin" && access.canManage}
-                  />
-                )}
-                {tab === "leave" && (
-                  <LeaveTab
-                    employeeId={emp.id}
-                    canManage={access.canManage}
-                    onAdjusted={() => {
-                      utils.employee.profileHub.invalidate({ id: emp.id });
-                      utils.leave.forEmployee.invalidate({ employeeId: emp.id });
-                    }}
-                  />
-                )}
-                {tab === "documents" && (
-                  <DocumentsTab
-                    employeeId={emp.id}
-                    canUpload={access.canEdit}
-                  />
-                )}
-                {tab === "performance" && (
-                  <PerformanceTab employeeId={emp.id} />
-                )}
-                {tab === "location" && (
-                  <GpsTrailTab
-                    emp={emp}
-                    canManage={portal === "admin" && access.canManage}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </>
-      )}
+            {/* Either Limited Colleague Profile View OR Full Tabbed Profile Hub */}
+            {!access.canViewSensitive ? (
+              <LimitedColleagueProfileView emp={emp} basePath={basePath} />
+            ) : (
+              <>
+                {/* Tabs - Mobile horizontal scrollable */}
+                <div className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--card)] overflow-x-auto no-scrollbar scroll-smooth">
+                  <div className="flex min-w-max gap-0 px-1 md:px-4">
+                    {tabs.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTab(t.id)}
+                        className={cn(
+                          "relative px-4 py-3 text-[14px] font-[600] capitalize transition-colors duration-150 shrink-0 whitespace-nowrap",
+                          tab === t.id
+                              ? "text-[var(--ink)] font-semibold"
+                              : "text-[var(--muted)] hover:text-[var(--ink)]"
+                  )}
+                      >
+                        {t.label}
+                        {tab === t.id && (
+                          <motion.span
+                            layoutId="profile-tab"
+                            className="absolute inset-x-2 bottom-0 h-[2px] bg-[var(--accent)]"
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-      {/* Photo Change Modal for Employee */}
-      {showPhotoModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
-          onClick={() => {
-            setShowPhotoModal(false);
-            setPhotoPreview(null);
-            setPhotoInputUrl("");
-          }}
-        >
-          <div
-            className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto rounded-2xl bg-[var(--card)] p-6 shadow-2xl border border-[var(--line)] overflow-y-auto text-[var(--ink)] animate-in fade-in zoom-in-95"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--line)]">
-              <h3 className="font-display text-base font-bold text-[var(--ink)]">
-                Profile Photo Settings
-              </h3>
-              <button
-                type="button"
+                <div className="bg-[var(--field)] p-4 md:p-6">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={tab}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      {tab === "overview" && (
+                        <OverviewTab
+                          emp={emp}
+                          overview={overview}
+                          basePath={basePath}
+                          canViewSensitive={access.canViewSensitive}
+                        />
+                      )}
+                      {tab === "job" && (
+                        <JobTab emp={emp} jobHistory={jobHistory} basePath={basePath} />
+                      )}
+                      {tab === "attendance" && (
+                        <AttendanceTab
+                          employeeId={emp.id}
+                          emp={emp}
+                          canManage={portal === "admin" && access.canManage}
+                        />
+                      )}
+                      {tab === "leave" && (
+                        <LeaveTab
+                          employeeId={emp.id}
+                          canManage={access.canManage}
+                          onAdjusted={() => {
+                            utils.employee.profileHub.invalidate({ id: emp.id });
+                            utils.leave.forEmployee.invalidate({ employeeId: emp.id });
+                          }}
+                        />
+                      )}
+                      {tab === "documents" && (
+                        <DocumentsTab
+                          employeeId={emp.id}
+                          canUpload={access.canEdit}
+                        />
+                      )}
+                      {tab === "performance" && (
+                        <PerformanceTab employeeId={emp.id} />
+                      )}
+                      {tab === "location" && (
+                        <GpsTrailTab
+                          emp={emp}
+                          canManage={portal === "admin" && access.canManage}
+                        />
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
+
+            {/* Photo Change Modal for Employee */}
+            {showPhotoModal && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
                 onClick={() => {
                   setShowPhotoModal(false);
                   setPhotoPreview(null);
                   setPhotoInputUrl("");
                 }}
-                className="text-[var(--muted)] hover:text-[var(--ink)]"
               >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              {/* Current Photo Preview & Source */}
-              <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--field)] border border-[var(--line)]">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--line)] bg-[#5D3EBC] text-white font-bold text-lg">
-                  {photoPreview || emp.profilePhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={photoPreview || emp.profilePhotoUrl || ""}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    initials(emp.firstName, emp.lastName)
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-[var(--muted)] font-medium">Active Photo Source:</p>
-                  <p className="text-sm font-bold text-[var(--ink)]">
-                    {emp.profilePhotoUrl
-                      ? emp.profilePhotoUrl.includes("googleusercontent.com") ||
-                        emp.profilePhotoUrl.includes("google")
-                        ? "Google Account"
-                        : "Custom Upload"
-                      : "Default Initials"}
-                  </p>
-                  <p className="text-[11px] text-[var(--muted)] mt-0.5">
-                    Upload a custom photo anytime to customize your profile avatar.
-                  </p>
-                </div>
-              </div>
-
-              {/* Camera / Upload file */}
-              <div className="flex gap-2">
-                <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#5D3EBC] px-3 py-2.5 text-xs font-semibold text-white hover:brightness-110">
-                  <Camera className="h-4 w-4" />
-                  Take Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="user"
-                    className="hidden"
-                    onChange={onPhotoFile}
-                  />
-                </label>
-                <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--field)] px-3 py-2.5 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--hover)]">
-                  <ImageUp className="h-4 w-4" />
-                  Upload
-                  <input type="file" accept="image/*" className="hidden" onChange={onPhotoFile} />
-                </label>
-              </div>
-              {photoBusy && <p className="text-xs text-[var(--muted)]">Compressing photo…</p>}
-
-              {/* Or Photo URL */}
-              <div>
-                <Label className="text-xs font-semibold text-[var(--ink)]">Or Image URL</Label>
-                <Input
-                  type="url"
-                  className="mt-1"
-                  placeholder="https://..."
-                  value={photoInputUrl}
-                  onChange={(e) => {
-                    setPhotoInputUrl(e.target.value);
-                    setPhotoPreview(e.target.value);
-                  }}
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--line)]">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowPhotoModal(false);
-                    setPhotoPreview(null);
-                    setPhotoInputUrl("");
-                  }}
+                <div
+                  className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto rounded-2xl bg-[var(--card)] p-6 shadow-2xl border border-[var(--line)] overflow-y-auto text-[var(--ink)] animate-in fade-in zoom-in-95"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-[#5D3EBC] text-white hover:brightness-110"
-                      disabled={
-                        (!photoPreview && !photoInputUrl) ||
-                        updatePhotoMutation.isLoading
-                      }
+                  <div className="flex items-center justify-between pb-3 border-b border-[var(--line)]">
+                    <h3 className="font-display text-base font-bold text-[var(--ink)]">
+                      Profile Photo Settings
+                    </h3>
+                    <button
+                      type="button"
                       onClick={() => {
-                        const url = photoPreview || photoInputUrl;
-                        if (url) {
-                          updatePhotoMutation.mutate({ profilePhotoUrl: url });
-                        }
+                        setShowPhotoModal(false);
+                        setPhotoPreview(null);
+                        setPhotoInputUrl("");
                       }}
+                      className="text-[var(--muted)] hover:text-[var(--ink)]"
                     >
-                      {updatePhotoMutation.isLoading ? "Saving..." : "Save Photo"}
-                    </Button>
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    {/* Current Photo Preview & Source */}
+                    <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--field)] border border-[var(--line)]">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--line)] bg-[#5D3EBC] text-white font-bold text-lg">
+                        {photoPreview || emp.profilePhotoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={photoPreview || emp.profilePhotoUrl || ""}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          initials(emp.firstName, emp.lastName)
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-[var(--muted)] font-medium">Active Photo Source:</p>
+                        <p className="text-sm font-bold text-[var(--ink)]">
+                          {emp.profilePhotoUrl
+                            ? emp.profilePhotoUrl.includes("googleusercontent.com") ||
+                              emp.profilePhotoUrl.includes("google")
+                              ? "Google Account"
+                              : "Custom Upload"
+                            : "Default Initials"}
+                        </p>
+                        <p className="text-[11px] text-[var(--muted)] mt-0.5">
+                          Upload a custom photo anytime to customize your profile avatar.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Camera / Upload file */}
+                    <div className="flex gap-2">
+                      <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#5D3EBC] px-3 py-2.5 text-xs font-semibold text-white hover:brightness-110">
+                        <Camera className="h-4 w-4" />
+                        Take Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="user"
+                          className="hidden"
+                          onChange={onPhotoFile}
+                        />
+                      </label>
+                      <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--field)] px-3 py-2.5 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--hover)]">
+                        <ImageUp className="h-4 w-4" />
+                        Upload
+                        <input type="file" accept="image/*" className="hidden" onChange={onPhotoFile} />
+                      </label>
+                    </div>
+                    {photoBusy && <p className="text-xs text-[var(--muted)]">Compressing photo…</p>}
+
+                    {/* Or Photo URL */}
+                    <div>
+                      <Label className="text-xs font-semibold text-[var(--ink)]">Or Image URL</Label>
+                      <Input
+                        type="url"
+                        className="mt-1"
+                        placeholder="https://..."
+                        value={photoInputUrl}
+                        onChange={(e) => {
+                          setPhotoInputUrl(e.target.value);
+                          setPhotoPreview(e.target.value);
+                        }}
+                      />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--line)]">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowPhotoModal(false);
+                          setPhotoPreview(null);
+                          setPhotoInputUrl("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-[#5D3EBC] text-white hover:brightness-110"
+                        disabled={
+                          (!photoPreview && !photoInputUrl) ||
+                          updatePhotoMutation.isLoading
+                        }
+                        onClick={() => {
+                          const url = photoPreview || photoInputUrl;
+                          if (url) {
+                            updatePhotoMutation.mutate({ profilePhotoUrl: url });
+                          }
+                        }}
+                      >
+                        {updatePhotoMutation.isLoading ? "Saving..." : "Save Photo"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-      )}
+            )}
           </div>
           );
 }
@@ -1057,194 +1063,192 @@ export function EmployeeProfileHub({
           );
 }
 
-          function StatCard({label, value}: {label: string; value: string }) {
-  return (
-          <Card className="border border-[var(--line)] bg-[var(--card)] text-[var(--ink)]">
-            <CardContent className="p-4 sm:p-5">
-              <p className="text-xs font-medium text-[var(--muted)]">{label}</p>
-              <p className="mt-1 font-display text-2xl font-bold text-primary">
-                {value}
-              </p>
-            </CardContent>
-          </Card>
-          );
+            function StatCard({ label, value }: { label: string; value: string }) {
+              return (
+              <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-4 sm:p-5 text-[var(--ink)] shadow-none">
+                <p className="text-xs font-semibold text-[var(--muted)]">{label}</p>
+                <p className="mt-1 font-display text-[28px] sm:text-[30px] font-bold text-[var(--ink)] leading-tight">
+                  {value}
+                </p>
+              </div>
+  );
 }
 
-          function JobTab({
-            emp,
-            jobHistory,
-            basePath,
-}: {
-            emp: {
-            designation: {title: string } | null;
-          department: {name: string } | null;
-          manager: {
-            id: string;
-          firstName: string;
-          lastName: string;
-          employeeCode: string;
-    } | null;
-          dateOfJoining: Date | string | null;
-          statusEffectiveDate: Date | string | null;
-          status: string;
-          role: string;
-          workLocationName: string | null;
-  };
-          jobHistory: {
-            id: string;
-          fieldChanged: string;
-          oldValue: string | null;
-          newValue: string | null;
-          effectiveDate: Date | string;
-          changedBy: {firstName: string; lastName: string } | null;
-  }[];
-          basePath: string;
-}) {
-  return (
-          <div className="section-gap">
-            <div className="grid gap-4 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
-                <CardHeader className="border-b border-[var(--line)] pb-3">
-                  <CardTitle className="text-base">Job Details</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-                  <DetailField
-                    label="Date of Joining"
-                    value={formatDate(emp.dateOfJoining)}
-                  />
-                  <DetailField
-                    label="Job Title"
-                    value={emp.designation?.title}
-                  />
-                  <DetailField label="Department" value={emp.department?.name} />
-                  <DetailField
-                    label="Location"
-                    value={emp.workLocationName || "Gurugram"}
-                  />
-                  <DetailField label="Worker Type" value="Full Time" />
-                  <DetailField
-                    label="Role"
-                    value={emp.role.replace("_", " ")}
-                  />
-                  <DetailField
-                    label="Employee Status"
-                    value={emp.status === "EXIT" ? "Absconding" : emp.status.replace("_", " ")}
-                  />
-                  {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
-                    <DetailField
-                      label={
-                        emp.status === "TERMINATED"
-                          ? "Termination Date"
-                          : emp.status === "RESIGNED"
-                            ? "Resignation Date"
-                            : "Absconding Date"
-                      }
-                      value={formatDate(emp.statusEffectiveDate)}
-                    />
-                  )}
-                  <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
-                </CardContent>
-              </Card>
+            function JobTab({
+              emp,
+              jobHistory,
+              basePath,
+            }: {
+              emp: {
+                designation: { title: string } | null;
+                department: { name: string } | null;
+                manager: {
+                  id: string;
+                  firstName: string;
+                  lastName: string;
+                  employeeCode: string;
+                } | null;
+                dateOfJoining: Date | string | null;
+                statusEffectiveDate: Date | string | null;
+                status: string;
+                role: string;
+                workLocationName: string | null;
+              };
+              jobHistory: {
+                id: string;
+                fieldChanged: string;
+                oldValue: string | null;
+                newValue: string | null;
+                effectiveDate: Date | string;
+                changedBy: { firstName: string; lastName: string } | null;
+              }[];
+              basePath: string;
+            }) {
+              return (
+                <div className="section-gap">
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <Card className="lg:col-span-2">
+                      <CardHeader className="border-b border-[var(--line)] pb-3">
+                        <CardTitle className="text-base">Job Details</CardTitle>
+                      </CardHeader>
+                      <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+                        <DetailField
+                          label="Date of Joining"
+                          value={formatDate(emp.dateOfJoining)}
+                        />
+                        <DetailField
+                          label="Job Title"
+                          value={emp.designation?.title}
+                        />
+                        <DetailField label="Department" value={emp.department?.name} />
+                        <DetailField
+                          label="Location"
+                          value={emp.workLocationName || "Gurugram"}
+                        />
+                        <DetailField label="Worker Type" value="Full Time" />
+                        <DetailField
+                          label="Role"
+                          value={emp.role.replace("_", " ")}
+                        />
+                        <DetailField
+                          label="Employee Status"
+                          value={emp.status === "EXIT" ? "Absconding" : emp.status.replace("_", " ")}
+                        />
+                        {["RESIGNED", "TERMINATED", "EXIT"].includes(emp.status) && (
+                          <DetailField
+                            label={
+                              emp.status === "TERMINATED"
+                                ? "Termination Date"
+                                : emp.status === "RESIGNED"
+                                  ? "Resignation Date"
+                                  : "Absconding Date"
+                            }
+                            value={formatDate(emp.statusEffectiveDate)}
+                          />
+                        )}
+                        <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
+                      </CardContent>
+                    </Card>
 
-              <Card>
-                <CardHeader className="border-b border-[var(--line)] pb-3">
-                  <CardTitle className="text-base">Organization</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-5">
-                  <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
-                  <DetailField label="Department" value={emp.department?.name} />
-                  <DetailField
-                    label="Location"
-                    value={emp.workLocationName || "Gurugram"}
-                  />
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
-                      Reporting Manager
-                    </p>
-                    {emp.manager ? (
-                      basePath.startsWith("/admin-portal") ? (
-                        <Link
-                          href={`${basePath}/${emp.manager.id}`}
-                          className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                        >
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                            {initials(emp.manager.firstName, emp.manager.lastName)}
-                          </span>
-                          {fullName(emp.manager.firstName, emp.manager.lastName)}
-                        </Link>
-                      ) : (
-                        <div className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                            {initials(emp.manager.firstName, emp.manager.lastName)}
-                          </span>
-                          {fullName(emp.manager.firstName, emp.manager.lastName)}
+                    <Card>
+                      <CardHeader className="border-b border-[var(--line)] pb-3">
+                        <CardTitle className="text-base">Organization</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-5">
+                        <DetailField label="Business Unit" value="Realty Smartz Private Limited" />
+                        <DetailField label="Department" value={emp.department?.name} />
+                        <DetailField
+                          label="Location"
+                          value={emp.workLocationName || "Gurugram"}
+                        />
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
+                            Reporting Manager
+                          </p>
+                          {emp.manager ? (
+                            basePath.startsWith("/admin-portal") ? (
+                              <Link
+                                href={`${basePath}/${emp.manager.id}`}
+                                className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
+                              >
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
+                                  {initials(emp.manager.firstName, emp.manager.lastName)}
+                                </span>
+                                {fullName(emp.manager.firstName, emp.manager.lastName)}
+                              </Link>
+                            ) : (
+                              <div className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
+                                  {initials(emp.manager.firstName, emp.manager.lastName)}
+                                </span>
+                                {fullName(emp.manager.firstName, emp.manager.lastName)}
+                              </div>
+                            )
+                          ) : (
+                            <p className="mt-1 text-sm text-[var(--muted)]">—</p>
+                          )}
                         </div>
-                      )
-                    ) : (
-                      <p className="mt-1 text-sm text-[var(--muted)]">—</p>
-                    )}
+                      </CardContent>
+                    </Card>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
 
-            <Card>
-              <CardHeader className="border-b border-[var(--line)] pb-3">
-                <CardTitle className="text-base">Employee Time</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-5 pt-5 sm:grid-cols-2 lg:grid-cols-3">
-                <DetailField label="Weekly Off" value="Tuesday" />
-                <DetailField
-                  label="Working days"
-                  value="Mon, Wed, Thu, Fri, Sat, Sun"
-                />
-                <DetailField label="Leave Policy" value="General Policy" />
-                <DetailField
-                  label="Attendance Tracking"
-                  value="Enabled · every 30 min while signed in"
-                />
-                <DetailField label="Holiday List" value="National Holidays" />
-                <DetailField label="Shift" value="General Shift" />
-              </CardContent>
-            </Card>
+                  <Card>
+                    <CardHeader className="border-b border-[var(--line)] pb-3">
+                      <CardTitle className="text-base">Employee Time</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-5 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+                      <DetailField label="Weekly Off" value="Tuesday" />
+                      <DetailField
+                        label="Working days"
+                        value="Mon, Wed, Thu, Fri, Sat, Sun"
+                      />
+                      <DetailField label="Leave Policy" value="General Policy" />
+                      <DetailField
+                        label="Attendance Tracking"
+                        value="Enabled · every 30 min while signed in"
+                      />
+                      <DetailField label="Holiday List" value="National Holidays" />
+                      <DetailField label="Shift" value="General Shift" />
+                    </CardContent>
+                  </Card>
 
-            <Card>
-              <CardHeader className="border-b border-[var(--line)] pb-3">
-                <CardTitle className="text-base">Job history</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                {jobHistory.length === 0 ? (
-                  <EmptyState
-                    title="No job changes yet"
-                    description="Designation, department, and manager changes will appear here."
-                    className="border-0 bg-transparent py-8"
-                  />
-                ) : (
-                  <ul className="space-y-3">
-                    {jobHistory.map((h) => (
-                      <li
-                        key={h.id}
-                        className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
-                      >
-                        <p className="font-medium capitalize text-[var(--ink)]">
-                          {h.fieldChanged} changed
-                        </p>
-                        <p className="text-caption text-[var(--muted)]">
-                          {h.oldValue || "—"} → {h.newValue || "—"} ·{" "}
-                          {formatDate(h.effectiveDate)}
-                          {h.changedBy
-                            ? ` · by ${fullName(h.changedBy.firstName, h.changedBy.lastName)}`
-                            : ""}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-          );
-}
+                  <Card>
+                    <CardHeader className="border-b border-[var(--line)] pb-3">
+                      <CardTitle className="text-base">Job history</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      {jobHistory.length === 0 ? (
+                        <EmptyState
+                          title="No job changes yet"
+                          description="Designation, department, and manager changes will appear here."
+                          className="border-0 bg-transparent py-8"
+                        />
+                      ) : (
+                        <ul className="space-y-3">
+                          {jobHistory.map((h) => (
+                            <li
+                              key={h.id}
+                              className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
+                            >
+                              <p className="font-medium capitalize text-[var(--ink)]">
+                                {h.fieldChanged} changed
+                              </p>
+                              <p className="text-caption text-[var(--muted)]">
+                                {h.oldValue || "—"} → {h.newValue || "—"} ·{" "}
+                                {formatDate(h.effectiveDate)}
+                                {h.changedBy
+                                  ? ` · by ${fullName(h.changedBy.firstName, h.changedBy.lastName)}`
+                                  : ""}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            }
 
           function DetailField({
             label,

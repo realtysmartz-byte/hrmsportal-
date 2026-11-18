@@ -221,11 +221,8 @@ export function LocationTracker() {
   return (
     <div
       className={cn(
-        "pointer-events-none fixed right-3 z-30 flex items-center gap-2 rounded-full border bg-white/95 backdrop-blur-xs px-3.5 py-1.5 text-[11px] font-semibold transition-all md:bottom-4 md:right-4",
-        "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]",
-        status === "on" && "border-teal-200 text-teal-800",
-        status === "denied" && "border-rose-200 text-rose-700 bg-rose-50/90",
-        (status === "error" || status === "idle") && "border-neutral-200 text-neutral-600"
+        "pointer-events-none fixed right-3 z-30 flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--card)] px-3.5 py-1.5 text-[13px] font-[600] text-[var(--ink)] shadow-xs transition-all md:bottom-4 md:right-4",
+        "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
       )}
 
       style={{
@@ -238,13 +235,13 @@ export function LocationTracker() {
     >
       <span
         className={cn(
-          "h-2 w-2 rounded-full",
-          status === "on" && "animate-pulse bg-emerald-600",
-          status === "denied" && "bg-rose-600",
-          (status === "error" || status === "idle") && "bg-amber-400"
+          "h-2 w-2 rounded-full shrink-0",
+          status === "on" && "animate-pulse bg-[var(--ok)]",
+          status === "denied" && "bg-[var(--danger)]",
+          (status === "error" || status === "idle") && "bg-[var(--warn)]"
         )}
       />
-      <MapPin className="h-3 w-3 shrink-0" />
+      <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--muted)]" />
       {status === "on" && (
         <span className="truncate max-w-[220px]">
           {isOnDuty ? "GPS Tracking Active (1 hr)" : "GPS Ready"}

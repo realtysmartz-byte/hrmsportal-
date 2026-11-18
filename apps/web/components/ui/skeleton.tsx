@@ -8,7 +8,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "animate-pulse rounded bg-[var(--field)] border border-[var(--line)]",
+        "animate-pulse rounded bg-[var(--soft)] border border-[var(--line)]",
         className
       )}
     />
