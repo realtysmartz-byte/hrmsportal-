@@ -35,9 +35,9 @@ export interface DailyReportRow {
  * Format time in 12-hour IST format (e.g. "09:30 AM")
  */
 function formatTime12(date?: Date | string | null): string {
-  if (!date) return "—";
+  if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "-";
   return d.toLocaleTimeString("en-IN", {
     timeZone: TIMEZONE_IST,
     hour: "2-digit",
@@ -95,8 +95,8 @@ export async function generateDailyAttendanceData(
 
   const headers = [
     "Sr No",
-    "Employee Code",
-    "Employee Name",
+    "Consultant Code",
+    "Consultant Name",
     "Department",
     "Designation",
     "Date",
@@ -121,19 +121,19 @@ export async function generateDailyAttendanceData(
     const checkInTime = formatTime12(log?.checkInTime);
     const checkOutTime = formatTime12(log?.checkOutTime);
 
-    let checkInLoc = "—";
+    let checkInLoc = "-";
     if (log?.checkInAddress) {
       checkInLoc = log.checkInAddress;
     } else if (log?.checkInLat && log?.checkInLng) {
       checkInLoc = `${log.checkInLat.toFixed(5)}, ${log.checkInLng.toFixed(5)}`;
     }
 
-    let checkOutLoc = "—";
+    let checkOutLoc = "-";
     if (log?.checkOutAddress) {
       checkOutLoc = log.checkOutAddress;
     } else if (log?.checkOutLat && log?.checkOutLng) {
       checkOutLoc = `${log.checkOutLat.toFixed(5)}, ${log.checkOutLng.toFixed(5)}`;
-    } else if (log?.checkOutTime && checkInLoc !== "—") {
+    } else if (log?.checkOutTime && checkInLoc !== "-") {
       checkOutLoc = checkInLoc;
     }
 
@@ -142,7 +142,7 @@ export async function generateDailyAttendanceData(
       checkOutLoc.toLowerCase().includes("auto checkout") ||
       checkOutLoc.toLowerCase().includes("auto fetch")
     ) {
-      checkOutLoc = checkInLoc !== "—" ? checkInLoc : "REALTY SMARTZ PVT LTD";
+      checkOutLoc = checkInLoc !== "-" ? checkInLoc : "REALTY SMARTZ PVT LTD";
     }
 
     const geofenceStatus = log?.checkInTime

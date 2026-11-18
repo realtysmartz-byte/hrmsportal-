@@ -279,12 +279,98 @@ export default function TeamAttendancePage() {
     return { totalRecords, present, late, halfDay, onDuty, absent, totalHours };
   }, [teamData?.rows]);
 
-  // Export clean CSV with the exact 7+ columns
+  const [exporting, setExporting] = useState(false);
+
+  // Export formatted Excel (.xlsx) sheet with proper column widths so date and text never show ########
+  async function exportExcel() {
+    if (!rows.length) return;
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const dataRows = rows.map((r) => {
+        const log = r.log;
+        const empName = fullName(r.employee.firstName, r.employee.lastName);
+        const designation = r.employee.designation?.title || "-";
+        const department = r.employee.department?.name || "-";
+        const dateStr = formatDateIST(log?.date || selectedDate);
+        const punchIn = log?.checkInTime ? formatTimeIST(log.checkInTime) : "-";
+        const punchOut = log?.checkOutTime
+          ? formatTimeIST(log.checkOutTime)
+          : log?.checkInTime
+            ? "On Duty"
+            : "-";
+        const locationAddr = log?.checkInAddress || log?.checkOutAddress || "-";
+        const coords =
+          log?.checkInLat != null && log?.checkInLng != null
+            ? `${log.checkInLat}, ${log.checkInLng}`
+            : "-";
+        const statusText = log?.status
+          ? log.status === "PRESENT"
+            ? "Present"
+            : log.status === "LATE"
+              ? "Late Punch"
+              : log.status === "HALF_DAY"
+                ? "Half Day"
+                : log.status === "ON_LEAVE"
+                  ? "On Leave"
+                  : "Absent"
+          : "Not Checked In";
+        const hours = log?.totalHours != null ? `${log.totalHours} hrs` : log?.checkInTime ? "On Duty" : "-";
+
+        return {
+          "Consultant Name": empName,
+          "Consultant Code": r.employee.employeeCode,
+          "Designation": designation,
+          "Department": department,
+          "Date": dateStr,
+          "Punch In (IST)": punchIn,
+          "Punch Out (IST)": punchOut,
+          "Location Address": locationAddr,
+          "Map Coordinates": coords,
+          "Status": statusText,
+          "Working Hours": hours,
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(dataRows);
+      ws["!cols"] = [
+        { wch: 24 }, // Consultant Name
+        { wch: 18 }, // Consultant Code
+        { wch: 24 }, // Designation
+        { wch: 20 }, // Department
+        { wch: 16 }, // Date (fully visible, no ########)
+        { wch: 16 }, // Punch In
+        { wch: 16 }, // Punch Out
+        { wch: 36 }, // Location Address
+        { wch: 24 }, // Map Coordinates
+        { wch: 16 }, // Status
+        { wch: 16 }, // Working Hours
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+
+      let filename = `realty-smartz-daily-attendance-${selectedDate}.xlsx`;
+      if (viewMode === "monthly") {
+        filename = `realty-smartz-monthly-attendance-${selectedMonth}.xlsx`;
+      } else if (viewMode === "custom") {
+        filename = `realty-smartz-attendance-${customStartDate}-to-${customEndDate}.xlsx`;
+      }
+
+      XLSX.writeFile(wb, filename);
+    } catch (e: any) {
+      alert("Failed to export Excel sheet: " + (e?.message || "Unknown error"));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Export clean CSV with UTF-8 BOM so Excel opens without â€” and proper Consultant headers
   function exportCsv() {
     if (!rows.length) return;
     const header = [
-      "Employee Name",
-      "Employee Code",
+      "Consultant Name",
+      "Consultant Code",
       "Designation",
       "Department",
       "Date",
@@ -299,20 +385,20 @@ export default function TeamAttendancePage() {
     const lines = rows.map((r) => {
       const log = r.log;
       const empName = fullName(r.employee.firstName, r.employee.lastName);
-      const designation = r.employee.designation?.title || "—";
-      const department = r.employee.department?.name || "—";
+      const designation = r.employee.designation?.title || "-";
+      const department = r.employee.department?.name || "-";
       const dateStr = formatDateIST(log?.date || selectedDate);
-      const punchIn = log?.checkInTime ? formatTimeIST(log.checkInTime) : "—";
+      const punchIn = log?.checkInTime ? formatTimeIST(log.checkInTime) : "-";
       const punchOut = log?.checkOutTime
         ? formatTimeIST(log.checkOutTime)
         : log?.checkInTime
           ? "On Duty"
-          : "—";
-      const locationAddr = log?.checkInAddress || log?.checkOutAddress || "—";
+          : "-";
+      const locationAddr = log?.checkInAddress || log?.checkOutAddress || "-";
       const coords =
         log?.checkInLat != null && log?.checkInLng != null
           ? `${log.checkInLat}, ${log.checkInLng}`
-          : "—";
+          : "-";
       const statusText = log?.status
         ? log.status === "PRESENT"
           ? "Present"
@@ -324,7 +410,7 @@ export default function TeamAttendancePage() {
                 ? "On Leave"
                 : "Absent"
         : "Not Checked In";
-      const hours = log?.totalHours != null ? `${log.totalHours} hrs` : log?.checkInTime ? "On Duty" : "—";
+      const hours = log?.totalHours != null ? `${log.totalHours} hrs` : log?.checkInTime ? "On Duty" : "-";
 
       return [
         empName,
@@ -341,7 +427,8 @@ export default function TeamAttendancePage() {
       ].map((c) => `"${String(c).replace(/"/g, '""')}"`);
     });
 
-    const blob = new Blob([[header.join(","), ...lines.map((l) => l.join(","))].join("\n")], {
+    // \uFEFF Byte Order Mark ensures Windows Excel interprets file as UTF-8 Unicode without â€”
+    const blob = new Blob(["\uFEFF", [header.join(","), ...lines.map((l) => l.join(","))].join("\n")], {
       type: "text/csv;charset=utf-8;",
     });
     const url = URL.createObjectURL(blob);
@@ -416,9 +503,22 @@ export default function TeamAttendancePage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+            onClick={exportExcel}
+            disabled={!rows.length || exporting}
+            title="Download formatted Excel (.xlsx) sheet with Consultant Name & Consultant Code"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+            <span>{exporting ? "Exporting…" : "Download Excel Sheet"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-neutral-700"
             onClick={exportCsv}
             disabled={!rows.length}
+            title="Download CSV file (UTF-8 BOM)"
           >
             <Download className="h-3.5 w-3.5 text-neutral-500" />
             <span>Export CSV</span>
@@ -931,7 +1031,7 @@ export default function TeamAttendancePage() {
           <TableHeader>
             <TableRow className="bg-neutral-50/90 border-b border-neutral-200">
               <TableHead className="w-[20%] min-w-[180px] font-bold text-neutral-700 text-xs">
-                Employee Name
+                Consultant Name
               </TableHead>
               <TableHead className="w-[12%] min-w-[110px] font-bold text-neutral-700 text-xs">
                 Date

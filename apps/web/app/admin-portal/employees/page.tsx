@@ -83,8 +83,8 @@ function EmployeesInner() {
       });
       const XLSX = await import("xlsx");
       const formattedRows = dataRows.map((r) => ({
-        "Employee Code": r.employeeCode,
-        "Full Name": `${r.firstName} ${r.lastName}`.trim(),
+        "Consultant Code": r.employeeCode,
+        "Consultant Name": `${r.firstName} ${r.lastName}`.trim(),
         "First Name": r.firstName,
         "Last Name": r.lastName,
         "Department": r.department || "-",
@@ -102,11 +102,30 @@ function EmployeesInner() {
         "Last Profile Update": r.updatedAt || "-",
       }));
       const ws = XLSX.utils.json_to_sheet(formattedRows);
+      ws["!cols"] = [
+        { wch: 18 }, // Consultant Code
+        { wch: 22 }, // Consultant Name
+        { wch: 15 }, // First Name
+        { wch: 15 }, // Last Name
+        { wch: 20 }, // Department
+        { wch: 22 }, // Designation
+        { wch: 15 }, // Status
+        { wch: 16 }, // Date of Joining (fully visible, no ########)
+        { wch: 22 }, // Termination Date
+        { wch: 18 }, // Separation Type
+        { wch: 22 }, // Reporting Manager
+        { wch: 28 }, // Email
+        { wch: 16 }, // Phone
+        { wch: 12 }, // Gender
+        { wch: 16 }, // Date of Birth (fully visible, no ########)
+        { wch: 30 }, // Address
+        { wch: 20 }, // Last Profile Update
+      ];
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Employee Roster");
+      XLSX.utils.book_append_sheet(wb, ws, "Consultants");
       XLSX.writeFile(
         wb,
-        `Realty_Smartz_Roster_${exportStatus}_${new Date().toISOString().slice(0, 10)}.xlsx`
+        `Realty_Smartz_Consultants_${exportStatus}_${new Date().toISOString().slice(0, 10)}.xlsx`
       );
     } catch (e: any) {
       alert("Failed to export: " + (e?.message || "Unknown error"));

@@ -123,173 +123,173 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
   const initializedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!initial) return;
+      if (!initial) return;
 
-    // For create mode, initial values (e.g. from ATS query params) should only populate once on mount
-    // and MUST NOT overwrite typed user input on subsequent renders.
-    if (mode === "create") {
-      if (initializedRef.current === "create-done") return;
-      initializedRef.current = "create-done";
-      setValues((prev) => ({
-        ...prev,
-        firstName: prev.firstName || initial.firstName || "",
-        lastName: prev.lastName || initial.lastName || "",
-        email: prev.email || initial.email || "",
-        phone: prev.phone || initial.phone || "",
-      }));
-      return;
-    }
-
-    // For edit mode, populate when initial arrives or employeeId changes
-    if (initializedRef.current === (employeeId || "edit-done")) return;
-    initializedRef.current = employeeId || "edit-done";
-
-    setValues((prev) => ({
-      ...prev,
-      ...initial,
-      firstName: initial.firstName ?? prev.firstName,
-      lastName: initial.lastName ?? prev.lastName,
-      email: initial.email ?? prev.email,
-      dateOfJoining: toDateInput(initial.dateOfJoining) || prev.dateOfJoining,
-      dateOfBirth: toDateInput(initial.dateOfBirth) || prev.dateOfBirth,
-      statusEffectiveDate: toDateInput(initial.statusEffectiveDate) || prev.statusEffectiveDate,
-      employeeCode: initial.employeeCode ?? prev.employeeCode,
-      phone: initial.phone ?? prev.phone,
-      gender: initial.gender ?? prev.gender,
-      emergencyContactName: initial.emergencyContactName ?? prev.emergencyContactName,
-      emergencyContactPhone: initial.emergencyContactPhone ?? prev.emergencyContactPhone,
-      bloodGroup: initial.bloodGroup ?? prev.bloodGroup,
-      designationId: initial.designationId ?? prev.designationId,
-      departmentId: initial.departmentId ?? prev.departmentId,
-      managerId: initial.managerId ?? prev.managerId,
-      address: initial.address ?? prev.address,
-      profilePhotoUrl: initial.profilePhotoUrl ?? prev.profilePhotoUrl,
-      workLocationName: initial.workLocationName ?? prev.workLocationName,
-      workLocationLat: initial.workLocationLat ?? prev.workLocationLat,
-      workLocationLng: initial.workLocationLng ?? prev.workLocationLng,
-      status: initial.status ?? prev.status,
-    }));
-  }, [initial, mode, employeeId]);
-
-  const { data: departments } = trpc.department.list.useQuery();
-  const { data: designations } = trpc.designation.list.useQuery();
-  const { data: managers } = trpc.employee.managerOptions.useQuery();
-
-  const filteredManagers = useMemo(() => {
-    const q = managerSearch.trim().toLowerCase();
-    const list = (managers ?? []).filter((m) => m.id !== employeeId);
-    if (!q) return list;
-    return list.filter((m) => {
-      const label = `${m.firstName} ${m.lastName} ${m.employeeCode}`.toLowerCase();
-      return label.includes(q);
-    });
-  }, [managers, managerSearch, employeeId]);
-
-  const createMutation = trpc.employee.create.useMutation({
-    onSuccess: (emp) => {
-      onCreated?.();
-      router.push(`/admin-portal/employees/${emp.id}`);
-    },
-    onError: (err) => setError(userFacingErrorMessage(err)),
-  });
-
-  const updateMutation = trpc.employee.update.useMutation({
-    onSuccess: (emp) => {
-      if (emp.statusEmailSent === false) {
-        setError(
-          "Employee details were saved, but the status email could not be sent. Check SMTP configuration and server mail logs."
-        );
+      // For create mode, initial values (e.g. from ATS query params) should only populate once on mount
+      // and MUST NOT overwrite typed user input on subsequent renders.
+      if (mode === "create") {
+        if (initializedRef.current === "create-done") return;
+        initializedRef.current = "create-done";
+        setValues((prev) => ({
+          ...prev,
+          firstName: prev.firstName || initial.firstName || "",
+          lastName: prev.lastName || initial.lastName || "",
+          email: prev.email || initial.email || "",
+          phone: prev.phone || initial.phone || "",
+        }));
         return;
       }
-      router.push(`/admin-portal/employees/${emp.id}`);
-    },
-    onError: (err) => setError(userFacingErrorMessage(err)),
+
+  // For edit mode, populate when initial arrives or employeeId changes
+  if (initializedRef.current === (employeeId || "edit-done")) return;
+  initializedRef.current = employeeId || "edit-done";
+
+  setValues((prev) => ({
+    ...prev,
+    ...initial,
+    firstName: initial.firstName ?? prev.firstName,
+    lastName: initial.lastName ?? prev.lastName,
+    email: initial.email ?? prev.email,
+    dateOfJoining: toDateInput(initial.dateOfJoining) || prev.dateOfJoining,
+    dateOfBirth: toDateInput(initial.dateOfBirth) || prev.dateOfBirth,
+    statusEffectiveDate: toDateInput(initial.statusEffectiveDate) || prev.statusEffectiveDate,
+    employeeCode: initial.employeeCode ?? prev.employeeCode,
+    phone: initial.phone ?? prev.phone,
+    gender: initial.gender ?? prev.gender,
+    emergencyContactName: initial.emergencyContactName ?? prev.emergencyContactName,
+    emergencyContactPhone: initial.emergencyContactPhone ?? prev.emergencyContactPhone,
+    bloodGroup: initial.bloodGroup ?? prev.bloodGroup,
+    designationId: initial.designationId ?? prev.designationId,
+    departmentId: initial.departmentId ?? prev.departmentId,
+    managerId: initial.managerId ?? prev.managerId,
+    address: initial.address ?? prev.address,
+    profilePhotoUrl: initial.profilePhotoUrl ?? prev.profilePhotoUrl,
+    workLocationName: initial.workLocationName ?? prev.workLocationName,
+    workLocationLat: initial.workLocationLat ?? prev.workLocationLat,
+    workLocationLng: initial.workLocationLng ?? prev.workLocationLng,
+    status: initial.status ?? prev.status,
+  }));
+}, [initial, mode, employeeId]);
+
+const { data: departments } = trpc.department.list.useQuery();
+const { data: designations } = trpc.designation.list.useQuery();
+const { data: managers } = trpc.employee.managerOptions.useQuery();
+
+const filteredManagers = useMemo(() => {
+  const q = managerSearch.trim().toLowerCase();
+  const list = (managers ?? []).filter((m) => m.id !== employeeId);
+  if (!q) return list;
+  return list.filter((m) => {
+    const label = `${m.firstName} ${m.lastName} ${m.employeeCode}`.toLowerCase();
+    return label.includes(q);
   });
+}, [managers, managerSearch, employeeId]);
 
-  async function onPhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setPhotoBusy(true);
-    setError("");
-    try {
-      setField("profilePhotoUrl", await compressImage(file));
-    } catch {
-      setError("Could not process this photo. Please try another image.");
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
+const createMutation = trpc.employee.create.useMutation({
+  onSuccess: (emp) => {
+    onCreated?.();
+    router.push(`/admin-portal/employees/${emp.id}`);
+  },
+  onError: (err) => setError(userFacingErrorMessage(err)),
+});
 
-  function setField<K extends keyof EmployeeFormValues>(
-    key: K,
-    value: EmployeeFormValues[K]
-  ) {
-    setValues((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    const parsedLat = values.workLocationLat.trim() ? parseFloat(values.workLocationLat) : null;
-    const parsedLng = values.workLocationLng.trim() ? parseFloat(values.workLocationLng) : null;
-    const hasSite = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
-    if (!hasSite && (values.workLocationLat.trim() || values.workLocationLng.trim())) {
-      setError("Enter both a valid latitude and longitude for the work location, or leave both empty to use the company office.");
+const updateMutation = trpc.employee.update.useMutation({
+  onSuccess: (emp) => {
+    if (emp.statusEmailSent === false) {
+      setError(
+        "Employee details were saved, but the status email could not be sent. Check SMTP configuration and server mail logs."
+      );
       return;
     }
+    router.push(`/admin-portal/employees/${emp.id}`);
+  },
+  onError: (err) => setError(userFacingErrorMessage(err)),
+});
 
-    const payload = {
-      employeeCode: values.employeeCode.trim() || undefined,
-      firstName: values.firstName,
-      lastName: values.lastName,
-      email: values.email,
-      phone: values.phone || null,
-      gender: values.gender || null,
-      emergencyContactName: values.emergencyContactName || null,
-      emergencyContactPhone: values.emergencyContactPhone || null,
-      bloodGroup: values.bloodGroup || null,
-      role: values.role,
-      designationId: values.designationId || null,
-      departmentId: values.departmentId || null,
-      managerId: values.managerId || null,
-      dateOfJoining: values.dateOfJoining
-        ? new Date(values.dateOfJoining)
-        : null,
-      dateOfBirth: values.dateOfBirth ? new Date(values.dateOfBirth) : null,
-      address: values.address || null,
-      profilePhotoUrl: values.profilePhotoUrl || null,
-      status: values.status,
-      companyName: (values.companyName as any) || "Realty Smartz",
-      workLocationName: hasSite ? values.workLocationName.trim() || null : null,
-      workLocationLat: hasSite ? parsedLat : null,
-      workLocationLng: hasSite ? parsedLng : null,
-    };
+async function onPhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  setPhotoBusy(true);
+  setError("");
+  try {
+    setField("profilePhotoUrl", await compressImage(file));
+  } catch {
+    setError("Could not process this photo. Please try another image.");
+  } finally {
+    setPhotoBusy(false);
+  }
+}
 
-    if (mode === "create") {
-      if (!values.password) {
-        setError("Password is required for new employees");
-        return;
-      }
-      createMutation.mutate({ ...payload, password: values.password.trim() });
-      return;
-    }
+function setField<K extends keyof EmployeeFormValues>(
+  key: K,
+  value: EmployeeFormValues[K]
+) {
+  setValues((prev) => ({ ...prev, [key]: value }));
+}
 
-    if (!employeeId) return;
-    updateMutation.mutate({
-      id: employeeId,
-      ...payload,
-      statusEffectiveDate: values.statusEffectiveDate
-        ? new Date(values.statusEffectiveDate)
-        : null,
-      password: values.password.trim() || undefined,
-    });
+function onSubmit(e: FormEvent) {
+  e.preventDefault();
+  setError("");
+
+  const parsedLat = values.workLocationLat.trim() ? parseFloat(values.workLocationLat) : null;
+  const parsedLng = values.workLocationLng.trim() ? parseFloat(values.workLocationLng) : null;
+  const hasSite = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+  if (!hasSite && (values.workLocationLat.trim() || values.workLocationLng.trim())) {
+    setError("Enter both a valid latitude and longitude for the work location, or leave both empty to use the company office.");
+    return;
   }
 
-  const busy = createMutation.isLoading || updateMutation.isLoading;
+  const payload = {
+    employeeCode: values.employeeCode.trim() || undefined,
+    firstName: values.firstName,
+    lastName: values.lastName,
+    email: values.email,
+    phone: values.phone || null,
+    gender: values.gender || null,
+    emergencyContactName: values.emergencyContactName || null,
+    emergencyContactPhone: values.emergencyContactPhone || null,
+    bloodGroup: values.bloodGroup || null,
+    role: values.role,
+    designationId: values.designationId || null,
+    departmentId: values.departmentId || null,
+    managerId: values.managerId || null,
+    dateOfJoining: values.dateOfJoining
+      ? new Date(values.dateOfJoining)
+      : null,
+    dateOfBirth: values.dateOfBirth ? new Date(values.dateOfBirth) : null,
+    address: values.address || null,
+    profilePhotoUrl: values.profilePhotoUrl || null,
+    status: values.status,
+    companyName: (values.companyName as any) || "Realty Smartz",
+    workLocationName: hasSite ? values.workLocationName.trim() || null : null,
+    workLocationLat: hasSite ? parsedLat : null,
+    workLocationLng: hasSite ? parsedLng : null,
+  };
 
-  return (
+  if (mode === "create") {
+    if (!values.password) {
+      setError("Password is required for new employees");
+      return;
+    }
+    createMutation.mutate({ ...payload, password: values.password.trim() });
+    return;
+  }
+
+  if (!employeeId) return;
+  updateMutation.mutate({
+    id: employeeId,
+    ...payload,
+    statusEffectiveDate: values.statusEffectiveDate
+      ? new Date(values.statusEffectiveDate)
+      : null,
+    password: values.password.trim() || undefined,
+  });
+}
+
+const busy = createMutation.isLoading || updateMutation.isLoading;
+
+return (
     <form onSubmit={onSubmit} className="space-y-6" autoComplete="off">
       <Card>
         <CardHeader>
@@ -734,17 +734,17 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
         </Button>
       </div>
     </form >
-  );
+    );
 }
 
-function Field({
-  label,
-  required,
-  children,
+    function Field({
+      label,
+      required,
+      children,
 }: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
+      label: string;
+    required?: boolean;
+    children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
@@ -754,5 +754,5 @@ function Field({
       </Label>
       {children}
     </div>
-  );
+    );
 }

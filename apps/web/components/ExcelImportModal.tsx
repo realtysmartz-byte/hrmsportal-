@@ -11,7 +11,7 @@ type Kind = "employees" | "attendance";
 
 const COLUMNS: Record<Kind, { header: string; key: string; sample: string }[]> = {
   employees: [
-    { header: "Employee Code", key: "employeeCode", sample: "RS-0101" },
+    { header: "Consultant Code", key: "employeeCode", sample: "RS-0101" },
     { header: "First Name", key: "firstName", sample: "Rahul" },
     { header: "Last Name", key: "lastName", sample: "Sharma" },
     { header: "Email", key: "email", sample: "rahul.sharma@realtysmartz.in" },
@@ -26,7 +26,7 @@ const COLUMNS: Record<Kind, { header: string; key: string; sample: string }[]> =
     { header: "Password", key: "password", sample: "Realty@123" },
   ],
   attendance: [
-    { header: "Employee Code", key: "employeeCode", sample: "RS-0101" },
+    { header: "Consultant Code", key: "employeeCode", sample: "RS-0101" },
     { header: "Email", key: "email", sample: "" },
     { header: "Date", key: "date", sample: "2026-09-15" },
     { header: "Check In", key: "checkIn", sample: "09:45" },
@@ -90,8 +90,8 @@ export function ExcelImportModal({
     const ws = XLSX.utils.aoa_to_sheet([cols.map((c) => c.header), cols.map((c) => c.sample)]);
     ws["!cols"] = cols.map((c) => ({ wch: Math.max(c.header.length, c.sample.length) + 4 }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, kind === "employees" ? "Employees" : "Attendance");
-    XLSX.writeFile(wb, `realty-smartz-${kind}-template.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, kind === "employees" ? "Consultants" : "Attendance");
+    XLSX.writeFile(wb, `realty-smartz-${kind === "employees" ? "consultants" : "attendance"}-template.xlsx`);
   }
 
   async function onFile(file?: File) {
@@ -106,6 +106,12 @@ export function ExcelImportModal({
       const ws = wb.Sheets[wb.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
       const keyByHeader = new Map(COLUMNS[kind].map((c) => [normalize(c.header), c.key]));
+      // Backward compatibility aliases for headers
+      keyByHeader.set(normalize("Employee Code"), "employeeCode");
+      keyByHeader.set(normalize("Emp Code"), "employeeCode");
+      keyByHeader.set(normalize("Consultant Code"), "employeeCode");
+      keyByHeader.set(normalize("Employee Name"), "firstName");
+      keyByHeader.set(normalize("Consultant Name"), "firstName");
 
       const parsed = raw
         .map((r) => {
