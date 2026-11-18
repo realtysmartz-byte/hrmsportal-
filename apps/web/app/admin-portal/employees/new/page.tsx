@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EmployeeForm } from "@/components/EmployeeForm";
@@ -29,6 +29,16 @@ function NewEmployeeInner() {
 
   const updateStage = trpc.recruitment.updateStage.useMutation();
 
+  const initial = useMemo(
+    () => ({
+      firstName,
+      lastName,
+      email,
+      phone,
+    }),
+    [firstName, lastName, email, phone]
+  );
+
   useEffect(() => {
     if (status === "authenticated" && !allowed) {
       router.replace("/admin-portal/employees");
@@ -53,12 +63,7 @@ function NewEmployeeInner() {
       </div>
       <EmployeeForm
         mode="create"
-        initial={{
-          firstName,
-          lastName,
-          email,
-          phone,
-        }}
+        initial={initial}
         onCreated={() => {
           if (hireFrom) {
             updateStage.mutate({

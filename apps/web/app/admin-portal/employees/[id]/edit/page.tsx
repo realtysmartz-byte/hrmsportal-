@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { EmployeeForm } from "@/components/EmployeeForm";
@@ -25,6 +25,34 @@ export default function EditEmployeePage() {
     }
   }, [status, allowed, router]);
 
+  const initial = useMemo(() => {
+    if (!emp) return undefined;
+    return {
+      employeeCode: emp.employeeCode,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      phone: emp.phone ?? "",
+      gender: emp.gender ?? "",
+      emergencyContactName: emp.emergencyContactName ?? "",
+      emergencyContactPhone: emp.emergencyContactPhone ?? "",
+      bloodGroup: emp.bloodGroup ?? "",
+      role: emp.role,
+      designationId: emp.designationId ?? "",
+      departmentId: emp.departmentId ?? "",
+      managerId: emp.managerId ?? "",
+      dateOfJoining: emp.dateOfJoining,
+      dateOfBirth: emp.dateOfBirth,
+      address: emp.address ?? "",
+      profilePhotoUrl: emp.profilePhotoUrl ?? "",
+      status: emp.status,
+      statusEffectiveDate: emp.statusEffectiveDate,
+      workLocationName: emp.workLocationName ?? "",
+      workLocationLat: emp.workLocationLat != null ? String(emp.workLocationLat) : "",
+      workLocationLng: emp.workLocationLng != null ? String(emp.workLocationLng) : "",
+    };
+  }, [emp]);
+
   if (status === "loading" || isLoading || !allowed) {
     return <p className="text-sm text-muted-foreground">Loading...</p>;
   }
@@ -46,30 +74,7 @@ export default function EditEmployeePage() {
       <EmployeeForm
         mode="edit"
         employeeId={emp.id}
-        initial={{
-          employeeCode: emp.employeeCode,
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          email: emp.email,
-          phone: emp.phone ?? "",
-          gender: emp.gender ?? "",
-          emergencyContactName: emp.emergencyContactName ?? "",
-          emergencyContactPhone: emp.emergencyContactPhone ?? "",
-          bloodGroup: emp.bloodGroup ?? "",
-          role: emp.role,
-          designationId: emp.designationId ?? "",
-          departmentId: emp.departmentId ?? "",
-          managerId: emp.managerId ?? "",
-          dateOfJoining: emp.dateOfJoining,
-          dateOfBirth: emp.dateOfBirth,
-          address: emp.address ?? "",
-          profilePhotoUrl: emp.profilePhotoUrl ?? "",
-          status: emp.status,
-          statusEffectiveDate: emp.statusEffectiveDate,
-          workLocationName: emp.workLocationName ?? "",
-          workLocationLat: emp.workLocationLat != null ? String(emp.workLocationLat) : "",
-          workLocationLng: emp.workLocationLng != null ? String(emp.workLocationLng) : "",
-        }}
+        initial={initial}
       />
     </div>
   );

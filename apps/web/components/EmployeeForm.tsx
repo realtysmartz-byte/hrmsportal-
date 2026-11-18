@@ -1,7 +1,7 @@
 "use client";
 
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,32 +120,56 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
     status: initial?.status ?? "ACTIVE",
   });
 
+  const initializedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (initial) {
+    if (!initial) return;
+
+    // For create mode, initial values (e.g. from ATS query params) should only populate once on mount
+    // and MUST NOT overwrite typed user input on subsequent renders.
+    if (mode === "create") {
+      if (initializedRef.current === "create-done") return;
+      initializedRef.current = "create-done";
       setValues((prev) => ({
         ...prev,
-        ...initial,
-        dateOfJoining: toDateInput(initial.dateOfJoining) || prev.dateOfJoining,
-        dateOfBirth: toDateInput(initial.dateOfBirth) || prev.dateOfBirth,
-        statusEffectiveDate: toDateInput(initial.statusEffectiveDate) || prev.statusEffectiveDate,
-        employeeCode: initial.employeeCode ?? prev.employeeCode,
-        phone: initial.phone ?? prev.phone,
-        gender: initial.gender ?? prev.gender,
-        emergencyContactName: initial.emergencyContactName ?? prev.emergencyContactName,
-        emergencyContactPhone: initial.emergencyContactPhone ?? prev.emergencyContactPhone,
-        bloodGroup: initial.bloodGroup ?? prev.bloodGroup,
-        designationId: initial.designationId ?? prev.designationId,
-        departmentId: initial.departmentId ?? prev.departmentId,
-        managerId: initial.managerId ?? prev.managerId,
-        address: initial.address ?? prev.address,
-        profilePhotoUrl: initial.profilePhotoUrl ?? prev.profilePhotoUrl,
-        workLocationName: initial.workLocationName ?? prev.workLocationName,
-        workLocationLat: initial.workLocationLat ?? prev.workLocationLat,
-        workLocationLng: initial.workLocationLng ?? prev.workLocationLng,
-        status: initial.status ?? prev.status,
+        firstName: prev.firstName || initial.firstName || "",
+        lastName: prev.lastName || initial.lastName || "",
+        email: prev.email || initial.email || "",
+        phone: prev.phone || initial.phone || "",
       }));
+      return;
     }
-  }, [initial]);
+
+    // For edit mode, populate when initial arrives or employeeId changes
+    if (initializedRef.current === (employeeId || "edit-done")) return;
+    initializedRef.current = employeeId || "edit-done";
+
+    setValues((prev) => ({
+      ...prev,
+      ...initial,
+      firstName: initial.firstName ?? prev.firstName,
+      lastName: initial.lastName ?? prev.lastName,
+      email: initial.email ?? prev.email,
+      dateOfJoining: toDateInput(initial.dateOfJoining) || prev.dateOfJoining,
+      dateOfBirth: toDateInput(initial.dateOfBirth) || prev.dateOfBirth,
+      statusEffectiveDate: toDateInput(initial.statusEffectiveDate) || prev.statusEffectiveDate,
+      employeeCode: initial.employeeCode ?? prev.employeeCode,
+      phone: initial.phone ?? prev.phone,
+      gender: initial.gender ?? prev.gender,
+      emergencyContactName: initial.emergencyContactName ?? prev.emergencyContactName,
+      emergencyContactPhone: initial.emergencyContactPhone ?? prev.emergencyContactPhone,
+      bloodGroup: initial.bloodGroup ?? prev.bloodGroup,
+      designationId: initial.designationId ?? prev.designationId,
+      departmentId: initial.departmentId ?? prev.departmentId,
+      managerId: initial.managerId ?? prev.managerId,
+      address: initial.address ?? prev.address,
+      profilePhotoUrl: initial.profilePhotoUrl ?? prev.profilePhotoUrl,
+      workLocationName: initial.workLocationName ?? prev.workLocationName,
+      workLocationLat: initial.workLocationLat ?? prev.workLocationLat,
+      workLocationLng: initial.workLocationLng ?? prev.workLocationLng,
+      status: initial.status ?? prev.status,
+    }));
+  }, [initial, mode, employeeId]);
 
   const { data: departments } = trpc.department.list.useQuery();
   const { data: designations } = trpc.designation.list.useQuery();
@@ -266,7 +290,7 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
   const busy = createMutation.isLoading || updateMutation.isLoading;
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form onSubmit={onSubmit} className="space-y-6" autoComplete="off">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Personal Details</CardTitle>
@@ -274,6 +298,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field label="First Name" required>
             <Input
+              id="emp-firstName"
+              name="emp_firstName"
+              autoComplete="off"
               value={values.firstName}
               onChange={(e) => setField("firstName", e.target.value)}
               required
@@ -281,6 +308,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
           </Field>
           <Field label="Last Name" required>
             <Input
+              id="emp-lastName"
+              name="emp_lastName"
+              autoComplete="off"
               value={values.lastName}
               onChange={(e) => setField("lastName", e.target.value)}
               required
@@ -288,7 +318,10 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
           </Field>
           <Field label="Email" required>
             <Input
+              id="emp-email"
+              name="emp_work_email"
               type="email"
+              autoComplete="off"
               value={values.email}
               onChange={(e) => setField("email", e.target.value)}
               required
@@ -300,6 +333,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
           >
             <div className="relative">
               <Input
+                id="emp-password"
+                name="emp_new_password"
+                autoComplete="new-password"
                 type={showPassword ? "text" : "password"}
                 value={values.password}
                 onChange={(e) => setField("password", e.target.value)}
@@ -319,6 +355,9 @@ export function EmployeeForm({ mode, employeeId, initial, onCreated }: EmployeeF
           </Field>
           <Field label="Phone">
             <Input
+              id="emp-phone"
+              name="emp_phone"
+              autoComplete="off"
               value={values.phone}
               onChange={(e) => setField("phone", e.target.value)}
             />
