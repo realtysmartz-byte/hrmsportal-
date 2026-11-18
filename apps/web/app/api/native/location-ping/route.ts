@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
 import { startOfDayUTC } from "@realty-smartz/shared";
-import { authOptions } from "@/lib/auth";
+import { authOptions, verifyDutyToken } from "@/lib/auth";
 import { assertRateLimit, resolvePunchGeofence, reverseGeocodePunchAddress } from "@realty-smartz/api";
 import { z } from "zod";
 
@@ -17,6 +17,8 @@ const locationPingBodySchema = z
     accuracyM: z.number().positive().lt(50_000),
     fixTimestamp: z.coerce.date(),
     isMockLocation: z.boolean().optional(),
+    employeeId: z.string().optional(),
+    dutyToken: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     const timestamp = value.fixTimestamp.getTime();
@@ -44,20 +46,30 @@ function clientIp(req: Request) {
 
 /**
  * Authenticated endpoint for the Android app duty-location service.
- * At most one saved ping per ~30 minutes while on duty.
+ * Supports standard web session cookie or verified duty token for background pings.
  */
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const session = await getServerSession(authOptions);
+  let employeeId = session?.user?.id;
+  if (!employeeId) {
+    const headerEmpId = req.headers.get("x-employee-id") || (body as any)?.employeeId;
+    const headerToken = req.headers.get("x-duty-token") || (body as any)?.dutyToken;
+    if (headerEmpId && headerToken && verifyDutyToken(headerEmpId, headerToken)) {
+      employeeId = headerEmpId;
+    }
+  }
+
+  if (!employeeId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const parsed = locationPingBodySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -68,8 +80,8 @@ export async function POST(req: Request) {
   const fix = parsed.data;
 
   const ip = clientIp(req);
-  const employeeHit = assertRateLimit(`native-location:emp:${session.user.id}`, 10, 60_000);
-  const ipHit = assertRateLimit(`native-location:ip:${ip}`, 10, 60_000);
+  const employeeHit = assertRateLimit(`native-location:emp:${employeeId}`, 15, 60_000);
+  const ipHit = assertRateLimit(`native-location:ip:${ip}`, 30, 60_000);
   if (!employeeHit.ok || !ipHit.ok) {
     const retry = Math.max(
       employeeHit.ok ? 0 : employeeHit.retryAfterSec,
@@ -82,7 +94,7 @@ export async function POST(req: Request) {
   }
 
   const employee = await prisma.employee.findUnique({
-    where: { id: session.user.id },
+    where: { id: employeeId },
     select: { id: true },
   });
   if (!employee) {

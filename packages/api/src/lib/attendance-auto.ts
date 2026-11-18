@@ -80,10 +80,31 @@ export async function ensureAutoPunchOut(
         finalOutTime = new Date(log.checkInTime.getTime() + 30 * 60 * 1000);
       }
 
-      const sessionHours =
-        (finalOutTime.getTime() - log.checkInTime.getTime()) / (1000 * 60 * 60);
-      const cumulativeHours = (log.totalHours || 0) + sessionHours;
-      const roundedHours = Math.max(0.25, Math.round(cumulativeHours * 100) / 100);
+      // Compute total hours accurately across all punch sessions of the day
+      const allPunches = await prisma.attendancePunch.findMany({
+        where: { attendanceLogId: log.id },
+        orderBy: { checkInTime: "asc" },
+      });
+
+      let totalWorkMs = 0;
+      let hasOpen = false;
+      for (const p of allPunches) {
+        const pIn = p.checkInTime.getTime();
+        const pOut = p.checkOutTime ? p.checkOutTime.getTime() : finalOutTime.getTime();
+        if (pOut > pIn) {
+          totalWorkMs += (pOut - pIn);
+        }
+        if (!p.checkOutTime) {
+          hasOpen = true;
+        }
+      }
+      if (!hasOpen && allPunches.length === 0) {
+        totalWorkMs = Math.max(0, finalOutTime.getTime() - log.checkInTime.getTime());
+      }
+
+      const cumulativeHours = totalWorkMs / (1000 * 60 * 60);
+      // Standard shift is 10:00 AM to 07:00 PM (9.0h). Cap at 9.0h so overnight drift never bloats hours.
+      const roundedHours = Math.max(0.25, Math.min(9.0, Math.round(cumulativeHours * 100) / 100));
 
       const [firstPunch, halfDaySlot, latestPing] = await Promise.all([
         prisma.attendancePunch.findFirst({

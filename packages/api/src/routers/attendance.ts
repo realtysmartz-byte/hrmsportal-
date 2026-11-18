@@ -422,6 +422,9 @@ export const attendanceRouter = router({
         employeeId,
         date: { gte: oldest, lte: today },
       },
+      include: {
+        punches: { orderBy: { checkInTime: "asc" } },
+      },
       orderBy: { date: "desc" },
     });
     const displayLogs = await canonicalizeOfficeAttendanceLabels(ctx.prisma, logs);
@@ -467,6 +470,7 @@ export const attendanceRouter = router({
             totalHours: log.totalHours,
             withinGeofence: log.withinGeofence,
             notes: log.notes,
+            punches: log.punches ?? [],
             isAutoCheckedOut: Boolean(
               log.checkOutTime && log.notes?.includes("Auto checked out")
             ),
@@ -492,11 +496,13 @@ export const attendanceRouter = router({
         end = new Date(Date.UTC(input.year, input.month, 0, 23, 59, 59, 999));
       }
 
-      // No punches include — month table uses log times; keeps payload small/fast
       const logs = await ctx.prisma.attendanceLog.findMany({
         where: {
           employeeId,
           date: { gte: start, lte: end },
+        },
+        include: {
+          punches: { orderBy: { checkInTime: "asc" } },
         },
         orderBy: { date: "asc" },
       });
@@ -526,6 +532,9 @@ export const attendanceRouter = router({
         where: {
           employeeId: input.employeeId,
           date: { gte: start, lte: end },
+        },
+        include: {
+          punches: { orderBy: { checkInTime: "asc" } },
         },
         orderBy: { date: "asc" },
       });
@@ -562,6 +571,9 @@ export const attendanceRouter = router({
       const [logs, total, allForStats] = await Promise.all([
         ctx.prisma.attendanceLog.findMany({
           where,
+          include: {
+            punches: { orderBy: { checkInTime: "asc" } },
+          },
           orderBy: { date: "desc" },
           skip: (input.page - 1) * input.pageSize,
           take: input.pageSize,
@@ -643,6 +655,14 @@ export const attendanceRouter = router({
       }
 
       const now = new Date(); // SERVER time
+      const istHour = getISTDateParts(now).hour;
+      if (istHour >= 19) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Clock-in is not allowed after 7:00 PM. Office shift timing is 10:00 AM to 07:00 PM.",
+        });
+      }
+
       const isFirstPunch = !existing?.checkInTime;
       const halfDaySlot = isFirstPunch ? firstHalfDaySlot : null;
       const status =
@@ -673,10 +693,10 @@ export const attendanceRouter = router({
       if (meta) logNotes = logNotes ? `${logNotes} · ${meta}` : meta;
 
       const locationData = {
-        checkInTime: now,
-        checkInLat: input.lat,
-        checkInLng: input.lng,
-        checkInAddress: finalAddress,
+        checkInTime: existing?.checkInTime ?? now,
+        checkInLat: existing?.checkInLat ?? input.lat,
+        checkInLng: existing?.checkInLng ?? input.lng,
+        checkInAddress: existing?.checkInAddress ?? finalAddress,
         checkOutTime: null as Date | null,
         checkOutLat: null as number | null,
         checkOutLng: null as number | null,
@@ -830,11 +850,32 @@ export const attendanceRouter = router({
         return { success: true };
       }
       const checkInTime = existing.checkInTime;
-
       const now = new Date(); // SERVER time
-      const sessionHours =
-        (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
-      const cumulativeHours = (existing.totalHours || 0) + sessionHours;
+
+      // Fetch all existing punches to compute accurate total work hours without double counting
+      const existingPunches = await ctx.prisma.attendancePunch.findMany({
+        where: { attendanceLogId: existing.id },
+        orderBy: { checkInTime: "asc" },
+      });
+
+      let totalWorkMs = 0;
+      let hasOpenPunch = false;
+      for (const p of existingPunches) {
+        const pIn = p.checkInTime.getTime();
+        const pOut = p.checkOutTime ? p.checkOutTime.getTime() : now.getTime();
+        if (pOut > pIn) {
+          totalWorkMs += (pOut - pIn);
+        }
+        if (!p.checkOutTime) {
+          hasOpenPunch = true;
+        }
+      }
+      if (!hasOpenPunch && existingPunches.length === 0) {
+        totalWorkMs = Math.max(0, now.getTime() - checkInTime.getTime());
+      }
+
+      const cumulativeHours = totalWorkMs / (1000 * 60 * 60);
+      const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
       const orgId = ctx.session.user.organizationId || "org_default_realty";
       const [firstPunch, halfDaySlot, geo, compSettings] = await Promise.all([
@@ -861,7 +902,6 @@ export const attendanceRouter = router({
             halfDayTimeStr: compSettings?.halfDayCheckInTime,
           });
       const earlyCheckOut = isEarlyCheckOut(now, halfDaySlot);
-      const roundedHours = Math.round(cumulativeHours * 100) / 100;
 
       // Server geofence only — never trust a client-supplied address.
       const outWithinGeofence = geo.withinGeofence;
@@ -1015,6 +1055,9 @@ export const attendanceRouter = router({
             date: { gte: start, lte: end },
             ...(input.outsideGeofenceOnly ? { withinGeofence: false } : {}),
           },
+          include: {
+            punches: { orderBy: { checkInTime: "asc" } },
+          },
           orderBy: [{ date: "desc" }, { checkInTime: "desc" }],
         });
 
@@ -1048,6 +1091,9 @@ export const attendanceRouter = router({
           employeeId: { in: employees.map((e) => e.id) },
           date: targetDate,
           ...(input.outsideGeofenceOnly ? { withinGeofence: false } : {}),
+        },
+        include: {
+          punches: { orderBy: { checkInTime: "asc" } },
         },
       });
 
@@ -1487,6 +1533,17 @@ export const attendanceRouter = router({
               checkOutLng: true,
               checkOutAddress: true,
               withinGeofence: true,
+              totalHours: true,
+              punches: {
+                select: {
+                  id: true,
+                  checkInTime: true,
+                  checkOutTime: true,
+                  checkInAddress: true,
+                  checkOutAddress: true,
+                },
+                orderBy: { checkInTime: "asc" },
+              },
             },
           }),
         empIds.length === 0
@@ -1895,6 +1952,9 @@ export const attendanceRouter = router({
               date: day,
             },
           },
+          include: {
+            punches: { orderBy: { checkInTime: "asc" } },
+          },
         }),
       ]);
 
@@ -1922,32 +1982,76 @@ export const attendanceRouter = router({
       };
 
       const events: TraceEvent[] = [];
+      const punchTimesMs: number[] = [];
 
-      // 1. Check-In event
-      if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
-        events.push({
-          id: `in-${log.id}`,
-          type: "CHECK_IN",
-          time: log.checkInTime,
-          lat: log.checkInLat,
-          lng: log.checkInLng,
-          address: log.checkInAddress || `${log.checkInLat.toFixed(5)}, ${log.checkInLng.toFixed(5)}`,
-          withinGeofence: log.withinGeofence,
-          notes: log.notes,
+      // 1. Map all punch-in and punch-out events from punches table
+      const punches = log?.punches ?? [];
+      if (punches.length > 0) {
+        punches.forEach((p, idx) => {
+          if (p.checkInTime) {
+            punchTimesMs.push(new Date(p.checkInTime).getTime());
+            events.push({
+              id: `in-${p.id}`,
+              type: "CHECK_IN",
+              time: p.checkInTime,
+              lat: log?.checkInLat ?? emp.workLocationLat ?? settings?.officeLat ?? 0,
+              lng: log?.checkInLng ?? emp.workLocationLng ?? settings?.officeLng ?? 0,
+              address: p.checkInAddress || log?.checkInAddress || "Punch In Location",
+              withinGeofence: log?.withinGeofence ?? true,
+              notes: punches.length > 1 ? `Punch #${idx + 1} In` : log?.notes,
+            });
+          }
+          if (p.checkOutTime) {
+            punchTimesMs.push(new Date(p.checkOutTime).getTime());
+            events.push({
+              id: `out-${p.id}`,
+              type: "CHECK_OUT",
+              time: p.checkOutTime,
+              lat: log?.checkOutLat ?? log?.checkInLat ?? emp.workLocationLat ?? settings?.officeLat ?? 0,
+              lng: log?.checkOutLng ?? log?.checkInLng ?? emp.workLocationLng ?? settings?.officeLng ?? 0,
+              address: p.checkOutAddress || log?.checkOutAddress || "Punch Out Location",
+              withinGeofence: log?.withinGeofence ?? true,
+              notes: punches.length > 1 ? `Punch #${idx + 1} Out` : log?.notes,
+            });
+          }
         });
+      } else {
+        if (log?.checkInTime && log.checkInLat != null && log.checkInLng != null) {
+          punchTimesMs.push(new Date(log.checkInTime).getTime());
+          events.push({
+            id: `in-${log.id}`,
+            type: "CHECK_IN",
+            time: log.checkInTime,
+            lat: log.checkInLat,
+            lng: log.checkInLng,
+            address: log.checkInAddress || `${log.checkInLat.toFixed(5)}, ${log.checkInLng.toFixed(5)}`,
+            withinGeofence: log.withinGeofence,
+            notes: log.notes,
+          });
+        }
+        if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
+          punchTimesMs.push(new Date(log.checkOutTime).getTime());
+          events.push({
+            id: `out-${log.id}`,
+            type: "CHECK_OUT",
+            time: log.checkOutTime,
+            lat: log.checkOutLat,
+            lng: log.checkOutLng,
+            address: log.checkOutAddress || `${log.checkOutLat.toFixed(5)}, ${log.checkOutLng.toFixed(5)}`,
+            withinGeofence: log.withinGeofence,
+            notes: log.notes,
+          });
+        }
       }
 
       // 2. Periodic GPS Tracking Pings (deduplicated against punch-in/out and spam clusters)
-      const checkInMs = log?.checkInTime ? new Date(log.checkInTime).getTime() : null;
-      const checkOutMs = log?.checkOutTime ? new Date(log.checkOutTime).getTime() : null;
-
       let lastPingTimeMs = 0;
       for (const p of pings) {
         const pingTimeMs = new Date(p.capturedAt).getTime();
 
-        // Skip duplicate pings that coincide with check-in or check-out (within 60 seconds)
-        if (checkInMs && Math.abs(pingTimeMs - checkInMs) < 60_000) continue;
-        if (checkOutMs && Math.abs(pingTimeMs - checkOutMs) < 60_000) continue;
+        // Skip pings that coincide with any punch-in or punch-out within 60 seconds
+        const coincidesWithPunch = punchTimesMs.some((pt) => Math.abs(pingTimeMs - pt) < 60_000);
+        if (coincidesWithPunch) continue;
 
         // Skip rapid clustered pings closer than 10 minutes from each other
         if (lastPingTimeMs > 0 && Math.abs(pingTimeMs - lastPingTimeMs) < 10 * 60_000) continue;
@@ -1961,20 +2065,6 @@ export const attendanceRouter = router({
           lng: p.lng,
           address: p.address || `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`,
           withinGeofence: p.withinGeofence,
-        });
-      }
-
-      // 3. Check-Out event
-      if (log?.checkOutTime && log.checkOutLat != null && log.checkOutLng != null) {
-        events.push({
-          id: `out-${log.id}`,
-          type: "CHECK_OUT",
-          time: log.checkOutTime,
-          lat: log.checkOutLat,
-          lng: log.checkOutLng,
-          address: log.checkOutAddress || `${log.checkOutLat.toFixed(5)}, ${log.checkOutLng.toFixed(5)}`,
-          withinGeofence: log.withinGeofence,
-          notes: log.notes,
         });
       }
 

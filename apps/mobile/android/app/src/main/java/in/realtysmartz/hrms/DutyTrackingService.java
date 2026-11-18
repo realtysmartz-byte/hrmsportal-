@@ -225,15 +225,30 @@ public class DutyTrackingService extends Service {
     long nextTriggerElapsed = SystemClock.elapsedRealtime() + Math.max(30_000L, delayMs);
 
     try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (am.canScheduleExactAlarms()) {
+          am.setExactAndAllowWhileIdle(
+              AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
+        } else {
+          am.setAndAllowWhileIdle(
+              AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
+        }
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         am.setExactAndAllowWhileIdle(
             AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
       } else {
         am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
       }
-    } catch (SecurityException se) {
-      // If exact alarm permission is restricted on Android 12+, fall back to windowed alarm
-      am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
+    } catch (Throwable t) {
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+          am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
+        } else {
+          am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
+        }
+      } catch (Throwable ignored) {
+        am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, nextTriggerElapsed, pi);
+      }
     }
   }
 
@@ -343,6 +358,15 @@ public class DutyTrackingService extends Service {
               conn.setRequestProperty("Cookie", cookie);
             }
 
+            String empId = prefs.getString("employee_id", null);
+            String dutyToken = prefs.getString("duty_token", null);
+            if (empId != null && !empId.isEmpty()) {
+              conn.setRequestProperty("x-employee-id", empId);
+            }
+            if (dutyToken != null && !dutyToken.isEmpty()) {
+              conn.setRequestProperty("x-duty-token", dutyToken);
+            }
+
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
             try (OutputStream os = conn.getOutputStream()) {
@@ -414,11 +438,21 @@ public class DutyTrackingService extends Service {
       if (cookie == null || cookie.length() == 0) {
         cookie = CookieManager.getInstance().getCookie(apiUrl);
       }
+      SharedPreferences sharedPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
       if (cookie == null || cookie.length() == 0) {
-        cookie = getSharedPreferences(PREFS, MODE_PRIVATE).getString("auth_cookie", null);
+        cookie = sharedPrefs.getString("auth_cookie", null);
       }
       if (cookie != null && cookie.length() > 0) {
         conn.setRequestProperty("Cookie", cookie);
+      }
+
+      String empId = sharedPrefs.getString("employee_id", null);
+      String dutyToken = sharedPrefs.getString("duty_token", null);
+      if (empId != null && !empId.isEmpty()) {
+        conn.setRequestProperty("x-employee-id", empId);
+      }
+      if (dutyToken != null && !dutyToken.isEmpty()) {
+        conn.setRequestProperty("x-duty-token", dutyToken);
       }
 
       byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
@@ -429,7 +463,9 @@ public class DutyTrackingService extends Service {
 
       int code = conn.getResponseCode();
       if (code >= 200 && code < 300) {
-        setLastPingAt(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        setLastPingAt(now);
+        postHourlyNotification(now);
       } else if (code == 400) {
         // Only stop tracking if server explicitly returned { stopTracking: true }
         try {
@@ -618,12 +654,61 @@ public class DutyTrackingService extends Service {
         .setContentTitle("RS HRMS Duty Active")
         .setContentText("Location tracking active (every 1 hour)")
         .setSmallIcon(R.drawable.ic_stat_notification)
-        .setOngoing(true)
+        .setOngoing(false)
+        .setAutoCancel(true)
         .setOnlyAlertOnce(true)
         .setContentIntent(pi)
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
         .build();
+  }
+
+  private void postHourlyNotification(long pingTime) {
+    try {
+      NotificationManager nm =
+          (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+      if (nm == null) return;
+      String channelId = "hrms_hourly_pings_v6";
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        NotificationChannel channel =
+            new NotificationChannel(
+                channelId, "Hourly Location Alerts", NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription("Hourly verified location tracking push alerts");
+        channel.setShowBadge(true);
+        channel.enableVibration(true);
+        nm.createNotificationChannel(channel);
+      }
+
+      Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+      PendingIntent pi =
+          PendingIntent.getActivity(
+              this,
+              (int) System.currentTimeMillis(),
+              launch != null ? launch : new Intent(),
+              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+      java.text.SimpleDateFormat sdf =
+          new java.text.SimpleDateFormat("hh:mm a", java.util.Locale.US);
+      sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
+      String timeStr = sdf.format(new java.util.Date(pingTime));
+
+      Notification notification =
+          new NotificationCompat.Builder(this, channelId)
+              .setContentTitle("📍 Hourly Location Recorded")
+              .setContentText("Location verified at " + timeStr + " IST. Duty tracking active.")
+              .setStyle(
+                  new NotificationCompat.BigTextStyle()
+                      .bigText("Location verified at " + timeStr + " IST. Next automatic sync scheduled in 1 hour."))
+              .setSmallIcon(R.drawable.ic_stat_notification)
+              .setOngoing(false)
+              .setAutoCancel(true)
+              .setContentIntent(pi)
+              .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+              .setCategory(NotificationCompat.CATEGORY_STATUS)
+              .build();
+
+      nm.notify(NOTIFICATION_ID, notification);
+    } catch (Exception ignored) {}
   }
 
   @Override

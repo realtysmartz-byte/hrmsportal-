@@ -109,11 +109,24 @@ public class DutyTrackingPlugin extends Plugin {
       if (cookie != null && !cookie.isEmpty()) {
         editor.putString("auth_cookie", cookie);
       }
+      String employeeId = call.getString("employeeId", "");
+      String dutyToken = call.getString("dutyToken", "");
+      if (employeeId != null && !employeeId.isEmpty()) {
+        editor.putString("employee_id", employeeId);
+      }
+      if (dutyToken != null && !dutyToken.isEmpty()) {
+        editor.putString("duty_token", dutyToken);
+      }
+      editor.putBoolean("is_running", true);
+      editor.putLong("interval_ms", intervalMs);
+      editor.putString("api_url", apiUrl);
       long lastPing = prefs.getLong("last_ping_at", 0L);
       if (lastPing <= 0L || System.currentTimeMillis() - lastPing > 2 * 60 * 60 * 1000L) {
         editor.putLong("last_ping_at", System.currentTimeMillis());
       }
       editor.apply();
+
+      DutyTrackingReceiver.scheduleNextAlarm(getContext(), intervalMs);
     } catch (Exception ignored) {}
 
     String title = call.getString("title", null);
@@ -176,6 +189,13 @@ public class DutyTrackingPlugin extends Plugin {
 
   @PluginMethod
   public void stop(PluginCall call) {
+    try {
+      android.content.SharedPreferences prefs =
+          getContext().getSharedPreferences("duty_tracking", android.content.Context.MODE_PRIVATE);
+      prefs.edit().putBoolean("is_running", false).apply();
+      DutyTrackingReceiver.cancelAlarm(getContext());
+    } catch (Exception ignored) {}
+
     String title = call.getString("title", null);
     String body = call.getString("body", null);
     if (body != null && !body.trim().isEmpty()) {

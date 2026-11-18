@@ -208,6 +208,15 @@ export function CheckInOutCard() {
   async function punch(mode: "in" | "out") {
     if (busy) return;
     setError("");
+
+    if (mode === "in") {
+      const istHour = getISTDateParts(new Date()).hour;
+      if (istHour >= 19) {
+        setError("Clock-in is not allowed after 7:00 PM. Shift ends at 7:00 PM.");
+        return;
+      }
+    }
+
     setBusy(true);
     setPhase("locating");
     try {
@@ -229,7 +238,7 @@ export function CheckInOutCard() {
       setGpsStatus(mode === "in" ? "active" : "ready");
       if (mode === "in") {
         const res = await checkIn.mutateAsync(payload);
-        try { localStorage.setItem("rs_last_location_ping_at", String(Date.now())); } catch {}
+        try { localStorage.setItem("rs_last_location_ping_at", String(Date.now())); } catch { }
         if (res && "quote" in res && typeof res.quote === "string") {
           setPunchQuote(res.quote);
         }
@@ -242,7 +251,7 @@ export function CheckInOutCard() {
         });
       } else {
         await checkOut.mutateAsync(payload);
-        try { localStorage.setItem("rs_last_location_ping_at", String(Date.now())); } catch {}
+        try { localStorage.setItem("rs_last_location_ping_at", String(Date.now())); } catch { }
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         const durationStr = elapsed > 0 ? formatDuration(elapsed) : undefined;
         void stopNativeDutyTracking();
@@ -271,19 +280,46 @@ export function CheckInOutCard() {
 
   void tick;
   const now = new Date();
-  const elapsed =
-    isOnDuty && today?.checkInTime
-      ? Math.max(0, Math.floor((now.getTime() - new Date(today.checkInTime).getTime()) / 1000))
+
+  const punches = (today as { punches?: Array<{ id: string; checkInTime: Date | string; checkOutTime: Date | string | null; checkInAddress?: string | null; checkOutAddress?: string | null }> } | undefined)?.punches ?? [];
+
+  // Completed punch sessions total in seconds
+  let completedDurationSec = 0;
+  for (const p of punches) {
+    if (p.checkInTime && p.checkOutTime) {
+      const diff = Math.max(
+        0,
+        Math.floor((new Date(p.checkOutTime).getTime() - new Date(p.checkInTime).getTime()) / 1000)
+      );
+      completedDurationSec += diff;
+    }
+  }
+
+  // Active open punch session
+  const activePunch = punches.find((p) => p.checkInTime && !p.checkOutTime);
+  const activeElapsedSec =
+    isOnDuty
+      ? Math.max(
+        0,
+        Math.floor(
+          (now.getTime() - new Date(activePunch?.checkInTime ?? today?.checkInTime ?? now).getTime()) / 1000
+        )
+      )
       : 0;
 
+  const totalWorkedSec = completedDurationSec + activeElapsedSec;
+  const elapsed = totalWorkedSec;
+
   const hours =
-    today?.totalHours != null && today.totalHours > 0
+  isOnDuty
+    ? formatDuration(totalWorkedSec)
+    : today?.totalHours != null && today.totalHours > 0
       ? `${today.totalHours}h`
-      : isOnDuty
-        ? formatDuration(elapsed)
-        : isLoading
-          ? "…"
-          : "0h 00m";
+      : totalWorkedSec > 0
+    ? formatDuration(totalWorkedSec)
+    : isLoading
+      ? "…"
+      : "0h 00m";
 
   const assignedSites = (workLoc?.sites ?? []).filter((s) => s.source === "ASSIGNED");
   const locationLabel =
@@ -325,8 +361,8 @@ export function CheckInOutCard() {
               gpsStatus === "denied"
                 ? "bg-[var(--danger)]"
                 : gpsStatus === "ready" || gpsStatus === "active"
-                ? "bg-[var(--ok)]"
-                : "bg-amber-500"
+                  ? "bg-[var(--ok)]"
+                  : "bg-amber-500"
             )}
           />
           <span>{gpsStatus === "denied" ? "GPS ready" : "GPS ready"}</span>
@@ -356,6 +392,10 @@ export function CheckInOutCard() {
           <Loader2 className="h-4 w-4 animate-spin" />
           Shift ended 7:00 PM — auto clock-out…
         </div>
+      ) : !isOnDuty && pastShiftEnd ? (
+        <div className="w-full h-[54px] my-4 mb-3.5 rounded-[4px] bg-neutral-100 text-neutral-500 border border-neutral-200 text-[14px] font-semibold flex items-center justify-center gap-2 select-none cursor-not-allowed">
+          Shift ended at 7:00 PM · Clock-in closed
+        </div>
       ) : (
         <button
           type="button"
@@ -375,10 +415,10 @@ export function CheckInOutCard() {
             {busyLabel
               ? busyLabel
               : isOnDuty
-              ? "Clock Out"
-              : hasCompletedSession
-              ? "Clock In Again"
-              : "Clock In"}
+                ? "Clock Out"
+                : hasCompletedSession
+                  ? "Clock In Again"
+                  : "Clock In"}
           </span>
         </button>
       )}
@@ -399,6 +439,70 @@ export function CheckInOutCard() {
         </svg>
         <span className="truncate">{locationLabel}</span>
       </div>
+
+      {/* Today's Punches History */}
+      {punches.length > 0 && (
+        <div className="mt-4 pt-3.5 border-t border-[var(--line)]">
+          <div className="flex items-center justify-between text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">
+            <span>Today's Punches ({punches.length})</span>
+            <span className="text-[var(--accent)] font-semibold">
+              {isOnDuty ? "Active Duty" : "Completed"}
+            </span>
+          </div>
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+            {punches.map((p, idx) => {
+              const inStr = p.checkInTime ? formatTimeIST(p.checkInTime) : "—";
+              const outStr = p.checkOutTime ? formatTimeIST(p.checkOutTime) : "Active";
+              const isSessionActive = !p.checkOutTime;
+              const durationSec = p.checkInTime && p.checkOutTime
+                ? Math.max(0, Math.floor((new Date(p.checkOutTime).getTime() - new Date(p.checkInTime).getTime()) / 1000))
+                : p.checkInTime
+                  ? Math.max(0, Math.floor((now.getTime() - new Date(p.checkInTime).getTime()) / 1000))
+                  : 0;
+
+              return (
+                <div
+                  key={p.id || idx}
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2 rounded-[4px] border text-[12px] transition-all",
+                    isSessionActive
+                      ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
+                      : "bg-[var(--soft)]/50 border-[var(--line)] text-[var(--ink)]"
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={cn(
+                        "w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0",
+                        isSessionActive
+                          ? "bg-emerald-600 text-white"
+                          : "bg-[var(--active)] text-[var(--accent)]"
+                      )}
+                    >
+                      #{idx + 1}
+                    </span>
+                    <div className="truncate font-semibold">
+                      <span>{inStr}</span>
+                      <span className="mx-1 text-[var(--muted)]">→</span>
+                      <span className={isSessionActive ? "text-emerald-700 font-bold" : ""}>
+                        {outStr}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[11px] font-medium shrink-0 ml-2",
+                      isSessionActive ? "text-emerald-700 font-bold" : "text-[var(--muted)]"
+                    )}
+                  >
+                    {isSessionActive ? `${formatDuration(durationSec)} (On Duty)` : formatDuration(durationSec)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

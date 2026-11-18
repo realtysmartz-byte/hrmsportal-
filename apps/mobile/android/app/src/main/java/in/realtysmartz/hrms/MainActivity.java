@@ -1,9 +1,14 @@
 package in.realtysmartz.hrms;
 
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -59,6 +64,28 @@ public class MainActivity extends BridgeActivity {
             this,
             new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION},
             BG_LOCATION_PERMISSION_REQUEST);
+      } else {
+        checkBatteryOptimization();
+      }
+    } else {
+      checkBatteryOptimization();
+    }
+  }
+
+  private void checkBatteryOptimization() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      try {
+        android.os.PowerManager pm = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+          Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+          intent.setData(android.net.Uri.parse("package:" + getPackageName()));
+          startActivity(intent);
+        }
+      } catch (Exception ignored) {
+        try {
+          Intent intent = new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+          startActivity(intent);
+        } catch (Exception ignored2) {}
       }
     }
   }
@@ -69,6 +96,8 @@ public class MainActivity extends BridgeActivity {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     if (requestCode == LOCATION_PERMISSION_REQUEST) {
       requestBackgroundLocationPermission();
+    } else if (requestCode == BG_LOCATION_PERMISSION_REQUEST) {
+      checkBatteryOptimization();
     }
   }
 }

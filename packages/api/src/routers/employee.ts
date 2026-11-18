@@ -1740,7 +1740,7 @@ export const employeeRouter = router({
           title: `${g.employee.firstName} ${g.employee.lastName}`,
           subtitle: "Punched in outside allowed geofence area",
           time: g.checkInTime,
-          href: "/admin-portal/attendance",
+          href: "/admin-portal/attendance/locations",
           avatar: g.employee.profilePhotoUrl,
           badgeColor: "bg-amber-100 text-amber-700 border-amber-200",
           badgeText: "Geofence Breach",
@@ -1755,7 +1755,7 @@ export const employeeRouter = router({
             title: `${lp.employee.firstName} ${lp.employee.lastName}`,
             subtitle: "Arrived after scheduled shift start time",
             time: lp.checkInTime,
-            href: "/admin-portal/attendance",
+            href: "/admin-portal/attendance/team",
             avatar: lp.employee.profilePhotoUrl,
             badgeColor: "bg-rose-100 text-rose-700 border-rose-200",
             badgeText: "Late Punch",
@@ -1770,7 +1770,7 @@ export const employeeRouter = router({
           title: c.fullName,
           subtitle: `New application for ${c.jobPosting.title}`,
           time: c.appliedAt,
-          href: "/admin-portal/recruitment/candidates",
+          href: "/admin-portal/recruitment",
           badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
           badgeText: "New Candidate",
         });
@@ -1805,157 +1805,157 @@ export const employeeRouter = router({
         items,
       };
     } else {
-        const isDirectManager = await ctx.prisma.employee.findFirst({
-          where: { managerId: ctx.session.user.id },
-          select: { id: true },
-        });
+      const isDirectManager = await ctx.prisma.employee.findFirst({
+        where: { managerId: ctx.session.user.id },
+        select: { id: true },
+      });
 
-        const [recentLeaves, recentTargets, recentActivities, teamPendingLeaves] = await Promise.all([
-          ctx.prisma.leaveRequest.findMany({
+      const [recentLeaves, recentTargets, recentActivities, teamPendingLeaves] = await Promise.all([
+        ctx.prisma.leaveRequest.findMany({
+          where: {
+            employeeId: ctx.session.user.id,
+            OR: [
+              { respondedAt: { not: null } },
+              { managerRespondedAt: { not: null } },
+            ],
+          },
+          include: { leaveType: true, manager: { select: { firstName: true, lastName: true } } },
+          orderBy: { appliedAt: "desc" },
+          take: 5,
+        }),
+        ctx.prisma.employeeTarget.findMany({
+          where: {
+            employeeId: ctx.session.user.id,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        }),
+        ctx.prisma.targetActivity.findMany({
+          where: {
+            employeeId: ctx.session.user.id,
+            verifiedAt: { not: null },
+          },
+          include: { targetItem: true },
+          orderBy: { verifiedAt: "desc" },
+          take: 5,
+        }),
+        isDirectManager
+          ? ctx.prisma.leaveRequest.findMany({
             where: {
-              employeeId: ctx.session.user.id,
-              OR: [
-                { respondedAt: { not: null } },
-                { managerRespondedAt: { not: null } },
-              ],
+              status: "PENDING",
+              managerStatus: "PENDING",
+              employee: { managerId: ctx.session.user.id },
             },
-            include: { leaveType: true, manager: { select: { firstName: true, lastName: true } } },
+            include: {
+              employee: { select: { firstName: true, lastName: true, profilePhotoUrl: true } },
+              leaveType: { select: { name: true } },
+            },
             orderBy: { appliedAt: "desc" },
             take: 5,
-          }),
-          ctx.prisma.employeeTarget.findMany({
-            where: {
-              employeeId: ctx.session.user.id,
-            },
-            orderBy: { createdAt: "desc" },
-            take: 5,
-          }),
-          ctx.prisma.targetActivity.findMany({
-            where: {
-              employeeId: ctx.session.user.id,
-              verifiedAt: { not: null },
-            },
-            include: { targetItem: true },
-            orderBy: { verifiedAt: "desc" },
-            take: 5,
-          }),
-          isDirectManager
-            ? ctx.prisma.leaveRequest.findMany({
-                where: {
-                  status: "PENDING",
-                  managerStatus: "PENDING",
-                  employee: { managerId: ctx.session.user.id },
-                },
-                include: {
-                  employee: { select: { firstName: true, lastName: true, profilePhotoUrl: true } },
-                  leaveType: { select: { name: true } },
-                },
-                orderBy: { appliedAt: "desc" },
-                take: 5,
-              })
-            : Promise.resolve([]),
-        ]);
+          })
+          : Promise.resolve([]),
+      ]);
 
-        type EmpNotificationItem = {
-          id: string;
-          type: "LEAVE" | "TARGET";
-          title: string;
-          subtitle: string;
-          time: Date | null;
-          href: string;
-          avatar?: string | null;
-          badgeColor: string;
-          badgeText: string;
-        };
+      type EmpNotificationItem = {
+        id: string;
+        type: "LEAVE" | "TARGET";
+        title: string;
+        subtitle: string;
+        time: Date | null;
+        href: string;
+        avatar?: string | null;
+        badgeColor: string;
+        badgeText: string;
+      };
 
-        const items: EmpNotificationItem[] = [];
+      const items: EmpNotificationItem[] = [];
 
-        for (const tpl of teamPendingLeaves) {
-          items.push({
-            id: `team-leave-${tpl.id}`,
-            type: "LEAVE" as const,
-            title: `Action Required: ${tpl.employee.firstName} ${tpl.employee.lastName}`,
-            subtitle: `Applied for ${tpl.numberOfDays}d ${tpl.leaveType.name}. Awaiting your manager approval.`,
-            time: tpl.appliedAt,
-            href: "/employee-portal/leave/approvals",
-            avatar: tpl.employee.profilePhotoUrl,
-            badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
-            badgeText: "Manager Approval",
-          });
-        }
+      for (const tpl of teamPendingLeaves) {
+        items.push({
+          id: `team-leave-${tpl.id}`,
+          type: "LEAVE" as const,
+          title: `Action Required: ${tpl.employee.firstName} ${tpl.employee.lastName}`,
+          subtitle: `Applied for ${tpl.numberOfDays}d ${tpl.leaveType.name}. Awaiting your manager approval.`,
+          time: tpl.appliedAt,
+          href: "/employee-portal/leave/approvals",
+          avatar: tpl.employee.profilePhotoUrl,
+          badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
+          badgeText: "Manager Approval",
+        });
+      }
 
-        for (const l of recentLeaves) {
-          const isMgrApproved = l.managerStatus === "APPROVED" && l.status === "PENDING";
-          const isHrApproved = l.status === "APPROVED";
+      for (const l of recentLeaves) {
+        const isMgrApproved = l.managerStatus === "APPROVED" && l.status === "PENDING";
+        const isHrApproved = l.status === "APPROVED";
 
-          items.push({
-            id: `leave-res-${l.id}`,
-            type: "LEAVE" as const,
-            title: isMgrApproved
-              ? "Manager Approved Leave"
-              : isHrApproved
-                ? "Leave Approved by HR"
-                : "Leave Rejected",
-            subtitle: isMgrApproved
-              ? `Your ${l.leaveType.name} (${l.numberOfDays}d) was approved by manager. Awaiting HR.`
-              : `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
-            time: l.respondedAt || l.managerRespondedAt || l.appliedAt,
-            href: "/employee-portal/leave",
-            avatar: null,
-            badgeColor: isHrApproved
-              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-              : isMgrApproved
-                ? "bg-blue-100 text-blue-700 border-blue-200"
-                : "bg-rose-100 text-rose-700 border-rose-200",
-            badgeText: isHrApproved ? "HR Approved" : isMgrApproved ? "Manager Approved" : "Rejected",
-          });
-        }
+        items.push({
+          id: `leave-res-${l.id}`,
+          type: "LEAVE" as const,
+          title: isMgrApproved
+            ? "Manager Approved Leave"
+            : isHrApproved
+              ? "Leave Approved by HR"
+              : "Leave Rejected",
+          subtitle: isMgrApproved
+            ? `Your ${l.leaveType.name} (${l.numberOfDays}d) was approved by manager. Awaiting HR.`
+            : `Your ${l.leaveType.name} (${l.numberOfDays}d) was ${l.status.toLowerCase()}`,
+          time: l.respondedAt || l.managerRespondedAt || l.appliedAt,
+          href: "/employee-portal/leave",
+          avatar: null,
+          badgeColor: isHrApproved
+            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+            : isMgrApproved
+              ? "bg-blue-100 text-blue-700 border-blue-200"
+              : "bg-rose-100 text-rose-700 border-rose-200",
+          badgeText: isHrApproved ? "HR Approved" : isMgrApproved ? "Manager Approved" : "Rejected",
+        });
+      }
 
       for (const t of recentTargets) {
-          items.push({
-            id: `target-assigned-${t.id}`,
-            type: "TARGET" as const,
-            title: `Target Assigned: ${t.title}`,
-            subtitle: `A new performance target sheet has been assigned to you. Track your 10% discipline and deliverables.`,
-            time: t.createdAt,
-            href: "/employee-portal/performance",
-            avatar: null,
-            badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
-            badgeText: "Target Assigned",
-          });
-        }
+        items.push({
+          id: `target-assigned-${t.id}`,
+          type: "TARGET" as const,
+          title: `Target Assigned: ${t.title}`,
+          subtitle: `A new performance target sheet has been assigned to you. Track your 10% discipline and deliverables.`,
+          time: t.createdAt,
+          href: "/employee-portal/performance",
+          avatar: null,
+          badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
+          badgeText: "Target Assigned",
+        });
+      }
 
       for (const a of recentActivities) {
-          items.push({
-            id: `target-act-res-${a.id}`,
-            type: "TARGET" as const,
-            title: a.status === "APPROVED" ? "Deliverable Verified & Approved" : "Deliverable Verification Rejected",
-            subtitle: `${a.title || a.targetItem?.title || "Deliverable"} (${a.quantity} qty) has been reviewed by management.`,
-            time: a.verifiedAt,
-            href: "/employee-portal/performance",
-            avatar: null,
-            badgeColor:
-              a.status === "APPROVED"
-                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                : "bg-rose-100 text-rose-700 border-rose-200",
-            badgeText: a.status === "APPROVED" ? "Verified" : "Rejected",
-          });
-        }
+        items.push({
+          id: `target-act-res-${a.id}`,
+          type: "TARGET" as const,
+          title: a.status === "APPROVED" ? "Deliverable Verified & Approved" : "Deliverable Verification Rejected",
+          subtitle: `${a.title || a.targetItem?.title || "Deliverable"} (${a.quantity} qty) has been reviewed by management.`,
+          time: a.verifiedAt,
+          href: "/employee-portal/performance",
+          avatar: null,
+          badgeColor:
+            a.status === "APPROVED"
+              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+              : "bg-rose-100 text-rose-700 border-rose-200",
+          badgeText: a.status === "APPROVED" ? "Verified" : "Rejected",
+        });
+      }
 
       items.sort((a, b) => {
-          const tA = a.time ? new Date(a.time).getTime() : 0;
-          const tB = b.time ? new Date(b.time).getTime() : 0;
-          return tB - tA;
-        });
+        const tA = a.time ? new Date(a.time).getTime() : 0;
+        const tB = b.time ? new Date(b.time).getTime() : 0;
+        return tB - tA;
+      });
 
-        return {
-          unreadCount: items.length,
-          pendingLeavesCount: teamPendingLeaves.length,
-          anomaliesCount: 0,
-          candidatesCount: 0,
-          items,
-        };
-      }
+      return {
+        unreadCount: items.length,
+        pendingLeavesCount: teamPendingLeaves.length,
+        anomaliesCount: 0,
+        candidatesCount: 0,
+        items,
+      };
+    }
   }),
 
   changeMyPassword: protectedProcedure

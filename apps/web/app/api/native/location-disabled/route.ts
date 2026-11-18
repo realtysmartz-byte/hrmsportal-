@@ -1,24 +1,33 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
-import { authOptions } from "@/lib/auth";
+import { authOptions, verifyDutyToken } from "@/lib/auth";
 import { notifyLocationDisabledAlert } from "@realty-smartz/api";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body: { reason?: string; deviceInfo?: string } = {};
+  let body: { reason?: string; deviceInfo?: string; employeeId?: string; dutyToken?: string } = {};
   try {
     body = await req.json();
   } catch {}
 
+  const session = await getServerSession(authOptions);
+  let employeeId = session?.user?.id;
+  if (!employeeId) {
+    const headerEmpId = req.headers.get("x-employee-id") || body.employeeId;
+    const headerToken = req.headers.get("x-duty-token") || body.dutyToken;
+    if (headerEmpId && headerToken && verifyDutyToken(headerEmpId, headerToken)) {
+      employeeId = headerEmpId;
+    }
+  }
+
+  if (!employeeId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const emp = await prisma.employee.findUnique({
-    where: { id: session.user.id },
+    where: { id: employeeId },
     select: {
       firstName: true,
       lastName: true,

@@ -449,3 +449,20 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+import crypto from "crypto";
+
+export function generateDutyToken(employeeId: string): string {
+  const secretKey = process.env.NEXTAUTH_SECRET || "realty-smartz-duty-tracking-secret-2026";
+  return crypto.createHmac("sha256", secretKey).update(`duty:${employeeId}`).digest("hex");
+}
+
+export function verifyDutyToken(employeeId: string, token: string): boolean {
+  if (!employeeId || !token) return false;
+  try {
+    const expected = generateDutyToken(employeeId);
+    return crypto.timingSafeEqual(Buffer.from(token, "hex"), Buffer.from(expected, "hex"));
+  } catch {
+    return false;
+  }
+}

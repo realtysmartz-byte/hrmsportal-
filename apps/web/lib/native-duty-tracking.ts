@@ -6,6 +6,8 @@ interface DutyTrackingPlugin {
   start(options: {
     intervalMs?: number;
     apiUrl?: string;
+    employeeId?: string;
+    dutyToken?: string;
     title?: string;
     body?: string;
   }): Promise<{ started: boolean }>;
@@ -81,9 +83,22 @@ export async function getNativeMockLocationFlag(referenceFix: StoredFix): Promis
 export async function startNativeDutyTracking(options?: { title?: string; body?: string }) {
   if (!isNativeAndroidApp()) return;
   try {
+    let employeeId = "";
+    let dutyToken = "";
+    try {
+      const res = await fetch("/api/native/duty-token");
+      if (res.ok) {
+        const data = await res.json();
+        employeeId = data.employeeId || "";
+        dutyToken = data.token || "";
+      }
+    } catch {}
+
     await DutyTracking.start({
       intervalMs: DEFAULT_INTERVAL_MS,
       apiUrl: `${window.location.origin}/api/native/location-ping`,
+      employeeId,
+      dutyToken,
       title: options?.title,
       body: options?.body,
     });

@@ -28,19 +28,19 @@ export default async function EmployeePortalLayout({
   const isAdmin = canAccessAdminPortal(role);
 
   return (
-    <div className="min-h-screen min-h-dvh bg-white text-[var(--ink)]">
-      <EmployeePolicyAgreementModal />
-      {!isAdmin && <PwaInstallBanner />}
-      <EmployeeTopNav />
-      <main
-        className="mx-auto max-w-[430px] px-4 py-4"
-        style={{
-          paddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
-        }}
-      >
-        {children}
-        <EmployeePortalFooter />
-      </main>
-    </div>
-  );
+      <div className="min-h-screen min-h-dvh bg-[var(--bg)] text-[var(--ink)]">
+        <EmployeePolicyAgreementModal />
+        {!isAdmin && <PwaInstallBanner />}
+        <EmployeeTopNav />
+        <main
+          className="mx-auto max-w-[430px] px-4 py-4"
+          style={{
+            paddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
+          {children}
+          <EmployeePortalFooter />
+        </main>
+      </div>
+      );
 }

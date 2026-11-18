@@ -816,6 +816,29 @@ export default function TeamAttendancePage() {
                         : "—"}
                   </span>
                 </div>
+
+                {/* Punches Breakdown if multiple */}
+                {log?.punches && log.punches.length > 0 && (
+                  <div className="pt-1.5 border-t border-neutral-200/60">
+                    <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-1">
+                      Punches Breakdown ({log.punches.length})
+                    </span>
+                    <div className="space-y-1">
+                      {log.punches.map((p: any, i: number) => (
+                        <div key={p.id || i} className="flex items-center justify-between text-[11px] bg-white px-2 py-1 rounded border border-neutral-200">
+                          <span className="font-semibold text-neutral-800">
+                            #{i + 1}: {formatTimeIST(p.checkInTime)} → {p.checkOutTime ? formatTimeIST(p.checkOutTime) : "Active"}
+                          </span>
+                          <span className="text-[10px] text-neutral-500">
+                            {p.checkOutTime
+                              ? `${Math.round((new Date(p.checkOutTime).getTime() - new Date(p.checkInTime).getTime()) / 60000)}m`
+                              : "On Duty"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SECTION B: Location & Google Map Display */}
@@ -982,9 +1005,18 @@ export default function TeamAttendancePage() {
 
                   <TableCell className="py-3 align-middle whitespace-nowrap text-xs">
                     {hasCheckedIn ? (
-                      <div className="flex items-center gap-1.5 font-medium text-neutral-900">
-                        <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
-                        <span>{formatTimeIST(log!.checkInTime)}</span>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5 font-medium text-neutral-900">
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+                          <span>{formatTimeIST(log!.checkInTime)}</span>
+                        </div>
+                        {log?.punches && log.punches.length > 1 && (
+                          <div className="flex items-center gap-1">
+                            <span className="inline-block rounded bg-[var(--soft)] px-1.5 py-0.2 text-[10px] font-bold text-[var(--accent)] border border-[var(--line)]">
+                              {log.punches.length} punches
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="font-medium text-neutral-400">—</span>
