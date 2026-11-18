@@ -60,12 +60,14 @@ export default function RootLayout({
                 try {
                   var m = window.matchMedia('(prefers-color-scheme: dark)');
                   function updateTheme() {
-                    if (m.matches) {
+                    var stored = localStorage.getItem('theme');
+                    var isDark = stored === 'dark' || (!stored && m.matches);
+                    if (isDark) {
                       document.documentElement.classList.add('dark');
                       document.documentElement.setAttribute('data-theme', 'dark');
                     } else {
                       document.documentElement.classList.remove('dark');
-                      document.documentElement.removeAttribute('data-theme');
+                      document.documentElement.setAttribute('data-theme', 'light');
                     }
                   }
                   updateTheme();
