@@ -32,7 +32,7 @@ export function EmployeeCard({
     <Link
       href={`${hrefBase}/${id}`}
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-3 transition-colors hover:bg-neutral-50",
+        "flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--card)] p-3 transition-colors hover:bg-[var(--hover)] text-[var(--ink)]",
         className
       )}
     >

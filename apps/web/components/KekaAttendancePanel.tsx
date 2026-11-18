@@ -427,7 +427,7 @@ export function KekaAttendancePanel({
           </div>
 
           {/* Workplace Card */}
-          <div className="border border-[var(--line)] rounded-[4px] p-3.5 bg-white flex items-center gap-3">
+          <div className="border border-[var(--line)] rounded-[4px] p-3.5 bg-[var(--card)] flex items-center gap-3">
             <MapPin className="w-5 h-5 text-[#2B2FD1] shrink-0" />
             <div>
               <span className="text-[11px] text-[var(--muted)] block">Workplace</span>
@@ -443,7 +443,7 @@ export function KekaAttendancePanel({
           <h2 className="text-[16px] font-bold text-[var(--ink)]">Attendance</h2>
 
           {/* Month Switcher: [ ‹  November 2026  › ] */}
-          <div className="flex items-center h-9 border border-[var(--line)] rounded-[4px] bg-white overflow-hidden select-none">
+          <div className="flex items-center h-9 border border-[var(--line)] rounded-[4px] bg-[var(--card)] overflow-hidden select-none">
             <button
               type="button"
               onClick={handlePrevMonth}
@@ -473,7 +473,7 @@ export function KekaAttendancePanel({
         {/* 4 Stat Tiles */}
         <div className="grid grid-cols-2 gap-3">
           {/* Present */}
-          <div className="border border-[var(--line)] border-l-[3px] border-l-[#1FA36A] rounded-[4px] p-3.5 bg-white">
+          <div className="border border-[var(--line)] border-l-[3px] border-l-[#1FA36A] rounded-[4px] p-3.5 bg-[var(--card)]">
             <span className="text-[11px] text-[var(--muted)] block">Present</span>
             <span className="text-[24px] font-bold text-[var(--ink)] block leading-tight my-1">
               {stats.presentCount}
@@ -482,7 +482,7 @@ export function KekaAttendancePanel({
           </div>
 
           {/* Late mark */}
-          <div className="border border-[var(--line)] border-l-[3px] border-l-[#D98A00] rounded-[4px] p-3.5 bg-white">
+          <div className="border border-[var(--line)] border-l-[3px] border-l-[#D98A00] rounded-[4px] p-3.5 bg-[var(--card)]">
             <span className="text-[11px] text-[var(--muted)] block">Late mark</span>
             <span className="text-[24px] font-bold text-[var(--ink)] block leading-tight my-1">
               {stats.lateCount}
@@ -491,7 +491,7 @@ export function KekaAttendancePanel({
           </div>
 
           {/* Half day */}
-          <div className="border border-[var(--line)] border-l-[3px] border-l-[#D6283A] rounded-[4px] p-3.5 bg-white">
+          <div className="border border-[var(--line)] border-l-[3px] border-l-[#D6283A] rounded-[4px] p-3.5 bg-[var(--card)]">
             <span className="text-[11px] text-[var(--muted)] block">Half day</span>
             <span className="text-[24px] font-bold text-[var(--ink)] block leading-tight my-1">
               {stats.halfDayCount}
@@ -500,7 +500,7 @@ export function KekaAttendancePanel({
           </div>
 
           {/* Compensation */}
-          <div className="border border-[var(--line)] border-l-[3px] border-l-[#2B2FD1] rounded-[4px] p-3.5 bg-white">
+          <div className="border border-[var(--line)] border-l-[3px] border-l-[#2B2FD1] rounded-[4px] p-3.5 bg-[var(--card)]">
             <span className="text-[11px] text-[var(--muted)] block">Compensation</span>
             <span className="text-[24px] font-bold text-[#2B2FD1] block leading-tight my-1">
               {stats.totalDeductionDays > 0 ? `-${stats.totalDeductionDays}d` : "0d"}
@@ -517,7 +517,7 @@ export function KekaAttendancePanel({
           <span className="text-[12px] text-[var(--muted)]">{monthLabel}</span>
         </div>
 
-        <div className="border border-[var(--line)] rounded-[4px] bg-white divide-y divide-[var(--line)]">
+        <div className="border border-[var(--line)] rounded-[4px] bg-[var(--card)] divide-y divide-[var(--line)]">
           {/* Summary Row */}
           <div className="flex items-center justify-between p-3.5">
             <span className="text-[13px] font-semibold text-[var(--ink)]">Summary</span>
@@ -580,14 +580,14 @@ export function KekaAttendancePanel({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="border border-[var(--line)] rounded-[4px] p-3.5 bg-white">
+          <div className="border border-[var(--line)] rounded-[4px] p-3.5 bg-[var(--card)]">
             <span className="text-[11px] text-[var(--muted)] block">Total gross hours</span>
             <span className="text-[18px] font-bold text-[var(--ink)] block mt-1">
               {formatHoursMinutes(stats.totalHours)}
             </span>
           </div>
 
-          <div className="border border-[var(--line)] rounded-[4px] p-3.5 bg-white">
+          <div className="border border-[var(--line)] rounded-[4px] p-3.5 bg-[var(--card)]">
             <span className="text-[11px] text-[var(--muted)] block">Avg daily hours</span>
             <span className="text-[18px] font-bold text-[var(--ink)] block mt-1">
               {formatHoursMinutes(Number(stats.avgDailyHours))}
@@ -597,19 +597,19 @@ export function KekaAttendancePanel({
       </div>
 
       {/* 5. Logs & Records Table */}
-      <div className="rounded-[4px] border border-[var(--line)] bg-white overflow-hidden">
+      <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] overflow-hidden">
         {/* Table Header & Month Filter Pills */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--line)] px-4 py-3 gap-3 bg-[var(--soft)]/50">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-[var(--ink)]">Logs & Records</h2>
-            <div className="flex items-center rounded-[4px] border border-[var(--line)] p-0.5 bg-white text-xs ml-3">
+            <div className="flex items-center rounded-[4px] border border-[var(--line)] p-0.5 bg-[var(--field)] text-xs ml-3">
               <button
                 type="button"
                 onClick={() => setActiveTab("log")}
                 className={cn(
                   "px-3 py-1 rounded-[2px] font-semibold transition-colors cursor-pointer",
                   activeTab === "log"
-                    ? "bg-[var(--ink)] text-white"
+                    ? "bg-[var(--accent)] text-white"
                     : "text-[var(--muted)] hover:text-[var(--ink)]"
                 )}
               >
@@ -621,7 +621,7 @@ export function KekaAttendancePanel({
                 className={cn(
                   "px-3 py-1 rounded-[2px] font-semibold transition-colors cursor-pointer",
                   activeTab === "shifts"
-                    ? "bg-[var(--ink)] text-white"
+                    ? "bg-[var(--accent)] text-white"
                     : "text-[var(--muted)] hover:text-[var(--ink)]"
                 )}
               >

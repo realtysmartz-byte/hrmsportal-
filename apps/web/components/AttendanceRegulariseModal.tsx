@@ -121,20 +121,20 @@ export function AttendanceRegulariseModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] flex flex-col rounded-2xl bg-white shadow-2xl border border-neutral-200 overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 select-text"
+        className="relative w-full max-w-lg max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100vh-3.5rem)] flex flex-col rounded-2xl bg-[var(--card)] text-[var(--ink)] shadow-2xl border border-[var(--line)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 select-text"
         onClick={(e) => e.stopPropagation()}
       >
           {/* Pinned Header */}
-          <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-neutral-100 bg-neutral-50/90">
+          <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-[var(--line)] bg-[var(--soft)]/90">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5D3EBC]/10 text-[#5D3EBC]">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                  <h2 className="text-sm sm:text-base font-bold text-neutral-900 leading-tight">
+                  <h2 className="text-sm sm:text-base font-bold text-[var(--ink)] leading-tight">
                     Regularise Attendance
                   </h2>
-                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                    <p className="text-[11px] text-[var(--muted)] mt-0.5">
                       Admin correction for login issues, missed punches, or field duty
                     </p>
                   </div>
@@ -218,7 +218,7 @@ export function AttendanceRegulariseModal({
                                             "px-3 py-2 text-xs font-bold rounded-xl border text-center transition-all",
                                             targetStatus === "PRESENT"
                                               ? "bg-[#5D3EBC] text-white border-[#5D3EBC] shadow-sm"
-                                              : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                              : "bg-[var(--field)] text-[var(--ink)] border-[var(--line)] hover:bg-[var(--hover)]"
                                           )}
                                         >
                                           Full Day (Present)
@@ -230,7 +230,7 @@ export function AttendanceRegulariseModal({
                                             "px-3 py-2 text-xs font-bold rounded-xl border text-center transition-all",
                                             targetStatus === "HALF_DAY"
                                               ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                                              : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                              : "bg-[var(--field)] text-[var(--ink)] border-[var(--line)] hover:bg-[var(--hover)]"
                                           )}
                                         >
                                           Half Day
@@ -242,7 +242,7 @@ export function AttendanceRegulariseModal({
                                             "px-3 py-2 text-xs font-bold rounded-xl border text-center transition-all",
                                             targetStatus === "LATE"
                                               ? "bg-orange-500 text-white border-orange-500 shadow-sm"
-                                              : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                              : "bg-[var(--field)] text-[var(--ink)] border-[var(--line)] hover:bg-[var(--hover)]"
                                           )}
                                         >
                                           Late Mark
@@ -254,7 +254,7 @@ export function AttendanceRegulariseModal({
                                             "px-3 py-2 text-xs font-bold rounded-xl border text-center transition-all",
                                             targetStatus === "ON_LEAVE"
                                               ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                                              : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                              : "bg-[var(--field)] text-[var(--ink)] border-[var(--line)] hover:bg-[var(--hover)]"
                                           )}
                                         >
                                           On Leave
@@ -266,7 +266,7 @@ export function AttendanceRegulariseModal({
                                             "px-3 py-2 text-xs font-bold rounded-xl border text-center transition-all",
                                             targetStatus === "ABSENT"
                                               ? "bg-rose-600 text-white border-rose-600 shadow-sm"
-                                              : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                              : "bg-[var(--field)] text-[var(--ink)] border-[var(--line)] hover:bg-[var(--hover)]"
                                           )}
                                         >
                                           Absent
@@ -277,31 +277,31 @@ export function AttendanceRegulariseModal({
                                           {/* Time Adjustments */ }
             {
                                           targetStatus !== "ABSENT" && targetStatus !== "ON_LEAVE" && (
-                                            <div className="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs">
+                                            <div className="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-[var(--field)] border border-[var(--line)] text-xs">
                                               <div>
-                                                <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                                                <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">
                                                   Punch In
                                                 </label>
                                                 <input
                                                   type="time"
                                                   value={checkInTime}
                                                   onChange={(e) => setCheckInTime(e.target.value)}
-                                                  className="w-full text-xs p-1.5 rounded-lg border border-neutral-300 bg-white"
+                                                  className="w-full text-xs p-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-[var(--ink)]"
                                                 />
                                               </div>
                                               <div>
-                                                <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                                                <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">
                                                   Punch Out
                                                 </label>
                                                 <input
                                                   type="time"
                                                   value={checkOutTime}
                                                   onChange={(e) => setCheckOutTime(e.target.value)}
-                                                  className="w-full text-xs p-1.5 rounded-lg border border-neutral-300 bg-white"
+                                                  className="w-full text-xs p-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-[var(--ink)]"
                                                 />
                                               </div>
                                               <div>
-                                                <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                                                <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">
                                                   Gross Hours
                                                 </label>
                                                 <input
@@ -311,7 +311,7 @@ export function AttendanceRegulariseModal({
                                                   max="24"
                                                   value={totalHours}
                                                   onChange={(e) => setTotalHours(e.target.value)}
-                                                  className="w-full text-xs p-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                                                  className="w-full text-xs p-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] font-bold"
                                                 />
                                               </div>
                                             </div>
@@ -320,7 +320,7 @@ export function AttendanceRegulariseModal({
 
                                         {/* Reason for Regularisation */ }
                                         <div className="space-y-2">
-                                          <label className="block text-xs font-bold text-neutral-800">
+                                          <label className="block text-xs font-bold text-[var(--ink)]">
                                             Reason for Regularisation <span className="text-rose-500">*</span>
                                           </label>
 
@@ -334,8 +334,8 @@ export function AttendanceRegulariseModal({
                                                 className={cn(
                       "text-[10px] font-medium px-2 py-0.5 rounded-md border transition-all text-left",
                                                   reason === preset
-                                                    ? "bg-[#5D3EBC]/10 border-[#5D3EBC] text-[#5D3EBC] font-semibold"
-                                                    : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                                                    ? "bg-[#5D3EBC]/15 border-[#5D3EBC] text-[#7957FF] font-semibold"
+                                                    : "bg-[var(--field)] border-[var(--line)] text-[var(--muted)] hover:bg-[var(--hover)]"
                                                 )}
                                               >
                                                 {preset}
@@ -348,19 +348,19 @@ export function AttendanceRegulariseModal({
                                                 placeholder="e.g. Employee experienced app check-in failure, regularised to Full Day as per field confirmation."
                                                 value={reason}
                                                 onChange={(e) => setReason(e.target.value)}
-                                                className="w-full text-xs p-2.5 rounded-md border border-neutral-300 bg-white focus:outline-none focus:ring-1 focus:ring-[#5D3EBC]"
+                                                className="w-full text-xs p-2.5 rounded-md border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[#5D3EBC]"
                                                 required
                                               />
                                             </div>
           </div>
 
           {/* Pinned Footer */}
-          <div className="shrink-0 px-5 py-3.5 border-t border-neutral-200 bg-neutral-50/90 flex items-center justify-end gap-2">
+          <div className="shrink-0 px-5 py-3.5 border-t border-[var(--line)] bg-[var(--soft)]/90 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={regulariseMutation.isLoading}
-              className="px-3.5 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-lg border border-neutral-200 transition-colors"
+              className="px-3.5 py-2 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--hover)] rounded-lg border border-[var(--line)] transition-colors"
             >
               Cancel
             </button>

@@ -39,7 +39,7 @@ export function LocationMap({
     return (
       <div
         className={cn(
-          "flex items-center justify-center rounded-xl bg-neutral-100 text-xs text-neutral-400 border border-neutral-200",
+          "flex items-center justify-center rounded-xl bg-[var(--field)] text-xs text-[var(--muted)] border border-[var(--line)]",
           className
         )}
         style={{ height }}
@@ -65,7 +65,7 @@ export function LocationMap({
   const currentEmbedUrl = mapProvider === "google" ? googleEmbedUrl : osmEmbedUrl;
 
   const mapContent = (
-    <div className="relative w-full overflow-hidden bg-neutral-100" style={{ height }}>
+    <div className="relative w-full overflow-hidden bg-[var(--field)]" style={{ height }}>
       {staticUrl ? (
         <a href={openUrl} target="_blank" rel="noreferrer" className="block w-full h-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -90,10 +90,10 @@ export function LocationMap({
       <button
         type="button"
         onClick={() => setMapProvider((prev) => (prev === "google" ? "osm" : "google"))}
-        className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors"
+        className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-md bg-[var(--card)] px-2 py-1 text-[10px] font-bold text-[var(--ink)] border border-[var(--line)] hover:bg-[var(--hover)] transition-colors shadow-xs"
         title="Toggle Map Provider"
       >
-        <Layers className="h-3 w-3 text-neutral-500" />
+        <Layers className="h-3 w-3 text-[var(--muted)]" />
         <span>{mapProvider === "google" ? "Google" : "OSM"}</span>
       </button>
     </div>
@@ -110,13 +110,13 @@ export function LocationMap({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-neutral-200/90 bg-neutral-50 ",
+        "overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)] text-[var(--ink)]",
         className
       )}
     >
       {showHeader && (
-        <div className="flex items-center justify-between gap-2 border-b border-neutral-100 bg-white px-3 py-2">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700">
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--card)] px-3 py-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--ink)]">
             <MapPin className="h-3.5 w-3.5 text-[#5D3EBC]" />
             <span>Map Location</span>
           </p>
@@ -135,11 +135,11 @@ export function LocationMap({
       {mapContent}
 
       {showFooter && (
-        <div className="space-y-0.5 bg-white px-3 py-2 border-t border-neutral-100">
+        <div className="space-y-0.5 bg-[var(--card)] px-3 py-2 border-t border-[var(--line)]">
           {label && (
-            <p className="line-clamp-2 text-xs font-medium text-neutral-800">{label}</p>
+            <p className="line-clamp-2 text-xs font-medium text-[var(--ink)]">{label}</p>
           )}
-          <p className="text-[10px] tabular-nums text-neutral-500">
+          <p className="text-[10px] tabular-nums text-[var(--muted)]">
             {lat.toFixed(6)}, {lng.toFixed(6)}
           </p>
         </div>

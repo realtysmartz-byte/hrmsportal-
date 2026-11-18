@@ -25,13 +25,13 @@ export function Logo({
         <div className="flex flex-col leading-tight">
           <span
             className={cn(
-              "text-sm font-bold tracking-wide uppercase font-display",
-              darkText ? "text-neutral-900" : "text-neutral-900"
+              "text-sm font-bold tracking-wide uppercase font-display text-[var(--ink)]",
+              darkText && "text-neutral-900"
             )}
           >
             REALTY SMARTZ
           </span>
-          <span className="text-[10px] font-medium text-neutral-500">
+          <span className="text-[10px] font-medium text-[var(--muted)]">
             Committed to Deliver Excellence
           </span>
         </div>

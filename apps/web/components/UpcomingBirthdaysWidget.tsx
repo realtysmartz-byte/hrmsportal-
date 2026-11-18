@@ -28,19 +28,19 @@ export function UpcomingBirthdaysWidget({
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ duration: 0.18 }}
-      className={`rounded-lg border border-neutral-200/80 bg-white p-5 md:p-6 ${className}`}
+      className={`rounded-lg border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] p-5 md:p-6 ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+      <div className="flex items-center justify-between pb-3 border-b border-[var(--line)]">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5D3EBC]/20 text-[#5D3EBC] border border-[#5D3EBC]/30">
             <Cake className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-display text-base font-bold text-neutral-900 leading-tight flex items-center gap-1.5">
+            <h3 className="font-display text-base font-bold text-[var(--ink)] leading-tight flex items-center gap-1.5">
               🎂 Upcoming Birthdays
             </h3>
-            <p className="text-[11px] text-neutral-400 font-medium">
+            <p className="text-[11px] text-[var(--muted)] font-medium">
               Next 30 days · Team celebrations
             </p>
           </div>
@@ -48,7 +48,7 @@ export function UpcomingBirthdaysWidget({
 
         <Link
           href={profileBasePath}
-          className="text-[11px] font-semibold text-neutral-500 hover:text-[#5D3EBC] transition-colors flex items-center gap-0.5"
+          className="text-[11px] font-semibold text-[var(--muted)] hover:text-[#7957FF] transition-colors flex items-center gap-0.5"
         >
           View all <ChevronRight className="h-3 w-3" />
         </Link>
@@ -61,13 +61,13 @@ export function UpcomingBirthdaysWidget({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-12 rounded-xl bg-neutral-100/70 animate-pulse"
+                className="h-12 rounded-xl bg-[var(--field)] animate-pulse"
               />
             ))}
           </div>
         ) : topBirthdays.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-neutral-200 p-4 text-center">
-            <p className="text-xs text-neutral-400">
+          <div className="rounded-xl border border-dashed border-[var(--line)] p-4 text-center">
+            <p className="text-xs text-[var(--muted)]">
               No birthdays in the next 30 days.
             </p>
           </div>
@@ -79,7 +79,7 @@ export function UpcomingBirthdaysWidget({
               className={`group flex items-center justify-between rounded-xl p-2.5 transition-all ${
                 item.isToday
                   ? "bg-gradient-to-r from-[#5D3EBC]/15 via-[#7B5CD6]/15 to-transparent border border-[#5D3EBC]/40 hover:border-[#5D3EBC]"
-                  : "border border-neutral-200/70 bg-neutral-50/50 hover:bg-neutral-50 hover:border-neutral-300"
+                  : "border border-[var(--line)] bg-[var(--field)] hover:bg-[var(--hover)] hover:border-[var(--line)]"
               }`}
             >
               {/* Colleague Avatar & Details */}
@@ -105,10 +105,10 @@ export function UpcomingBirthdaysWidget({
                 </div>
 
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-neutral-900 truncate group-hover:text-[#5D3EBC] transition-colors">
+                  <p className="text-xs font-bold text-[var(--ink)] truncate group-hover:text-[#7957FF] transition-colors">
                     {item.name}
                   </p>
-                  <p className="text-[10px] text-neutral-500 truncate">
+                  <p className="text-[10px] text-[var(--muted)] truncate">
                     {item.designation || item.department || "Colleague"}
                   </p>
                 </div>

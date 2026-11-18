@@ -52,6 +52,34 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={display.variable} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var m = window.matchMedia('(prefers-color-scheme: dark)');
+                  function updateTheme() {
+                    if (m.matches) {
+                      document.documentElement.classList.add('dark');
+                      document.documentElement.setAttribute('data-theme', 'dark');
+                    } else {
+                      document.documentElement.classList.remove('dark');
+                      document.documentElement.removeAttribute('data-theme');
+                    }
+                  }
+                  updateTheme();
+                  if (m.addEventListener) {
+                    m.addEventListener('change', updateTheme);
+                  } else if (m.addListener) {
+                    m.addListener(updateTheme);
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <Providers>
           <NativeAppBoot />

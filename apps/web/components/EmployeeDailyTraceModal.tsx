@@ -124,17 +124,17 @@ export function EmployeeDailyTraceModal({
         e.stopPropagation();
       }}
     >
-      <div className="relative flex flex-col w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-lg bg-white overflow-hidden overscroll-contain">
+      <div className="relative flex flex-col w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-lg bg-[var(--card)] text-[var(--ink)] overflow-hidden overscroll-contain">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 bg-neutral-50/70">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--line)] bg-[var(--soft)]/70">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5D3EBC] text-white font-bold text-sm">
               {employeeName.charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-neutral-900">{employeeName}</h2>
-                <Badge variant="outline" className="text-[10px] font-semibold border-neutral-200 bg-white">
+                <h2 className="text-base font-bold text-[var(--ink)]">{employeeName}</h2>
+                <Badge variant="outline" className="text-[10px] font-semibold border-[var(--line)] bg-[var(--field)] text-[var(--ink)]">
                   {emp?.employeeCode ?? "EMP"}
                 </Badge>
                 <Badge className="text-[10px] bg-teal-50 text-teal-700 hover:bg-teal-50 border-teal-200">
@@ -187,12 +187,12 @@ export function EmployeeDailyTraceModal({
         ) : (
           <div className="flex flex-col flex-1 overflow-y-auto lg:overflow-hidden overscroll-contain">
             {/* Day KPI Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 sm:px-5 py-3 bg-white border-b border-neutral-100 text-xs shrink-0">
-              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
-                <span className="text-neutral-400 block text-[10px] uppercase font-bold tracking-wider">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 sm:px-5 py-3 bg-[var(--card)] border-b border-[var(--line)] text-xs shrink-0">
+              <div className="p-2.5 rounded-xl bg-[var(--field)] border border-[var(--line)]">
+                <span className="text-[var(--muted)] block text-[10px] uppercase font-bold tracking-wider">
                   Punch-In Time
                 </span>
-                <span className="font-bold text-neutral-900 text-sm flex items-center gap-1 mt-0.5">
+                <span className="font-bold text-[var(--ink)] text-sm flex items-center gap-1 mt-0.5">
                   <LogIn className="h-3.5 w-3.5 text-emerald-600" />
                   {log?.checkInTime
                     ? new Date(log.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -200,8 +200,8 @@ export function EmployeeDailyTraceModal({
                 </span>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
-                <span className="text-neutral-400 block text-[10px] uppercase font-bold tracking-wider">
+              <div className="p-2.5 rounded-xl bg-[var(--field)] border border-[var(--line)]">
+                <span className="text-[var(--muted)] block text-[10px] uppercase font-bold tracking-wider">
                   Punch-Out Time
                 </span>
                 <span className="font-bold text-neutral-900 text-sm flex items-center gap-1 mt-0.5">
@@ -263,7 +263,7 @@ export function EmployeeDailyTraceModal({
                 </div>
 
                 {mapLat != null && mapLng != null && (
-                  <div className="rounded-lg overflow-hidden border border-neutral-200 bg-white">
+                  <div className="rounded-lg overflow-hidden border border-[var(--line)] bg-[var(--field)]">
                     <LocationMap
                       lat={mapLat}
                       lng={mapLng}
@@ -280,10 +280,10 @@ export function EmployeeDailyTraceModal({
 
                 {/* Active Point Detail Card */}
                 {activeEvent ? (
-                  <div className="mt-3 p-3 rounded-xl bg-white border border-neutral-200/80 space-y-1.5 text-xs">
+                  <div className="mt-3 p-3 rounded-xl bg-[var(--field)] border border-[var(--line)] space-y-1.5 text-xs text-[var(--ink)]">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-neutral-900 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-neutral-400" />
+                      <span className="font-bold text-[var(--ink)] flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-[var(--muted)]" />
                         Timestamp:{" "}
                         {new Date(activeEvent.time).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -295,8 +295,8 @@ export function EmployeeDailyTraceModal({
                         className={cn(
                           "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
                           activeEvent.withinGeofence
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                            : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
                         )}
                       >
                         {activeEvent.withinGeofence ? (
@@ -310,11 +310,11 @@ export function EmployeeDailyTraceModal({
                         )}
                       </span>
                     </div>
-                    <p className="text-neutral-600 line-clamp-2">
-                      <span className="font-medium text-neutral-400">Address: </span>
+                    <p className="text-[var(--muted)] line-clamp-2">
+                      <span className="font-medium text-[var(--muted)]">Address: </span>
                       {activeEvent.address || "Location recorded by mobile GPS"}
                     </p>
-                    <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
+                    <div className="flex items-center justify-between text-[11px] text-[var(--muted)] pt-1">
                       <span>
                         Coords: {activeEvent.lat.toFixed(6)}, {activeEvent.lng.toFixed(6)}
                       </span>
@@ -322,21 +322,21 @@ export function EmployeeDailyTraceModal({
                         href={`https://www.google.com/maps?q=${activeEvent.lat},${activeEvent.lng}&z=17`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[#5D3EBC] font-semibold hover:underline flex items-center gap-1"
+                        className="text-[#7957FF] font-semibold hover:underline flex items-center gap-1"
                       >
                         Open Exact Pin <ExternalLink className="h-3 w-3" />
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-3 p-3 rounded-xl bg-white border border-neutral-200 text-xs text-neutral-500 text-center">
+                  <div className="mt-3 p-3 rounded-xl bg-[var(--field)] border border-[var(--line)] text-xs text-[var(--muted)] text-center">
                     No GPS location recorded for this employee on this date. Showing designated office premise.
                   </div>
                 )}
               </div>
 
               {/* Timeline Column (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col p-3.5 sm:p-4 bg-white lg:overflow-hidden">
+              <div className="lg:col-span-5 flex flex-col p-3.5 sm:p-4 bg-[var(--card)] text-[var(--ink)] lg:overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                     Chronological Timeline & Pings

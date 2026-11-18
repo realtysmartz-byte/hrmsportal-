@@ -235,14 +235,14 @@ export function AssignLocationCard({
   return (
     <div
       className={cn(
-        "space-y-4 rounded-lg border border-neutral-200 bg-white p-4 md:p-6",
+        "space-y-4 rounded-lg border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] p-4 md:p-6",
         className
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-neutral-900">Work locations</h3>
-          <p className="mt-0.5 text-sm text-neutral-500">
+          <h3 className="text-base font-semibold text-[var(--ink)]">Work locations</h3>
+          <p className="mt-0.5 text-sm text-[var(--muted)]">
             Assign up to 3 sites. Office is always allowed (200m). Assigned sites also allow punch
             within 200m.
           </p>
@@ -262,8 +262,8 @@ export function AssignLocationCard({
             onClick={() => setActiveSlot(i)}
             className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
               activeSlot === i
-                ? "border-[#5D3EBC] bg-[#F3F0FC] text-[#5D3EBC]"
-                : "border-neutral-200 text-neutral-600"
+                ? "border-[#5D3EBC] bg-[#5D3EBC]/15 text-[#7957FF]"
+                : "border-[var(--line)] text-[var(--muted)]"
             }`}
           >
             Site {i + 1}
@@ -312,18 +312,18 @@ export function AssignLocationCard({
         )}
 
         {isOpen && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-neutral-200 bg-white">
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] shadow-lg">
             {suggestions.map((item, idx) => (
               <button
                 key={`${item.lat}-${item.lng}-${idx}`}
                 type="button"
                 onClick={async () => select(item, await nameForResult(item))}
-                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-neutral-50"
+                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--hover)] text-[var(--ink)]"
               >
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--muted)]" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-neutral-900">{item.name}</p>
-                  <p className="truncate text-xs text-neutral-500">{item.displayName}</p>
+                  <p className="truncate text-sm font-medium text-[var(--ink)]">{item.name}</p>
+                  <p className="truncate text-xs text-[var(--muted)]">{item.displayName}</p>
                 </div>
               </button>
             ))}
