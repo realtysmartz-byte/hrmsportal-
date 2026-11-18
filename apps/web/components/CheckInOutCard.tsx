@@ -224,6 +224,14 @@ export function CheckInOutCard() {
       const lat = fix.lat;
       const lng = fix.lng;
       const isMockLocation = await getNativeMockLocationFlag(fix);
+
+      if (isMockLocation) {
+        setError("Fake GPS / Mock Location detected! Please disable fake GPS or mock location apps in your device settings to clock in/out.");
+        setPhase("idle");
+        setBusy(false);
+        return;
+      }
+
       setPhase("saving");
 
       const payload = {

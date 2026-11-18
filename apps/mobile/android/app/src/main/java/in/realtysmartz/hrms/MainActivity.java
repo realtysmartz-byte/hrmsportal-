@@ -60,10 +60,36 @@ public class MainActivity extends BridgeActivity {
                   this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
               == PackageManager.PERMISSION_GRANTED;
       if (!bgGranted) {
-        ActivityCompat.requestPermissions(
-            this,
-            new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION},
-            BG_LOCATION_PERMISSION_REQUEST);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          try {
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("Background Duty Tracking")
+                .setMessage(
+                    "To ensure your attendance and hourly duty location continue tracking accurately even after closing the app, please select 'Allow all the time' in Location permissions.")
+                .setPositiveButton(
+                    "Settings",
+                    (dialog, which) -> {
+                      try {
+                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                      } catch (Exception ignored) {}
+                    })
+                .setNegativeButton("Later", (dialog, which) -> checkBatteryOptimization())
+                .setCancelable(false)
+                .show();
+          } catch (Exception e) {
+            ActivityCompat.requestPermissions(
+                this,
+                new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                BG_LOCATION_PERMISSION_REQUEST);
+          }
+        } else {
+          ActivityCompat.requestPermissions(
+              this,
+              new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+              BG_LOCATION_PERMISSION_REQUEST);
+        }
       } else {
         checkBatteryOptimization();
       }

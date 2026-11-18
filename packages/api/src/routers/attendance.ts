@@ -610,6 +610,19 @@ export const attendanceRouter = router({
       const employeeId = resolveEmployeeId(ctx);
       enforcePunchRateLimit(employeeId, ctx.ip);
 
+      if (input.isMockLocation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fake GPS / Mock Location detected! Please disable mock location apps in your device settings to clock in.",
+        });
+      }
+      if ((input.lat === 0 && input.lng === 0) || Math.abs(input.lat) > 90 || Math.abs(input.lng) > 180) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid GPS coordinates detected. Please turn on device GPS for an accurate location fix.",
+        });
+      }
+
       const today = startOfDayUTC(new Date());
       const orgId = ctx.session.user.organizationId || "org_default_realty";
       // Parallel independent reads (geofence uses Haversine + cached office)
@@ -833,6 +846,19 @@ export const attendanceRouter = router({
     .mutation(async ({ ctx, input }) => {
       const employeeId = resolveEmployeeId(ctx);
       enforcePunchRateLimit(employeeId, ctx.ip);
+
+      if (input.isMockLocation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fake GPS / Mock Location detected! Please disable mock location apps in your device settings to clock out.",
+        });
+      }
+      if ((input.lat === 0 && input.lng === 0) || Math.abs(input.lat) > 90 || Math.abs(input.lng) > 180) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid GPS coordinates detected. Please turn on device GPS for an accurate location fix.",
+        });
+      }
 
       const today = startOfDayUTC(new Date());
       const existing = await ctx.prisma.attendanceLog.findUnique({

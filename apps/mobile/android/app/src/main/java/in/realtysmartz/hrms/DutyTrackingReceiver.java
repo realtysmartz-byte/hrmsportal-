@@ -289,6 +289,12 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
       return;
     }
 
+    if (DutyTrackingService.isMockFix(loc, context) || (loc.getLatitude() == 0.0 && loc.getLongitude() == 0.0)) {
+      reportLocationDisabled(context, "Fake GPS / Mock Location detected on device during active duty");
+      showMockLocationWarningNotification(context);
+      return;
+    }
+
     try {
       String apiUrl = prefs.getString("api_url", "https://rshrms.in/api/native/location-ping");
       JSONObject body = new JSONObject();
@@ -296,7 +302,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
       body.put("lng", loc.getLongitude());
       body.put("accuracyM", loc.getAccuracy());
       body.put("fixTimestamp", System.currentTimeMillis());
-      body.put("isMockLocation", DutyTrackingService.isMockFix(loc));
+      body.put("isMockLocation", false);
       body.put("address", String.format("%.5f, %.5f", loc.getLatitude(), loc.getLongitude()));
 
       String employeeId = prefs.getString("employee_id", "");
@@ -371,6 +377,45 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     } catch (Exception ignored) {}
   }
 
+  private static void showMockLocationWarningNotification(Context context) {
+    try {
+      NotificationManager nm =
+          (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+      if (nm == null) return;
+      String channelId = "hrms_security_alerts_v1";
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        NotificationChannel channel =
+            new NotificationChannel(
+                channelId, "Duty Security Alerts", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Security warnings like mock location or GPS tampering");
+        channel.setShowBadge(true);
+        channel.enableVibration(true);
+        nm.createNotificationChannel(channel);
+      }
+      Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+      PendingIntent pi =
+          PendingIntent.getActivity(
+              context,
+              4403,
+              launch != null ? launch : new Intent(),
+              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+      Notification notif =
+          new NotificationCompat.Builder(context, channelId)
+              .setContentTitle("⚠️ Fake GPS / Mock Location Detected")
+              .setContentText("Mock location detected. Duty tracking will not accept fake coordinates.")
+              .setStyle(
+                  new NotificationCompat.BigTextStyle()
+                      .bigText(
+                          "Mock location detected. Hourly duty tracking will not accept fake coordinates. Please turn off mock location apps."))
+              .setSmallIcon(R.drawable.ic_stat_notification)
+              .setAutoCancel(true)
+              .setContentIntent(pi)
+              .setPriority(NotificationCompat.PRIORITY_HIGH)
+              .build();
+      nm.notify(4403, notif);
+    } catch (Exception ignored) {}
+  }
+
   private static Location getFreshLocation(Context context) {
     final LocationManager lm = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
     if (lm == null) return null;
@@ -385,9 +430,11 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     long now = System.currentTimeMillis();
     Location gps = null;
     Location net = null;
+    Location passive = null;
     try {
       gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
       net = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+      passive = lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
     } catch (SecurityException ignored) {}
 
     Location best = null;
@@ -398,6 +445,12 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
       if (best == null
           || (net.hasAccuracy() && (!best.hasAccuracy() || net.getAccuracy() < best.getAccuracy()))) {
         best = net;
+      }
+    }
+    if (passive != null && (now - passive.getTime() <= 5 * 60 * 1000L)) {
+      if (best == null
+          || (passive.hasAccuracy() && (!best.hasAccuracy() || passive.getAccuracy() < best.getAccuracy()))) {
+        best = passive;
       }
     }
 
@@ -447,7 +500,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
         });
 
     try {
-      latch.await(15000L, TimeUnit.MILLISECONDS);
+      latch.await(25000L, TimeUnit.MILLISECONDS);
     } catch (InterruptedException ignored) {}
 
     handler.post(

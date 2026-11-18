@@ -313,6 +313,14 @@ export function KekaAttendancePanel({
       const lat = fix.lat;
       const lng = fix.lng;
       const isMockLocation = await getNativeMockLocationFlag(fix);
+
+      if (isMockLocation) {
+        setPunchError("Fake GPS / Mock Location detected! Please disable fake GPS or mock location apps in your device settings to clock in/out.");
+        setPunchPhase("idle");
+        setBusy(false);
+        return;
+      }
+
       setPunchPhase("saving");
       const payload = {
         lat,

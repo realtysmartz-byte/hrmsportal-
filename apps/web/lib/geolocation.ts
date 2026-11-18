@@ -106,10 +106,13 @@ function storeFix(pos: GeolocationPosition) {
 function isUsablePunchFix(fix: StoredFix | null): fix is PunchFix {
   return Boolean(
     fix &&
-      fix.accuracy != null &&
-      Number.isFinite(fix.accuracy) &&
-      fix.accuracy > 0 &&
-      fix.accuracy < 50_000
+    fix.accuracy != null &&
+    Number.isFinite(fix.accuracy) &&
+    fix.accuracy > 0 &&
+      fix.accuracy < 50_000 &&
+    !(fix.lat === 0 && fix.lng === 0) &&
+    Math.abs(fix.lat) <= 90 &&
+    Math.abs(fix.lng) <= 180
   );
 }
 
@@ -134,13 +137,13 @@ function startPrewarmWatch() {
 
   navigator.geolocation.getCurrentPosition(
     storeFix,
-    () => {},
+    () => { },
     { enableHighAccuracy: false, maximumAge: 120_000, timeout: 3_000 }
   );
 
   watchId = navigator.geolocation.watchPosition(
     storeFix,
-    () => {},
+    () => { },
     { enableHighAccuracy: false, maximumAge: 120_000, timeout: 5_000 }
   );
 }
@@ -155,10 +158,10 @@ export function startPunchLocationPrewarm() {
   try {
     navigator.geolocation.getCurrentPosition(
       storeFix,
-      () => {},
+      () => { },
       { enableHighAccuracy: false, maximumAge: 120_000, timeout: 3_000 }
     );
-  } catch {}
+  } catch { }
 
   if (!navigator.permissions?.query) return;
   void navigator.permissions
@@ -178,7 +181,7 @@ export function startPunchLocationPrewarm() {
         startPrewarmWatch();
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function stopPrewarmWatch() {

@@ -158,6 +158,14 @@ public class DutyTrackingPlugin extends Plugin {
   }
 
   @PluginMethod
+  public void isMockActive(PluginCall call) {
+    boolean active = DutyTrackingService.isMockLocationAppActive(getContext());
+    JSObject res = new JSObject();
+    res.put("isMockActive", active);
+    call.resolve(res);
+  }
+
+  @PluginMethod
   public void lastKnownFix(PluginCall call) {
     try {
       android.location.LocationManager lm =
@@ -179,7 +187,7 @@ public class DutyTrackingPlugin extends Plugin {
         result.put("lng", best.getLongitude());
         if (best.hasAccuracy()) result.put("accuracy", best.getAccuracy());
         result.put("timestamp", best.getTime());
-        result.put("isMockLocation", DutyTrackingService.isMockFix(best));
+        result.put("isMockLocation", DutyTrackingService.isMockFix(best, getContext()));
       }
       call.resolve(result);
     } catch (SecurityException e) {

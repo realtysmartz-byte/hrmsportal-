@@ -410,12 +410,18 @@ public class DutyTrackingService extends Service {
         return;
       }
 
+      if (isMockFix(loc, this) || (loc.getLatitude() == 0.0 && loc.getLongitude() == 0.0)) {
+        reportLocationDisabled("Fake GPS / Mock Location detected on device during active duty");
+        showMockLocationWarningNotification();
+        return;
+      }
+
       JSONObject body = new JSONObject();
       body.put("lat", loc.getLatitude());
       body.put("lng", loc.getLongitude());
       body.put("accuracyM", loc.getAccuracy());
       body.put("fixTimestamp", System.currentTimeMillis());
-      body.put("isMockLocation", isMockFix(loc));
+      body.put("isMockLocation", false);
       body.put(
           "address",
           String.format("%.5f, %.5f", loc.getLatitude(), loc.getLongitude()));
@@ -492,12 +498,75 @@ public class DutyTrackingService extends Service {
     }
   }
 
-  static boolean isMockFix(Location loc) {
+  public static boolean isMockFix(Location loc, Context context) {
     if (loc == null) return false;
     if (Build.VERSION.SDK_INT >= 31) {
-      return loc.isMock();
+      if (loc.isMock()) return true;
+    } else if (Build.VERSION.SDK_INT >= 18) {
+      if (loc.isFromMockProvider()) return true;
     }
-    return loc.isFromMockProvider();
+    Bundle extras = loc.getExtras();
+    if (extras != null && extras.getBoolean("mockLocation", false)) {
+      return true;
+    }
+    if (context != null && isMockLocationAppActive(context)) {
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean isMockLocationAppActive(Context context) {
+    if (context == null) return false;
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        android.app.AppOpsManager appOps =
+            (android.app.AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+        if (appOps != null) {
+          int mode = appOps.checkOpNoThrow(
+              android.app.AppOpsManager.OPSTR_MOCK_LOCATION,
+              android.os.Process.myUid(),
+              context.getPackageName());
+          if (mode == android.app.AppOpsManager.MODE_ALLOWED) {
+            return true;
+          }
+        }
+      } else {
+        return !android.provider.Settings.Secure.getString(
+            context.getContentResolver(),
+            android.provider.Settings.Secure.ALLOW_MOCK_LOCATION).equals("0");
+      }
+    } catch (Exception ignored) {}
+    return false;
+  }
+
+  private void showMockLocationWarningNotification() {
+    try {
+      NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+      if (nm == null) return;
+      String channelId = "hrms_security_alerts_v1";
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        NotificationChannel channel = new NotificationChannel(
+            channelId, "Duty Security Alerts", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Security warnings like mock location or GPS tampering");
+        channel.setShowBadge(true);
+        channel.enableVibration(true);
+        nm.createNotificationChannel(channel);
+      }
+      Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+      PendingIntent pi = PendingIntent.getActivity(
+          this, 4403, launch != null ? launch : new Intent(),
+          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+      Notification notif = new NotificationCompat.Builder(this, channelId)
+          .setContentTitle("⚠️ Fake GPS / Mock Location Detected")
+          .setContentText("Mock location detected. Duty tracking will not accept fake coordinates.")
+          .setStyle(new NotificationCompat.BigTextStyle().bigText("Mock location detected. Hourly duty tracking will not accept fake coordinates. Please turn off mock location apps."))
+          .setSmallIcon(R.drawable.ic_stat_notification)
+          .setAutoCancel(true)
+          .setContentIntent(pi)
+          .setPriority(NotificationCompat.PRIORITY_HIGH)
+          .build();
+      nm.notify(4403, notif);
+    } catch (Exception ignored) {}
   }
 
   /** Last known fix if newer than MAX_FIX_AGE_MS. Must not run on the UI thread. */
@@ -513,6 +582,7 @@ public class DutyTrackingService extends Service {
     try {
       Location gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
       Location net = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+      Location passive = lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
       long now = System.currentTimeMillis();
       Location best = isRecentFix(gps, now) ? gps : null;
       if (isRecentFix(net, now)
@@ -520,6 +590,12 @@ public class DutyTrackingService extends Service {
               || (net.hasAccuracy()
                   && (!best.hasAccuracy() || net.getAccuracy() < best.getAccuracy())))) {
         best = net;
+      }
+      if (isRecentFix(passive, now)
+          && (best == null
+              || (passive.hasAccuracy()
+                  && (!best.hasAccuracy() || passive.getAccuracy() < best.getAccuracy())))) {
+        best = passive;
       }
       return best;
     } catch (SecurityException ignored) {
@@ -654,8 +730,8 @@ public class DutyTrackingService extends Service {
         .setContentTitle("RS HRMS Duty Active")
         .setContentText("Location tracking active (every 1 hour)")
         .setSmallIcon(R.drawable.ic_stat_notification)
-        .setOngoing(false)
-        .setAutoCancel(true)
+        .setOngoing(true)
+        .setAutoCancel(false)
         .setOnlyAlertOnce(true)
         .setContentIntent(pi)
         .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -714,9 +790,27 @@ public class DutyTrackingService extends Service {
   @Override
   public void onTaskRemoved(Intent rootIntent) {
     super.onTaskRemoved(rootIntent);
-    // When employee swipes the app away from recent apps, ensure alarm is still intact
+    // When employee swipes the app away from recent apps, ensure alarm and service stay intact
     if (running && isWithinDutyHours()) {
       scheduleNextAlarm(intervalMs);
+      try {
+        Intent restartIntent = new Intent(getApplicationContext(), DutyTrackingReceiver.class);
+        restartIntent.setAction(ACTION_ALARM_TICK);
+        PendingIntent pi = PendingIntent.getBroadcast(
+            getApplicationContext(),
+            ALARM_REQUEST_CODE,
+            restartIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (am != null) {
+          long triggerAt = SystemClock.elapsedRealtime() + 2000L;
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi);
+          } else {
+            am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi);
+          }
+        }
+      } catch (Exception ignored) {}
     }
   }
 

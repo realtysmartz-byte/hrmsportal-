@@ -16,6 +16,7 @@ interface DutyTrackingPlugin {
     body?: string;
   }): Promise<{ stopped: boolean }>;
   showNotification(options: { title: string; body: string }): Promise<{ shown?: boolean }>;
+  isMockActive(): Promise<{ isMockActive?: boolean }>;
   lastKnownFix(): Promise<{
     lat?: number;
     lng?: number;
@@ -36,6 +37,9 @@ const DutyTracking = registerPlugin<DutyTrackingPlugin>("DutyTracking", {
     async showNotification() {
       return {};
     },
+    async isMockActive() {
+      return { isMockActive: false };
+    },
     async lastKnownFix() {
       return {};
     },
@@ -54,82 +58,72 @@ export function isNativeAndroidApp() {
 export async function getNativeMockLocationFlag(referenceFix: StoredFix): Promise<boolean> {
   if (!isNativeAndroidApp()) return false;
   try {
+    const mockCheck = await DutyTracking.isMockActive();
+    if (mockCheck?.isMockActive) {
+      return true;
+    }
     const fix = await DutyTracking.lastKnownFix();
-    if (
-      fix.lat == null ||
-      fix.lng == null ||
-      fix.timestamp == null ||
-      Date.now() - fix.timestamp < 0 ||
-      Date.now() - fix.timestamp > 2 * 60_000 ||
-      Math.abs(referenceFix.timestamp - fix.timestamp) > 2 * 60_000
-    ) {
+      if (fix?.isMockLocation) {
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn("[duty-tracking] could not read native fix:", err);
       return false;
     }
-    const distM = haversineDistanceM(
-      referenceFix.lat,
-      referenceFix.lng,
-      fix.lat,
-      fix.lng
-    );
-    if (distM > 100) return false;
-    return Boolean(fix.isMockLocation);
-  } catch (err) {
-    console.warn("[duty-tracking] could not read native fix:", err);
-    return false;
   }
-}
 
 /** Start Android background location tracking (every 1 hour while on duty). */
 export async function startNativeDutyTracking(options?: { title?: string; body?: string }) {
-  if (!isNativeAndroidApp()) return;
-  try {
-    let employeeId = "";
-    let dutyToken = "";
+    if (!isNativeAndroidApp()) return;
     try {
-      const res = await fetch("/api/native/duty-token");
-      if (res.ok) {
-        const data = await res.json();
-        employeeId = data.employeeId || "";
-        dutyToken = data.token || "";
-      }
-    } catch {}
+      let employeeId = "";
+      let dutyToken = "";
+      try {
+        const res = await fetch("/api/native/duty-token");
+        if (res.ok) {
+          const data = await res.json();
+          employeeId = data.employeeId || "";
+          dutyToken = data.token || "";
+        }
+      } catch { }
 
-    await DutyTracking.start({
-      intervalMs: DEFAULT_INTERVAL_MS,
-      apiUrl: `${window.location.origin}/api/native/location-ping`,
-      employeeId,
-      dutyToken,
-      title: options?.title,
-      body: options?.body,
-    });
-    nativeTrackingStarted = true;
-  } catch (err) {
-    console.error("[duty-tracking] start failed:", err);
+      await DutyTracking.start({
+        intervalMs: DEFAULT_INTERVAL_MS,
+        apiUrl: `${window.location.origin}/api/native/location-ping`,
+        employeeId,
+        dutyToken,
+        title: options?.title,
+        body: options?.body,
+      });
+      nativeTrackingStarted = true;
+    } catch (err) {
+      console.error("[duty-tracking] start failed:", err);
+    }
   }
-}
 
-/** Stop Android background location tracking (on clock-out). */
-export async function stopNativeDutyTracking(options?: { title?: string; body?: string }) {
-  if (!isNativeAndroidApp()) return;
-  nativeTrackingStarted = false;
-  try {
-    await DutyTracking.stop({
-      title: options?.title,
-      body: options?.body,
-    });
-  } catch (err) {
-    console.error("[duty-tracking] stop failed:", err);
+  /** Stop Android background location tracking (on clock-out). */
+  export async function stopNativeDutyTracking(options?: { title?: string; body?: string }) {
+    if (!isNativeAndroidApp()) return;
+    nativeTrackingStarted = false;
+    try {
+      await DutyTracking.stop({
+        title: options?.title,
+        body: options?.body,
+      });
+    } catch (err) {
+      console.error("[duty-tracking] stop failed:", err);
+    }
   }
-}
 
-/** Trigger native notification if on Android app */
-export async function showNativeNotification(title: string, body: string): Promise<boolean> {
-  if (!isNativeAndroidApp()) return false;
-  try {
-    const res = await DutyTracking.showNotification({ title, body });
-    return Boolean(res.shown);
-  } catch (err) {
-    console.warn("[duty-tracking] native notification error:", err);
-    return false;
+  /** Trigger native notification if on Android app */
+  export async function showNativeNotification(title: string, body: string): Promise<boolean> {
+    if (!isNativeAndroidApp()) return false;
+    try {
+      const res = await DutyTracking.showNotification({ title, body });
+      return Boolean(res.shown);
+    } catch (err) {
+      console.warn("[duty-tracking] native notification error:", err);
+      return false;
+    }
   }
-}

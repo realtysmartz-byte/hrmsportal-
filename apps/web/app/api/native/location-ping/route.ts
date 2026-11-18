@@ -79,6 +79,13 @@ export async function POST(req: Request) {
   }
   const fix = parsed.data;
 
+  if (fix.isMockLocation || (fix.lat === 0 && fix.lng === 0)) {
+    return NextResponse.json(
+      { error: "Fake GPS / Mock coordinates detected and rejected.", isMock: true },
+      { status: 400 }
+    );
+  }
+
   const ip = clientIp(req);
   const employeeHit = assertRateLimit(`native-location:emp:${employeeId}`, 15, 60_000);
   const ipHit = assertRateLimit(`native-location:ip:${ip}`, 30, 60_000);
