@@ -194,10 +194,14 @@ function layout(args: {
 }) {
   const buttonColor = args.actionButton?.color || "#2563EB";
   const buttonHtml = args.actionButton
-    ? `< table border = "0" cellspacing = "0" cellpadding = "0" style = "margin:22px 0 8px 0;" > <tr><td style="background-color:${buttonColor};border-radius:4px;" >
-    <a href="${args.actionButton.url}" target = "_blank" rel = "noopener noreferrer" style = "display:inline-block;padding:10px 22px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:13px;font-family:${FONT};border-radius:4px;" > ${ escapeHtml(args.actionButton.text) } </a>
-      < /td></tr > </table>`
-    : "";
+      ? `<table border="0" cellspacing="0" cellpadding="0" style="margin:22px 0 8px 0;">
+        <tr>
+          <td style="background-color:${buttonColor};border-radius:4px;">
+            <a href="${args.actionButton.url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 22px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:13px;font-family:${FONT};border-radius:4px;">${escapeHtml(args.actionButton.text)}</a>
+          </td>
+        </tr>
+      </table>`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
