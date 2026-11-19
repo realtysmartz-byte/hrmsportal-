@@ -12,6 +12,7 @@ import {
   Users,
   Navigation,
   ShieldCheck,
+  ShieldAlert,
   Building,
   CheckCircle2,
   AlertCircle,
@@ -539,7 +540,9 @@ export default function LocationTracingPage() {
                                   />
                                 </div>
                                 <p className="text-[10px] text-neutral-400 truncate max-w-[200px]" title={ping.address || ""}>
-                                  {ping.address || `${ping.lat.toFixed(4)}, ${ping.lng.toFixed(4)}`}
+                                  {ping.lat === 0 && ping.lng === 0
+                                    ? "Location Switched OFF (null)"
+                                    : ping.address || `${ping.lat.toFixed(4)}, ${ping.lng.toFixed(4)}`}
                                 </p>
                               </div>
                             ) : (
@@ -822,22 +825,29 @@ export default function LocationTracingPage() {
 
                           <TableCell>
                             <span className="tabular-nums text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
-                              {ping.lat.toFixed(5)}, {ping.lng.toFixed(5)}
+                              {ping.lat === 0 && ping.lng === 0 ? "null" : `${ping.lat.toFixed(5)}, ${ping.lng.toFixed(5)}`}
                             </span>
                           </TableCell>
 
                           <TableCell>
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
-                                ping.withinGeofence
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
-                              )}
-                            >
-                              <ShieldCheck className="h-3 w-3" />
-                              {ping.withinGeofence ? "Workplace Location" : "Outside Workplace"}
-                            </span>
+                            {ping.lat === 0 && ping.lng === 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border bg-rose-50 text-rose-700 border-rose-200">
+                                <ShieldAlert className="h-3 w-3" />
+                                Location Switched OFF
+                              </span>
+                            ) : (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                                  ping.withinGeofence
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                                )}
+                              >
+                                <ShieldCheck className="h-3 w-3" />
+                                {ping.withinGeofence ? "Workplace Location" : "Outside Workplace"}
+                              </span>
+                            )}
                           </TableCell>
 
                           <TableCell className="text-right whitespace-nowrap">
@@ -845,6 +855,7 @@ export default function LocationTracingPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                disabled={ping.lat === 0 && ping.lng === 0}
                                 onClick={() =>
                                   setActiveMapPing({
                                     lat: ping.lat,
@@ -911,25 +922,35 @@ export default function LocationTracingPage() {
                       </div>
 
                       <p className="text-xs text-neutral-700 line-clamp-2">
-                        {ping.address || "Location coordinate recorded"}
+                        {ping.lat === 0 && ping.lng === 0
+                          ? "Location Switched OFF (null coordinates)"
+                          : ping.address || "Location coordinate recorded"}
                       </p>
 
                       <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
-                            ping.withinGeofence
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          )}
-                        >
-                          {ping.withinGeofence ? "Workplace" : "Outside"}
-                        </span>
+                        {ping.lat === 0 && ping.lng === 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border bg-rose-50 text-rose-700 border-rose-200">
+                            <ShieldAlert className="h-3 w-3" />
+                            Location Switched OFF
+                          </span>
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                              ping.withinGeofence
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            )}
+                          >
+                            {ping.withinGeofence ? "Workplace" : "Outside"}
+                          </span>
+                        )}
 
                         <div className="flex items-center gap-1.5">
                           <Button
                             variant="outline"
                             size="sm"
+                            disabled={ping.lat === 0 && ping.lng === 0}
                             onClick={() =>
                               setActiveMapPing({
                                 lat: ping.lat,

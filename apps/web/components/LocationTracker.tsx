@@ -11,6 +11,7 @@ import {
   isNativeAndroidApp,
   startNativeDutyTracking,
   stopNativeDutyTracking,
+  syncNativeDutySession,
 } from "@/lib/native-duty-tracking";
 import { cn } from "@/lib/utils";
 
@@ -35,10 +36,16 @@ function writeLastPingAt(at: number) {
 }
 
 export function LocationTracker() {
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const pathname = usePathname();
   const isPingPage = pathname === "/location-ping";
   const onEmployeeRoute = pathname?.startsWith("/employee-portal") ?? false;
+
+  useEffect(() => {
+    if (authStatus === "authenticated" && session?.user) {
+      void syncNativeDutySession(session.user.id, session.user.email ?? undefined);
+    }
+  }, [authStatus, session?.user]);
 
   // Share cache with CheckInOutCard — no extra polling from tracker
   const { data: todayAttendance } = trpc.attendance.today.useQuery(undefined, {
@@ -172,7 +179,10 @@ export function LocationTracker() {
     }
 
     if (nativeApp) {
-      void startNativeDutyTracking();
+      void startNativeDutyTracking({
+        employeeId: session?.user?.id,
+        employeeEmail: session?.user?.email ?? undefined,
+      });
     }
 
     // Web browser: never ping just because the page opened.

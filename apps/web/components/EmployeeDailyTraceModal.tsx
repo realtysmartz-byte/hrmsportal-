@@ -209,8 +209,8 @@ export function EmployeeDailyTraceModal({
                   {log?.checkOutTime
                     ? new Date(log.checkOutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                     : log?.checkInTime
-                    ? "Currently Active"
-                    : "—"}
+                      ? "Currently Active"
+                      : "—"}
                 </span>
               </div>
 
@@ -315,17 +315,27 @@ export function EmployeeDailyTraceModal({
                       {activeEvent.address || "Location recorded by mobile GPS"}
                     </p>
                     <div className="flex items-center justify-between text-[11px] text-[var(--muted)] pt-1">
-                      <span>
-                        Coords: {activeEvent.lat.toFixed(6)}, {activeEvent.lng.toFixed(6)}
-                      </span>
-                      <a
-                        href={`https://www.google.com/maps?q=${activeEvent.lat},${activeEvent.lng}&z=17`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#7957FF] font-semibold hover:underline flex items-center gap-1"
-                      >
-                        Open Exact Pin <ExternalLink className="h-3 w-3" />
-                      </a>
+                      {activeEvent.lat === 0 && activeEvent.lng === 0 ? (
+                        <span className="text-rose-500 font-semibold">
+                          Coords: null (Location Switched OFF)
+                        </span>
+                      ) : (
+                        <span>
+                          Coords: {activeEvent.lat.toFixed(6)}, {activeEvent.lng.toFixed(6)}
+                        </span>
+                      )}
+                      {activeEvent.lat !== 0 || activeEvent.lng !== 0 ? (
+                        <a
+                          href={`https://www.google.com/maps?q=${activeEvent.lat},${activeEvent.lng}&z=17`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#7957FF] font-semibold hover:underline flex items-center gap-1"
+                        >
+                          Open Exact Pin <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="text-neutral-400 italic">No GPS coordinates</span>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -402,27 +412,49 @@ export function EmployeeDailyTraceModal({
                             <span
                               className={cn(
                                 "h-2 w-2 rounded-full",
-                                event.withinGeofence ? "bg-emerald-500" : "bg-amber-500"
+                                event.lat === 0 && event.lng === 0
+                                  ? "bg-rose-500"
+                                  : event.withinGeofence
+                                    ? "bg-emerald-500"
+                                    : "bg-amber-500"
                               )}
-                              title={event.withinGeofence ? "Workplace Location" : "Outside Workplace"}
+                              title={
+                                event.lat === 0 && event.lng === 0
+                                  ? "Location Switched OFF"
+                                  : event.withinGeofence
+                                    ? "Workplace Location"
+                                    : "Outside Workplace"
+                              }
                             />
                           </div>
 
                           <p className="text-neutral-700 text-[11px] line-clamp-1 font-medium">
-                            {event.address || `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`}
+                            {event.lat === 0 && event.lng === 0
+                              ? "Location Switched OFF / Disabled"
+                              : event.address || `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`}
                           </p>
 
                           <div className="flex items-center justify-between text-[10px] text-neutral-500 pt-0.5">
                             <span className="tabular-nums font-mono font-semibold text-neutral-600">
-                              {event.lat.toFixed(5)}, {event.lng.toFixed(5)}
+                              {event.lat === 0 && event.lng === 0
+                                ? "Coords: null"
+                                : `${event.lat.toFixed(5)}, ${event.lng.toFixed(5)}`}
                             </span>
                             <span
                               className={cn(
                                 "font-medium",
-                                event.withinGeofence ? "text-emerald-600" : "text-amber-600"
+                                event.lat === 0 && event.lng === 0
+                                  ? "text-rose-600 font-bold"
+                                  : event.withinGeofence
+                                    ? "text-emerald-600"
+                                    : "text-amber-600"
                               )}
                             >
-                              {event.withinGeofence ? "Workplace" : "Outside"}
+                              {event.lat === 0 && event.lng === 0
+                                ? "Location OFF"
+                                : event.withinGeofence
+                                  ? "Workplace"
+                                  : "Outside"}
                             </span>
                           </div>
                         </div>

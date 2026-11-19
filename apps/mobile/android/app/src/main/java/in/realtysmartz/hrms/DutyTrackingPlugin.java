@@ -111,11 +111,15 @@ public class DutyTrackingPlugin extends Plugin {
       }
       String employeeId = call.getString("employeeId", "");
       String dutyToken = call.getString("dutyToken", "");
+      String employeeEmail = call.getString("employeeEmail", "");
       if (employeeId != null && !employeeId.isEmpty()) {
         editor.putString("employee_id", employeeId);
       }
       if (dutyToken != null && !dutyToken.isEmpty()) {
         editor.putString("duty_token", dutyToken);
+      }
+      if (employeeEmail != null && !employeeEmail.isEmpty()) {
+        editor.putString("employee_email", employeeEmail);
       }
       editor.putBoolean("is_running", true);
       editor.putLong("interval_ms", intervalMs);
@@ -153,6 +157,33 @@ public class DutyTrackingPlugin extends Plugin {
     JSObject result = new JSObject();
     result.put("started", true);
     call.resolve(result);
+  }
+
+  @PluginMethod
+  public void syncSession(PluginCall call) {
+    try {
+      String employeeId = call.getString("employeeId", "");
+      String employeeEmail = call.getString("employeeEmail", "");
+      String dutyToken = call.getString("dutyToken", "");
+      android.content.SharedPreferences prefs =
+          getContext().getSharedPreferences("duty_tracking", android.content.Context.MODE_PRIVATE);
+      android.content.SharedPreferences.Editor editor = prefs.edit();
+      if (employeeId != null && !employeeId.isEmpty()) {
+        editor.putString("employee_id", employeeId);
+      }
+      if (employeeEmail != null && !employeeEmail.isEmpty()) {
+        editor.putString("employee_email", employeeEmail);
+      }
+      if (dutyToken != null && !dutyToken.isEmpty()) {
+        editor.putString("duty_token", dutyToken);
+      }
+      editor.apply();
+      JSObject res = new JSObject();
+      res.put("synced", true);
+      call.resolve(res);
+    } catch (Exception e) {
+      call.reject(e.getMessage());
+    }
   }
 
   @PluginMethod

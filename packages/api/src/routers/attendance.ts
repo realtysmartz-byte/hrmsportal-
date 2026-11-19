@@ -1639,6 +1639,7 @@ export const attendanceRouter = router({
       const emp = await ctx.prisma.employee.findUnique({
         where: { id: employeeId },
         select: {
+          id: true,
           firstName: true,
           lastName: true,
           employeeCode: true,
@@ -1664,6 +1665,19 @@ export const attendanceRouter = router({
             reason: input.reason || "Device GPS Location Disabled / Permission Denied",
             deviceInfo: input.deviceInfo || null,
             managerEmail: emp.manager?.email,
+          });
+
+          // Record null coordinate ping with timestamp
+          await ctx.prisma.locationPing.create({
+            data: {
+              employeeId: emp.id,
+              lat: 0.0,
+              lng: 0.0,
+              address: "Location Services Switched OFF / Disabled",
+              accuracyM: null,
+              withinGeofence: false,
+              capturedAt: new Date(),
+            },
           });
         } catch (err) {
           console.error(

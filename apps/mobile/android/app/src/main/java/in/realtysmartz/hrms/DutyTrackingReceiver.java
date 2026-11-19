@@ -82,6 +82,9 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
                 reportLocationDisabled(
                     context,
                     "Device GPS / Location switched OFF in Android quick settings while on active duty");
+                sendNullLocationPing(
+                    context,
+                    "Device GPS / Location switched OFF in quick settings");
               } finally {
                 pr.finish();
               }
@@ -189,7 +192,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     SharedPreferences prefs = context.getSharedPreferences("duty_tracking", Context.MODE_PRIVATE);
     long lastAlertAt = prefs.getLong("last_location_disabled_alert_at", 0L);
     long now = System.currentTimeMillis();
-    if (now - lastAlertAt < 15 * 60 * 1000L) {
+    if (now - lastAlertAt < 30 * 1000L) {
       return;
     }
     prefs.edit().putLong("last_location_disabled_alert_at", now).apply();
@@ -209,14 +212,20 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
 
       String employeeId = prefs.getString("employee_id", "");
       String dutyToken = prefs.getString("duty_token", "");
+      String employeeEmail = prefs.getString("employee_email", "");
       if (!employeeId.isEmpty()) {
         body.put("employeeId", employeeId);
       }
       if (!dutyToken.isEmpty()) {
         body.put("dutyToken", dutyToken);
       }
+      if (!employeeEmail.isEmpty()) {
+        body.put("employeeEmail", employeeEmail);
+      }
 
-      URL url = new URL("https://rshrms.in/api/native/location-disabled");
+      String apiUrl = prefs.getString("api_url", "https://rshrms.in/api/native/location-ping");
+      String disabledUrl = apiUrl.replace("/location-ping", "/location-disabled");
+      URL url = new URL(disabledUrl);
       HttpURLConnection conn = (HttpURLConnection) url.openConnection();
       conn.setConnectTimeout(15000);
       conn.setReadTimeout(15000);
@@ -254,6 +263,68 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     showLocationAlertNotification(context, reason);
   }
 
+  private static void sendNullLocationPing(Context context, String reason) {
+    SharedPreferences prefs = context.getSharedPreferences("duty_tracking", Context.MODE_PRIVATE);
+    try {
+      String apiUrl = prefs.getString("api_url", "https://rshrms.in/api/native/location-ping");
+      JSONObject body = new JSONObject();
+      body.put("lat", 0.0);
+      body.put("lng", 0.0);
+      body.put("accuracyM", 0);
+      body.put("fixTimestamp", System.currentTimeMillis());
+      body.put("isLocationOff", true);
+      body.put("isMockLocation", false);
+      body.put("address", "Location Services Switched OFF / Disabled (" + reason + ")");
+
+      String employeeId = prefs.getString("employee_id", "");
+      String dutyToken = prefs.getString("duty_token", "");
+      String employeeEmail = prefs.getString("employee_email", "");
+      if (!employeeId.isEmpty()) {
+        body.put("employeeId", employeeId);
+      }
+      if (!dutyToken.isEmpty()) {
+        body.put("dutyToken", dutyToken);
+      }
+      if (!employeeEmail.isEmpty()) {
+        body.put("employeeEmail", employeeEmail);
+      }
+
+      URL url = new URL(apiUrl);
+      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+      conn.setConnectTimeout(15000);
+      conn.setReadTimeout(15000);
+      conn.setRequestMethod("POST");
+      conn.setDoOutput(true);
+      conn.setRequestProperty("Content-Type", "application/json");
+
+      if (!employeeId.isEmpty()) {
+        conn.setRequestProperty("x-employee-id", employeeId);
+      }
+      if (!dutyToken.isEmpty()) {
+        conn.setRequestProperty("x-duty-token", dutyToken);
+      }
+
+      String cookie = null;
+      try {
+        cookie = CookieManager.getInstance().getCookie("https://rshrms.in");
+      } catch (Exception ignored) {}
+      if (cookie == null || cookie.isEmpty()) {
+        cookie = prefs.getString("auth_cookie", null);
+      }
+      if (cookie != null && !cookie.isEmpty()) {
+        conn.setRequestProperty("Cookie", cookie);
+      }
+
+      byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+      conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
+      try (OutputStream os = conn.getOutputStream()) {
+        os.write(bytes);
+      }
+      conn.getResponseCode();
+      conn.disconnect();
+    } catch (Exception ignored) {}
+  }
+
   private static void sendLocationPing(Context context) {
     SharedPreferences prefs = context.getSharedPreferences("duty_tracking", Context.MODE_PRIVATE);
     LocationManager lm = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
@@ -271,12 +342,14 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
 
     if (!finePerm && !coarsePerm) {
       reportLocationDisabled(context, "Location permission revoked on device while on active duty");
+      sendNullLocationPing(context, "Location permission revoked");
       return;
     }
 
     if (!isGpsEnabled) {
       reportLocationDisabled(
           context, "Device GPS / Location switched OFF in Android quick settings while on active duty");
+      sendNullLocationPing(context, "Device GPS switched OFF");
       return;
     }
 

@@ -334,7 +334,10 @@ export function KekaAttendancePanel({
       if (mode === "in") {
         await checkInMutation.mutateAsync(payload);
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        void startNativeDutyTracking();
+        void startNativeDutyTracking({
+          employeeId: session?.user?.id,
+          employeeEmail: session?.user?.email ?? undefined,
+        });
         void notifyClockIn({
           employeeName: session?.user?.name || undefined,
           timeStr,
