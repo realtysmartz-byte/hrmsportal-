@@ -18,6 +18,8 @@ const locationPingBodySchema = z
     fixTimestamp: z.coerce.date(),
     isMockLocation: z.boolean().optional(),
     isLocationOff: z.boolean().optional(),
+    isAppClose: z.boolean().optional(),
+    force: z.boolean().optional(),
     employeeId: z.string().optional(),
     employeeEmail: z.string().optional(),
     dutyToken: z.string().optional(),
@@ -32,10 +34,10 @@ const locationPingBodySchema = z
         message: "Location fix timestamp cannot be in the future",
         path: ["fixTimestamp"],
       });
-    } else if (now - timestamp > 15 * 60_000) {
+    } else if (now - timestamp > 24 * 60 * 60_000) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Location fix is older than 15 minutes",
+        message: "Location fix is older than 24 hours",
         path: ["fixTimestamp"],
       });
     }
@@ -184,10 +186,12 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    if (!todayLog?.checkInTime || todayLog.checkOutTime) {
-      return NextResponse.json({ error: "Not on duty", stopTracking: true }, { status: 400 });
+    const isExplicitEvent = Boolean(fix.isAppClose || fix.force);
+
+    if (!isExplicitEvent && (!todayLog?.checkInTime || todayLog.checkOutTime)) {
+      return NextResponse.json({ ok: true, offDuty: true, stopTracking: false }, { status: 200 });
     }
-    if (recent) {
+    if (!isExplicitEvent && recent) {
       return NextResponse.json({ ok: true, skipped: true });
     }
 
@@ -200,6 +204,9 @@ export async function POST(req: Request) {
     }
     if (!address) {
       address = geo.matched?.name ?? `${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
+    }
+    if (fix.isAppClose) {
+      address = `${address} · App closed / swiped from recents`;
     }
     if (fix.isMockLocation) {
       address = `${address} · review:mock-gps`;
@@ -217,5 +224,5 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, skipped: false });
+    return NextResponse.json({ ok: true, skipped: false, isAppClose: Boolean(fix.isAppClose) });
   }

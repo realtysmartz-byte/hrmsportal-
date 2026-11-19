@@ -147,11 +147,17 @@ public class DutyTrackingPlugin extends Plugin {
       showDeviceNotification(title != null ? title : "✨ Clocked In Successfully!", body);
     }
 
-    // Stop DutyTrackingService if it was ever running as foreground service to ensure no permanent notification
+    // Start DutyTrackingService as background sticky foreground service
     try {
       Intent intent = new Intent(getContext(), DutyTrackingService.class);
-      intent.setAction(DutyTrackingService.ACTION_STOP);
-      getContext().stopService(intent);
+      intent.setAction(DutyTrackingService.ACTION_START);
+      intent.putExtra(DutyTrackingService.EXTRA_INTERVAL_MS, intervalMs);
+      intent.putExtra(DutyTrackingService.EXTRA_API_URL, apiUrl);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        getContext().startForegroundService(intent);
+      } else {
+        getContext().startService(intent);
+      }
     } catch (Exception ignored) {}
 
     JSObject result = new JSObject();
@@ -178,6 +184,19 @@ public class DutyTrackingPlugin extends Plugin {
         editor.putString("duty_token", dutyToken);
       }
       editor.apply();
+
+      if (prefs.getBoolean("is_running", false)) {
+        try {
+          Intent intent = new Intent(getContext(), DutyTrackingService.class);
+          intent.setAction(DutyTrackingService.ACTION_START);
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getContext().startForegroundService(intent);
+          } else {
+            getContext().startService(intent);
+          }
+        } catch (Exception ignored) {}
+      }
+
       JSObject res = new JSObject();
       res.put("synced", true);
       call.resolve(res);

@@ -117,6 +117,15 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
           }
           try {
             sendLocationPing(context);
+            try {
+              Intent serviceIntent = new Intent(context, DutyTrackingService.class);
+              serviceIntent.setAction(DutyTrackingService.ACTION_START);
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+              } else {
+                context.startService(serviceIntent);
+              }
+            } catch (Exception ignored) {}
           } finally {
             if (wakeLock != null && wakeLock.isHeld()) {
               wakeLock.release();
@@ -188,7 +197,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     }
   }
 
-  private static void reportLocationDisabled(Context context, String reason) {
+  public static void reportLocationDisabled(Context context, String reason) {
     SharedPreferences prefs = context.getSharedPreferences("duty_tracking", Context.MODE_PRIVATE);
     long lastAlertAt = prefs.getLong("last_location_disabled_alert_at", 0L);
     long now = System.currentTimeMillis();
@@ -263,7 +272,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     showLocationAlertNotification(context, reason);
   }
 
-  private static void sendNullLocationPing(Context context, String reason) {
+  public static void sendNullLocationPing(Context context, String reason) {
     SharedPreferences prefs = context.getSharedPreferences("duty_tracking", Context.MODE_PRIVATE);
     try {
       String apiUrl = prefs.getString("api_url", "https://rshrms.in/api/native/location-ping");
@@ -507,23 +516,15 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     } catch (SecurityException ignored) {}
 
     Location best = null;
-    if (gps != null && (now - gps.getTime() <= 5 * 60 * 1000L)) {
-      best = gps;
+    if (gps != null) best = gps;
+    if (net != null) {
+      if (best == null || (net.getTime() > best.getTime())) best = net;
     }
-    if (net != null && (now - net.getTime() <= 5 * 60 * 1000L)) {
-      if (best == null
-          || (net.hasAccuracy() && (!best.hasAccuracy() || net.getAccuracy() < best.getAccuracy()))) {
-        best = net;
-      }
-    }
-    if (passive != null && (now - passive.getTime() <= 5 * 60 * 1000L)) {
-      if (best == null
-          || (passive.hasAccuracy() && (!best.hasAccuracy() || passive.getAccuracy() < best.getAccuracy()))) {
-        best = passive;
-      }
+    if (passive != null) {
+      if (best == null || (passive.getTime() > best.getTime())) best = passive;
     }
 
-    if (best != null && best.hasAccuracy() && best.getAccuracy() <= 100) {
+    if (best != null && (now - best.getTime() < 2 * 60 * 1000L) && best.hasAccuracy() && best.getAccuracy() <= 80) {
       return best;
     }
 

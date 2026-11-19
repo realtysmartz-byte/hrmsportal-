@@ -119,6 +119,24 @@ public class MainActivity extends BridgeActivity {
   }
 
   @Override
+  public void onResume() {
+    super.onResume();
+    try {
+      android.content.SharedPreferences prefs =
+          getSharedPreferences("duty_tracking", Context.MODE_PRIVATE);
+      if (prefs.getBoolean("is_running", false)) {
+        Intent intent = new Intent(this, DutyTrackingService.class);
+        intent.setAction(DutyTrackingService.ACTION_START);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          startForegroundService(intent);
+        } else {
+          startService(intent);
+        }
+      }
+    } catch (Exception ignored) {}
+  }
+
+  @Override
   public void onRequestPermissionsResult(
       int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults);

@@ -13,6 +13,7 @@ import {
 import { orgManageProcedure, protectedProcedure, router } from "../trpc";
 import { getHolidaysForOrg } from "./holiday";
 import { sendEmployeePushNotification } from "../lib/push-notify";
+import { sendMail } from "../lib/email";
 
 /**
  * Calculates real-time 10% Discipline (Attendance & Punctuality) Score
@@ -914,6 +915,28 @@ export const targetRouter = router({
         url: "/employee-portal/performance",
         type: "target",
       });
+
+      if (employee?.email) {
+        void sendMail({
+          to: employee.email,
+          subject: `🎯 New Performance Targets Assigned: ${target.title || "Target Sheet"}`,
+          text: `Dear ${employee.firstName || "Employee"},\n\nA new performance target sheet has been assigned to you for ${target.month}/${target.year}.\n\nTarget Deliverables:\n- Visits: ${target.targetVisits}\n- Bookings: ${target.targetBookings}\n- Gross Revenue: ₹${target.targetRevenue?.toLocaleString("en-IN") || 0}\n\nPlease review your targets on the employee portal:\nhttps://rshrms.in/employee-portal/performance\n\nRegards,\nHR & Operations Team`,
+          html: `<div style="font-family: sans-serif; color: #111; line-height: 1.6; max-width: 600px;">
+            <h2 style="color: #2B2FD1;">🎯 New Performance Targets Assigned</h2>
+            <p>Dear <strong>${employee.firstName || ""} ${employee.lastName || ""}</strong>,</p>
+            <p>Management has assigned you a new performance target scorecard for <strong>${target.month}/${target.year}</strong>.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Target Title</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${target.title}</td></tr>
+              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Target Visits</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${target.targetVisits}</td></tr>
+              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Target Bookings</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${target.targetBookings}</td></tr>
+              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Revenue Target</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">₹${target.targetRevenue?.toLocaleString("en-IN") || 0}</td></tr>
+              <tr><td style="padding: 10px; font-weight: bold;">Discipline (10%)</td><td style="padding: 10px;">Tracked automatically via punctuality & attendance</td></tr>
+            </table>
+            <p><a href="https://rshrms.in/employee-portal/performance" style="display: inline-block; background: #2B2FD1; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Open Performance Portal</a></p>
+            <p style="font-size: 12px; color: #64748b; margin-top: 24px;">Realty Smartz HRMS • Real-Time Performance & Attendance Management</p>
+          </div>`,
+        });
+      }
 
       return target;
     }),
