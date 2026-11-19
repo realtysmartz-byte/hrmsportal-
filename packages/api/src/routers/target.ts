@@ -12,6 +12,7 @@ import {
 } from "@realty-smartz/shared";
 import { orgManageProcedure, protectedProcedure, router } from "../trpc";
 import { getHolidaysForOrg } from "./holiday";
+import { sendEmployeePushNotification } from "../lib/push-notify";
 
 /**
  * Calculates real-time 10% Discipline (Attendance & Punctuality) Score
@@ -905,6 +906,15 @@ export const targetRouter = router({
         );
       }
 
+      void sendEmployeePushNotification({
+        prisma: ctx.prisma,
+        employeeId: input.employeeId,
+        title: "🎯 New Targets Assigned",
+        body: `Your performance milestones for ${target.month}/${target.year} have been assigned.`,
+        url: "/employee-portal/performance",
+        type: "target",
+      });
+
       return target;
     }),
 
@@ -1308,6 +1318,15 @@ export const targetRouter = router({
           });
         }
 
+        void sendEmployeePushNotification({
+          prisma: ctx.prisma,
+          employeeId: activity.target.employeeId,
+          title: "✅ Activity Submission Approved",
+          body: `Your submission for "${activity.activityType.replace(/_/g, " ")}" has been approved.`,
+          url: "/employee-portal/performance",
+          type: "target",
+        });
+
         return { success: true, status: "APPROVED", activity: updated };
       } else {
         // Reject
@@ -1319,6 +1338,15 @@ export const targetRouter = router({
             verifiedAt: new Date(),
             rejectionReason: input.rejectionReason || "Verification rejected by manager",
           },
+        });
+
+        void sendEmployeePushNotification({
+          prisma: ctx.prisma,
+          employeeId: activity.target.employeeId,
+          title: "❌ Activity Submission Rejected",
+          body: `Your submission for "${activity.activityType.replace(/_/g, " ")}" was rejected: ${input.rejectionReason || "Verification rejected by manager"}`,
+          url: "/employee-portal/performance",
+          type: "target",
         });
 
         return { success: true, status: "REJECTED", activity: updated };

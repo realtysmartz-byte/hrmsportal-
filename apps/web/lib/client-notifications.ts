@@ -5,6 +5,7 @@ export interface PushNotificationOptions {
   body: string;
   icon?: string;
   tag?: string;
+  url?: string;
 }
 
 /**

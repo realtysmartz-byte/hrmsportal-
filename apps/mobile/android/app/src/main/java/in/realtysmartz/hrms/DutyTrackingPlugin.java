@@ -126,7 +126,15 @@ public class DutyTrackingPlugin extends Plugin {
       }
       editor.apply();
 
+      // Schedule exact RTC alarm that wakes device hourly even if app is swiped from recents
       DutyTrackingReceiver.scheduleNextAlarm(getContext(), intervalMs);
+
+      // Cancel any ongoing/persistent duty notification (ID: 4401)
+      NotificationManager nm =
+          (NotificationManager) getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+      if (nm != null) {
+        nm.cancel(4401);
+      }
     } catch (Exception ignored) {}
 
     String title = call.getString("title", null);
@@ -135,22 +143,12 @@ public class DutyTrackingPlugin extends Plugin {
       showDeviceNotification(title != null ? title : "✨ Clocked In Successfully!", body);
     }
 
-    Intent intent = new Intent(getContext(), DutyTrackingService.class);
-    intent.setAction(DutyTrackingService.ACTION_START);
-    intent.putExtra(DutyTrackingService.EXTRA_INTERVAL_MS, intervalMs);
-    intent.putExtra(DutyTrackingService.EXTRA_API_URL, apiUrl);
-
+    // Stop DutyTrackingService if it was ever running as foreground service to ensure no permanent notification
     try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        getContext().startForegroundService(intent);
-      } else {
-        getContext().startService(intent);
-      }
-    } catch (Exception e) {
-      try {
-        getContext().startService(intent);
-      } catch (Exception ignored) {}
-    }
+      Intent intent = new Intent(getContext(), DutyTrackingService.class);
+      intent.setAction(DutyTrackingService.ACTION_STOP);
+      getContext().stopService(intent);
+    } catch (Exception ignored) {}
 
     JSObject result = new JSObject();
     result.put("started", true);
@@ -202,6 +200,13 @@ public class DutyTrackingPlugin extends Plugin {
           getContext().getSharedPreferences("duty_tracking", android.content.Context.MODE_PRIVATE);
       prefs.edit().putBoolean("is_running", false).apply();
       DutyTrackingReceiver.cancelAlarm(getContext());
+
+      // Cancel any duty notification (ID: 4401)
+      NotificationManager nm =
+          (NotificationManager) getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+      if (nm != null) {
+        nm.cancel(4401);
+      }
     } catch (Exception ignored) {}
 
     String title = call.getString("title", null);
@@ -213,7 +218,7 @@ public class DutyTrackingPlugin extends Plugin {
     Intent intent = new Intent(getContext(), DutyTrackingService.class);
     intent.setAction(DutyTrackingService.ACTION_STOP);
     try {
-      getContext().startService(intent);
+      getContext().stopService(intent);
     } catch (Exception ignored) {}
 
     JSObject result = new JSObject();

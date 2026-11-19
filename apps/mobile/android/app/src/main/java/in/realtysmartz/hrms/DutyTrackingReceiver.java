@@ -94,18 +94,14 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
     long intervalMs = prefs.getLong("interval_ms", 60 * 60 * 1000L);
     scheduleNextAlarm(context, intervalMs);
 
-    // Keep foreground service alive if system allows
+    // Ensure any leftover ongoing notification (ID 4401) is canceled
     try {
-      Intent serviceIntent = new Intent(context, DutyTrackingService.class);
-      serviceIntent.setAction(DutyTrackingService.ACTION_ALARM_TICK);
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        ContextCompat.startForegroundService(context, serviceIntent);
-      } else {
-        context.startService(serviceIntent);
+      NotificationManager nm =
+          (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+      if (nm != null) {
+        nm.cancel(NOTIFICATION_ID);
       }
-    } catch (Exception ignored) {
-      // Swiped from recents; handled directly below
-    }
+    } catch (Exception ignored) {}
 
     final PendingResult pendingResult = goAsync();
     executor.execute(
@@ -350,7 +346,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
       int code = conn.getResponseCode();
       if (code >= 200 && code < 300) {
         prefs.edit().putLong("last_ping_at", System.currentTimeMillis()).apply();
-        updateDutyNotification(context, System.currentTimeMillis());
+        // Silent success: location ping recorded in DB without permanent/hourly notification
       } else if (code == 400) {
         try {
           InputStream es = conn.getErrorStream();
@@ -514,51 +510,7 @@ public class DutyTrackingReceiver extends BroadcastReceiver {
   }
 
   private static void updateDutyNotification(Context context, long pingTime) {
-    try {
-      NotificationManager nm =
-          (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-      if (nm == null) return;
-      String channelId = "hrms_hourly_pings_v6";
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        NotificationChannel channel =
-            new NotificationChannel(
-                channelId, "Hourly Location Alerts", NotificationManager.IMPORTANCE_DEFAULT);
-        channel.setDescription("Hourly verified location tracking push alerts");
-        channel.setShowBadge(true);
-        channel.enableVibration(true);
-        nm.createNotificationChannel(channel);
-      }
-
-      Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-      PendingIntent pi =
-          PendingIntent.getActivity(
-              context,
-              (int) System.currentTimeMillis(),
-              launch != null ? launch : new Intent(),
-              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-      java.text.SimpleDateFormat sdf =
-          new java.text.SimpleDateFormat("hh:mm a", java.util.Locale.US);
-      sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
-      String timeStr = sdf.format(new java.util.Date(pingTime));
-
-      Notification notification =
-          new NotificationCompat.Builder(context, channelId)
-              .setContentTitle("📍 Hourly Location Recorded")
-              .setContentText("Location verified at " + timeStr + " IST. Duty tracking active.")
-              .setStyle(
-                  new NotificationCompat.BigTextStyle()
-                      .bigText("Location verified at " + timeStr + " IST. Next automatic sync scheduled in 1 hour."))
-              .setSmallIcon(R.drawable.ic_stat_notification)
-              .setOngoing(false)
-              .setAutoCancel(true)
-              .setContentIntent(pi)
-              .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-              .setCategory(NotificationCompat.CATEGORY_STATUS)
-              .build();
-
-      nm.notify(NOTIFICATION_ID, notification);
-    } catch (Exception ignored) {}
+    // Duty location pings run silently in the background without status bar notifications
   }
 
   private static void showLocationAlertNotification(Context context, String reason) {

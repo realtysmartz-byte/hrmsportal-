@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { sendDevicePushNotification } from "@/lib/client-notifications";
 
 function formatRelativeTime(dateInput: Date | string | null | undefined): string {
   if (!dateInput) return "";
@@ -64,6 +65,21 @@ export function EmployeeNotificationBell() {
 
   const unreadCount = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
+  const prevUnreadRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (prevUnreadRef.current !== null && unreadCount > prevUnreadRef.current) {
+      const latest = items[0];
+      if (latest) {
+        void sendDevicePushNotification({
+          title: latest.title || "HRMS Notification",
+          body: latest.subtitle || "",
+          url: latest.href,
+        });
+      }
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, items]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator) {

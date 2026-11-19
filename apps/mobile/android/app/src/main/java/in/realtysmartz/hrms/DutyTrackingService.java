@@ -88,51 +88,25 @@ public class DutyTrackingService extends Service {
   @Override
   public void onCreate() {
     super.onCreate();
-    createChannel();
-    restoreState();
+    NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    if (nm != null) {
+      nm.cancel(NOTIFICATION_ID);
+    }
   }
 
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
-    if (intent == null) {
-      if (running) {
-        startForegroundNotification();
-        scheduleNextAlarm(intervalMs);
-      }
-      return START_STICKY;
+    NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    if (nm != null) {
+      nm.cancel(NOTIFICATION_ID);
     }
-
-    String action = intent.getAction();
-    if (ACTION_STOP.equals(action)) {
-      stopTracking();
-      return START_NOT_STICKY;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      stopForeground(Service.STOP_FOREGROUND_REMOVE);
+    } else {
+      stopForeground(true);
     }
-
-    if (ACTION_START.equals(action)) {
-      long requested = intent.getLongExtra(EXTRA_INTERVAL_MS, MIN_INTERVAL_MS);
-      intervalMs = Math.max(MIN_INTERVAL_MS, requested);
-      String url = intent.getStringExtra(EXTRA_API_URL);
-      if (url != null && url.length() > 0) {
-        apiUrl = url;
-      }
-      saveState();
-      startTracking();
-      return START_STICKY;
-    }
-
-    if (ACTION_ALARM_TICK.equals(action)) {
-      if (!isWithinDutyHours()) {
-        stopTracking();
-        return START_NOT_STICKY;
-      }
-      if (running) {
-        startForegroundNotification();
-        performWakefulPing();
-      }
-      return START_STICKY;
-    }
-
-    return START_STICKY;
+    stopSelf();
+    return START_NOT_STICKY;
   }
 
   private void restoreState() {
