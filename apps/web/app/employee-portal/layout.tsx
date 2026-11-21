@@ -4,6 +4,7 @@ import { EmployeeTopNav } from "@/components/EmployeeTopNav";
 import { EmployeePortalFooter } from "@/components/EmployeePortalFooter";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { EmployeePolicyAgreementModal } from "@/components/EmployeePolicyAgreementModal";
+import { SupportChatbot } from "@/components/SupportChatbot";
 import { authOptions } from "@/lib/auth";
 import { canAccessAdminPortal } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
@@ -41,6 +42,7 @@ export default async function EmployeePortalLayout({
           {children}
           <EmployeePortalFooter />
         </main>
+        <SupportChatbot />
       </div>
       );
 }

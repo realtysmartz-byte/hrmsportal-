@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { hrAdminProcedure, router } from "../trpc";
+import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import {
   autoFetchTelegramChatId,
   getTelegramConfig,
@@ -258,4 +258,140 @@ export const telegramRouter = router({
       delivered,
     };
   }),
+
+  /**
+   * Dispatches an employee support issue ticket directly to Telegram.
+   * No database table storage needed.
+   */
+  sendSupportTicket: protectedProcedure
+    .input(
+      z.object({
+        issueCategory: z.string().min(1, "Please select an issue category"),
+        issueDetails: z.string().max(2000).optional(),
+        deviceInfo: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+
+      // 1. Fetch current employee's information
+      const employee = await ctx.prisma.employee.findUnique({
+        where: { id: ctx.session.user.id },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          email: true,
+          phone: true,
+          companyName: true,
+          department: { select: { name: true } },
+          designation: { select: { title: true } },
+        },
+      });
+
+      // 2. Locate active Telegram bot credentials (ATTENDANCE_LEAVE preferred, or any configured bot)
+      let config = await ctx.prisma.telegramAutomationConfig.findFirst({
+        where: {
+          organizationId: orgId,
+          channelType: "ATTENDANCE_LEAVE",
+          enabled: true,
+          NOT: [{ botToken: null }, { botToken: "" }, { chatId: null }, { chatId: "" }],
+        },
+      });
+
+        if (!config) {
+          config = await ctx.prisma.telegramAutomationConfig.findFirst({
+            where: {
+              enabled: true,
+              NOT: [{ botToken: null }, { botToken: "" }, { chatId: null }, { chatId: "" }],
+            },
+          });
+        }
+
+        if (!config) {
+          config = await ctx.prisma.telegramAutomationConfig.findFirst({
+            where: {
+              NOT: [{ botToken: null }, { botToken: "" }, { chatId: null }, { chatId: "" }],
+            },
+          });
+        }
+
+        const botToken = config?.botToken || process.env.TELEGRAM_BOT_TOKEN;
+        const chatId = config?.chatId || process.env.TELEGRAM_CHAT_ID;
+
+        if (!botToken || !chatId) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Support channel is currently unavailable. Please contact administration directly.",
+          });
+        }
+
+        // 3. Format message in clean, readable HTML for Telegram
+        const nowIST = new Date().toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+        const empName = employee
+          ? `${employee.firstName} ${employee.lastName || ""}`.trim()
+          : ctx.session.user.name || "Employee";
+        const empCode = employee?.employeeCode || "N/A";
+        const empDept = employee?.department?.name || "N/A";
+        const empDesig = employee?.designation?.title || "N/A";
+        const empPhone = employee?.phone || "N/A";
+        const empEmail = employee?.email || ctx.session.user.email || "N/A";
+
+        const escapeHtml = (str: string) =>
+          str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        const safeCategory = escapeHtml(input.issueCategory);
+        const safeDetails = input.issueDetails?.trim()
+          ? escapeHtml(input.issueDetails.trim())
+          : "<i>No additional notes provided</i>";
+        const safeDevice = input.deviceInfo ? escapeHtml(input.deviceInfo) : "Web / Mobile App";
+
+        const html = [
+          `🚨 <b>HRMS Employee Support Ticket</b>`,
+          `━━━━━━━━━━━━━━━━━━━━━━`,
+          `👤 <b>Employee:</b> ${escapeHtml(empName)} (<code>${escapeHtml(empCode)}</code>)`,
+          `🏢 <b>Department:</b> ${escapeHtml(empDept)}`,
+          `💼 <b>Designation:</b> ${escapeHtml(empDesig)}`,
+          `📞 <b>Contact:</b> ${escapeHtml(empPhone)} | ✉️ <code>${escapeHtml(empEmail)}</code>`,
+          ``,
+          `⚠️ <b>Reported Issue:</b>`,
+          `👉 <b>${safeCategory}</b>`,
+          ``,
+          `📝 <b>Notes / Description:</b>`,
+          `${safeDetails}`,
+          ``,
+          `📱 <b>Device Info:</b> <code>${safeDevice}</code>`,
+          `🕒 <b>Reported At:</b> ${nowIST} IST`,
+          `━━━━━━━━━━━━━━━━━━━━━━`,
+        ].join("\n");
+
+        // 4. Send directly to Telegram channel (no database storage)
+        const res = await sendRawTelegramMessage(botToken, chatId, html);
+
+        if (!res.ok) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Unable to submit your support request at this moment. Please try again.",
+          });
+        }
+
+        return {
+          success: true,
+          chatTitle: config?.chatTitle || "Support Channel",
+          sentAt: nowIST,
+        };
+      }),
 });

@@ -84,6 +84,7 @@ export { ensureAutoPunchOut } from "./lib/attendance-auto";
 export { assertRateLimit } from "./lib/rate-limit";
 export {
   sendTelegramNotification,
+  sendRawTelegramMessage,
   formatPunchTelegramMessage,
   formatLeaveTelegramMessage,
   formatBirthdayTelegramMessage,

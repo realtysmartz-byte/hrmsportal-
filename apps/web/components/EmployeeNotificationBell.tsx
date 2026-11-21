@@ -152,8 +152,13 @@ export function EmployeeNotificationBell() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Notifications"
         title="Notifications"
+        style={{
+          backgroundColor: isOpen ? "var(--soft)" : "var(--card)",
+          borderColor: "var(--line)",
+          color: "var(--ink)",
+        }}
         className={cn(
-          "relative flex h-8 w-8 items-center justify-center rounded-[4px] border border-[var(--line)] bg-[var(--card)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors cursor-pointer",
+          "relative flex h-8 w-8 items-center justify-center rounded-[4px] border bg-[var(--card)] text-[var(--ink)] hover:bg-[var(--soft)] transition-colors cursor-pointer",
           isOpen && "bg-[var(--soft)]"
         )}
       >
@@ -256,7 +261,7 @@ export function EmployeeNotificationBell() {
                     {item.badgeText && (
                       <span
                         className={cn(
-                                "mt-1.5 inline-block text-[9px] font-bold px-2 py-0.5 rounded-[2px] border",
+                          "mt-1.5 inline-block text-[9px] font-bold px-2 py-0.5 rounded-[2px] border",
                           getNotificationBadgeClass(item.badgeText, item.badgeColor)
                         )}
                       >

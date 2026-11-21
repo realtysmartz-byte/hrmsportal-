@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   /* Step 1: Global Design Tokens (Light Mode) */
   --bg: #FFFFFF;
   --card: #FFFFFF;
@@ -39,38 +39,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --bg: #0B0C0F;
-      --card: #121419;
-      --side: #101217;
-      --ink: #F2F3F5;
-      --muted: #8A8F98;
-      --line: #212430;
-      --field: #0D0F13;
-      --soft: #171A21;
-      --hover: #181B22;
-      --active: #1D2030;
-      --accent: #7B7FF7;
-      --accent-ink: #0B0C0F;
-      --ok: #2FD08A;
-      --warn: #F0A93B;
-      --danger: #F0505F;
-      --info: #5BA8DB;
-
-      --background: var(--bg);
-      --foreground: var(--ink);
-      --primary: var(--accent);
-      --primary-foreground: var(--accent-ink);
-      --border: var(--line);
-      --input: var(--line);
-      --ring: var(--accent);
-    }
-  }
-
-  :root[data-theme="dark"],
-  [data-theme="dark"],
-  .dark {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #0B0C0F;
     --card: #121419;
@@ -97,218 +66,249 @@
     --input: var(--line);
     --ring: var(--accent);
   }
+}
 
-  @layer base {
-    * {
-      border-color: var(--line);
-    }
+:root[data-theme="dark"],
+[data-theme="dark"],
+.dark {
+  color-scheme: dark;
+  --bg: #0B0C0F;
+  --card: #121419;
+  --side: #101217;
+  --ink: #F2F3F5;
+  --muted: #8A8F98;
+  --line: #212430;
+  --field: #0D0F13;
+  --soft: #171A21;
+  --hover: #181B22;
+  --active: #1D2030;
+  --accent: #7B7FF7;
+  --accent-ink: #0B0C0F;
+  --ok: #2FD08A;
+  --warn: #F0A93B;
+  --danger: #F0505F;
+  --info: #5BA8DB;
 
-    html {
-      -webkit-text-size-adjust: 100%;
-      scroll-behavior: smooth;
-      overflow-x: clip;
-      font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
 
-    body {
-      background-color: var(--bg);
-      color: var(--ink);
-      font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 0.9375rem;
-      line-height: 1.5rem;
-      min-height: 100vh;
-      min-height: 100dvh;
-      overflow-x: clip;
-      -webkit-overflow-scrolling: touch;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-      font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      letter-spacing: -0.02em;
-      color: var(--ink);
-    }
-
-    a,
-    button,
-    input,
-    select,
-    textarea {
-      transition: color 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-
-    /* Global focus visible: 2px solid var(--accent) outline, offset 2px */
-    :focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
+@layer base {
+  * {
+    border-color: var(--line);
   }
 
-  /* Primary chamfer button */
-  .btn-chamfer {
-    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    overflow-x: clip;
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
-  /* Status chips helpers */
-  .chip-ok {
-    background-color: color-mix(in srgb, var(--ok) 14%, transparent);
-    color: var(--ok);
-    border-radius: 2px;
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.5rem;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+    -webkit-overflow-scrolling: touch;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  .chip-active {
-    background-color: color-mix(in srgb, var(--ok) 16%, transparent);
-    color: var(--ok);
-    border-radius: 2px;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: -0.02em;
+    color: var(--ink);
   }
 
-  .chip-warn {
-    background-color: color-mix(in srgb, var(--warn) 14%, transparent);
-    color: var(--warn);
-    border-radius: 2px;
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    transition: color 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .chip-danger {
-    background-color: color-mix(in srgb, var(--danger) 14%, transparent);
-    color: var(--danger);
-    border-radius: 2px;
+  /* Global focus visible: 2px solid var(--accent) outline, offset 2px */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Primary chamfer button */
+.btn-chamfer {
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+
+/* Status chips helpers */
+.chip-ok {
+  background-color: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok);
+  border-radius: 2px;
+}
+
+.chip-active {
+  background-color: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+  border-radius: 2px;
+}
+
+.chip-warn {
+  background-color: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  border-radius: 2px;
+}
+
+.chip-danger {
+  background-color: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  border-radius: 2px;
+}
+
+.chip-info {
+  background-color: color-mix(in srgb, var(--info) 14%, transparent);
+  color: var(--info);
+  border-radius: 2px;
+}
+
+/* Browser autofill must not turn fields white or yellow */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ink) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--field) inset !important;
+  box-shadow: 0 0 0px 1000px var(--field) inset !important;
+  caret-color: var(--ink) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* PWA safe area utilities */
+.safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@layer components {
+  .page-header {
+    @apply mb-6 flex flex-wrap items-start justify-between gap-4 md:mb-8;
   }
 
-  .chip-info {
-    background-color: color-mix(in srgb, var(--info) 14%, transparent);
-    color: var(--info);
-    border-radius: 2px;
+  .page-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
   }
 
-  /* Browser autofill must not turn fields white or yellow */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active,
-  textarea:-webkit-autofill,
-  textarea:-webkit-autofill:hover,
-  textarea:-webkit-autofill:focus,
-  textarea:-webkit-autofill:active,
-  select:-webkit-autofill,
-  select:-webkit-autofill:hover,
-  select:-webkit-autofill:focus,
-  select:-webkit-autofill:active {
-    -webkit-text-fill-color: var(--ink) !important;
-    -webkit-box-shadow: 0 0 0px 1000px var(--field) inset !important;
-    box-shadow: 0 0 0px 1000px var(--field) inset !important;
-    caret-color: var(--ink) !important;
-    transition: background-color 5000s ease-in-out 0s;
+  .page-subtitle {
+    @apply mt-0.5 text-xs sm:text-sm;
+    color: var(--muted);
   }
 
-  /* PWA safe area utilities */
-  .safe-top {
-    padding-top: max(0.5rem, env(safe-area-inset-top));
+  .card-table-wrapper {
+    background-color: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
   }
+}
 
-  .safe-bottom {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+/* Reference styles for HRMS Mobile Home & Drawer */
+@keyframes run {
+  to {
+    transform: translateX(-50%);
   }
+}
 
-  @layer components {
-    .page-header {
-      @apply mb-6 flex flex-wrap items-start justify-between gap-4 md:mb-8;
-    }
+.animate-run {
+  display: flex;
+  width: max-content;
+  animation: run 26s linear infinite;
+}
 
-    .page-title {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--ink);
-    }
+.animate-run-header {
+  display: flex;
+  width: max-content;
+  animation: run 22s linear infinite;
+}
 
-    .page-subtitle {
-      @apply mt-0.5 text-xs sm:text-sm;
-      color: var(--muted);
-    }
+.animate-run-birthdays {
+  display: flex;
+  width: max-content;
+  animation: run 24s linear infinite;
+}
 
-    .card-table-wrapper {
-      background-color: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-  }
+.animate-run:hover,
+.animate-run:active,
+.animate-run-header:hover,
+.animate-run-header:active,
+.animate-run-birthdays:hover,
+.animate-run-birthdays:active {
+  animation-play-state: paused;
+}
 
-  /* Reference styles for HRMS Mobile Home & Drawer */
-  @keyframes run {
-    to {
-      transform: translateX(-50%);
-    }
-  }
+@media (prefers-reduced-motion: reduce) {
 
-  .animate-run {
-    display: flex;
-    width: max-content;
-    animation: run 26s linear infinite;
-  }
-
-  .animate-run-header {
-    display: flex;
-    width: max-content;
-    animation: run 22s linear infinite;
-  }
-
+  .animate-run,
+  .animate-run-header,
   .animate-run-birthdays {
-    display: flex;
-    width: max-content;
-    animation: run 24s linear infinite;
+    animation: none;
   }
+}
 
-  .animate-run:hover,
-  .animate-run:active,
-  .animate-run-header:hover,
-  .animate-run-header:active,
-  .animate-run-birthdays:hover,
-  .animate-run-birthdays:active {
-    animation-play-state: paused;
-  }
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
 
-  @media (prefers-reduced-motion: reduce) {
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
 
-    .animate-run,
-    .animate-run-header,
-    .animate-run-birthdays {
-      animation: none;
-    }
-  }
+/* Native APK Android Status Bar Safe Spacing */
+html.is-native-app .employee-top-nav-header,
+html.is-native-app header.employee-top-nav-header {
+  padding-top: 30px !important;
+  height: calc(4rem + 30px) !important;
+  align-items: flex-end !important;
+  padding-bottom: 12px !important;
+}
 
-  .scrollbar-none::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-  }
+html.is-native-app aside[role="dialog"] {
+  padding-top: 30px !important;
+}
 
-  .scrollbar-none {
-    -ms-overflow-style: none !important;
-    scrollbar-width: none !important;
-  }
-
-  /* Native APK Android Status Bar Safe Spacing */
-  html.is-native-app .employee-top-nav-header,
-  html.is-native-app header.employee-top-nav-header {
-    padding-top: 30px !important;
-    height: calc(4rem + 30px) !important;
-    align-items: flex-end !important;
-    padding-bottom: 12px !important;
-  }
-
-  html.is-native-app aside[role="dialog"] {
-    padding-top: 30px !important;
-  }
-
-  html.is-native-app .notification-dropdown-panel {
-    top: calc(4rem + 30px + 6px) !important;
-  }
+html.is-native-app .notification-dropdown-panel {
+  top: calc(4rem + 30px + 6px) !important;
+}

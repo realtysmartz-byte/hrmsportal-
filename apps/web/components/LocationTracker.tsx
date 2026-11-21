@@ -232,7 +232,7 @@ export function LocationTracker() {
     <div
       className={cn(
         "pointer-events-none fixed right-3 z-30 flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--card)] px-3.5 py-1.5 text-[13px] font-[600] text-[var(--ink)] shadow-xs transition-all md:bottom-4 md:right-4",
-        "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
+        "bottom-[calc(6.25rem+env(safe-area-inset-bottom,0px))]"
       )}
 
       style={{

@@ -87,229 +87,234 @@ export default function EmployeeLeavePage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-[var(--ink)]">Leave</h1>
-          <Button
-            size="sm"
-            onClick={() => setShowForm((v) => !v)}
-            className="bg-[var(--accent)] text-[var(--accent-ink)] btn-chamfer font-semibold px-4 hover:opacity-90 transition-opacity"
-          >
-            {showForm ? "Close" : "Apply"}
-          </Button>
+        <h1 className="text-lg font-bold text-[var(--ink)]">Leave</h1>
+        <Button
+          size="sm"
+          onClick={() => setShowForm((v) => !v)}
+          className="bg-[var(--accent)] text-[var(--accent-ink)] btn-chamfer font-semibold px-4 hover:opacity-90 transition-opacity"
+        >
+          {showForm ? "Close" : "Apply"}
+        </Button>
       </div>
 
       {/* Probation Period Banner */}
       {probationStatus?.isUnderProbation && (
-            <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-4 text-xs text-[var(--ink)] space-y-1.5 shadow-xs">
-              <div className="flex items-center gap-2 font-bold text-[var(--warn)]">
-                <span className="flex h-2 w-2 rounded-full bg-[var(--warn)] animate-pulse" />
-                <span>Probation Period Active ({probationStatus.probationMonths} Months)</span>
-              </div>
-                <p className="text-[11px] text-[var(--muted)] leading-relaxed">
-                  You are currently in your probation period (active until{' '}
-                    <strong className="text-[var(--ink)]">
-                      {probationStatus.probationEndDate
-                        ? new Date(probationStatus.probationEndDate).toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                        : "completion"}
-                    </strong>
-                    ). Per corporate policy, employees under probation are strictly limited to{' '}
-                    <strong className="underline text-[var(--ink)]">Unpaid Leave (Loss of Pay)</strong>. Paid leave quotas will become available once your probation concludes.
-                </p>
-            </div>
+        <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-4 text-xs text-[var(--ink)] space-y-1.5 shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-[var(--warn)]">
+            <span className="flex h-2 w-2 rounded-full bg-[var(--warn)] animate-pulse" />
+            <span>Probation Period Active ({probationStatus.probationMonths} Months)</span>
+          </div>
+          <p className="text-[11px] text-[var(--muted)] leading-relaxed">
+            You are currently in your probation period (active until{' '}
+            <strong className="text-[var(--ink)]">
+              {probationStatus.probationEndDate
+                ? new Date(probationStatus.probationEndDate).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+                : "completion"}
+            </strong>
+            ). Per corporate policy, employees under probation are strictly limited to{' '}
+            <strong className="underline text-[var(--ink)]">Unpaid Leave (Loss of Pay)</strong>. Paid leave quotas will become available once your probation concludes.
+          </p>
+        </div>
       )}
 
-              <div className="flex gap-2.5 overflow-x-auto pb-1">
-                {balances?.map((b) => {
-                  const isNegative = (b.remaining ?? 0) < 0;
-                  return (
-                    <div
-                      key={b.id}
-                      className="min-w-[130px] shrink-0 rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-3.5"
-                    >
-                      <p className="text-[12px] font-[600] text-[var(--muted)]">{b.leaveType.name}</p>
-                      <p
-                        className={cn(
-                          "text-[30px] font-[700] leading-tight my-1",
-                          isNegative ? "text-[var(--danger)]" : "text-[var(--ink)]"
-                        )}
-                      >
-                        {b.remaining}
-                      </p>
-                      <p className="text-[12px] text-[var(--muted)]">
-                        of {b.allotted}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {showForm && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Apply leave</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={onSubmit} className="space-y-3">
-                      <div className="space-y-1">
-                        <Label>Type</Label>
-                        <Select
-                          value={leaveTypeId}
-                          onChange={(e) => setLeaveTypeId(e.target.value)}
-                          required
-                        >
-                          <option value="">Select</option>
-                          {(types ?? []).map((t) => {
-                            const bal = balances?.find((b) => b.leaveTypeId === t.id);
-                            return (
-                              <option key={t.id} value={t.id}>
-                                {t.name}
-                                {bal != null ? ` (${bal.remaining} left)` : ""}
-                              </option>
-                            );
-                          })}
-                        </Select>
-                      </div>
-                        <label className="flex items-center gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--field)] px-3 py-2 text-sm text-[var(--ink)]">
-                          <input
-                            type="checkbox"
-                            checked={isHalfDay}
-                            onChange={(e) => {
-                              setIsHalfDay(e.target.checked);
-                              if (e.target.checked) setEndDate(startDate);
-                            }}
-                          />
-                          <span className="font-medium">Half Day</span>
-                        </label>
-                        {isHalfDay && (
-                          <div className="grid grid-cols-2 gap-2">
-                            {(Object.keys(HALF_DAY_SLOT_LABELS) as HalfDaySlot[]).map((slot) => (
-                              <button
-                                key={slot}
-                                type="button"
-                                onClick={() => setHalfDaySlot(slot)}
-                                className={
-                                  halfDaySlot === slot
-                                      ? "rounded-[4px] border border-[var(--accent)] bg-[var(--active)] px-2 py-2 text-xs font-semibold text-[var(--accent)]"
-                                      : "rounded-[4px] border border-[var(--line)] bg-[var(--field)] px-2 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
-                                }
-                              >
-                                {HALF_DAY_SLOT_LABELS[slot]}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <div className={isHalfDay ? "space-y-1" : "grid grid-cols-2 gap-2"}>
-                          <div className="space-y-1">
-                            <Label>{isHalfDay ? "Date" : "From"}</Label>
-                            <Input
-                              type="date"
-                              value={startDate}
-                              onChange={(e) => {
-                                setStartDate(e.target.value);
-                                if (isHalfDay) setEndDate(e.target.value);
-                              }}
-                              required
-                            />
-                          </div>
-                          {!isHalfDay && (
-                            <div className="space-y-1">
-                              <Label>To</Label>
-                              <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                required
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Working days: {isHalfDay && days ? "0.5" : days || "—"}
-                        </p>
-                        <div className="space-y-1">
-                          <Label>Reason</Label>
-                          <Textarea
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            required
-                          />
-                        </div>
-                        {error && <p className="text-sm text-brand-maroon">{error}</p>}
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={applyMutation.isLoading}
-                        >
-                          Submit
-                        </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              )}
-
-                            <div className="space-y-3">
-                              <h2 className="text-sm font-semibold text-[var(--ink)]">My requests</h2>
-                              {requests?.map((r) => {
-                                const statusSentence = r.status.charAt(0).toUpperCase() + r.status.slice(1).toLowerCase();
-                                const isApproved = r.status === "APPROVED";
-                                const isPending = r.status === "PENDING";
-                                const isRejected = r.status === "REJECTED";
-
-                                return (
-                                  <div key={r.id} className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-3.5 text-sm">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div>
-                                        <p className="text-[15px] font-[600] text-[var(--ink)]">{r.leaveType.name}</p>
-                                        <p className="text-[13px] text-[var(--muted)] mt-0.5">
-                                          {r.isHalfDay
-                                            ? `${formatDate(r.startDate)} · ${halfDayLabel(r.halfDaySlot)}`
-                                            : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
-                                        </p>
-                                      </div>
-                                      <div className="text-right shrink-0">
-                                        <span
-                                          className={cn(
-                                            "inline-block px-2.5 py-0.5 text-xs font-semibold rounded-[2px]",
-                                            isApproved && "chip-ok",
-                                            isPending && "chip-warn",
-                                            isRejected && "chip-danger",
-                                            !isApproved && !isPending && !isRejected && "bg-[var(--soft)] text-[var(--muted)]"
-                                          )}
-                                        >
-                                          {statusSentence}
-                                        </span>
-                                        {(r as any).managerStatus === "APPROVED" && r.status === "PENDING" && (
-                                          <span className="block text-[10px] font-semibold text-[var(--ok)] mt-1">
-                                            ✓ Manager Approved (Waiting for HR)
-                                          </span>
-                                        )}
-                                        {(r as any).managerStatus === "PENDING" && (r as any).manager && (
-                                          <span className="block text-[10px] font-semibold text-[var(--warn)] mt-1">
-                                            • Waiting for Manager ({(r as any).manager.firstName})
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {r.status === "PENDING" && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="mt-2.5 border-[var(--line)] text-[var(--ink)] hover:bg-[var(--soft)]"
-                                        onClick={() => cancelMutation.mutate({ id: r.id })}
-                                      >
-                                        Cancel
-                                      </Button>
-                                    )}
-                                  </div>
-                            );
+      <div className="flex gap-2.5 overflow-x-auto pb-1">
+        {balances?.map((b) => {
+          const isNegative = (b.remaining ?? 0) < 0;
+          return (
+            <div
+              key={b.id}
+              style={{ backgroundColor: "var(--card)", borderColor: "var(--line)", color: "var(--ink)" }}
+              className="min-w-[130px] shrink-0 rounded-[4px] border bg-[var(--card)] p-3.5"
+            >
+              <p className="text-[12px] font-[600] text-[var(--muted)]">{b.leaveType.name}</p>
+              <p
+                className={cn(
+                  "text-[30px] font-[700] leading-tight my-1",
+                  isNegative ? "text-[var(--danger)]" : "text-[var(--ink)]"
+                )}
+              >
+                {b.remaining}
+              </p>
+              <p className="text-[12px] text-[var(--muted)]">
+                of {b.allotted}
+              </p>
+            </div>
+          );
         })}
-                            {!requests?.length && (
-          <p className="text-sm text-[var(--muted)]">No leave requests yet.</p>
-                            )}
-                          </div>
+      </div>
+
+      {showForm && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Apply leave</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <Label>Type</Label>
+                <Select
+                  value={leaveTypeId}
+                  onChange={(e) => setLeaveTypeId(e.target.value)}
+                  required
+                >
+                  <option value="">Select</option>
+                  {(types ?? []).map((t) => {
+                    const bal = balances?.find((b) => b.leaveTypeId === t.id);
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {bal != null ? ` (${bal.remaining} left)` : ""}
+                      </option>
+                    );
+                  })}
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--field)] px-3 py-2 text-sm text-[var(--ink)]">
+                <input
+                  type="checkbox"
+                  checked={isHalfDay}
+                  onChange={(e) => {
+                    setIsHalfDay(e.target.checked);
+                    if (e.target.checked) setEndDate(startDate);
+                  }}
+                />
+                <span className="font-medium">Half Day</span>
+              </label>
+              {isHalfDay && (
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(HALF_DAY_SLOT_LABELS) as HalfDaySlot[]).map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setHalfDaySlot(slot)}
+                      className={
+                        halfDaySlot === slot
+                          ? "rounded-[4px] border border-[var(--accent)] bg-[var(--active)] px-2 py-2 text-xs font-semibold text-[var(--accent)]"
+                          : "rounded-[4px] border border-[var(--line)] bg-[var(--field)] px-2 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+                      }
+                    >
+                      {HALF_DAY_SLOT_LABELS[slot]}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className={isHalfDay ? "space-y-1" : "grid grid-cols-2 gap-2"}>
+                <div className="space-y-1">
+                  <Label>{isHalfDay ? "Date" : "From"}</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      if (isHalfDay) setEndDate(e.target.value);
+                    }}
+                    required
+                  />
+                </div>
+                {!isHalfDay && (
+                  <div className="space-y-1">
+                    <Label>To</Label>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Working days: {isHalfDay && days ? "0.5" : days || "—"}
+              </p>
+              <div className="space-y-1">
+                <Label>Reason</Label>
+                <Textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  required
+                />
+              </div>
+              {error && <p className="text-sm text-brand-maroon">{error}</p>}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={applyMutation.isLoading}
+              >
+                Submit
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-[var(--ink)]">My requests</h2>
+        {requests?.map((r) => {
+          const statusSentence = r.status.charAt(0).toUpperCase() + r.status.slice(1).toLowerCase();
+          const isApproved = r.status === "APPROVED";
+          const isPending = r.status === "PENDING";
+          const isRejected = r.status === "REJECTED";
+
+          return (
+              <div
+                key={r.id}
+                style={{ backgroundColor: "var(--card)", borderColor: "var(--line)", color: "var(--ink)" }}
+                className="rounded-[4px] border bg-[var(--card)] p-3.5 text-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[15px] font-[600] text-[var(--ink)]">{r.leaveType.name}</p>
+                    <p className="text-[13px] text-[var(--muted)] mt-0.5">
+                      {r.isHalfDay
+                        ? `${formatDate(r.startDate)} · ${halfDayLabel(r.halfDaySlot)}`
+                        : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span
+                      className={cn(
+                        "inline-block px-2.5 py-0.5 text-xs font-semibold rounded-[2px]",
+                        isApproved && "chip-ok",
+                        isPending && "chip-warn",
+                        isRejected && "chip-danger",
+                        !isApproved && !isPending && !isRejected && "bg-[var(--soft)] text-[var(--muted)]"
+                      )}
+                    >
+                      {statusSentence}
+                    </span>
+                    {(r as any).managerStatus === "APPROVED" && r.status === "PENDING" && (
+                      <span className="block text-[10px] font-semibold text-[var(--ok)] mt-1">
+                        ✓ Manager Approved (Waiting for HR)
+                      </span>
+                    )}
+                    {(r as any).managerStatus === "PENDING" && (r as any).manager && (
+                      <span className="block text-[10px] font-semibold text-[var(--warn)] mt-1">
+                        • Waiting for Manager ({(r as any).manager.firstName})
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {r.status === "PENDING" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2.5 border-[var(--line)] text-[var(--ink)] hover:bg-[var(--soft)]"
+                    onClick={() => cancelMutation.mutate({ id: r.id })}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+              );
+        })}
+              {!requests?.length && (
+                <p className="text-sm text-[var(--muted)]">No leave requests yet.</p>
+              )}
+            </div>
     </div>
-                      );
+      );
 }
