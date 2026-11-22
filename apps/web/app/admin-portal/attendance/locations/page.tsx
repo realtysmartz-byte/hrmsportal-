@@ -81,7 +81,7 @@ export default function LocationTracingPage() {
     name: string;
   } | null>(null);
 
-  useBodyScrollLock(Boolean(activeMapPing || assignStaffTarget || traceModalEmployee));
+  useBodyScrollLock(Boolean(activeMapPing || assignStaffTarget));
 
 
   // 1. Fetch live personnel overview (all employees with today's status & latest GPS)
