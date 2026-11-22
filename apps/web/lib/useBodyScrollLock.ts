@@ -1,40 +1,49 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Bulletproof lock for background screen scrolling when any modal, drawer, or dialog is open.
- * Freezes both document.body and document.documentElement at the exact current scroll position
- * and restores scroll position cleanly on unmount or close.
- * Works across iOS Safari, Android Chrome, Windows browsers, and macOS.
+ * - Prevents background scrolling without disrupting document flow
+ * - Preserves scroll position precisely without jumping or animating down when closed
+ * - Disables smooth-scroll animations during restore so the page stays rock-solid
  */
 export function useBodyScrollLock(isLocked: boolean) {
+  const scrollYRef = useRef<number>(0);
+
   useEffect(() => {
     if (!isLocked) return;
-
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
+    // Capture the exact scroll position at the moment of opening
     const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
-    const originalBodyPosition = document.body.style.position;
-    const originalBodyTop = document.body.style.top;
-    const originalBodyWidth = document.body.style.width;
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalDocOverflow = document.documentElement.style.overflow;
+    scrollYRef.current = scrollY;
 
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    document.body.style.overflow = "hidden";
+    const originalDocOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalScrollBehavior = document.documentElement.style.scrollBehavior;
+
+    // Lock scrolling on document and body
     document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.position = originalBodyPosition;
-      document.body.style.top = originalBodyTop;
-      document.body.style.width = originalBodyWidth;
-      document.body.style.overflow = originalBodyOverflow;
+      // Temporarily set scrollBehavior to instant so NO downward scrolling animation occurs
+      document.documentElement.style.scrollBehavior = "auto";
       document.documentElement.style.overflow = originalDocOverflow;
-      window.scrollTo(0, scrollY);
+      document.body.style.overflow = originalBodyOverflow;
+
+      // Keep position rock solid
+      window.scrollTo({
+        top: scrollYRef.current,
+        left: 0,
+        behavior: "instant" as ScrollBehavior,
+      });
+
+      // Restore scroll behavior in next frame
+      requestAnimationFrame(() => {
+        document.documentElement.style.scrollBehavior = originalScrollBehavior;
+      });
     };
   }, [isLocked]);
 }
-

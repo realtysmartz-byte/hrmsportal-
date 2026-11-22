@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -42,7 +42,10 @@ export default function EmployeesPage() {
 }
 
 function EmployeesInner() {
-  const q = useSearchParams().get("q");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q");
+  const pageParam = Number(searchParams.get("page"));
   const { data: session } = useSession();
   const role = (session?.user?.role ?? "EMPLOYEE") as Role;
   const canManage = canManageEmployees(role);
@@ -53,9 +56,33 @@ function EmployeesInner() {
   useEffect(() => {
     if (q !== null) setSearch(q);
   }, [q]);
+
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("");
-  const [page, setPage] = useState(1);
+
+  // Restore saved page from URL or sessionStorage so navigating back keeps page 3
+  const initialPage = pageParam > 0
+    ? pageParam
+    : (typeof window !== "undefined" ? Number(sessionStorage.getItem("admin_employees_page")) : 0) || 1;
+  const [page, setPage] = useState(initialPage);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("admin_employees_page", String(newPage));
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(newPage));
+    router.replace(`/admin-portal/employees?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  // Keep page in sync if URL search param changes
+  useEffect(() => {
+    if (pageParam > 0 && pageParam !== page) {
+      setPage(pageParam);
+    }
+  }, [pageParam]);
+
   const [exportStatus, setExportStatus] = useState<
     "ACTIVE" | "TERMINATED" | "EXIT" | "RESIGNED" | "ON_LEAVE" | "ALL"
   >("ACTIVE");
@@ -211,7 +238,7 @@ function EmployeesInner() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setPage(1);
+                handlePageChange(1);
               }}
             />
           </div>
@@ -222,7 +249,7 @@ function EmployeesInner() {
               value={departmentId}
               onChange={(e) => {
                 setDepartmentId(e.target.value);
-                setPage(1);
+                handlePageChange(1);
               }}
             >
               <option value="">All departments</option>
@@ -240,7 +267,7 @@ function EmployeesInner() {
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
-                setPage(1);
+                handlePageChange(1);
               }}
             >
               <option value="">All statuses</option>
@@ -372,7 +399,7 @@ function EmployeesInner() {
                     {/* Employee Details Column */}
                     <TableCell>
                       <Link
-                        href={`/admin-portal/employees/${emp.id}`}
+                        href={`/admin-portal/employees/${emp.id}?page=${page}`}
                         className="flex items-center gap-3.5 group/emp"
                       >
                         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--accent)] text-xs font-bold text-white">
@@ -419,7 +446,7 @@ function EmployeesInner() {
                     {/* Action Column */}
                     <TableCell className="text-right">
                       <Link
-                        href={`/admin-portal/employees/${emp.id}`}
+                        href={`/admin-portal/employees/${emp.id}?page=${page}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
                       >
                         <span>Manage</span>
@@ -446,7 +473,7 @@ function EmployeesInner() {
               variant="outline"
               size="sm"
               disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => handlePageChange(page - 1)}
             >
               Previous
             </Button>
@@ -454,7 +481,7 @@ function EmployeesInner() {
               variant="outline"
               size="sm"
               disabled={page >= data.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => handlePageChange(page + 1)}
             >
               Next
             </Button>

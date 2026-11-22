@@ -36,6 +36,7 @@ import { trpc } from "@/lib/trpc";
 import { LocationMap } from "@/components/LocationMap";
 import { AssignLocationCard } from "@/components/AssignLocationCard";
 import { EmployeeDailyTraceModal } from "@/components/EmployeeDailyTraceModal";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { cn } from "@/lib/utils";
 
 function parseSites(raw: unknown): { name: string; lat: number; lng: number }[] {
@@ -79,6 +80,8 @@ export default function LocationTracingPage() {
     id: string;
     name: string;
   } | null>(null);
+
+  useBodyScrollLock(Boolean(activeMapPing || assignStaffTarget || traceModalEmployee));
 
 
   // 1. Fetch live personnel overview (all employees with today's status & latest GPS)

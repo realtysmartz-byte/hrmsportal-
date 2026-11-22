@@ -17,8 +17,8 @@ export type StoredFix = {
 export type PunchFix = StoredFix & { accuracy: number };
 
 const FIX_MAX_AGE_MS = 2 * 60_000;
-const WATCH_BUDGET_MS = 3_500;
-const GOOD_ACCURACY_M = 35;
+const WATCH_BUDGET_MS = 1_800;
+const GOOD_ACCURACY_M = 50;
 
 let latestFix: StoredFix | null = null;
 let watchId: number | null = null;
@@ -109,7 +109,7 @@ function isUsablePunchFix(fix: StoredFix | null): fix is PunchFix {
     fix.accuracy != null &&
     Number.isFinite(fix.accuracy) &&
     fix.accuracy > 0 &&
-      fix.accuracy < 50_000 &&
+    fix.accuracy < 50_000 &&
     !(fix.lat === 0 && fix.lng === 0) &&
     Math.abs(fix.lat) <= 90 &&
     Math.abs(fix.lng) <= 180
@@ -229,7 +229,34 @@ export function acquirePunchFix(): Promise<PunchFix> {
       if (watchTimer != null) clearTimeout(watchTimer);
     };
 
-    // Listen to live GPS hardware via watchPosition for the highest precision fix
+    // Fast-path 1: Quick cached / network position in parallel (resolves in ~100-300ms)
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const fix: StoredFix = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
+            timestamp: pos.timestamp || Date.now(),
+          };
+          storeFix(pos);
+          if (!isUsablePunchFix(fix)) return;
+          if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
+            best = fix;
+          }
+          if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(fix);
+          }
+        },
+        () => { },
+        { enableHighAccuracy: false, maximumAge: 30_000, timeout: 1_200 }
+      );
+    } catch { }
+
+    // Fast-path 2: High-accuracy hardware GPS
     id = navigator.geolocation.watchPosition(
       (pos) => {
         const fix: StoredFix = {
@@ -243,7 +270,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
         if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
           best = fix;
         }
-        // If accuracy is high precision (under 35 meters), resolve immediately
+        // If accuracy is high precision, resolve immediately
         if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
           if (settled) return;
           settled = true;
@@ -259,7 +286,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
           reject(err);
         }
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: WATCH_BUDGET_MS }
+      { enableHighAccuracy: true, maximumAge: 15_000, timeout: WATCH_BUDGET_MS }
     );
 
     watchTimer = setTimeout(() => {

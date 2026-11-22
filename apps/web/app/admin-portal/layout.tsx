@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { AdminPortalShell } from "@/components/AdminPortalShell";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { authOptions } from "@/lib/auth";
 import { canAccessAdminPortal } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
@@ -25,8 +26,10 @@ export default async function AdminPortalLayout({
   }
 
   return (
-    <AdminPortalShell>
-      {children}
-    </AdminPortalShell>
+    <PullToRefresh>
+      <AdminPortalShell>
+        {children}
+      </AdminPortalShell>
+    </PullToRefresh>
   );
 }

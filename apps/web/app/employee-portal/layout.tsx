@@ -5,6 +5,7 @@ import { EmployeePortalFooter } from "@/components/EmployeePortalFooter";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { EmployeePolicyAgreementModal } from "@/components/EmployeePolicyAgreementModal";
 import { SupportChatbot } from "@/components/SupportChatbot";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { authOptions } from "@/lib/auth";
 import { canAccessAdminPortal } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
@@ -29,6 +30,7 @@ export default async function EmployeePortalLayout({
   const isAdmin = canAccessAdminPortal(role);
 
   return (
+    <PullToRefresh>
       <div className="min-h-screen min-h-dvh bg-[var(--bg)] text-[var(--ink)]">
         <EmployeePolicyAgreementModal />
         {!isAdmin && <PwaInstallBanner />}
@@ -44,5 +46,6 @@ export default async function EmployeePortalLayout({
         </main>
         <SupportChatbot />
       </div>
-      );
+    </PullToRefresh>
+  );
 }
