@@ -116,14 +116,13 @@ export function EmployeeProfileHub({
   const pageParam = searchParams.get("page") || (typeof window !== "undefined" ? sessionStorage.getItem("admin_employees_page") : null);
 
   const basePath =
-  portal === "admin"
-    ? (pageParam && Number(pageParam) > 1 ? `/admin-portal/employees?page=${pageParam}` : "/admin-portal/employees")
-    : "/employee-portal/dashboard";
-  const editPath =
     portal === "admin"
-      ? `/admin-portal/employees/${employeeId}/edit`
-        ? `/admin-portal/employees/${employeeId}/edit${pageParam && Number(pageParam) > 1 ? `?page=${pageParam}` : ""}`
-        : undefined;
+      ? (pageParam && Number(pageParam) > 1 ? `/admin-portal/employees?page=${pageParam}` : "/admin-portal/employees")
+      : "/employee-portal/dashboard";
+  const editPath =
+  portal === "admin" && employeeId
+    ? `/admin-portal/employees/${employeeId}/edit${pageParam && Number(pageParam) > 1 ? `?page=${pageParam}` : ""}`
+    : undefined;
 
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoInputUrl, setPhotoInputUrl] = useState("");
