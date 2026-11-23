@@ -28,6 +28,7 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   acquirePunchFix,
+  clearStoredPunchFix,
   getServerAdjustedFixTimestamp,
   geolocationErrorMessage,
   setServerTimeReference,
@@ -353,6 +354,7 @@ export function KekaAttendancePanel({
         });
       }
     } catch (err: unknown) {
+      clearStoredPunchFix();
       const message = geolocationErrorMessage(err);
       setPunchError(message);
       if (!(err instanceof TRPCClientError)) toast("error", message);

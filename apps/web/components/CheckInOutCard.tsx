@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft, Sparkles } from "lucide-react";
+import { MapPin, Loader2, AlertCircle, CalendarClock, ArrowDownLeft, Sparkles, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import {
   acquirePunchFix,
+  clearStoredPunchFix,
   getServerAdjustedFixTimestamp,
   geolocationErrorMessage,
   setServerTimeReference,
@@ -66,6 +67,29 @@ export function CheckInOutCard() {
   const [phase, setPhase] = useState<"idle" | "locating" | "saving">("idle");
   const [punchQuote, setPunchQuote] = useState<string | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"active" | "ready" | "denied" | "prompt" | "unsupported">("prompt");
+  const [refreshingGps, setRefreshingGps] = useState(false);
+
+  async function handleCardRefresh() {
+    if (refreshingGps || busy) return;
+    setRefreshingGps(true);
+    setError("");
+    try {
+      clearStoredPunchFix();
+      const freshFix = await acquirePunchFix({ forceFresh: true });
+      setGpsStatus("ready");
+      await Promise.allSettled([
+        utils.attendance.today.invalidate(),
+        utils.attendance.myWorkLocation.invalidate(),
+      ]);
+      const acc = Math.round(freshFix.accuracy || 0);
+      toast("success", `Live GPS refreshed (±${acc}m accuracy). Cache cleared.`);
+    } catch (err: unknown) {
+      const message = geolocationErrorMessage(err);
+      setError(message);
+    } finally {
+      setRefreshingGps(false);
+    }
+  }
 
   const isOnDuty = Boolean(today?.checkInTime && !today?.checkOutTime);
   const hasCompletedSession = Boolean(today?.checkInTime && today?.checkOutTime);
@@ -273,6 +297,7 @@ export function CheckInOutCard() {
         });
       }
     } catch (err: unknown) {
+      clearStoredPunchFix();
       if ((err as { code?: number })?.code === 1) {
         setGpsStatus("denied");
         reportLocationDisabled.mutate({
@@ -365,18 +390,30 @@ export function CheckInOutCard() {
       {/* Row 1: Date & GPS Ready */}
       <div className="flex justify-between items-center text-[13px] text-[var(--muted)]">
         <span>{formattedDate}</span>
-        <div className="flex items-center gap-1.5 text-[var(--ink)] font-semibold text-[12px]">
-          <i
-            className={cn(
-              "w-2 h-2 rounded-full inline-block",
-              gpsStatus === "denied"
-                ? "bg-[var(--danger)]"
-                : gpsStatus === "ready" || gpsStatus === "active"
-                  ? "bg-[var(--ok)]"
-                  : "bg-amber-500"
-            )}
-          />
-          <span>{gpsStatus === "denied" ? "GPS ready" : "GPS ready"}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCardRefresh}
+            disabled={refreshingGps || busy}
+            className="w-6 h-6 flex-none grid place-items-center rounded-full text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--soft)] transition-all active:scale-90"
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", refreshingGps && "animate-spin text-[var(--accent)]")} />
+          </button>
+          <div className="flex items-center gap-1.5 text-[var(--ink)] font-semibold text-[12px]">
+            <i
+              className={cn(
+                "w-2 h-2 rounded-full inline-block",
+                gpsStatus === "denied"
+                  ? "bg-[var(--danger)]"
+                  : gpsStatus === "ready" || gpsStatus === "active"
+                    ? "bg-[var(--ok)]"
+                    : "bg-amber-500"
+              )}
+            />
+            <span>{gpsStatus === "denied" ? "GPS denied" : "GPS ready"}</span>
+          </div>
         </div>
       </div>
 
@@ -391,9 +428,21 @@ export function CheckInOutCard() {
 
       {/* Error if any */}
       {error && (
-        <div className="mt-2.5 flex items-start gap-1.5 rounded-[2px] bg-[var(--danger)]/12 px-2.5 py-1.5 text-[11px] font-medium text-[var(--danger)] border border-[var(--danger)]/30">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
+        <div className="mt-2.5 rounded-[4px] bg-[var(--danger)]/10 p-2.5 text-[11px] font-medium text-[var(--danger)] border border-[var(--danger)]/30 flex items-start justify-between gap-2">
+          <div className="flex items-start gap-1.5 flex-1 min-w-0">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--danger)]" />
+            <span className="leading-snug">{error}</span>
+          </div>
+          <button
+            type="button"
+            disabled={refreshingGps || busy}
+            onClick={handleCardRefresh}
+            className="p-1 rounded-full hover:bg-[var(--danger)]/20 text-[var(--danger)] transition-all active:scale-90 shrink-0"
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", refreshingGps && "animate-spin")} />
+          </button>
         </div>
       )}
 

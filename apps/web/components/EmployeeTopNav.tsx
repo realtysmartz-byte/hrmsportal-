@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
   Briefcase,
   Users,
   Settings,
+  RefreshCw,
 } from "lucide-react";
 import { InstallGuideModal } from "@/components/InstallGuideModal";
 import { EmployeeNotificationBell } from "@/components/EmployeeNotificationBell";
@@ -27,13 +28,36 @@ import type { Role } from "@realty-smartz/shared";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { Capacitor } from "@capacitor/core";
+import { clearStoredPunchFix, acquirePunchFix } from "@/lib/geolocation";
+import { toast } from "@/lib/toast";
 
 export function EmployeeTopNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const utils = trpc.useUtils();
   const { data: session } = useSession();
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNativeApp, setIsNativeApp] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      clearStoredPunchFix();
+      await Promise.allSettled([
+        utils.invalidate(),
+        acquirePunchFix({ forceFresh: true }).catch(() => {}),
+      ]);
+      router.refresh();
+      toast("success", "App refreshed! Live GPS and attendance data updated.");
+    } catch {
+      router.refresh();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -270,6 +294,23 @@ export function EmployeeTopNav() {
             </div>
           </div>
         </div>
+
+        {/* Quick App & GPS Refresh Button */}
+        <button
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className="w-8 h-8 flex-none grid place-items-center rounded-[4px] hover:bg-[var(--soft)] text-[var(--ink)] transition-all active:scale-90"
+          aria-label="Refresh app and GPS"
+          title="Refresh app data & clear GPS cache"
+        >
+          <RefreshCw
+            className={cn(
+              "w-[17px] h-[17px] text-[var(--muted)] hover:text-[var(--ink)] transition-all",
+              isRefreshing && "animate-spin text-[var(--accent)]"
+            )}
+          />
+        </button>
 
         {/* Notification Bell */}
         <EmployeeNotificationBell />

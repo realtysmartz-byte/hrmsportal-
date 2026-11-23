@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, ArrowDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { clearStoredPunchFix } from "@/lib/geolocation";
 import { cn } from "@/lib/utils";
 
 interface PullToRefreshProps {
@@ -31,7 +32,8 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
     setPullDistance(PULL_THRESHOLD);
 
     try {
-      // 1. Invalidate all cached data for current screen
+      // 1. Invalidate all cached data for current screen and purge stale GPS
+      clearStoredPunchFix();
       await Promise.allSettled([
         utils.invalidate(),
         onRefresh ? onRefresh() : Promise.resolve(),

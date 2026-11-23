@@ -16,9 +16,9 @@ export type StoredFix = {
 
 export type PunchFix = StoredFix & { accuracy: number };
 
-const FIX_MAX_AGE_MS = 2 * 60_000;
-const WATCH_BUDGET_MS = 1_800;
-const GOOD_ACCURACY_M = 50;
+const FIX_MAX_AGE_MS = 10_000; // 10s max age to prevent stale distant location cache
+const WATCH_BUDGET_MS = 2_200;
+const GOOD_ACCURACY_M = 45;
 
 let latestFix: StoredFix | null = null;
 let watchId: number | null = null;
@@ -116,6 +116,10 @@ function isUsablePunchFix(fix: StoredFix | null): fix is PunchFix {
   );
 }
 
+export function clearStoredPunchFix() {
+  latestFix = null;
+}
+
 export function getStoredPunchFix(): StoredFix | null {
   if (!latestFix) return null;
   const age = Date.now() - latestFix.timestamp;
@@ -204,19 +208,24 @@ export function stopPunchLocationPrewarm() {
 }
 
 /**
- * Punch tap: instantaneous if cached within 2 min, else fast parallel GPS fix.
+ * Punch tap: instantaneous if cached within 10s, else live high-accuracy GPS fix.
+ * Pass forceFresh: true to purge cache and guarantee live hardware fix.
  */
-export function acquirePunchFix(): Promise<PunchFix> {
+export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<PunchFix> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported by this browser"));
       return;
     }
 
-    const cached = getStoredPunchFix();
-    if (isUsablePunchFix(cached)) {
-      resolve(cached);
-      return;
+    if (options?.forceFresh) {
+      latestFix = null;
+    } else {
+      const cached = getStoredPunchFix();
+      if (isUsablePunchFix(cached)) {
+        resolve(cached);
+        return;
+      }
     }
 
     let best: PunchFix | null = null;
@@ -229,7 +238,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
       if (watchTimer != null) clearTimeout(watchTimer);
     };
 
-    // Fast-path 1: Quick cached / network position in parallel (resolves in ~100-300ms)
+    // Fast-path 1: Quick current position
     try {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -252,11 +261,11 @@ export function acquirePunchFix(): Promise<PunchFix> {
           }
         },
         () => { },
-        { enableHighAccuracy: false, maximumAge: 30_000, timeout: 1_200 }
+        { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: 1_800 }
       );
     } catch { }
 
-    // Fast-path 2: High-accuracy hardware GPS
+    // Fast-path 2: High-accuracy hardware GPS watch
     id = navigator.geolocation.watchPosition(
       (pos) => {
         const fix: StoredFix = {
@@ -286,7 +295,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
           reject(err);
         }
       },
-      { enableHighAccuracy: true, maximumAge: 15_000, timeout: WATCH_BUDGET_MS }
+      { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: WATCH_BUDGET_MS }
     );
 
     watchTimer = setTimeout(() => {
@@ -296,7 +305,7 @@ export function acquirePunchFix(): Promise<PunchFix> {
       if (best) resolve(best);
       else {
         reject(
-          Object.assign(new Error("Location unavailable. Please try again."), { code: 2 })
+          Object.assign(new Error("Location unavailable. Please make sure device GPS is on and try again."), { code: 2 })
         );
       }
     }, WATCH_BUDGET_MS);
