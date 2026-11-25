@@ -64,19 +64,11 @@ export default function EmployeeDashboardPage() {
 
   const { data: birthdays, isLoading: birthdaysLoading } =
     trpc.employee.getUpcomingBirthdays.useQuery(undefined, {
-      staleTime: 15 * 60_000,
+      staleTime: 5 * 60_000,
+      refetchOnWindowFocus: true,
     });
 
-  // Mock / fallback sample birthdays if empty so marquee looks identical to reference
-  const displayBirthdays = useMemo(() => {
-    if (birthdays && birthdays.length > 0) return birthdays;
-    return [
-      { id: "1", name: "Deepanshu Yadav", firstName: "Deepanshu", lastName: "Yadav", isToday: true, birthdayDate: "Today", profilePhotoUrl: null },
-      { id: "2", name: "Chinmay Rout", firstName: "Chinmay", lastName: "Rout", isToday: false, birthdayDate: "Nov 20", profilePhotoUrl: null },
-      { id: "3", name: "Sapna Mishra", firstName: "Sapna", lastName: "Mishra", isToday: false, birthdayDate: "Nov 30", profilePhotoUrl: null },
-      { id: "4", name: "Soma Roy", firstName: "Soma", lastName: "Roy", isToday: false, birthdayDate: "Dec 10", profilePhotoUrl: null },
-    ];
-  }, [birthdays]);
+  const displayBirthdays = birthdays ?? [];
 
   return (
     <div className="w-full text-[var(--ink)]">
@@ -150,36 +142,55 @@ export default function EmployeeDashboardPage() {
         <span className="text-[11px] text-[var(--muted)]">Next 30 Days</span>
       </div>
       <div className="-mx-4 px-4 overflow-x-auto scrollbar-none mb-[20px]">
-        <div className="flex gap-2.5 pb-1">
-          {displayBirthdays.map((b, idx) => (
-            <div
-              key={b.id || idx}
-              className={cn(
-                "w-[86px] flex-none text-center p-[10px_6px_8px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
-                b.isToday && "ring-1 ring-[var(--accent)] border-[var(--accent)]"
-              )}
-            >
+        {birthdaysLoading ? (
+          <div className="flex gap-2.5 pb-1">
+            {[0, 1, 2, 3].map((n) => (
               <div
+                key={n}
+                className="w-[86px] flex-none text-center p-[10px_6px_8px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] animate-pulse"
+              >
+                <div className="w-[44px] h-[44px] mx-auto rounded-full bg-[var(--active)]" />
+                <div className="mt-2 h-2.5 w-14 mx-auto rounded bg-[var(--active)]" />
+                <div className="mt-1 h-2 w-10 mx-auto rounded bg-[var(--active)]" />
+              </div>
+            ))}
+          </div>
+        ) : displayBirthdays.length > 0 ? (
+          <div className="flex gap-2.5 pb-1">
+            {displayBirthdays.map((b, idx) => (
+              <div
+                key={b.id || idx}
                 className={cn(
-                  "w-[44px] h-[44px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-sm font-bold",
-                  b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[2px]"
+                  "w-[86px] flex-none text-center p-[10px_6px_8px] border border-[var(--line)] rounded-[4px] bg-[var(--bg)] select-none",
+                  b.isToday && "ring-1 ring-[var(--accent)] border-[var(--accent)]"
                 )}
               >
-                {b.profilePhotoUrl ? (
-                  <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
-                ) : (
-                  <span>{getInitials(b.firstName, b.lastName)}</span>
-                )}
+                <div
+                  className={cn(
+                    "w-[44px] h-[44px] mx-auto rounded-full bg-[var(--active)] grid place-items-center overflow-hidden text-[var(--accent)] text-sm font-bold",
+                    b.isToday && "outline outline-2 outline-[var(--accent)] outline-offset-[2px]"
+                  )}
+                >
+                  {b.profilePhotoUrl ? (
+                    <img src={b.profilePhotoUrl} alt={b.name} className="w-full h-full object-cover block" />
+                  ) : (
+                    <span>{getInitials(b.firstName, b.lastName)}</span>
+                  )}
+                </div>
+                <b className="block mt-1.5 text-[11px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
+                  {b.name}
+                </b>
+                <small className={cn("block mt-0.5 text-[10px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
+                  {b.isToday ? "Today" : b.birthdayDate}
+                </small>
               </div>
-              <b className="block mt-1.5 text-[11px] font-semibold text-[var(--ink)] whitespace-nowrap overflow-hidden text-ellipsis">
-                {b.name}
-              </b>
-              <small className={cn("block mt-0.5 text-[10px]", b.isToday ? "text-[var(--accent)] font-bold" : "text-[var(--muted)]")}>
-                {b.isToday ? "Today" : b.birthdayDate}
-              </small>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[4px] border border-[var(--line)] bg-[var(--bg)] p-3.5 text-[12px] text-[var(--muted)]">
+            No upcoming birthdays in the next 30 days.
+          </div>
+        )}
       </div>
 
       {/* 4. Upcoming Holidays */}

@@ -13,6 +13,7 @@ import {
   isWorkingDay,
   EMPLOYEE_STATUSES,
   startOfDayUTC,
+  getISTDateParts,
 } from "@realty-smartz/shared";
 import {
   type Role,
@@ -43,7 +44,10 @@ export type UpcomingBirthdayItem = {
   daysUntil: number;
 };
 
-let upcomingBirthdaysCache: { at: number; data: UpcomingBirthdayItem[] } | null = null;
+const upcomingBirthdaysCache = new Map<
+  string,
+  { at: number; data: UpcomingBirthdayItem[] }
+>();
 const UPCOMING_BIRTHDAYS_TTL_MS = 10 * 60 * 1000;
 
 const employeeInclude = {
@@ -1521,14 +1525,17 @@ export const employeeRouter = router({
 
   getUpcomingBirthdays: protectedProcedure.query(
     async ({ ctx }): Promise<UpcomingBirthdayItem[]> => {
-      if (
-        upcomingBirthdaysCache &&
-        Date.now() - upcomingBirthdaysCache.at < UPCOMING_BIRTHDAYS_TTL_MS
-      ) {
-        return upcomingBirthdaysCache.data;
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const istToday = getISTDateParts(new Date());
+      const currentYear = istToday.year;
+      const todayKey = `${currentYear}-${istToday.month}-${istToday.day}`;
+      const cacheKey = `${orgId}:${todayKey}`;
+
+      const cached = upcomingBirthdaysCache.get(cacheKey);
+      if (cached && Date.now() - cached.at < UPCOMING_BIRTHDAYS_TTL_MS) {
+        return cached.data;
       }
 
-      const orgId = ctx.session.user.organizationId || "org_default_realty";
       const employees = await ctx.prisma.employee.findMany({
         where: {
           organizationId: orgId,
@@ -1547,35 +1554,22 @@ export const employeeRouter = router({
         take: 200,
       });
 
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const today = new Date(currentYear, now.getMonth(), now.getDate());
+      const today = new Date(Date.UTC(currentYear, istToday.month - 1, istToday.day));
       const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December",
       ];
 
-      const upcoming: {
-        id: string;
-        name: string;
-        firstName: string;
-        lastName: string;
-        profilePhotoUrl: string | null;
-        department: string | null;
-        designation: string | null;
-        birthdayDate: string;
-        isToday: boolean;
-        daysUntil: number;
-      }[] = [];
+      const upcoming: UpcomingBirthdayItem[] = [];
 
       for (const emp of employees) {
         if (!emp.dateOfBirth) continue;
         const dob = new Date(emp.dateOfBirth);
-        const birthMonth = dob.getMonth();
-        const birthDay = dob.getDate();
-        let nextBirthday = new Date(currentYear, birthMonth, birthDay);
+        const birthMonth = dob.getUTCMonth();
+        const birthDay = dob.getUTCDate();
+        let nextBirthday = new Date(Date.UTC(currentYear, birthMonth, birthDay));
         if (nextBirthday.getTime() < today.getTime()) {
-          nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
+          nextBirthday = new Date(Date.UTC(currentYear + 1, birthMonth, birthDay));
         }
         const diffDays = Math.round(
           (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
@@ -1597,7 +1591,7 @@ export const employeeRouter = router({
 
       upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
       const result = upcoming.slice(0, 12);
-      upcomingBirthdaysCache = { at: Date.now(), data: result };
+      upcomingBirthdaysCache.set(cacheKey, { at: Date.now(), data: result });
       return result;
     }),
 

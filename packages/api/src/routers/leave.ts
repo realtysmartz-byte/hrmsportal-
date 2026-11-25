@@ -9,6 +9,7 @@ import {
   listWeekdayDates,
   startOfDayUTC,
   canApproveLeave,
+  getISTDateParts,
 } from "@realty-smartz/shared";
 import type { Role } from "@realty-smartz/shared";
 import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
@@ -276,6 +277,14 @@ export const leaveRouter = router({
 
       const startDate = startOfDayUTC(input.startDate);
       const endDate = startOfDayUTC(input.endDate);
+      const istNow = getISTDateParts(new Date());
+      const todayIST = new Date(Date.UTC(istNow.year, istNow.month - 1, istNow.day));
+      if (startDate.getTime() < todayIST.getTime() || endDate.getTime() < todayIST.getTime()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Leave can only be applied for today or upcoming dates.",
+        });
+      }
       if (input.isHalfDay && startDate.getTime() !== endDate.getTime()) {
         throw new TRPCError({
           code: "BAD_REQUEST",

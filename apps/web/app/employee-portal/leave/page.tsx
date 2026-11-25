@@ -63,6 +63,11 @@ export default function EmployeeLeavePage() {
     onSuccess: () => utils.leave.myRequests.invalidate(),
   });
 
+  const todayIST = useMemo(
+    () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+    []
+  );
+
   const days = useMemo(() => {
     if (!startDate || !endDate) return 0;
     return countWeekdays(new Date(startDate), new Date(endDate));
@@ -72,6 +77,14 @@ export default function EmployeeLeavePage() {
     e.preventDefault();
     if (!leaveTypeId || !startDate || !endDate || reason.trim().length < 3) {
       setError("Please fill all fields");
+      return;
+    }
+    if (startDate < todayIST || endDate < todayIST) {
+      setError("Leave can only be applied for today or upcoming dates.");
+      return;
+    }
+    if (endDate < startDate) {
+      setError("End date cannot be earlier than start date.");
       return;
     }
     applyMutation.mutate({
@@ -207,10 +220,14 @@ export default function EmployeeLeavePage() {
                   <Label>{isHalfDay ? "Date" : "From"}</Label>
                   <Input
                     type="date"
+                    min={todayIST}
                     value={startDate}
                     onChange={(e) => {
-                      setStartDate(e.target.value);
-                      if (isHalfDay) setEndDate(e.target.value);
+                      const val = e.target.value;
+                      setStartDate(val);
+                      if (isHalfDay || (endDate && val && endDate < val)) {
+                        setEndDate(val);
+                      }
                     }}
                     required
                   />
@@ -220,6 +237,7 @@ export default function EmployeeLeavePage() {
                     <Label>To</Label>
                     <Input
                       type="date"
+                      min={startDate && startDate > todayIST ? startDate : todayIST}
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       required
@@ -260,61 +278,61 @@ export default function EmployeeLeavePage() {
           const isRejected = r.status === "REJECTED";
 
           return (
-              <div
-                key={r.id}
-                style={{ backgroundColor: "var(--card)", borderColor: "var(--line)", color: "var(--ink)" }}
-                className="rounded-[4px] border bg-[var(--card)] p-3.5 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[15px] font-[600] text-[var(--ink)]">{r.leaveType.name}</p>
-                    <p className="text-[13px] text-[var(--muted)] mt-0.5">
-                      {r.isHalfDay
-                        ? `${formatDate(r.startDate)} · ${halfDayLabel(r.halfDaySlot)}`
-                        : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span
-                      className={cn(
-                        "inline-block px-2.5 py-0.5 text-xs font-semibold rounded-[2px]",
-                        isApproved && "chip-ok",
-                        isPending && "chip-warn",
-                        isRejected && "chip-danger",
-                        !isApproved && !isPending && !isRejected && "bg-[var(--soft)] text-[var(--muted)]"
-                      )}
-                    >
-                      {statusSentence}
-                    </span>
-                    {(r as any).managerStatus === "APPROVED" && r.status === "PENDING" && (
-                      <span className="block text-[10px] font-semibold text-[var(--ok)] mt-1">
-                        ✓ Manager Approved (Waiting for HR)
-                      </span>
-                    )}
-                    {(r as any).managerStatus === "PENDING" && (r as any).manager && (
-                      <span className="block text-[10px] font-semibold text-[var(--warn)] mt-1">
-                        • Waiting for Manager ({(r as any).manager.firstName})
-                      </span>
-                    )}
-                  </div>
+            <div
+              key={r.id}
+              style={{ backgroundColor: "var(--card)", borderColor: "var(--line)", color: "var(--ink)" }}
+              className="rounded-[4px] border bg-[var(--card)] p-3.5 text-sm"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[15px] font-[600] text-[var(--ink)]">{r.leaveType.name}</p>
+                  <p className="text-[13px] text-[var(--muted)] mt-0.5">
+                    {r.isHalfDay
+                      ? `${formatDate(r.startDate)} · ${halfDayLabel(r.halfDaySlot)}`
+                      : `${formatDate(r.startDate)} – ${formatDate(r.endDate)} · ${r.numberOfDays}d`}
+                  </p>
                 </div>
-                {r.status === "PENDING" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2.5 border-[var(--line)] text-[var(--ink)] hover:bg-[var(--soft)]"
-                    onClick={() => cancelMutation.mutate({ id: r.id })}
+                <div className="text-right shrink-0">
+                  <span
+                    className={cn(
+                      "inline-block px-2.5 py-0.5 text-xs font-semibold rounded-[2px]",
+                      isApproved && "chip-ok",
+                      isPending && "chip-warn",
+                      isRejected && "chip-danger",
+                      !isApproved && !isPending && !isRejected && "bg-[var(--soft)] text-[var(--muted)]"
+                    )}
                   >
-                    Cancel
-                  </Button>
-                )}
+                    {statusSentence}
+                  </span>
+                  {(r as any).managerStatus === "APPROVED" && r.status === "PENDING" && (
+                    <span className="block text-[10px] font-semibold text-[var(--ok)] mt-1">
+                      ✓ Manager Approved (Waiting for HR)
+                    </span>
+                  )}
+                  {(r as any).managerStatus === "PENDING" && (r as any).manager && (
+                    <span className="block text-[10px] font-semibold text-[var(--warn)] mt-1">
+                      • Waiting for Manager ({(r as any).manager.firstName})
+                    </span>
+                  )}
+                </div>
               </div>
-              );
-        })}
-              {!requests?.length && (
-                <p className="text-sm text-[var(--muted)]">No leave requests yet.</p>
+              {r.status === "PENDING" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2.5 border-[var(--line)] text-[var(--ink)] hover:bg-[var(--soft)]"
+                  onClick={() => cancelMutation.mutate({ id: r.id })}
+                >
+                  Cancel
+                </Button>
               )}
             </div>
+          );
+        })}
+        {!requests?.length && (
+          <p className="text-sm text-[var(--muted)]">No leave requests yet.</p>
+        )}
+      </div>
     </div>
-      );
+  );
 }
