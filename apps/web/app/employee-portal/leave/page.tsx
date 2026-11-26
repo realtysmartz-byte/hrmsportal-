@@ -260,9 +260,9 @@ export default function EmployeeLeavePage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={applyMutation.isLoading}
+                disabled={applyMutation.isPending}
               >
-                Submit
+                {applyMutation.isPending ? "Submitting..." : "Submit"}
               </Button>
             </form>
           </CardContent>

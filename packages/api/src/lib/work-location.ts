@@ -231,9 +231,20 @@ export async function resolvePunchGeofence(
   prisma: PrismaClient,
   employeeId: string,
   lat: number,
-  lng: number
+  lng: number,
+  accuracyM?: number | null
 ): Promise<PunchGeofenceMatch> {
   const sites = await getPunchGeofenceSites(prisma, employeeId);
+
+  // Allow bounded GPS accuracy tolerance (up to 120m when reported accuracy <= 300m)
+  // so indoor/new-phone APK GPS drift inside the office does not block legitimate clock-ins.
+  const accuracyAllowanceM =
+    typeof accuracyM === "number" &&
+      Number.isFinite(accuracyM) &&
+      accuracyM > 0 &&
+      accuracyM <= 300
+      ? Math.min(accuracyM, 120)
+      : 0;
 
   let nearest = sites[0];
   let nearestDist = distanceToWorkLocationM(nearest, lat, lng);
@@ -244,14 +255,15 @@ export async function resolvePunchGeofence(
 
   for (const site of sites) {
     const d = distanceToWorkLocationM(site, lat, lng);
+    const effectiveRadiusM = site.radiusM + accuracyAllowanceM;
     if (d < nearestDist) {
       nearest = site;
       nearestDist = d;
     }
     if (site.source === "OFFICE") {
       officeDistance = d;
-      if (d <= site.radiusM) officeMatch = site;
-    } else if (d <= site.radiusM && d < closestMatchedDist) {
+      if (d <= effectiveRadiusM) officeMatch = site;
+    } else if (d <= effectiveRadiusM && d < closestMatchedDist) {
       closestMatched = site;
       closestMatchedDist = d;
     }

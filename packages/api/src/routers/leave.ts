@@ -453,6 +453,24 @@ export const leaveRouter = router({
       const hasManager = Boolean(empDetails?.managerId);
       const managerStatus = hasManager ? "PENDING" : "NOT_REQUIRED";
 
+      // Prevent duplicate / overlapping leave requests for the same date(s)
+      const overlappingRequest = await ctx.prisma.leaveRequest.findFirst({
+        where: {
+          employeeId: actor.id,
+          status: { in: ["PENDING", "APPROVED"] },
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+        include: { leaveType: { select: { name: true } } },
+      });
+
+      if (overlappingRequest) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `A ${overlappingRequest.status.toLowerCase()} ${overlappingRequest.leaveType?.name || "leave"} request already exists for this date.`,
+        });
+      }
+
       const created = await ctx.prisma.leaveRequest.create({
         data: {
           employeeId: actor.id,

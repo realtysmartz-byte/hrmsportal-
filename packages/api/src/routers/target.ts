@@ -48,7 +48,7 @@ export async function calculateDisciplineScore(
     if (settings && typeof settings.weeklyOffDay === "number") {
       weeklyOffDay = settings.weeklyOffDay;
     }
-  } catch (err) {}
+  } catch (err) { }
 
   // 3. Fetch official company holidays for this organization
   const holidayDateMap = new Map<string, string>();
@@ -59,7 +59,7 @@ export async function calculateDisciplineScore(
         if (h.date) holidayDateMap.set(h.date, h.name || "Holiday");
       }
     }
-  } catch (err) {}
+  } catch (err) { }
 
   // 4. Fetch approved leave requests for this employee in date range
   const leaveDateMap = new Map<
@@ -78,9 +78,14 @@ export async function calculateDisciplineScore(
     });
 
     for (const req of leaveRequests) {
+      const typeName = String(req.leaveType?.name || "").toLowerCase();
+      const quota = Number(req.leaveType?.annualQuota ?? 0);
       const isPaid = !(
-        req.leaveType?.name?.toLowerCase().includes("unpaid") ||
-        req.leaveType?.name?.toLowerCase().includes("lwp")
+        quota === 0 ||
+        typeName.includes("unpaid") ||
+        typeName.includes("lwp") ||
+        typeName.includes("lop") ||
+        typeName.includes("loss of pay")
       );
       const rStart = new Date(req.startDate);
       const rEnd = new Date(req.endDate);
@@ -95,7 +100,7 @@ export async function calculateDisciplineScore(
         rCurr.setDate(rCurr.getDate() + 1);
       }
     }
-  } catch (err) {}
+  } catch (err) { }
 
   // 5. Fetch attendance logs for this employee in date range
   const logs = await prisma.attendanceLog.findMany({

@@ -1,4 +1,5 @@
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
+import { getNativePunchFix } from "@/lib/native-duty-tracking";
 
 export type GeoPlace = {
   name: string;
@@ -17,8 +18,8 @@ export type StoredFix = {
 export type PunchFix = StoredFix & { accuracy: number };
 
 const FIX_MAX_AGE_MS = 10_000; // 10s max age to prevent stale distant location cache
-const WATCH_BUDGET_MS = 2_200;
-const GOOD_ACCURACY_M = 45;
+const WATCH_BUDGET_MS = 4_000; // 4s budget so brand-new APK devices can lock satellite GPS
+const GOOD_ACCURACY_M = 30;
 
 let latestFix: StoredFix | null = null;
 let watchId: number | null = null;
@@ -237,6 +238,20 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
       if (id != null) navigator.geolocation.clearWatch(id);
       if (watchTimer != null) clearTimeout(watchTimer);
     };
+
+    // Fast-path 0: Native Android Fused/LocationManager fix in parallel (for APK WebView)
+    void getNativePunchFix().then((nativeFix) => {
+      if (settled || !nativeFix || !isUsablePunchFix(nativeFix)) return;
+      if (!best || (nativeFix.accuracy != null && best.accuracy != null && nativeFix.accuracy < best.accuracy)) {
+        best = nativeFix;
+        latestFix = nativeFix;
+      }
+      if (nativeFix.accuracy != null && nativeFix.accuracy <= GOOD_ACCURACY_M) {
+        settled = true;
+        cleanup();
+        resolve(nativeFix);
+      }
+    });
 
     // Fast-path 1: Quick current position
     try {

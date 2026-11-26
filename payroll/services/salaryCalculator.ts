@@ -324,170 +324,183 @@ export async function calculateMonthlyPayroll(
   for (const emp of employees) {
     const existing = existingRunsMap.get(emp.id);
 
-      // If month is already finalized OR if this employee has a saved run (such as a manual override/edit)
-      if (existing && (existing.status === "finalized" || existing.is_manual_override)) {
-        const bank = bankMap.get(emp.id);
-        const payout = payoutMap.get(emp.id);
-        const hasBank = Boolean(bank && bank.account_number_masked && bank.ifsc);
-        const net = Number(existing.net_salary || 0);
+    // If month is already finalized OR if this employee has a saved run (such as a manual override/edit)
+    if (existing && (existing.status === "finalized" || existing.is_manual_override)) {
+      const bank = bankMap.get(emp.id);
+      const payout = payoutMap.get(emp.id);
+      const hasBank = Boolean(bank && bank.account_number_masked && bank.ifsc);
+      const net = Number(existing.net_salary || 0);
 
-        let isEligible = true;
-        let ineligibilityReason: string | undefined;
+      let isEligible = true;
+      let ineligibilityReason: string | undefined;
 
-        if (net <= 0) {
-          isEligible = false;
-          ineligibilityReason = "Zero Net Salary";
-        } else if (!hasBank) {
-          isEligible = false;
-          ineligibilityReason = "Missing Bank Details";
-        }
+      if (net <= 0) {
+        isEligible = false;
+        ineligibilityReason = "Zero Net Salary";
+      } else if (!hasBank) {
+        isEligible = false;
+        ineligibilityReason = "Missing Bank Details";
+      }
 
-        resultRows.push({
-          employee_id: emp.id,
-          name: emp.name,
-          employee_code: emp.employeeCode,
-          designation: emp.designation || "-",
-          department: emp.department,
-          email: emp.email,
-          phone: emp.phone,
-          month,
-          year,
-          total_days_in_month: totalDaysInMonth,
-          present_days: Number(existing.present_days),
-          half_days: Number(existing.half_days),
-          absent_days: Number(existing.absent_days),
-          approved_leave_days: Number(existing.approved_leave_days || 0),
-          late_marks: Number(existing.late_marks),
-          weekly_off_days: Number(existing.weekly_off_days),
-          holiday_days: Number(existing.holiday_days),
-          late_deductions_days: (Number(existing.late_marks) / (settings.lates_per_half_day_cut || 3)) * 0.5,
-          paid_days: Number(existing.paid_days),
-          monthly_gross: Number(existing.monthly_gross),
-          per_day_salary: Number(existing.per_day_salary),
-          gross_payable: Number(existing.gross_payable),
-          fixed_deductions: Number(existing.monthly_gross) - Number(existing.gross_payable),
-          manual_deductions: 0,
-          deductions: Number(existing.deductions),
-          additions: Number(existing.additions),
-          net_salary: net,
-          missing_punch_out_count: Number(existing.missing_punch_out_count),
-          needs_review: Boolean(existing.needs_review),
-          status: (existing.status as "draft" | "finalized") || "draft",
-          has_bank_details: hasBank,
-          bank_name: bank?.bank_name,
-          ifsc: bank?.ifsc,
-          masked_account: bank?.account_number_masked,
-          account_holder_name: bank?.account_holder_name,
-          is_payout_eligible: isEligible,
-          ineligibility_reason: ineligibilityReason,
-          payout_id: payout?.id,
-          payout_status: payout?.status || "unpaid",
-          failure_reason: payout?.failure_reason,
-          paid_at: payout?.paid_at,
-          date_of_joining: emp.dateOfJoining ? emp.dateOfJoining.toISOString() : null,
-          separation_date: emp.separationDate ? emp.separationDate.toISOString() : null,
-          separation_type: emp.separationType || null,
-          is_manual_override: Boolean(existing.is_manual_override),
-          notes: existing.notes || null,
-        });
+      resultRows.push({
+        employee_id: emp.id,
+        name: emp.name,
+        employee_code: emp.employeeCode,
+        designation: emp.designation || "-",
+        department: emp.department,
+        email: emp.email,
+        phone: emp.phone,
+        month,
+        year,
+        total_days_in_month: totalDaysInMonth,
+        present_days: Number(existing.present_days),
+        half_days: Number(existing.half_days),
+        absent_days: Number(existing.absent_days),
+        approved_leave_days: Number(existing.approved_leave_days || 0),
+        late_marks: Number(existing.late_marks),
+        weekly_off_days: Number(existing.weekly_off_days),
+        holiday_days: Number(existing.holiday_days),
+        late_deductions_days: (Number(existing.late_marks) / (settings.lates_per_half_day_cut || 3)) * 0.5,
+        paid_days: Number(existing.paid_days),
+        monthly_gross: Number(existing.monthly_gross),
+        per_day_salary: Number(existing.per_day_salary),
+        gross_payable: Number(existing.gross_payable),
+        fixed_deductions: Number(existing.monthly_gross) - Number(existing.gross_payable),
+        manual_deductions: 0,
+        deductions: Number(existing.deductions),
+        additions: Number(existing.additions),
+        net_salary: net,
+        missing_punch_out_count: Number(existing.missing_punch_out_count),
+        needs_review: Boolean(existing.needs_review),
+        status: (existing.status as "draft" | "finalized") || "draft",
+        has_bank_details: hasBank,
+        bank_name: bank?.bank_name,
+        ifsc: bank?.ifsc,
+        masked_account: bank?.account_number_masked,
+        account_holder_name: bank?.account_holder_name,
+        is_payout_eligible: isEligible,
+        ineligibility_reason: ineligibilityReason,
+        payout_id: payout?.id,
+        payout_status: payout?.status || "unpaid",
+        failure_reason: payout?.failure_reason,
+        paid_at: payout?.paid_at,
+        date_of_joining: emp.dateOfJoining ? emp.dateOfJoining.toISOString() : null,
+        separation_date: emp.separationDate ? emp.separationDate.toISOString() : null,
+        separation_type: emp.separationType || null,
+        is_manual_override: Boolean(existing.is_manual_override),
+        notes: existing.notes || null,
+      });
+      continue;
+    }
+
+    // Dynamic Calculation from Attendance and Approved Leaves
+    let presentDays = 0;
+    let halfDays = 0;
+    let absentDays = 0;
+    let approvedLeaveDays = 0;
+    let lateMarks = 0;
+    let weeklyOffDays = 0;
+    let holidayDays = 0;
+    let missingPunchOutCount = 0;
+
+    // Proration tenure boundaries:
+    // If employee joined in this month, active starts on dateOfJoining day.
+    // If employee resigned, was terminated, or exited in this month, active ends on separationDate day.
+    let startDay = 1;
+    let endDay = totalDaysInMonth;
+
+    if (emp.dateOfJoining) {
+      const doj = getISTDateParts(new Date(emp.dateOfJoining));
+      if (doj.year === year && doj.month === month) {
+        startDay = Math.max(1, doj.day);
+      } else if (doj.year > year || (doj.year === year && doj.month > month)) {
+        startDay = totalDaysInMonth + 1; // Joined in a future month
+      }
+    }
+
+    if (emp.separationDate && emp.separationType) {
+      const sep = getISTDateParts(new Date(emp.separationDate));
+      if (sep.year === year && sep.month === month) {
+        endDay = Math.min(totalDaysInMonth, sep.day);
+      } else if (sep.year < year || (sep.year === year && sep.month < month)) {
+        endDay = 0; // Separated in an earlier month
+      }
+    }
+
+    const dayAttendance = empDayAttendanceMap.get(emp.id) || new Map<number, any>();
+    const empLeaves = empLeavesMap.get(emp.id) || [];
+
+    for (let day = 1; day <= totalDaysInMonth; day++) {
+      // Days outside employee's active tenure (before joining or after separation) are completely ignored.
+      // They are not marked absent, nor do they receive weekly offs or holidays.
+      if (day < startDay || day > endDay) {
         continue;
       }
 
-      // Dynamic Calculation from Attendance and Approved Leaves
-      let presentDays = 0;
-      let halfDays = 0;
-      let absentDays = 0;
-      let approvedLeaveDays = 0;
-      let lateMarks = 0;
-      let weeklyOffDays = 0;
-      let holidayDays = 0;
-      let missingPunchOutCount = 0;
+      const dateObj = new Date(year, month - 1, day);
+      const dayOfWeek = dateObj.getDay();
+      const dateStr = formatISTDateStr(year, month, day);
 
-      // Proration tenure boundaries:
-      // If employee joined in this month, active starts on dateOfJoining day.
-      // If employee resigned, was terminated, or exited in this month, active ends on separationDate day.
-      let startDay = 1;
-      let endDay = totalDaysInMonth;
+      const isWeeklyOff = dayOfWeek === settings.weekly_off_day;
+      const isHoliday = holidaySet.has(dateStr);
 
-      if (emp.dateOfJoining) {
-        const doj = getISTDateParts(new Date(emp.dateOfJoining));
-        if (doj.year === year && doj.month === month) {
-          startDay = Math.max(1, doj.day);
-        } else if (doj.year > year || (doj.year === year && doj.month > month)) {
-          startDay = totalDaysInMonth + 1; // Joined in a future month
+      if (isHoliday || isWeeklyOff) {
+        if (settings.sandwich_rule_enabled) {
+          const prevDayDate = new Date(year, month - 1, day - 1);
+          const nextDayDate = new Date(year, month - 1, day + 1);
+          const prevStr = prevDayDate.toISOString().slice(0, 10);
+          const nextStr = nextDayDate.toISOString().slice(0, 10);
+          const hadLeaveBefore = empLeaves.some((l) => {
+            const s = l.startDate.toISOString().slice(0, 10);
+            const e = l.endDate.toISOString().slice(0, 10);
+            return prevStr >= s && prevStr <= e;
+          });
+          const hadLeaveAfter = empLeaves.some((l) => {
+            const s = l.startDate.toISOString().slice(0, 10);
+            const e = l.endDate.toISOString().slice(0, 10);
+            return nextStr >= s && nextStr <= e;
+          });
+          if (hadLeaveBefore && hadLeaveAfter) {
+            // Sandwiched: converted to deduction, not paid off day
+            continue;
+          }
         }
-      }
-
-      if (emp.separationDate && emp.separationType) {
-        const sep = getISTDateParts(new Date(emp.separationDate));
-        if (sep.year === year && sep.month === month) {
-          endDay = Math.min(totalDaysInMonth, sep.day);
-        } else if (sep.year < year || (sep.year === year && sep.month < month)) {
-          endDay = 0; // Separated in an earlier month
-        }
-      }
-
-      const dayAttendance = empDayAttendanceMap.get(emp.id) || new Map<number, any>();
-      const empLeaves = empLeavesMap.get(emp.id) || [];
-
-      for (let day = 1; day <= totalDaysInMonth; day++) {
-        // Days outside employee's active tenure (before joining or after separation) are completely ignored.
-        // They are not marked absent, nor do they receive weekly offs or holidays.
-        if (day < startDay || day > endDay) {
+        if (isHoliday) {
+          holidayDays++;
           continue;
         }
-
-        const dateObj = new Date(year, month - 1, day);
-        const dayOfWeek = dateObj.getDay();
-        const dateStr = formatISTDateStr(year, month, day);
-
-        const isWeeklyOff = dayOfWeek === settings.weekly_off_day;
-        const isHoliday = holidaySet.has(dateStr);
-
-        if (isHoliday || isWeeklyOff) {
-          if (settings.sandwich_rule_enabled) {
-            const prevDayDate = new Date(year, month - 1, day - 1);
-            const nextDayDate = new Date(year, month - 1, day + 1);
-            const prevStr = prevDayDate.toISOString().slice(0, 10);
-            const nextStr = nextDayDate.toISOString().slice(0, 10);
-            const hadLeaveBefore = empLeaves.some((l) => {
-              const s = l.startDate.toISOString().slice(0, 10);
-              const e = l.endDate.toISOString().slice(0, 10);
-              return prevStr >= s && prevStr <= e;
-            });
-            const hadLeaveAfter = empLeaves.some((l) => {
-              const s = l.startDate.toISOString().slice(0, 10);
-              const e = l.endDate.toISOString().slice(0, 10);
-              return nextStr >= s && nextStr <= e;
-            });
-            if (hadLeaveBefore && hadLeaveAfter) {
-              // Sandwiched: converted to deduction, not paid off day
-              continue;
-            }
-          }
-          if (isHoliday) {
-            holidayDays++;
-            continue;
-          }
-          if (isWeeklyOff) {
-            weeklyOffDays++;
-            continue;
-          }
+        if (isWeeklyOff) {
+          weeklyOffDays++;
+          continue;
         }
+      }
 
-        // Check if employee has an approved leave covering this date
-        const matchingLeave = empLeaves.find((l) => {
-          const sStr = l.startDate.toISOString().slice(0, 10);
-          const eStr = l.endDate.toISOString().slice(0, 10);
-          return dateStr >= sStr && dateStr <= eStr;
-        });
+      // Check if employee has an approved leave covering this date
+      const matchingLeave = empLeaves.find((l) => {
+        const sStr = l.startDate.toISOString().slice(0, 10);
+        const eStr = l.endDate.toISOString().slice(0, 10);
+        return dateStr >= sStr && dateStr <= eStr;
+      });
 
-        const log = dayAttendance.get(day);
+      const log = dayAttendance.get(day);
 
-        if (matchingLeave) {
-          if (matchingLeave.isHalfDay) {
+      if (matchingLeave) {
+          if (matchingLeave.isUnpaid) {
+            // Unpaid / LWP leave deducts from paid days (counted under absent/unpaid days)
+            if (matchingLeave.isHalfDay) {
+              absentDays += 0.5;
+              if (log && log.checkInTime) {
+                const hours = Number(log.totalHours || 0);
+                if (hours >= settings.working_hours_half_day || (!log.checkOutTime && log.checkInTime)) {
+                  halfDays++;
+                }
+              }
+            } else {
+              absentDays += 1.0;
+            }
+          } else if (matchingLeave.isHalfDay) {
             approvedLeaveDays += 0.5;
-            // If half-day leave, check if employee worked the other half
+            // If half-day paid leave, check if employee worked the other half
             if (log && log.checkInTime) {
               const hours = Number(log.totalHours || 0);
               if (hours >= settings.working_hours_half_day || (!log.checkOutTime && log.checkInTime)) {
@@ -495,7 +508,7 @@ export async function calculateMonthlyPayroll(
               }
             }
           } else {
-            // Full-day approved leave (Paid)
+            // Full-day approved paid leave
             approvedLeaveDays += 1.0;
           }
           continue;
@@ -681,30 +694,30 @@ export async function calculateMonthlyPayroll(
         updated_at = NOW(),
         is_manual_override = EXCLUDED.is_manual_override,
         notes = EXCLUDED.notes`,
-      id,
-      r.employee_id,
-      month,
-      year,
-      r.present_days,
-      r.half_days,
-      r.absent_days,
-      r.approved_leave_days,
-      r.late_marks,
-      r.weekly_off_days,
-      r.holiday_days,
-      r.paid_days,
-      r.per_day_salary,
-      r.monthly_gross,
-      r.gross_payable,
-      r.deductions,
-      r.additions,
-      r.net_salary,
-      r.missing_punch_out_count,
-      r.needs_review,
-      Boolean(r.is_manual_override),
-      r.notes || null
-    );
-  }
+        id,
+        r.employee_id,
+        month,
+        year,
+        r.present_days,
+        r.half_days,
+        r.absent_days,
+        r.approved_leave_days,
+        r.late_marks,
+        r.weekly_off_days,
+        r.holiday_days,
+        r.paid_days,
+        r.per_day_salary,
+        r.monthly_gross,
+        r.gross_payable,
+        r.deductions,
+        r.additions,
+        r.net_salary,
+        r.missing_punch_out_count,
+        r.needs_review,
+        Boolean(r.is_manual_override),
+        r.notes || null
+      );
+    }
 
-  return { success: true, count: rows.length };
-}
+    return { success: true, count: rows.length };
+  }

@@ -64,6 +64,36 @@ export function isNativeAndroidApp() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
 
+export async function getNativePunchFix(): Promise<StoredFix | null> {
+  if (!isNativeAndroidApp()) return null;
+  try {
+    const fix = await DutyTracking.lastKnownFix();
+    if (
+      fix &&
+      typeof fix.lat === "number" &&
+      typeof fix.lng === "number" &&
+      Number.isFinite(fix.lat) &&
+      Number.isFinite(fix.lng) &&
+      !(fix.lat === 0 && fix.lng === 0) &&
+      !fix.isMockLocation
+    ) {
+      const ts = typeof fix.timestamp === "number" && fix.timestamp > 0 ? fix.timestamp : Date.now();
+      // Only use native fix if captured within the last 30 seconds
+      if (Date.now() - ts <= 30_000) {
+        return {
+          lat: fix.lat,
+          lng: fix.lng,
+          accuracy: typeof fix.accuracy === "number" && Number.isFinite(fix.accuracy) ? fix.accuracy : 35,
+          timestamp: ts,
+        };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getNativeMockLocationFlag(referenceFix: StoredFix): Promise<boolean> {
   if (!isNativeAndroidApp()) return false;
   try {

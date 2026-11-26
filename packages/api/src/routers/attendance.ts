@@ -630,7 +630,7 @@ export const attendanceRouter = router({
         ctx.prisma.attendanceLog.findUnique({
           where: { employeeId_date: { employeeId, date: today } },
         }),
-        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
+        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng, input.accuracyM),
         getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
         ctx.prisma.companySettings.findFirst({
           where: { organizationId: orgId },
@@ -911,7 +911,7 @@ export const attendanceRouter = router({
           select: { checkInTime: true },
         }),
         getApprovedHalfDaySlot(ctx.prisma, employeeId, today),
-        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng),
+        resolvePunchGeofence(ctx.prisma, employeeId, input.lat, input.lng, input.accuracyM),
         ctx.prisma.companySettings.findFirst({
           where: { organizationId: orgId },
         }),
@@ -1886,17 +1886,17 @@ export const attendanceRouter = router({
         input.status === "PRESENT" || input.status === "LATE"
           ? 9.0
           : input.status === "HALF_DAY"
-          ? 4.5
-          : 0.0;
+            ? 4.5
+            : 0.0;
 
       const totalHours =
         input.totalHours != null
           ? input.totalHours
           : checkInDate && checkOutDate
-          ? Math.round(
+            ? Math.round(
               ((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60)) * 10
             ) / 10
-          : defaultHours;
+            : defaultHours;
 
       // Find existing log for employee and date
       const existing = await ctx.prisma.attendanceLog.findUnique({

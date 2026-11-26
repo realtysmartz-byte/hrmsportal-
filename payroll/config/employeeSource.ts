@@ -75,6 +75,7 @@ export interface PayrollLeaveRecord {
   numberOfDays: number;
   isHalfDay: boolean;
   status: string;
+  isUnpaid: boolean;
 }
 
 /**
@@ -102,19 +103,37 @@ export async function getApprovedLeavesForMonth(
         numberOfDays: true,
         isHalfDay: true,
         status: true,
+        leaveType: {
+          select: {
+            name: true,
+            annualQuota: true,
+          },
+        },
       },
       orderBy: { startDate: "asc" },
     });
 
-    return leaves.map((l: any) => ({
-      id: l.id,
-      employeeId: l.employeeId,
-      startDate: l.startDate,
-      endDate: l.endDate,
-      numberOfDays: Number(l.numberOfDays || 1),
-      isHalfDay: Boolean(l.isHalfDay),
-      status: l.status,
-    }));
+    return leaves.map((l: any) => {
+      const typeName = String(l.leaveType?.name || "").toLowerCase();
+      const quota = Number(l.leaveType?.annualQuota ?? 0);
+      const isUnpaid =
+        quota === 0 ||
+        typeName.includes("unpaid") ||
+        typeName.includes("loss of pay") ||
+        typeName.includes("lop") ||
+        typeName.includes("lwp");
+
+      return {
+        id: l.id,
+        employeeId: l.employeeId,
+        startDate: l.startDate,
+        endDate: l.endDate,
+        numberOfDays: Number(l.numberOfDays || 1),
+        isHalfDay: Boolean(l.isHalfDay),
+        status: l.status,
+        isUnpaid,
+      };
+    });
   } catch (error) {
     console.error("[PAYROLL_DB_ERROR] Failed to fetch approved leaves:", error);
     return [];
