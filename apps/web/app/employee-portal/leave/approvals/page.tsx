@@ -214,54 +214,54 @@ export default function ManagerLeaveApprovalsPage() {
                   </div>
 
                   {req.reason && (
-                    <p className="text-[11px] text-[var(--ink)] pt-1 border-t border-[var(--line)]/60 whitespace-pre-wrap">
-                      <strong className="text-[var(--muted)] font-normal">Reason: </strong>
-                      {req.reason}
-                    </p>
+                      <p className="text-[11px] text-[var(--ink)] pt-1 border-t border-[var(--line)]/60 whitespace-pre-wrap break-words">
+                        <strong className="text-[var(--muted)] font-normal">Reason: </strong>
+                        {req.reason}
+                      </p>
                   )}
-                </div>
+                    </div>
 
                 {/* Actions if pending manager approval */}
-                {isManagerPending && (
-                  <div className="space-y-2 pt-1">
-                    <input
-                      type="text"
-                      placeholder="Add an optional comment/note..."
-                      value={actionNotes[req.id] || ""}
-                      onChange={(e) =>
-                        setActionNotes((prev) => ({ ...prev, [req.id]: e.target.value }))
-                      }
-                      className="w-full h-8 px-2.5 rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-xs text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)]"
-                    />
+                  {isManagerPending && (
+                    <div className="space-y-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="Add an optional comment/note..."
+                        value={actionNotes[req.id] || ""}
+                        onChange={(e) =>
+                          setActionNotes((prev) => ({ ...prev, [req.id]: e.target.value }))
+                        }
+                        className="w-full h-8 px-2.5 rounded-[4px] border border-[var(--line)] bg-[var(--bg)] text-xs text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)]"
+                      />
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={actioningId === req.id}
-                        onClick={() => handleAction(req.id, "APPROVE")}
-                        className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-[4px] bg-[var(--ok)] text-white text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer"
-                      >
-                        <Check className="h-4 w-4" strokeWidth={2} />
-                        <span>Approve & Forward to HR</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={actioningId === req.id}
+                          onClick={() => handleAction(req.id, "APPROVE")}
+                          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-[4px] bg-[var(--ok)] text-white text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                          <Check className="h-4 w-4" strokeWidth={2} />
+                          <span>Approve & Forward to HR</span>
+                        </button>
 
-                      <button
-                        type="button"
-                        disabled={actioningId === req.id}
-                        onClick={() => handleAction(req.id, "REJECT")}
-                        className="px-4 flex items-center justify-center gap-1.5 h-9 rounded-[4px] border border-[var(--danger)] text-[var(--danger)] text-xs font-semibold hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        <X className="h-4 w-4" strokeWidth={2} />
-                        <span>Reject</span>
-                      </button>
+                        <button
+                          type="button"
+                          disabled={actioningId === req.id}
+                          onClick={() => handleAction(req.id, "REJECT")}
+                          className="px-4 flex items-center justify-center gap-1.5 h-9 rounded-[4px] border border-[var(--danger)] text-[var(--danger)] text-xs font-semibold hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          <X className="h-4 w-4" strokeWidth={2} />
+                          <span>Reject</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
+                  )}
+                </div>
+                );
           })
         )}
-      </div>
+              </div>
     </div>
-  );
+      );
 }

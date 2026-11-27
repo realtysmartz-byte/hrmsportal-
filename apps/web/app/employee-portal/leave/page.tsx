@@ -316,6 +316,17 @@ export default function EmployeeLeavePage() {
                   )}
                 </div>
               </div>
+              {r.reason && (
+                <p className="mt-2 pt-2 border-t border-[var(--line)]/60 text-[12px] text-[var(--ink)] whitespace-pre-wrap break-words">
+                  <span className="text-[var(--muted)] font-medium">Reason: </span>
+                  {r.reason}
+                </p>
+              )}
+              {r.approverNote && (
+                <p className="mt-1 text-[11px] text-[var(--muted)] italic whitespace-pre-wrap break-words">
+                  Note: {r.approverNote}
+                </p>
+              )}
               {r.status === "PENDING" && (
                 <Button
                   size="sm"
