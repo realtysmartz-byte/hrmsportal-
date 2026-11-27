@@ -17,9 +17,9 @@ export type StoredFix = {
 
 export type PunchFix = StoredFix & { accuracy: number };
 
-const FIX_MAX_AGE_MS = 5_000; // 5s max age for cached punch fix
-const WATCH_BUDGET_MS = 5_000; // 5s budget so indoor/new APK devices can lock satellite GPS
-const GOOD_ACCURACY_M = 25; // Only short-circuit early on true high-accuracy GPS (<=25m)
+const FIX_MAX_AGE_MS = 20_000; // 20s max age for prewarmed punch fix
+const WATCH_BUDGET_MS = 2_000; // 2s max wait so punch-in is always fast
+const GOOD_ACCURACY_M = 80; // Resolve immediately on any normal indoor GPS/Wi-Fi fix (<=80m)
 
 let latestFix: StoredFix | null = null;
 let watchId: number | null = null;
@@ -223,65 +223,39 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
       latestFix = null;
     } else {
       const cached = getStoredPunchFix();
-        if (isUsablePunchFix(cached) && cached.accuracy <= GOOD_ACCURACY_M) {
-          resolve(cached);
-          return;
-        }
+      if (isUsablePunchFix(cached) && cached.accuracy <= GOOD_ACCURACY_M) {
+        resolve(cached);
+        return;
       }
+    }
 
-      let best: PunchFix | null = null;
-      let settled = false;
-      let watchTimer: ReturnType<typeof setTimeout> | null = null;
-      let id: number | null = null;
+    let best: PunchFix | null = null;
+    let settled = false;
+    let watchTimer: ReturnType<typeof setTimeout> | null = null;
+    let id: number | null = null;
 
-      const cleanup = () => {
-        if (id != null) navigator.geolocation.clearWatch(id);
-        if (watchTimer != null) clearTimeout(watchTimer);
-      };
+    const cleanup = () => {
+      if (id != null) navigator.geolocation.clearWatch(id);
+      if (watchTimer != null) clearTimeout(watchTimer);
+    };
 
-      // Fast-path 0: Native Android Fused/LocationManager fix in parallel (for APK WebView)
-      void getNativePunchFix().then((nativeFix) => {
-        if (settled || !nativeFix || !isUsablePunchFix(nativeFix)) return;
-        if (!best || (nativeFix.accuracy != null && best.accuracy != null && nativeFix.accuracy < best.accuracy)) {
-          best = nativeFix;
-          latestFix = nativeFix;
-        }
-        if (nativeFix.accuracy != null && nativeFix.accuracy <= GOOD_ACCURACY_M) {
-          settled = true;
-          cleanup();
-          resolve(nativeFix);
-        }
-      });
+    // Fast-path 0: Native Android Fused/LocationManager fix in parallel (for APK WebView)
+    void getNativePunchFix().then((nativeFix) => {
+      if (settled || !nativeFix || !isUsablePunchFix(nativeFix)) return;
+      if (!best || (nativeFix.accuracy != null && best.accuracy != null && nativeFix.accuracy < best.accuracy)) {
+        best = nativeFix;
+        latestFix = nativeFix;
+      }
+      if (nativeFix.accuracy != null && nativeFix.accuracy <= GOOD_ACCURACY_M) {
+        settled = true;
+        cleanup();
+        resolve(nativeFix);
+      }
+    });
 
-      // Fast-path 1: Quick current position
-      try {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const fix: StoredFix = {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
-              timestamp: pos.timestamp || Date.now(),
-            };
-            storeFix(pos);
-            if (!isUsablePunchFix(fix)) return;
-            if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
-              best = fix;
-            }
-            if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              resolve(fix);
-            }
-          },
-          () => { },
-          { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: 1_800 }
-        );
-      } catch { }
-
-      // Fast-path 2: High-accuracy hardware GPS watch
-      id = navigator.geolocation.watchPosition(
+    // Fast-path 1: Quick current position
+    try {
+      navigator.geolocation.getCurrentPosition(
         (pos) => {
           const fix: StoredFix = {
             lat: pos.coords.latitude,
@@ -294,7 +268,6 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
           if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
             best = fix;
           }
-          // If accuracy is high precision, resolve immediately
           if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
             if (settled) return;
             settled = true;
@@ -302,29 +275,56 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
             resolve(fix);
           }
         },
-        (err) => {
-          if (settled) return;
-          if (err.code === 1) {
-            settled = true;
-            cleanup();
-            reject(err);
-          }
-        },
-        { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: WATCH_BUDGET_MS }
+        () => { },
+        { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: 1_800 }
       );
+    } catch { }
 
-      watchTimer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        if (best) resolve(best);
-        else {
-          reject(
-            Object.assign(new Error("Location unavailable. Please make sure device GPS is on and try again."), { code: 2 })
-          );
+    // Fast-path 2: High-accuracy hardware GPS watch
+    id = navigator.geolocation.watchPosition(
+      (pos) => {
+        const fix: StoredFix = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
+          timestamp: pos.timestamp || Date.now(),
+        };
+        storeFix(pos);
+        if (!isUsablePunchFix(fix)) return;
+        if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
+          best = fix;
         }
-      }, WATCH_BUDGET_MS);
-    });
+        // If accuracy is high precision, resolve immediately
+        if (fix.accuracy != null && fix.accuracy <= GOOD_ACCURACY_M) {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve(fix);
+        }
+      },
+      (err) => {
+        if (settled) return;
+        if (err.code === 1) {
+          settled = true;
+          cleanup();
+          reject(err);
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: WATCH_BUDGET_MS }
+    );
+
+    watchTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (best) resolve(best);
+      else {
+        reject(
+          Object.assign(new Error("Location unavailable. Please make sure device GPS is on and try again."), { code: 2 })
+        );
+      }
+    }, WATCH_BUDGET_MS);
+  });
 }
 
 /** @deprecated Prefer acquirePunchFix — kept for non-punch soft GPS reads */
