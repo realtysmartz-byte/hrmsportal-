@@ -818,8 +818,7 @@ function LimitedColleagueProfileView({
                             </Link>
                           ))}
                         </div>
-              </div>
-            )}
+                      )}
                   </CardContent>
                 </Card>
               )}
@@ -1209,48 +1208,18 @@ function LimitedColleagueProfileView({
                         Reporting Manager
                       </p>
                       {emp.manager ? (
-                        basePath.startsWith("/admin-portal") ? (
-                          <Link
-                            href={`${basePath}/${emp.manager.id}`}
-                            className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                          >
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                              {initials(emp.manager.firstName, emp.manager.lastName)}
-                            </span>
-                            {fullName(emp.manager.firstName, emp.manager.lastName)}
-                          </Link>
-                        ) : (
-                          <div className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                              {initials(emp.manager.firstName, emp.manager.lastName)}
-                            </span>
-                            {fullName(emp.manager.firstName, emp.manager.lastName)}
-                          </div>
-                        )
-                        < Link
-                  href={buildProfileLink(basePath, emp.manager.id)}
-                      className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                        {initials(emp.manager.firstName, emp.manager.lastName)}
-                      </span>
-                      {fullName(emp.manager.firstName, emp.manager.lastName)}
-                    </Link>
-                    ) : (
-                    <p className="mt-1 text-sm text-[var(--muted)]">—</p>
-              )}
-                    <Link
-                      href={buildProfileLink(basePath, emp.manager.id)}
-                      className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                    >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                        {initials(emp.manager.firstName, emp.manager.lastName)}
-                      </span>
-                      {fullName(emp.manager.firstName, emp.manager.lastName)}
-                    </Link>
-                    ) : (
-                    <p className="mt-1 text-sm text-[var(--muted)]">—</p>
-                    )}
+                        <Link
+                          href={buildProfileLink(basePath, emp.manager.id)}
+                          className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
+                        >
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
+                            {initials(emp.manager.firstName, emp.manager.lastName)}
+                          </span>
+                          {fullName(emp.manager.firstName, emp.manager.lastName)}
+                        </Link>
+                      ) : (
+                        <p className="mt-1 text-sm text-[var(--muted)]">—</p>
+                      )}
                   </div>
                 </CardContent>
               </Card>
