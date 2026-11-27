@@ -244,7 +244,7 @@ export function CheckInOutCard() {
     setBusy(true);
     setPhase("locating");
     try {
-      const fix = await acquirePunchFix();
+      const fix = await acquirePunchFix({ forceFresh: true });
       const lat = fix.lat;
       const lng = fix.lng;
       const isMockLocation = await getNativeMockLocationFlag(fix);

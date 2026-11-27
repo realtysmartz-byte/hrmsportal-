@@ -236,15 +236,18 @@ export async function resolvePunchGeofence(
 ): Promise<PunchGeofenceMatch> {
   const sites = await getPunchGeofenceSites(prisma, employeeId);
 
-  // Allow bounded GPS accuracy tolerance (up to 120m when reported accuracy <= 300m)
-  // so indoor/new-phone APK GPS drift inside the office does not block legitimate clock-ins.
+  // Allow bounded indoor GPS/network drift tolerance so employees inside the office
+  // (where Android WebView GPS often falls back to a cell tower 250-380m away) are not blocked,
+  // while still strictly blocking punches from outside the office vicinity (400m+).
   const accuracyAllowanceM =
     typeof accuracyM === "number" &&
       Number.isFinite(accuracyM) &&
       accuracyM > 0 &&
-      accuracyM <= 300
-      ? Math.min(accuracyM, 120)
-      : 0;
+      accuracyM <= 1000
+    ? accuracyM <= 30
+      ? 50
+      : Math.min(Math.max(accuracyM, 150), 200)
+    : 0;
 
   let nearest = sites[0];
   let nearestDist = distanceToWorkLocationM(nearest, lat, lng);
