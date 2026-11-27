@@ -133,8 +133,10 @@ export async function calculateDisciplineScore(
   let expectedWorkingDays = 0;
   let earnedCredits = 0;
   let onTimeDays = 0;
-  let lateDays = 0;
-  let halfDays = 0;
+  let lateMarkOnlyDays = 0; // 10:16 - 10:30 AM IST (Late mark shown, no deduction)
+  let lateDays = 0; // 10:31 - 11:00 AM IST (3 days = 1 Half Day)
+  let halfDayCutFromLates = 0;
+  let halfDays = 0; // > 11:00 AM IST or HALF_DAY status
   let absentDays = 0;
   let paidLeaveDays = 0;
   let unpaidLeaveDays = 0;
@@ -182,15 +184,27 @@ export async function calculateDisciplineScore(
             const ist = getISTDateParts(new Date(log.checkInTime));
             const minutes = ist.hour * 60 + ist.minute;
 
-            if (minutes <= 630) { // <= 10:30 AM IST
+            if (minutes <= 615) {
+              // <= 10:15 AM IST: On-time
               onTimeDays++;
               earnedCredits += 1.0;
-            } else if (minutes <= 660) { // 10:31 - 11:00 AM IST
+            } else if (minutes <= 630) {
+              // 10:16 - 10:30 AM IST: Late mark only (no deduction)
+              lateMarkOnlyDays++;
+              earnedCredits += 1.0;
+            } else if (minutes <= 660) {
+              // 10:31 - 11:00 AM IST: 3 days = 1 Half Day
               lateDays++;
-              earnedCredits += 0.6; // Deduction for late after 10:30 AM
-            } else { // > 11:00 AM IST
+              if (lateDays % 3 === 0) {
+                halfDayCutFromLates++;
+                earnedCredits += 0.5;
+              } else {
+                earnedCredits += 1.0;
+              }
+            } else {
+              // > 11:00 AM IST: Direct Half Day
               halfDays++;
-              earnedCredits += 0.5; // Deduction for late after 11:00 AM
+              earnedCredits += 0.5;
             }
           } else {
             onTimeDays++;
@@ -198,7 +212,12 @@ export async function calculateDisciplineScore(
           }
         } else if (log.status === "LATE") {
           lateDays++;
-          earnedCredits += 0.6;
+          if (lateDays % 3 === 0) {
+            halfDayCutFromLates++;
+            earnedCredits += 0.5;
+          } else {
+            earnedCredits += 1.0;
+          }
         } else if (log.status === "HALF_DAY") {
           halfDays++;
           earnedCredits += 0.5;
@@ -227,7 +246,9 @@ export async function calculateDisciplineScore(
     expectedWorkingDays: Math.round(expectedWorkingDays * 10) / 10,
     earnedCredits: Math.round(earnedCredits * 10) / 10,
     onTimeDays,
+    lateMarkOnlyDays,
     lateDays,
+    halfDayCutFromLates,
     halfDays,
     absentDays,
     paidLeaveDays: Math.round(paidLeaveDays * 10) / 10,
@@ -238,6 +259,148 @@ export async function calculateDisciplineScore(
 }
 
 export const targetRouter = router({
+  activeTeamRoster: orgManageProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.user.organizationId || "org_default_realty";
+    const [activeEmployees, inactiveLeaders] = await Promise.all([
+      ctx.prisma.employee.findMany({
+        where: {
+          organizationId: orgId,
+          status: { in: ["ACTIVE", "ON_LEAVE"] },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          companyName: true,
+          managerId: true,
+          role: true,
+          status: true,
+          manager: {
+            select: { id: true, firstName: true, lastName: true, employeeCode: true, status: true },
+          },
+          directReports: {
+            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+            select: { id: true },
+          },
+          department: { select: { id: true, name: true } },
+          designation: { select: { id: true, title: true } },
+        },
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      }),
+      ctx.prisma.employee.findMany({
+        where: {
+          organizationId: orgId,
+          status: { notIn: ["ACTIVE", "ON_LEAVE"] },
+          directReports: { some: { status: { in: ["ACTIVE", "ON_LEAVE"] } } },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          status: true,
+          directReports: {
+            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+            select: { id: true, firstName: true, lastName: true, employeeCode: true },
+          },
+        },
+      }),
+    ]);
+    return { activeEmployees, inactiveLeaders };
+  }),
+
+  assignEmployeesCompany: orgManageProcedure
+    .input(
+      z.object({
+        companyName: z.enum(["Realty Smartz", "Smartz Spaces", "EngageXpert", "BuySquad"]),
+        employeeIds: z.array(z.string().min(1)).min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      await ctx.prisma.$transaction([
+        ctx.prisma.employee.updateMany({
+          where: {
+            id: { in: input.employeeIds },
+            organizationId: orgId,
+            status: { in: ["ACTIVE", "ON_LEAVE"] },
+          },
+          data: { companyName: input.companyName },
+        }),
+        ctx.prisma.employeeTarget.updateMany({
+          where: {
+            employeeId: { in: input.employeeIds },
+            organizationId: orgId,
+            status: "IN_PROGRESS",
+          },
+          data: { companyName: input.companyName },
+        }),
+      ]);
+      return { success: true, count: input.employeeIds.length, companyName: input.companyName };
+    }),
+
+  transferTeamLeader: orgManageProcedure
+    .input(
+      z.object({
+        fromManagerId: z.string().min(1),
+        toManagerId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      if (input.fromManagerId === input.toManagerId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Source and target Team Leader cannot be the same." });
+      }
+      const targetTL = await ctx.prisma.employee.findFirst({
+        where: { id: input.toManagerId, organizationId: orgId, status: { in: ["ACTIVE", "ON_LEAVE"] } },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      if (!targetTL) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "New Team Leader not found or inactive." });
+      }
+      const res = await ctx.prisma.employee.updateMany({
+        where: {
+          organizationId: orgId,
+          managerId: input.fromManagerId,
+          status: { in: ["ACTIVE", "ON_LEAVE"] },
+        },
+        data: { managerId: input.toManagerId },
+      });
+      return { success: true, transferredCount: res.count, newLeaderName: `${targetTL.firstName} ${targetTL.lastName}` };
+    }),
+
+  setEmployeeManager: orgManageProcedure
+    .input(
+      z.object({
+        employeeId: z.string().min(1),
+        managerId: z.string().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      if (input.managerId === input.employeeId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Employee cannot report to themselves." });
+      }
+      if (input.managerId) {
+        const mgr = await ctx.prisma.employee.findFirst({
+          where: { id: input.managerId, organizationId: orgId, status: { in: ["ACTIVE", "ON_LEAVE"] } },
+          select: { id: true },
+        });
+        if (!mgr) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Selected Team Leader not found or inactive." });
+        }
+      }
+      const updated = await ctx.prisma.employee.updateMany({
+        where: { id: input.employeeId, organizationId: orgId },
+        data: { managerId: input.managerId },
+      });
+      if (updated.count === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found." });
+      }
+      return { success: true };
+    }),
+
   listAdmin: orgManageProcedure
     .input(
       z
@@ -472,7 +635,11 @@ export const targetRouter = router({
         }
 
         const allEmployees = await ctx.prisma.employee.findMany({
-          where: { organizationId: orgId, role: "EMPLOYEE" },
+          where: {
+            organizationId: orgId,
+            role: { in: ["EMPLOYEE", "MANAGER"] },
+            status: { in: ["ACTIVE", "ON_LEAVE"] },
+          },
           select: {
             id: true,
             firstName: true,
@@ -480,9 +647,13 @@ export const targetRouter = router({
             employeeCode: true,
             companyName: true,
             managerId: true,
+            manager: {
+              select: { id: true, firstName: true, lastName: true },
+            },
             designation: { select: { title: true } },
             department: { select: { name: true } },
             directReports: {
+              where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
               select: {
                 id: true,
                 firstName: true,
@@ -497,10 +668,13 @@ export const targetRouter = router({
 
         const tlList = allEmployees.filter((emp) => {
           const title = (emp.designation?.title || "").toLowerCase();
-          const isDesignatedTL =
-            title.includes("lead") || title.includes("manager") || title.includes("tl");
+          const isTopLeader =
+            title.includes("team leader") ||
+            title.includes("associate director") ||
+            title.includes("dgm") ||
+            title.includes("vice president");
           const hasReports = emp.directReports && emp.directReports.length > 0;
-          return hasReports || isDesignatedTL;
+          return hasReports || isTopLeader;
         });
 
         const teamLeaders = tlList.map((tl) => {
@@ -556,6 +730,8 @@ export const targetRouter = router({
             name: `${tl.firstName} ${tl.lastName}`.trim(),
             employeeCode: tl.employeeCode || "RS",
             companyName: tl.companyName || "Realty Smartz",
+            managerId: tl.managerId || null,
+            managerName: tl.manager ? `${tl.manager.firstName} ${tl.manager.lastName}`.trim() : null,
             designation: tl.designation?.title || "Team Leader",
             department: tl.department?.name || "Sales",
             memberCount: memberCards.length,
@@ -1126,28 +1302,132 @@ export const targetRouter = router({
 
     if (!isTL) return null;
 
-    const reportIds = me.directReports.map((r) => r.id);
-    const teamTargets = await ctx.prisma.employeeTarget.findMany({
+    const orgStaff = await ctx.prisma.employee.findMany({
       where: {
-        employeeId: { in: reportIds },
         organizationId: orgId,
-        employee: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+        status: { in: ["ACTIVE", "ON_LEAVE"] },
       },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            companyName: true,
-            designation: { select: { title: true } },
-          },
-        },
-        items: true,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeCode: true,
+        companyName: true,
+        managerId: true,
+        designation: { select: { title: true } },
+        department: { select: { name: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     });
+
+    const staffById = new Map(orgStaff.map((s) => [s.id, s]));
+    const childrenByMgr = new Map<string, typeof orgStaff>();
+    for (const s of orgStaff) {
+      if (s.managerId) {
+        const list = childrenByMgr.get(s.managerId) || [];
+        list.push(s);
+        childrenByMgr.set(s.managerId, list);
+      }
+    }
+
+    // Traverse full reporting hierarchy under `me.id` (BFS, cycle-safe)
+    const visited = new Set<string>([me.id]);
+    const queue: Array<{ emp: (typeof orgStaff)[number]; level: number }> = [];
+    for (const child of childrenByMgr.get(me.id) || []) {
+      if (!visited.has(child.id)) {
+        visited.add(child.id);
+        queue.push({ emp: child, level: 1 });
+      }
+    }
+
+    const hierarchyMembers: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      employeeCode: string | null;
+      companyName: string | null;
+      managerId: string | null;
+      managerName: string | null;
+      level: number;
+      directReportsCount: number;
+      designation: { title: string } | null;
+      department: { name: string } | null;
+    }> = [];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const mgr = current.emp.managerId ? staffById.get(current.emp.managerId) : null;
+      const subReports = childrenByMgr.get(current.emp.id) || [];
+      hierarchyMembers.push({
+        ...current.emp,
+        managerName: mgr ? `${mgr.firstName} ${mgr.lastName}`.trim() : null,
+        level: current.level,
+        directReportsCount: subReports.length,
+      });
+      if (current.level < 5) {
+        for (const sub of subReports) {
+          if (!visited.has(sub.id)) {
+            visited.add(sub.id);
+            queue.push({ emp: sub, level: current.level + 1 });
+          }
+        }
+      }
+    }
+
+    const reportIds = hierarchyMembers.map((r) => r.id);
+    const teamTargetsRaw = reportIds.length
+      ? await ctx.prisma.employeeTarget.findMany({
+          where: {
+            employeeId: { in: reportIds },
+            organizationId: orgId,
+            employee: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+          },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                employeeCode: true,
+                companyName: true,
+                designation: { select: { title: true } },
+              },
+            },
+            items: true,
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
+    const teamTargets = await Promise.all(
+      teamTargetsRaw.map(async (t) => {
+        const discipline = await calculateDisciplineScore(
+          ctx.prisma,
+          t.employeeId,
+          t.startDate,
+          t.endDate
+        );
+        let perfEarned = 0;
+        const computedItems = (t.items || []).map((item) => {
+          const rate =
+            item.targetValue > 0 ? Math.min(1, item.achievedValue / item.targetValue) : 0;
+          const earned = Math.round(rate * item.weightPercent * 10) / 10;
+          perfEarned += earned;
+          return {
+            ...item,
+            completionRate: Math.round(rate * 100),
+            earnedScore: earned,
+          };
+        });
+        const totalScore = Math.min(100, Math.round((perfEarned + discipline.score) * 10) / 10);
+        return {
+          ...t,
+          items: computedItems,
+          discipline,
+          totalScore,
+        };
+      })
+    );
 
     let teamTargetRevenue = 0;
     let teamAchievedRevenue = 0;
@@ -1155,22 +1435,39 @@ export const targetRouter = router({
     let teamAchievedVisits = 0;
     let teamTargetBookings = 0;
     let teamAchievedBookings = 0;
+    let scoreSum = 0;
 
+    // Aggregate latest target per team member
+    const latestTargetByEmp = new Map<string, (typeof teamTargets)[number]>();
     for (const t of teamTargets) {
+      if (!latestTargetByEmp.has(t.employeeId)) {
+        latestTargetByEmp.set(t.employeeId, t);
+      }
+    }
+
+    for (const t of latestTargetByEmp.values()) {
       teamTargetRevenue += t.targetRevenue || 0;
       teamAchievedRevenue += t.currentRevenue || 0;
       teamTargetVisits += t.targetVisits || 0;
       teamAchievedVisits += t.currentVisits || 0;
       teamTargetBookings += t.targetBookings || 0;
       teamAchievedBookings += t.currentBookings || 0;
+      scoreSum += t.totalScore || 0;
     }
+
+    const teamAvgScore =
+      latestTargetByEmp.size > 0
+        ? Math.round((scoreSum / latestTargetByEmp.size) * 10) / 10
+        : 0;
 
     return {
       isTeamLeader: true,
       leaderName: `${me.firstName} ${me.lastName}`,
       companyName: me.companyName || "Realty Smartz",
-      memberCount: me.directReports.length,
+      memberCount: hierarchyMembers.length,
+      directReportCount: me.directReports.length,
       directReports: me.directReports,
+      hierarchyMembers,
       teamTargets,
       summary: {
         teamTargetRevenue,
@@ -1179,10 +1476,11 @@ export const targetRouter = router({
         teamAchievedVisits,
         teamTargetBookings,
         teamAchievedBookings,
+        teamAvgScore,
         progressPct:
           teamTargetRevenue > 0
             ? Math.min(100, Math.round((teamAchievedRevenue / teamTargetRevenue) * 100))
-            : 0,
+            : teamAvgScore,
       },
     };
   }),

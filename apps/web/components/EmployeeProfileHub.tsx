@@ -1344,12 +1344,34 @@ function LeaveTab({
   canManage: boolean;
   onAdjusted: () => void;
 }) {
-  const { data, isLoading } = trpc.leave.forEmployee.useQuery({ employeeId });
+  const { data, isLoading, refetch: refetchLeave } = trpc.leave.forEmployee.useQuery({ employeeId });
   const { data: allLeaveTypes } = trpc.leave.types.useQuery();
   const [adjustTypeId, setAdjustTypeId] = useState("");
   const [allotted, setAllotted] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  const [probMonthsInput, setProbMonthsInput] = useState("6");
+  const [probEndDateInput, setProbEndDateInput] = useState("");
+
+  useEffect(() => {
+    if (data?.probation) {
+      setProbMonthsInput(String(data.probation.probationMonths ?? 6));
+      setProbEndDateInput(
+        data.probation.probationEndDate
+          ? new Date(data.probation.probationEndDate).toISOString().slice(0, 10)
+          : ""
+      );
+    }
+  }, [data?.probation]);
+
+  const updateProbationMutation = trpc.employee.updateProbation.useMutation({
+    onSuccess: () => {
+      toast("success", "Employee probation updated!");
+      refetchLeave();
+      onAdjusted();
+    },
+    onError: (e) => setError(userFacingErrorMessage(e)),
+  });
 
   const adjust = trpc.leave.adjustBalance.useMutation({
     onSuccess: () => {
@@ -1456,36 +1478,147 @@ function LeaveTab({
         </Card>
       )}
 
-      {/* 2. Probation 1-Click Setup Banner */}
+      {/* 2. Probation Period & Quota Policy */}
       {canManage && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[var(--field)] rounded-xl border border-[var(--line)]">
-          <div>
-            <span className="text-xs font-bold text-[var(--ink)]">Probation &amp; Quota Policy:</span>
-            <span className="text-xs text-[var(--muted)] ml-1.5">
-              Probation candidates have 0 leaves allotted. Click below to quickly assign zero leaves.
-            </span>
+        <div className="space-y-3 p-3.5 bg-[var(--field)] rounded-xl border border-[var(--line)]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-[var(--ink)]">Probation Status:</span>
+                {data?.probation?.isUnderProbation ? (
+                  <span className="rounded px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                    On Probation ({data.probation.probationMonths}m • {data.probation.remainingDays}d left
+                    {data.probation.probationEndDate
+                      ? ` • Ends ${formatDate(data.probation.probationEndDate)}`
+                      : ""}
+                    )
+                  </span>
+                ) : (
+                  <span className="rounded px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Confirmed (Probation Completed)
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[var(--muted)]">
+                Employees on probation can only apply for Unpaid Leave. Reduce probation months or confirm employee below.
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={adjust.isLoading}
+              className="text-xs border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 font-semibold shadow-2xs"
+              onClick={async () => {
+                if (!window.confirm("Set probation quota (0 leaves) for all leave types for this candidate?")) return;
+                const typesToSet = availableTypes.length > 0 ? availableTypes : (data?.balances.map((b) => b.leaveType) ?? []);
+                for (const t of typesToSet) {
+                  await adjust.mutateAsync({
+                    employeeId,
+                    leaveTypeId: t.id,
+                    allotted: 0,
+                    reason: "Probation period - 0 leave quota",
+                  });
+                }
+                toast("success", "Probation quota (0 leaves) set successfully!");
+              }}
+            >
+              Set Probation (0 Leaves)
+            </Button>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={adjust.isLoading}
-            className="text-xs border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 font-semibold shadow-2xs"
-            onClick={async () => {
-              if (!window.confirm("Set probation quota (0 leaves) for all leave types for this candidate?")) return;
-              const typesToSet = availableTypes.length > 0 ? availableTypes : (data?.balances.map((b) => b.leaveType) ?? []);
-              for (const t of typesToSet) {
-                await adjust.mutateAsync({
-                  employeeId,
-                  leaveTypeId: t.id,
-                  allotted: 0,
-                  reason: "Probation period - 0 leave quota",
-                });
-              }
-              toast("success", "Probation quota (0 leaves) set successfully!");
-            }}
-          >
-            Set Probation (0 Leaves)
-          </Button>
+
+          <div className="grid gap-2 sm:grid-cols-4 items-end pt-2 border-t border-[var(--line)]">
+            <div className="space-y-1">
+              <Label className="text-[11px]">Probation Months (0 = Confirm)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={24}
+                value={probMonthsInput}
+                onChange={(e) => {
+                  setProbMonthsInput(e.target.value);
+                  setProbEndDateInput("");
+                }}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">Custom End Date (Optional)</Label>
+              <Input
+                type="date"
+                value={probEndDateInput}
+                onChange={(e) => setProbEndDateInput(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="sm:col-span-2 flex flex-wrap gap-1.5">
+              <Button
+                size="sm"
+                type="button"
+                disabled={updateProbationMutation.isLoading}
+                onClick={() =>
+                  updateProbationMutation.mutate({
+                    employeeId,
+                    probationMonths: Math.max(0, parseInt(probMonthsInput, 10) || 0),
+                    probationEndDate: probEndDateInput ? new Date(probEndDateInput) : null,
+                  })
+                }
+                className="h-8 text-xs bg-[#0284C7] hover:bg-[#0369A1] text-white font-semibold"
+              >
+                Save Probation
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                variant="outline"
+                disabled={updateProbationMutation.isLoading}
+                onClick={() =>
+                  updateProbationMutation.mutate({
+                    employeeId,
+                    probationMonths: 3,
+                    probationEndDate: null,
+                  })
+                }
+                className="h-8 text-xs font-semibold"
+              >
+                Reduce to 3m
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                variant="outline"
+                disabled={updateProbationMutation.isLoading}
+                onClick={() =>
+                  updateProbationMutation.mutate({
+                    employeeId,
+                    probationMonths: 0,
+                    probationEndDate: new Date(),
+                  })
+                }
+                className="h-8 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold"
+              >
+                End Probation Now
+              </Button>
+              {data?.probation?.isCustomOverride && (
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={updateProbationMutation.isLoading}
+                  onClick={() =>
+                    updateProbationMutation.mutate({
+                      employeeId,
+                      probationMonths: null,
+                      probationEndDate: null,
+                    })
+                  }
+                  className="h-8 text-xs text-[var(--muted)]"
+                >
+                  Reset Default
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

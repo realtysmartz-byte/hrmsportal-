@@ -15,7 +15,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import { sendDevicePushNotification } from "@/lib/client-notifications";
+import { dispatchNewBellNotifications } from "@/lib/client-notifications";
 
 function formatRelativeTime(dateInput: Date | string | null | undefined): string {
   if (!dateInput) return "";
@@ -45,21 +45,19 @@ export function AdminNotificationBell() {
 
   const unreadCount = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
-  const prevUnreadRef = useRef<number | null>(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (prevUnreadRef.current !== null && unreadCount > prevUnreadRef.current) {
-      const latest = items[0];
-      if (latest) {
-        void sendDevicePushNotification({
-          title: latest.title || "HRMS Admin Notification",
-          body: latest.subtitle || "",
-          url: latest.href,
-        });
-      }
-    }
-    prevUnreadRef.current = unreadCount;
-  }, [unreadCount, items]);
+    if (!data) return;
+    const isInitialMount = !initializedRef.current;
+    initializedRef.current = true;
+    dispatchNewBellNotifications({
+      storageKey: "hrms_admin_pushed_notif_ids_v1",
+      items,
+      isInitialMount,
+      defaultTitle: "HRMS Admin Notification",
+    });
+  }, [data, items]);
 
   // Close dropdown on click outside or escape key
   useEffect(() => {

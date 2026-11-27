@@ -1,5 +1,43 @@
 import webpush from "web-push";
 import type { PrismaClient } from "@realty-smartz/db";
+import { getRedisClient } from "./redis";
+
+const recentPushDedupeCache = new Map<string, number>();
+
+/**
+ * Claims a once-only notification lock using Redis (7d TTL) with in-memory fallback.
+ * Returns true if this is the first time `dedupeKey` is seen, false otherwise.
+ */
+export async function acquirePushDedupeLock(dedupeKey: string): Promise<boolean> {
+  const now = Date.now();
+  // Prune expired local entries
+  for (const [k, exp] of recentPushDedupeCache.entries()) {
+    if (exp <= now) recentPushDedupeCache.delete(k);
+  }
+  const existing = recentPushDedupeCache.get(dedupeKey);
+  if (existing && existing > now) {
+    return false;
+  }
+
+  const redis = getRedisClient();
+  if (redis) {
+    try {
+      const acquired = await redis.set(`push:once:${dedupeKey}`, "1", {
+        nx: true,
+        ex: 60 * 60 * 24 * 7, // 7 days
+      });
+      if (!acquired) {
+        recentPushDedupeCache.set(dedupeKey, now + 60 * 60 * 1000);
+        return false;
+      }
+    } catch {
+      // Fall back to in-memory lock if Redis is unreachable
+    }
+  }
+
+  recentPushDedupeCache.set(dedupeKey, now + 60 * 60 * 1000);
+  return true;
+}
 
 interface SendPushOptions {
   prisma: PrismaClient;
@@ -8,6 +46,8 @@ interface SendPushOptions {
   body: string;
   url?: string;
   type?: string;
+  tag?: string;
+  dedupeKey?: string;
 }
 
 export async function sendEmployeePushNotification({
@@ -17,6 +57,8 @@ export async function sendEmployeePushNotification({
   body,
   url = "/employee-portal/dashboard",
   type = "leave",
+  tag,
+  dedupeKey,
 }: SendPushOptions): Promise<{ sent: number; failed: number }> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
@@ -37,6 +79,13 @@ export async function sendEmployeePushNotification({
   const employeeIds = Array.isArray(employeeId) ? employeeId : [employeeId];
   if (employeeIds.length === 0) return { sent: 0, failed: 0 };
 
+  if (dedupeKey) {
+    const allowed = await acquirePushDedupeLock(`${dedupeKey}:${employeeIds.slice().sort().join(",")}`);
+    if (!allowed) {
+      return { sent: 0, failed: 0 };
+    }
+  }
+
   const subscriptions = await prisma.pushSubscription.findMany({
     where: { employeeId: { in: employeeIds } },
   });
@@ -50,11 +99,13 @@ export async function sendEmployeePushNotification({
     return { sent: 0, failed: 0 };
   }
 
+  const resolvedTag = tag || dedupeKey || (type ? `hrms-${type}` : "hrms-notification");
   const payload = JSON.stringify({
     title,
     body,
     url,
     type,
+    tag: resolvedTag,
     timestamp: Date.now(),
   });
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@realty-smartz/db";
+import { acquirePushDedupeLock } from "@realty-smartz/api";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,8 @@ async function handleSync(req: Request) {
     return NextResponse.json({ ok: false, error: "Employee not found", notifications: [] }, { status: 404 });
   }
 
-  const since = new Date(Date.now() - 48 * 60 * 60 * 1000); // last 48 hours
+  // Only inspect events from the last 2 hours so old historical leaves/targets never trigger
+  const since = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
   // Query recent targets, verified activities, and leave responses
   const [recentTargets, recentActivities, recentLeaves] = await Promise.all([
@@ -155,7 +157,7 @@ async function handleSync(req: Request) {
     const isApproved = l.status === "APPROVED" || l.managerStatus === "APPROVED";
     const statusText = l.status === "APPROVED" ? "Approved by HR" : l.managerStatus === "APPROVED" ? "Approved by Manager" : "Rejected";
     notifications.push({
-      id: `leave-res-${l.id}-${l.status}`,
+      id: `leave-res-${l.id}-${l.status}-${l.managerStatus}`,
       title: isApproved ? `🌴 Leave Application ${statusText}` : "❌ Leave Application Rejected",
       body: `Your ${l.leaveType.name} (${l.numberOfDays}d) request has been ${statusText.toLowerCase()}.`,
       type: "leave",
@@ -163,8 +165,17 @@ async function handleSync(req: Request) {
     });
   }
 
+  // Strictly filter out any notification already delivered to this employee
+  const undelivered: typeof notifications = [];
+  for (const n of notifications) {
+    const firstDelivery = await acquirePushDedupeLock(`native:${emp.id}:${n.id}`);
+    if (firstDelivery) {
+      undelivered.push(n);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
-    notifications,
+    notifications: undelivered,
   });
 }

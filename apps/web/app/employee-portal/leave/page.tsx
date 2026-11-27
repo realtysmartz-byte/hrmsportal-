@@ -59,6 +59,27 @@ export default function EmployeeLeavePage() {
     onError: (err) => setError(userFacingErrorMessage(err)),
   });
 
+  const isUnpaidLeaveType = (name: string) => {
+    const lower = (name || "").toLowerCase();
+    return lower.includes("unpaid") || lower.includes("loss of pay") || lower.includes("lop");
+  };
+
+  const isOnProbation = Boolean(probationStatus?.isUnderProbation);
+  const eligibleTypes = useMemo(() => {
+    const list = types ?? [];
+    if (!isOnProbation) return list;
+    return list.filter((t) => isUnpaidLeaveType(t.name));
+  }, [types, isOnProbation]);
+
+  // Auto-select Unpaid Leave for probation staff so they cannot accidentally submit Casual/Sick
+  useEffect(() => {
+    if (isOnProbation && eligibleTypes.length > 0) {
+      if (!leaveTypeId || !eligibleTypes.some((t) => t.id === leaveTypeId)) {
+        setLeaveTypeId(eligibleTypes[0].id);
+      }
+    }
+  }, [isOnProbation, eligibleTypes, leaveTypeId]);
+
   const cancelMutation = trpc.leave.cancel.useMutation({
     onSuccess: () => utils.leave.myRequests.invalidate(),
   });
@@ -136,28 +157,54 @@ export default function EmployeeLeavePage() {
 
       <div className="flex gap-2.5 overflow-x-auto pb-1">
         {balances?.map((b) => {
+          const isPaid = !isUnpaidLeaveType(b.leaveType.name);
+          const lockedOnProbation = isOnProbation && isPaid;
           const isNegative = (b.remaining ?? 0) < 0;
           return (
             <div
               key={b.id}
               style={{ backgroundColor: "var(--card)", borderColor: "var(--line)", color: "var(--ink)" }}
-              className="min-w-[130px] shrink-0 rounded-[4px] border bg-[var(--card)] p-3.5"
+              className={cn(
+                "min-w-[140px] shrink-0 rounded-[4px] border bg-[var(--card)] p-3.5",
+                lockedOnProbation && "opacity-65"
+              )}
             >
-              <p className="text-[12px] font-[600] text-[var(--muted)]">{b.leaveType.name}</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[12px] font-[600] text-[var(--muted)]">{b.leaveType.name}</p>
+                {lockedOnProbation && (
+                  <span className="rounded px-1.5 py-0.2 text-[9px] font-bold bg-amber-100 text-amber-800">
+                    Locked
+                  </span>
+                )}
+              </div>
               <p
                 className={cn(
                   "text-[30px] font-[700] leading-tight my-1",
-                  isNegative ? "text-[var(--danger)]" : "text-[var(--ink)]"
+                  lockedOnProbation
+                    ? "text-[var(--muted)]"
+                    : isNegative
+                    ? "text-[var(--danger)]"
+                    : "text-[var(--ink)]"
                 )}
               >
-                {b.remaining}
+                {lockedOnProbation ? 0 : b.remaining}
               </p>
-              <p className="text-[12px] text-[var(--muted)]">
-                of {b.allotted}
+              <p className="text-[11px] text-[var(--muted)]">
+                {lockedOnProbation ? "Locked during probation" : `of ${b.allotted}`}
               </p>
             </div>
           );
         })}
+        {isOnProbation && !balances?.some((b) => isUnpaidLeaveType(b.leaveType.name)) && (
+          <div
+            style={{ backgroundColor: "var(--card)", borderColor: "var(--line)", color: "var(--ink)" }}
+            className="min-w-[160px] shrink-0 rounded-[4px] border bg-[var(--card)] p-3.5"
+          >
+            <p className="text-[12px] font-[600] text-[var(--muted)]">Unpaid Leave (LOP)</p>
+            <p className="text-[16px] font-[700] text-[var(--accent)] my-2">Allowed</p>
+            <p className="text-[11px] text-[var(--muted)]">Available on probation</p>
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -174,17 +221,22 @@ export default function EmployeeLeavePage() {
                   onChange={(e) => setLeaveTypeId(e.target.value)}
                   required
                 >
-                  <option value="">Select</option>
-                  {(types ?? []).map((t) => {
+                  {!isOnProbation && <option value="">Select</option>}
+                  {eligibleTypes.map((t) => {
                     const bal = balances?.find((b) => b.leaveTypeId === t.id);
                     return (
                       <option key={t.id} value={t.id}>
                         {t.name}
-                        {bal != null ? ` (${bal.remaining} left)` : ""}
+                        {!isUnpaidLeaveType(t.name) && bal != null ? ` (${bal.remaining} left)` : ""}
                       </option>
                     );
                   })}
                 </Select>
+                {isOnProbation && (
+                  <p className="text-[11px] font-semibold text-[var(--warn)]">
+                    Probation active: Only Unpaid Leave (Loss of Pay) is allowed.
+                  </p>
+                )}
               </div>
               <label className="flex items-center gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--field)] px-3 py-2 text-sm text-[var(--ink)]">
                 <input

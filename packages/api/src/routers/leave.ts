@@ -16,13 +16,21 @@ import { hrAdminProcedure, protectedProcedure, router } from "../trpc";
 import { assertCanViewSensitive } from "../lib/employee-access";
 import { sendEmployeePushNotification } from "../lib/push-notify";
 
+let lastAutoRejectCheckAt = 0;
+
 /**
  * Automatically rejects any leave request that has been pending for more than 24 hours.
- * Sends clean corporate email and push notification to the applicant.
+ * Atomic conditional update ensures email & push notifications fire strictly ONCE per leave.
  */
 export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
+  const nowMs = Date.now();
+  if (nowMs - lastAutoRejectCheckAt < 30_000) {
+    return 0;
+  }
+  lastAutoRejectCheckAt = nowMs;
+
   try {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const cutoff = new Date(nowMs - 24 * 60 * 60 * 1000); // 24 hours ago
     const expired = await prisma.leaveRequest.findMany({
       where: {
         status: "PENDING",
@@ -44,10 +52,12 @@ export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
 
     if (!expired || expired.length === 0) return 0;
 
+    let rejectedCount = 0;
     for (const req of expired) {
       try {
-        await prisma.leaveRequest.update({
-          where: { id: req.id },
+        // Atomic transition from PENDING -> REJECTED so concurrent requests never notify twice
+        const claim = await prisma.leaveRequest.updateMany({
+          where: { id: req.id, status: "PENDING" },
           data: {
             status: "REJECTED",
             managerStatus: req.managerStatus === "PENDING" ? "REJECTED" : req.managerStatus,
@@ -55,6 +65,8 @@ export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
             respondedAt: new Date(),
           },
         });
+        if (!claim || claim.count === 0) continue;
+        rejectedCount++;
 
         // 1. Send clean corporate email notification to employee (BCC staff)
         try {
@@ -73,7 +85,7 @@ export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
           console.error("[leave:autoReject] email error for req", req.id, mailErr);
         }
 
-        // 2. Send push notification to employee
+        // 2. Send push notification to employee (strictly once via dedupeKey)
         try {
           await sendEmployeePushNotification({
             prisma,
@@ -82,6 +94,8 @@ export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
             body: `Your leave request for ${req.numberOfDays}d (${req.leaveType.name}) was automatically rejected as it was not approved within 24 hours.`,
             url: "/employee-portal/leave",
             type: "leave",
+            tag: `leave-auto-reject-${req.id}`,
+            dedupeKey: `leave-auto-reject-${req.id}`,
           });
         } catch (pushErr) {
           console.error("[leave:autoReject] push error for req", req.id, pushErr);
@@ -91,11 +105,63 @@ export async function autoRejectExpiredLeaves(prisma: any): Promise<number> {
       }
     }
 
-    return expired.length;
+    return rejectedCount;
   } catch (err) {
     console.error("[leave:autoReject] error:", err);
     return 0;
   }
+}
+
+export function resolveEmployeeProbationStatus(
+  employee: {
+    dateOfJoining?: Date | null;
+    probationMonths?: number | null;
+    probationEndDate?: Date | null;
+    createdAt?: Date | null;
+  } | null,
+  companyDefaultMonths = 6
+) {
+  const effectiveMonths =
+    employee?.probationMonths !== null && employee?.probationMonths !== undefined
+      ? employee.probationMonths
+      : companyDefaultMonths;
+
+  let isUnderProbation = false;
+  let probationEndDate: Date | null = null;
+
+  if (effectiveMonths <= 0) {
+    isUnderProbation = false;
+    probationEndDate = employee?.probationEndDate ? new Date(employee.probationEndDate) : null;
+  } else if (employee?.probationEndDate) {
+    probationEndDate = new Date(employee.probationEndDate);
+    isUnderProbation = new Date() < probationEndDate;
+  } else if (employee?.dateOfJoining) {
+    const joiningDate = new Date(employee.dateOfJoining);
+    probationEndDate = new Date(joiningDate);
+    probationEndDate.setMonth(probationEndDate.getMonth() + effectiveMonths);
+    isUnderProbation = new Date() < probationEndDate;
+  } else if (employee?.probationMonths && employee.probationMonths > 0 && employee.createdAt) {
+    const base = new Date(employee.createdAt);
+    probationEndDate = new Date(base);
+    probationEndDate.setMonth(probationEndDate.getMonth() + employee.probationMonths);
+    isUnderProbation = new Date() < probationEndDate;
+  }
+
+  const remainingDays =
+    isUnderProbation && probationEndDate
+      ? Math.max(0, Math.ceil((probationEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+  return {
+    isUnderProbation,
+    probationMonths: effectiveMonths,
+    companyDefaultMonths,
+    isCustomOverride:
+      (employee?.probationMonths !== null && employee?.probationMonths !== undefined) ||
+      Boolean(employee?.probationEndDate),
+    probationEndDate,
+    remainingDays,
+  };
 }
 
 export const leaveRouter = router({
@@ -218,28 +284,25 @@ export const leaveRouter = router({
   myProbationStatus: protectedProcedure.query(async ({ ctx }) => {
     const employee = await ctx.prisma.employee.findUnique({
       where: { id: ctx.session.user.id },
-      select: { id: true, dateOfJoining: true, organizationId: true },
+      select: {
+        id: true,
+        dateOfJoining: true,
+        probationMonths: true,
+        probationEndDate: true,
+        createdAt: true,
+        organizationId: true,
+      },
     });
     const settings = employee?.organizationId
       ? await ctx.prisma.companySettings.findFirst({ where: { organizationId: employee.organizationId } })
       : null;
 
-    const probationMonths = settings?.probationMonths ?? 6;
+    const companyDefaultMonths = settings?.probationMonths ?? 6;
     const sandwichRuleEnabled = settings?.sandwichRuleEnabled ?? true;
-    let isUnderProbation = false;
-    let probationEndDate: Date | null = null;
-
-    if (employee?.dateOfJoining) {
-      const joiningDate = new Date(employee.dateOfJoining);
-      probationEndDate = new Date(joiningDate);
-      probationEndDate.setMonth(probationEndDate.getMonth() + probationMonths);
-      isUnderProbation = new Date() < probationEndDate;
-    }
+    const prob = resolveEmployeeProbationStatus(employee, companyDefaultMonths);
 
     return {
-      isUnderProbation,
-      probationMonths,
-      probationEndDate,
+      ...prob,
       sandwichRuleEnabled,
       lateCheckInTime: settings?.lateCheckInTime ?? "10:30",
       halfDayCheckInTime: settings?.halfDayCheckInTime ?? "11:00",
@@ -307,11 +370,25 @@ export const leaveRouter = router({
       const actor =
         (await ctx.prisma.employee.findUnique({
           where: { id: ctx.session.user.id },
-          select: { id: true, dateOfJoining: true, organizationId: true },
+          select: {
+            id: true,
+            dateOfJoining: true,
+            probationMonths: true,
+            probationEndDate: true,
+            createdAt: true,
+            organizationId: true,
+          },
         })) ??
         (await ctx.prisma.employee.findUnique({
           where: { email: ctx.session.user.email.toLowerCase() },
-          select: { id: true, dateOfJoining: true, organizationId: true },
+          select: {
+            id: true,
+            dateOfJoining: true,
+            probationMonths: true,
+            probationEndDate: true,
+            createdAt: true,
+            organizationId: true,
+          },
         }));
 
       if (!actor) {
@@ -327,38 +404,28 @@ export const leaveRouter = router({
         ? await ctx.prisma.companySettings.findFirst({ where: { organizationId: actor.organizationId } })
         : null;
 
-      const probationMonths = companySettings?.probationMonths ?? 6;
+      const companyDefaultMonths = companySettings?.probationMonths ?? 6;
       const sandwichRuleEnabled = companySettings?.sandwichRuleEnabled ?? true;
 
-      // 1. Enforce probation rule: New employees (<= probationMonths) have 0 paid leaves and can only apply for Unpaid Leave
-      let isUnderProbation = false;
-      let probationEndDate: Date | null = null;
-      if (actor?.dateOfJoining) {
-        const joiningDate = new Date(actor.dateOfJoining);
-        probationEndDate = new Date(joiningDate);
-        probationEndDate.setMonth(probationEndDate.getMonth() + probationMonths);
-        if (new Date() < probationEndDate) {
-          isUnderProbation = true;
-        }
-      }
-
+      // 1. Enforce probation rule: Employees under probation can strictly apply ONLY for Unpaid Leave
+      const probation = resolveEmployeeProbationStatus(actor, companyDefaultMonths);
+      const ltLower = leaveType.name.toLowerCase();
       const isUnpaidType =
-        leaveType.annualQuota === 0 ||
-        leaveType.name.toLowerCase().includes("unpaid") ||
-        leaveType.name.toLowerCase().includes("loss of pay") ||
-        leaveType.name.toLowerCase().includes("lop");
+        ltLower.includes("unpaid") ||
+        ltLower.includes("loss of pay") ||
+        ltLower.includes("lop");
 
-      if (isUnderProbation && !isUnpaidType) {
-        const formattedDate = probationEndDate
-          ? probationEndDate.toLocaleDateString("en-GB", {
+      if (probation.isUnderProbation && !isUnpaidType) {
+        const formattedDate = probation.probationEndDate
+          ? probation.probationEndDate.toLocaleDateString("en-GB", {
               day: "numeric",
               month: "short",
               year: "numeric",
             })
-          : `${probationMonths} months after joining`;
+          : `${probation.probationMonths} months after joining`;
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `You are currently on your ${probationMonths}-month probation period (until ${formattedDate}). During probation, paid leaves cannot be applied. Please apply for Unpaid Leave (Loss of Pay).`,
+          message: `You are currently on probation (until ${formattedDate}). During probation, only Unpaid Leave (Loss of Pay) is allowed.`,
         });
       }
 
@@ -882,6 +949,8 @@ export const leaveRouter = router({
             body: `Your leave has been approved by ${approver.firstName} ${approver.lastName} and forwarded to HR for final authorization.`,
             url: "/employee-portal/leave",
             type: "leave",
+            tag: `leave-mgr-approve-${req.id}`,
+            dedupeKey: `leave-mgr-approve-${req.id}`,
           });
 
           // Push to HR / Admin team
@@ -901,6 +970,8 @@ export const leaveRouter = router({
               body: `${req.employee.firstName} ${req.employee.lastName}'s leave was approved by manager. Final HR approval pending.`,
               url: "/admin-portal/leave/approvals",
               type: "leave",
+              tag: `leave-hr-ready-${req.id}`,
+              dedupeKey: `leave-hr-ready-${req.id}`,
             });
           }
 
@@ -946,6 +1017,8 @@ export const leaveRouter = router({
             body: `Your leave request was rejected by ${approver.firstName} ${approver.lastName}${input.approverNote ? `: ${input.approverNote}` : "."}`,
             url: "/employee-portal/leave",
             type: "leave",
+            tag: `leave-mgr-reject-${req.id}`,
+            dedupeKey: `leave-mgr-reject-${req.id}`,
           });
 
           return updated;
@@ -1101,6 +1174,8 @@ export const leaveRouter = router({
             : `Your leave application was rejected by HR${input.approverNote ? `: ${input.approverNote}` : "."}`,
           url: "/employee-portal/leave",
           type: "leave",
+          tag: `leave-hr-${req.id}-${newStatus}`,
+          dedupeKey: `leave-hr-${req.id}-${newStatus}`,
         });
       }
 
@@ -1114,7 +1189,7 @@ export const leaveRouter = router({
       await autoRejectExpiredLeaves(ctx.prisma);
       const year = new Date().getFullYear();
 
-      const [balances, requests] = await Promise.all([
+      const [balances, requests, targetEmployee] = await Promise.all([
         ctx.prisma.leaveBalance.findMany({
           where: { employeeId: input.employeeId, year },
           include: { leaveType: true },
@@ -1130,9 +1205,26 @@ export const leaveRouter = router({
           },
           orderBy: { appliedAt: "desc" },
         }),
+        ctx.prisma.employee.findUnique({
+          where: { id: input.employeeId },
+          select: {
+            dateOfJoining: true,
+            probationMonths: true,
+            probationEndDate: true,
+            createdAt: true,
+            organizationId: true,
+          },
+        }),
       ]);
 
-      return { balances, requests, year };
+      const settings = targetEmployee?.organizationId
+        ? await ctx.prisma.companySettings.findFirst({
+            where: { organizationId: targetEmployee.organizationId },
+          })
+        : null;
+      const probation = resolveEmployeeProbationStatus(targetEmployee, settings?.probationMonths ?? 6);
+
+      return { balances, requests, year, probation };
     }),
 
   adjustBalance: hrAdminProcedure

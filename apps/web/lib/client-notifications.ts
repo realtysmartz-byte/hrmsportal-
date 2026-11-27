@@ -30,6 +30,64 @@ let lastNotificationSentAt = 0;
 let lastNotificationTitle = "";
 
 /**
+ * Dispatches brand-new notification items at most once per unique (id + timestamp)
+ * and ignores stale historical items so old leave/target events never re-fire.
+ */
+export function dispatchNewBellNotifications(params: {
+  storageKey: string;
+  items: Array<{
+    id: string;
+    title?: string | null;
+    subtitle?: string | null;
+    href?: string;
+    time?: Date | string | null;
+  }>;
+  isInitialMount: boolean;
+  defaultTitle: string;
+}) {
+  if (typeof window === "undefined") return;
+  let seenIds: string[] = [];
+  try {
+    const raw = localStorage.getItem(params.storageKey);
+    seenIds = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(seenIds)) seenIds = [];
+  } catch {
+    seenIds = [];
+  }
+  const seenSet = new Set(seenIds);
+  const now = Date.now();
+  // On mount only push very recent (<2m) unseen events; live polls push <30m unseen events
+  const maxAgeMs = params.isInitialMount ? 2 * 60 * 1000 : 30 * 60 * 1000;
+  let modified = false;
+
+  for (const it of params.items) {
+    const ts = it.time ? new Date(it.time).getTime() : 0;
+    const key = `${it.id}:${ts || ""}`;
+    if (seenSet.has(key)) continue;
+    seenSet.add(key);
+    modified = true;
+
+    const ageMs = ts ? now - ts : Infinity;
+    if (ageMs >= 0 && ageMs <= maxAgeMs) {
+      void sendDevicePushNotification({
+        title: it.title || params.defaultTitle,
+        body: it.subtitle || "",
+        url: it.href,
+        tag: it.id,
+      });
+    }
+  }
+
+  if (modified) {
+    try {
+      localStorage.setItem(params.storageKey, JSON.stringify(Array.from(seenSet).slice(-300)));
+    } catch {
+      // ignore storage quota errors
+    }
+  }
+}
+
+/**
  * Dispatches a device notification (Android native alert or Web Notification).
  */
 export async function sendDevicePushNotification(options: PushNotificationOptions): Promise<boolean> {

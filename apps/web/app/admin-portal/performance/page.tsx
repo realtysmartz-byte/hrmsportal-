@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { userFacingErrorMessage } from "@/lib/user-facing-error";
 import {
   Target,
@@ -25,7 +26,8 @@ import {
   Eye,
   Check,
   X,
-  Sparkles,
+  Download,
+  ArrowRightLeft,
   ShieldAlert,
   ShieldCheck,
   Percent,
@@ -80,13 +82,24 @@ export default function AdminTargetsPage() {
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
   const [selectedDept, setSelectedDept] = useState<string>("ALL");
+  const [selectedPeriodType, setSelectedPeriodType] = useState<
+    "ALL" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY"
+  >("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<
-    "overview" | "companies" | "teams" | "all_targets"
+    "overview" | "companies" | "teams" | "all_targets" | "mapping"
   >("overview");
+
+  // Entity Mapping & TL Transfer State
+  const [mappingCompany, setMappingCompany] = useState<TargetCompany>("Realty Smartz");
+  const [mappingSearch, setMappingSearch] = useState("");
+  const [selectedMappingIds, setSelectedMappingIds] = useState<string[]>([]);
+  const [transferFromId, setTransferFromId] = useState("");
+  const [transferToId, setTransferToId] = useState("");
+  const [mappingFeedback, setMappingFeedback] = useState("");
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -101,9 +114,16 @@ export default function AdminTargetsPage() {
   const [formEmployeeId, setFormEmployeeId] = useState("");
   const [formTitle, setFormTitle] = useState("");
   const [formRolePreset, setFormRolePreset] = useState<
-    "SALES" | "PRESALES" | "TEAM_LEADER" | "HR" | "IT" | "OPERATIONS"
+    | "SALES"
+    | "TELESALES"
+    | "TEAM_LEADER_SALES"
+    | "TEAM_LEADER_PRESALES"
+    | "DIRECT_SALES"
+    | "HR"
+    | "IT"
+    | "OPERATIONS"
   >("SALES");
-  const [formPeriodType, setFormPeriodType] = useState<"MONTHLY" | "QUARTERLY" | "YEARLY">("MONTHLY");
+  const [formPeriodType, setFormPeriodType] = useState<"WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY">("MONTHLY");
   const [formMonth, setFormMonth] = useState<number>(currentMonth);
   const [formYear, setFormYear] = useState<number>(currentYear);
   const [formStartDate, setFormStartDate] = useState(
@@ -127,31 +147,13 @@ export default function AdminTargetsPage() {
   const [rejectionReasonInput, setRejectionReasonInput] = useState("");
 
   // Lock background screen scroll when any modal is open
-  useEffect(() => {
-    const isAnyModalOpen =
-      showCreateModal ||
-      showEditModal ||
-      showVerificationModal ||
-      showSyncModal ||
-      showDisciplineDetailModal;
-    if (!isAnyModalOpen) return;
-
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-    };
-  }, [
-    showCreateModal,
-    showEditModal,
-    showVerificationModal,
-    showSyncModal,
-    showDisciplineDetailModal,
-  ]);
+  useBodyScrollLock(
+    showCreateModal ||
+    showEditModal ||
+    showVerificationModal ||
+    showSyncModal ||
+    showDisciplineDetailModal
+  );
 
   // Queries
   const { data: targetsData, isLoading: targetsLoading, refetch: refetchTargets } =
@@ -162,7 +164,9 @@ export default function AdminTargetsPage() {
       companyName: selectedCompany === "ALL" ? undefined : selectedCompany,
     });
 
-  const { data: employeesData } = trpc.employee.list.useQuery({ page: 1, pageSize: 100 });
+  const { data: rosterData, refetch: refetchRoster } =
+    trpc.target.activeTeamRoster.useQuery();
+
   const { data: departmentsData } = trpc.department.list.useQuery();
   const { data: pendingVerifications, refetch: refetchPending } =
     trpc.target.listPendingVerifications.useQuery();
@@ -211,13 +215,43 @@ export default function AdminTargetsPage() {
   const syncBonusMutation = trpc.target.syncBonusToPayroll.useMutation({
     onSuccess: (data) => {
       setSyncFeedback(
-        `Successfully credited ${formatCurrency(data.amount)} bonus to ${data.employeeName} for ${
-          MONTHS[data.month - 1]
+        `Successfully credited ${formatCurrency(data.amount)} bonus to ${data.employeeName} for ${MONTHS[data.month - 1]
         } ${data.year}!`
       );
       utils.target.listAdmin.invalidate();
     },
     onError: (err) => setFormError(userFacingErrorMessage(err)),
+  });
+
+  const assignCompanyMutation = trpc.target.assignEmployeesCompany.useMutation({
+    onSuccess: (res) => {
+      setSelectedMappingIds([]);
+      setMappingFeedback(`Assigned ${res.count} employee(s) to ${res.companyName}.`);
+      refetchRoster();
+      utils.target.listAdmin.invalidate();
+      utils.employee.list.invalidate();
+    },
+    onError: (err) => setMappingFeedback(userFacingErrorMessage(err)),
+  });
+
+  const transferTlMutation = trpc.target.transferTeamLeader.useMutation({
+    onSuccess: (res) => {
+      setTransferFromId("");
+      setTransferToId("");
+      setMappingFeedback(`Transferred ${res.transferredCount} active member(s) to new Team Leader.`);
+      refetchRoster();
+      utils.target.listAdmin.invalidate();
+      utils.employee.list.invalidate();
+    },
+    onError: (err) => setMappingFeedback(userFacingErrorMessage(err)),
+  });
+
+  const setManagerMutation = trpc.target.setEmployeeManager.useMutation({
+    onSuccess: () => {
+      refetchRoster();
+      utils.target.listAdmin.invalidate();
+      utils.employee.list.invalidate();
+    },
   });
 
   // Calculate sum of item weights in form
@@ -245,88 +279,133 @@ export default function AdminTargetsPage() {
     applyPreset("SALES");
   }
 
-  // Preset loaders for departments & roles
-  function applyPreset(presetType: "SALES" | "PRESALES" | "TEAM_LEADER" | "HR" | "IT" | "OPERATIONS") {
+  // Preset loaders for departments & roles (90% Deliverables + 10% Attendance = 100%)
+  function applyPreset(
+    presetType:
+      | "SALES"
+      | "TELESALES"
+      | "TEAM_LEADER_SALES"
+      | "TEAM_LEADER_PRESALES"
+      | "DIRECT_SALES"
+      | "HR"
+      | "IT"
+      | "OPERATIONS"
+  ) {
     setFormRolePreset(presetType);
     if (presetType === "SALES") {
+      // Sales: Visits 20%, Booking 30%, Revenue 40%
       setFormItems([
         {
-          title: "Site Visits & Property Inspections",
+          title: "Site Visits",
           category: "SALES",
           targetValue: 15,
           unit: "Visits",
-          weightPercent: 30,
-          notes: "Prospective buyer visits to assigned properties",
+          weightPercent: 20,
+          notes: "Client property visits",
         },
         {
-          title: "Confirmed Unit Bookings",
+          title: "Confirmed Bookings",
           category: "SALES",
           targetValue: 2,
           unit: "Bookings",
           weightPercent: 30,
-          notes: "Closed bookings with token / booking advance",
+          notes: "Closed unit bookings",
         },
         {
-          title: "Gross Sales Revenue Target",
+          title: "Sales Revenue",
           category: "SALES",
           targetValue: 5000000,
           unit: "INR",
-          weightPercent: 30,
-          notes: "Total gross deal value closed",
+          weightPercent: 40,
+          notes: "Total gross deal value",
         },
       ]);
-    } else if (presetType === "PRESALES") {
+    } else if (presetType === "TELESALES") {
+      // Telesales / Presales: Verified Visits 30%, Booking 40%, Prospects 20%
       setFormItems([
         {
-          title: "Outbound Calls & Prospect Outreach",
-          category: "PRESALES",
-          targetValue: 500,
-          unit: "Calls",
-          weightPercent: 30,
-          notes: "Daily outbound calls to prospective buyers",
-        },
-        {
-          title: "Verified Hot & Warm Buyer Leads",
-          category: "PRESALES",
-          targetValue: 40,
-          unit: "Leads",
-          weightPercent: 35,
-          notes: "Qualified prospective buyers matched with project portfolio",
-        },
-        {
-          title: "Site Visits Scheduled & Confirmed",
+          title: "Verified Site Visits",
           category: "PRESALES",
           targetValue: 20,
           unit: "Visits",
-          weightPercent: 25,
-          notes: "Confirmed buyer visits coordinated with sales team",
+          weightPercent: 30,
+          notes: "Verified buyer visits",
+        },
+        {
+          title: "Confirmed Bookings",
+          category: "PRESALES",
+          targetValue: 2,
+          unit: "Bookings",
+          weightPercent: 40,
+          notes: "Bookings from scheduled visits",
+        },
+        {
+          title: "Qualified Prospects",
+          category: "PRESALES",
+          targetValue: 40,
+          unit: "Leads",
+          weightPercent: 20,
+          notes: "Qualified buyer prospects",
         },
       ]);
-    } else if (presetType === "TEAM_LEADER") {
+    } else if (presetType === "TEAM_LEADER_SALES") {
+      // Team Leader (Sales): Booking 40%, Revenue 50%
       setFormItems([
-        {
-          title: "Team Gross Booked Revenue",
-          category: "SALES",
-          targetValue: 15000000,
-          unit: "INR",
-          weightPercent: 40,
-          notes: "Total gross revenue closed by reporting team",
-        },
         {
           title: "Team Confirmed Bookings",
           category: "SALES",
           targetValue: 6,
           unit: "Bookings",
-          weightPercent: 30,
-          notes: "Verified unit bookings closed across the team",
+          weightPercent: 40,
+          notes: "Total bookings closed by team",
         },
         {
-          title: "Team Buyer Site Visits",
+          title: "Team Gross Revenue",
           category: "SALES",
+          targetValue: 15000000,
+          unit: "INR",
+          weightPercent: 50,
+          notes: "Total revenue closed by team",
+        },
+      ]);
+    } else if (presetType === "TEAM_LEADER_PRESALES") {
+      // Team Leader (Presales): Visits 30%, Booking 60%
+      setFormItems([
+        {
+          title: "Team Verified Visits",
+          category: "PRESALES",
           targetValue: 40,
           unit: "Visits",
-          weightPercent: 20,
-          notes: "Total buyer site inspections logged by team",
+          weightPercent: 30,
+          notes: "Verified visits by presales team",
+        },
+        {
+          title: "Team Confirmed Bookings",
+          category: "PRESALES",
+          targetValue: 6,
+          unit: "Bookings",
+          weightPercent: 60,
+          notes: "Bookings from presales team",
+        },
+      ]);
+    } else if (presetType === "DIRECT_SALES") {
+      // Direct Sales (Reporting to Chhavi): Booking 40%, Revenue 50%
+      setFormItems([
+        {
+          title: "Confirmed Bookings",
+          category: "SALES",
+          targetValue: 4,
+          unit: "Bookings",
+          weightPercent: 40,
+          notes: "Direct sales unit bookings",
+        },
+        {
+          title: "Gross Sales Revenue",
+          category: "SALES",
+          targetValue: 10000000,
+          unit: "INR",
+          weightPercent: 50,
+          notes: "Direct sales gross revenue",
         },
       ]);
     } else if (presetType === "HR") {
@@ -408,17 +487,23 @@ export default function AdminTargetsPage() {
   // Handle employee selection in Create Modal
   function handleEmployeeSelect(empId: string) {
     setFormEmployeeId(empId);
-    const emp = (employeesData?.items || []).find((e: any) => e.id === empId);
+    const activeList = rosterData?.activeEmployees ?? [];
+    const emp = activeList.find((e: any) => e.id === empId);
     if (emp) {
       if (emp.companyName) {
         setFormCompany(emp.companyName as TargetCompany);
       }
       const dTitle = (emp.designation?.title || "").toLowerCase();
       const dDept = (emp.department?.name || "").toLowerCase();
-      if (dTitle.includes("presales") || dDept.includes("presales")) {
-        applyPreset("PRESALES");
+      const mgrName = `${emp.manager?.firstName || ""} ${emp.manager?.lastName || ""}`.toLowerCase();
+      if ((dTitle.includes("lead") || dTitle.includes("manager") || dTitle.includes("tl")) && (dTitle.includes("presales") || dDept.includes("presales") || dDept.includes("telesales"))) {
+        applyPreset("TEAM_LEADER_PRESALES");
       } else if (dTitle.includes("lead") || dTitle.includes("manager") || dTitle.includes("tl")) {
-        applyPreset("TEAM_LEADER");
+        applyPreset("TEAM_LEADER_SALES");
+      } else if (dTitle.includes("presales") || dTitle.includes("telesales") || dDept.includes("presales") || dDept.includes("telesales")) {
+        applyPreset("TELESALES");
+      } else if (mgrName.includes("chhavi")) {
+        applyPreset("DIRECT_SALES");
       } else if (dDept.includes("hr")) {
         applyPreset("HR");
       } else if (dDept.includes("it") || dDept.includes("tech")) {
@@ -437,7 +522,8 @@ export default function AdminTargetsPage() {
     if (preselectedEmployeeId) {
       handleEmployeeSelect(preselectedEmployeeId);
     }
-    const emp = (employeesData?.items || []).find((e: any) => e.id === (preselectedEmployeeId || formEmployeeId));
+    const activeList = rosterData?.activeEmployees ?? [];
+    const emp = activeList.find((e: any) => e.id === (preselectedEmployeeId || formEmployeeId));
     const titleEmpName = emp ? `${emp.firstName} ${emp.lastName}` : "Team Member";
     setFormTitle(`${MONTHS[currentMonth - 1]} ${currentYear} Target Sheet - ${titleEmpName}`);
     setShowCreateModal(true);
@@ -613,6 +699,9 @@ export default function AdminTargetsPage() {
     if (selectedCompany !== "ALL") {
       list = list.filter((t) => t.companyName === selectedCompany);
     }
+    if (selectedPeriodType !== "ALL") {
+      list = list.filter((t) => (t.periodType || "MONTHLY") === selectedPeriodType);
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((t) => {
@@ -680,6 +769,138 @@ export default function AdminTargetsPage() {
     };
   }, [filteredTargets]);
 
+  // RAG Status Helper: < 50% Red, 50-99.9% Amber, 100% Green
+  function getRagMeta(score: number) {
+    if (score >= 100) {
+      return {
+        label: "Green (100%)",
+        barColor: "#16A34A",
+        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        barClass: "bg-emerald-600",
+      };
+    }
+    if (score >= 50) {
+      return {
+        label: "Amber (50–99%)",
+        barColor: "#D97706",
+        badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+        barClass: "bg-amber-500",
+      };
+    }
+    return {
+      label: "Red (<50%)",
+      barColor: "#DC2626",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      barClass: "bg-rose-600",
+    };
+  }
+
+  // CSV Sheet Download Helper (Daily / Weekly / Full TL & Team)
+  function downloadCsvSheet(mode: "DAILY" | "WEEKLY" | "TL_TEAM") {
+    const escapeCsv = (val: unknown) => {
+      const s = String(val ?? "").replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    let headers: string[] = [];
+    let rows: string[][] = [];
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    if (mode === "TL_TEAM") {
+      headers = [
+        "Team Leader",
+        "TL Code",
+        "Company",
+        "Department",
+        "Member Name",
+        "Member Code",
+        "Member Designation",
+        "Score (%)",
+        "RAG Status",
+        "Achieved Revenue (INR)",
+        "Target Revenue (INR)",
+        "Visits",
+        "Bookings",
+      ];
+      (targetsData?.teamLeaders ?? []).forEach((tl: any) => {
+        (tl.members ?? []).forEach((m: any) => {
+          const mTarget = filteredTargets.find((t) => t.employeeId === m.id);
+          const score = mTarget?.scorecard?.totalScore ?? 0;
+          rows.push([
+            tl.name,
+            tl.employeeCode || "",
+            tl.companyName || "Realty Smartz",
+            tl.department || "",
+            m.name,
+            m.employeeCode || "",
+            m.designation || "",
+            String(score),
+            getRagMeta(score).label,
+            String(mTarget?.currentRevenue ?? m.achievedRevenue ?? 0),
+            String(mTarget?.targetRevenue ?? m.targetRevenue ?? 0),
+            String(mTarget?.currentVisits ?? 0),
+            String(mTarget?.currentBookings ?? 0),
+          ]);
+        });
+      });
+    } else {
+      const source =
+        mode === "WEEKLY"
+          ? filteredTargets.filter((t) => t.periodType === "WEEKLY" || selectedPeriodType === "ALL")
+          : filteredTargets;
+      headers = [
+        "Date",
+        "Period",
+        "Employee",
+        "Code",
+        "Company",
+        "Department",
+        "Team Leader",
+        "Score (%)",
+        "RAG Status",
+        "Discipline (%)",
+        "Late Marks (10:15+)",
+        "Half Days",
+        "Visits",
+        "Bookings",
+        "Achieved Revenue (INR)",
+      ];
+      source.forEach((t: any) => {
+        const score = t.scorecard?.totalScore ?? 0;
+        const mgrName = t.employee?.manager
+          ? `${t.employee.manager.firstName} ${t.employee.manager.lastName}`
+          : "-";
+        rows.push([
+          todayStr,
+          t.periodType || "MONTHLY",
+          `${t.employee.firstName} ${t.employee.lastName}`,
+          t.employee.employeeCode || "",
+          t.companyName || "Realty Smartz",
+          t.employee.department?.name || "",
+          mgrName,
+          String(score),
+          getRagMeta(score).label,
+          String(t.discipline?.score ?? 0),
+          String(t.discipline?.lateMarkOnlyDays ?? 0),
+          String(t.discipline?.halfDays ?? 0),
+          String(t.currentVisits ?? 0),
+          String(t.currentBookings ?? 0),
+          String(t.currentRevenue ?? 0),
+        ]);
+      });
+    }
+
+    const csvContent = [headers, ...rows]
+      .map((r) => r.map(escapeCsv).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `performance-${mode.toLowerCase()}-${todayStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-4 pb-12">
       {/* Top Header */}
@@ -701,7 +922,35 @@ export default function AdminTargetsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsvSheet("DAILY")}
+            className="rounded-xl text-xs font-semibold gap-1 border-neutral-300 hover:border-sky-300"
+          >
+            <Download className="h-3.5 w-3.5 text-[#0284C7]" />
+            Daily CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsvSheet("WEEKLY")}
+            className="rounded-xl text-xs font-semibold gap-1 border-neutral-300 hover:border-sky-300"
+          >
+            <Download className="h-3.5 w-3.5 text-[#0284C7]" />
+            Weekly CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsvSheet("TL_TEAM")}
+            className="rounded-xl text-xs font-semibold gap-1 border-neutral-300 hover:border-sky-300"
+          >
+            <Download className="h-3.5 w-3.5 text-[#0284C7]" />
+            TL & Team CSV
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -732,17 +981,15 @@ export default function AdminTargetsPage() {
       <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white border border-neutral-200/80 shadow-2xs overflow-x-auto">
         <button
           onClick={() => setSelectedCompany("ALL")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-            selectedCompany === "ALL"
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${selectedCompany === "ALL"
               ? "bg-neutral-900 text-white shadow-xs"
               : "text-neutral-600 hover:bg-neutral-100"
-          }`}
+            }`}
         >
           <Building2 className="h-3.5 w-3.5" />
           All Companies
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-            selectedCompany === "ALL" ? "bg-white/20 text-white" : "bg-neutral-200 text-neutral-700"
-          }`}>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${selectedCompany === "ALL" ? "bg-white/20 text-white" : "bg-neutral-200 text-neutral-700"
+            }`}>
             {targetsData?.targets?.length || 0}
           </span>
         </button>
@@ -756,17 +1003,15 @@ export default function AdminTargetsPage() {
             <button
               key={company}
               onClick={() => setSelectedCompany(company)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                isSelected
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${isSelected
                   ? "bg-[#0284C7] text-white shadow-xs"
                   : "text-neutral-600 hover:bg-sky-50 hover:text-sky-900"
-              }`}
+                }`}
             >
               <Compass className="h-3.5 w-3.5" />
               {company}
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                isSelected ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-600"
-              }`}>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${isSelected ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-600"
+                }`}>
                 {count}
               </span>
             </button>
@@ -834,11 +1079,10 @@ export default function AdminTargetsPage() {
       <div className="flex items-center gap-1.5 border-b border-neutral-200/80 pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "overview"
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "overview"
               ? "bg-[#0284C7] text-white shadow-xs"
               : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
-          }`}
+            }`}
         >
           <Activity className="h-3.5 w-3.5" />
           Overview & Scorecard
@@ -846,11 +1090,10 @@ export default function AdminTargetsPage() {
 
         <button
           onClick={() => setActiveTab("companies")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "companies"
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "companies"
               ? "bg-[#0284C7] text-white shadow-xs"
               : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
-          }`}
+            }`}
         >
           <Building2 className="h-3.5 w-3.5" />
           Company Calculations (4 Companies)
@@ -858,18 +1101,16 @@ export default function AdminTargetsPage() {
 
         <button
           onClick={() => setActiveTab("teams")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "teams"
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "teams"
               ? "bg-[#0284C7] text-white shadow-xs"
               : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
-          }`}
+            }`}
         >
           <Users className="h-3.5 w-3.5" />
           Team Leaders & Hierarchy
           {targetsData?.teamLeaders && targetsData.teamLeaders.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-              activeTab === "teams" ? "bg-white/20 text-white" : "bg-sky-100 text-[#0284C7]"
-            }`}>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeTab === "teams" ? "bg-white/20 text-white" : "bg-sky-100 text-[#0284C7]"
+              }`}>
               {targetsData.teamLeaders.length}
             </span>
           )}
@@ -877,19 +1118,28 @@ export default function AdminTargetsPage() {
 
         <button
           onClick={() => setActiveTab("all_targets")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "all_targets"
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "all_targets"
               ? "bg-[#0284C7] text-white shadow-xs"
               : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
-          }`}
+            }`}
         >
           <Target className="h-3.5 w-3.5" />
           All Targets (Employee-wise)
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-            activeTab === "all_targets" ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-600"
-          }`}>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeTab === "all_targets" ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-600"
+            }`}>
             {filteredTargets.length}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("mapping")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${activeTab === "mapping"
+              ? "bg-[#0284C7] text-white shadow-xs"
+              : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
+            }`}
+        >
+          <ArrowRightLeft className="h-3.5 w-3.5" />
+          Entity Mapping & TL Transfer
         </button>
       </div>
 
@@ -910,6 +1160,18 @@ export default function AdminTargetsPage() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={selectedPeriodType}
+                  onChange={(e) => setSelectedPeriodType(e.target.value as any)}
+                  className="h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 outline-none"
+                >
+                  <option value="ALL">All Periods</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="QUARTERLY">Quarterly</option>
+                  <option value="YEARLY">Yearly</option>
+                </select>
+
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
@@ -965,6 +1227,115 @@ export default function AdminTargetsPage() {
                 </select>
               </div>
             </div>
+          </Card>
+
+          {/* RAG Performance Graph (Weekly / Monthly / Quarterly / Yearly) */}
+          <Card className="rounded-2xl border-sky-100 bg-white p-4 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-neutral-900">
+                  Performance RAG Graph ({selectedPeriodType === "ALL" ? "All Periods" : selectedPeriodType})
+                </h3>
+                <p className="text-[11px] text-neutral-500">
+                  Red &lt; 50% • Amber 50%–99% • Green 100%
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] font-bold flex-wrap">
+                <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  Red: {filteredTargets.filter((t) => (t.scorecard?.totalScore ?? 0) < 50).length}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  Amber: {filteredTargets.filter((t) => {
+                    const s = t.scorecard?.totalScore ?? 0;
+                    return s >= 50 && s < 100;
+                  }).length}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Green: {filteredTargets.filter((t) => (t.scorecard?.totalScore ?? 0) >= 100).length}
+                </span>
+              </div>
+            </div>
+
+            {/* 4-Company RAG Summary Bars */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {TARGET_COMPANIES.map((company) => {
+                const comp = targetsData?.companyBreakdown?.find((c) => c.companyName === company);
+                const avg = Math.min(100, Math.round((comp?.avgScore ?? 0) * 10) / 10);
+                const rag = getRagMeta(avg);
+                return (
+                  <div
+                    key={company}
+                    className="p-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-neutral-900 truncate">{company}</span>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${rag.badgeClass}`}>
+                        {avg}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-neutral-200 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${rag.barClass}`}
+                        style={{ width: `${Math.max(4, avg)}%` }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-neutral-500">
+                      {comp?.targetsCount ?? 0} active target(s)
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {filteredTargets.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1 pt-2 border-t border-neutral-100">
+                {filteredTargets.map((t) => {
+                  const score = Math.min(100, Math.round((t.scorecard?.totalScore ?? 0) * 10) / 10);
+                  const rag = getRagMeta(score);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedEmployeeId(t.employeeId)}
+                      className={`text-left p-2.5 rounded-xl border transition-all ${activeEmployeeTarget?.id === t.id
+                          ? "border-[#0284C7] bg-sky-50/40"
+                          : "border-neutral-200 hover:border-sky-300 bg-white"
+                        }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                        <span className="font-bold text-neutral-900 truncate">
+                          {t.employee.firstName} {t.employee.lastName}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${rag.badgeClass}`}>
+                          {score}%
+                        </span>
+                      </div>
+                      <div className="h-2.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${rag.barClass}`}
+                          style={{ width: `${Math.max(4, score)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-neutral-400 mt-1">
+                        <span className="truncate">{t.companyName || "Realty Smartz"}</span>
+                        <span>{t.periodType || "MONTHLY"}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-neutral-500 pt-2 border-t border-neutral-100 flex items-center justify-between">
+                <span>No individual targets assigned for this period/company filter yet.</span>
+                <Button
+                  size="sm"
+                  onClick={() => openCreateModal()}
+                  className="h-7 rounded-lg bg-[#0284C7] text-white text-[11px] font-bold"
+                >
+                  + Assign Target
+                </Button>
+              </div>
+            )}
           </Card>
 
           {/* Active Employee Scorecard */}
@@ -1024,19 +1395,18 @@ export default function AdminTargetsPage() {
                         <span className="text-xs font-semibold text-neutral-400">/ 100%</span>
                       </div>
                       <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase mt-1 ${
-                          activeEmployeeTarget.scorecard.totalScore >= 80
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase mt-1 ${activeEmployeeTarget.scorecard.totalScore >= 80
                             ? "bg-sky-100 text-[#0369A1] border border-sky-300"
                             : activeEmployeeTarget.scorecard.totalScore >= 50
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
-                            : "bg-amber-50 text-amber-800 border border-amber-200"
-                        }`}
+                              ? "bg-blue-50 text-blue-700 border border-blue-200"
+                              : "bg-amber-50 text-amber-800 border border-amber-200"
+                          }`}
                       >
                         {activeEmployeeTarget.scorecard.totalScore >= 80
                           ? "Exceeding Target"
                           : activeEmployeeTarget.scorecard.totalScore >= 50
-                          ? "On Track"
-                          : "Needs Attention"}
+                            ? "On Track"
+                            : "Needs Attention"}
                       </span>
                     </div>
 
@@ -1348,9 +1718,8 @@ export default function AdminTargetsPage() {
                             <td className="py-3.5 px-3 text-center font-bold text-neutral-700">{it.weightPercent}%</td>
                             <td className="py-3.5 px-4 text-center font-bold text-[#0284C7]">{it.earnedScore}%</td>
                             <td className="py-3.5 px-4 text-center">
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                                completion >= 100 ? "bg-emerald-100 text-emerald-800" : completion >= 50 ? "bg-blue-100 text-blue-800" : "bg-neutral-100 text-neutral-700"
-                              }`}>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${completion >= 100 ? "bg-emerald-100 text-emerald-800" : completion >= 50 ? "bg-blue-100 text-blue-800" : "bg-neutral-100 text-neutral-700"
+                                }`}>
                                 {completion}%
                               </span>
                             </td>
@@ -1594,159 +1963,348 @@ export default function AdminTargetsPage() {
       {/* TAB 3: TEAM LEADERS & TEAMS */}
       {activeTab === "teams" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-base font-bold text-neutral-900">
-                Team Leaders & Hierarchy Breakdown
+                Organization Hierarchy &amp; Team Targets
               </h2>
               <p className="text-xs text-neutral-500">
-                Track Team Leaders, member allocations, team targets vs individual contributions.
+                Full reporting tree, Team Leader rolled-up targets, and quick reporting updates (Active staff only).
               </p>
             </div>
           </div>
 
-          {targetsData?.teamLeaders && targetsData.teamLeaders.length > 0 ? (
-            <div className="space-y-4">
-              {targetsData.teamLeaders.map((tl: any) => (
-                <Card
-                  key={tl.id}
-                  className="rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-xs space-y-4"
-                >
-                  {/* TL Header & Aggregate Stats */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--card)] from-[#0284C7] to-sky-400 text-white font-extrabold text-base shadow-xs">
-                        {tl.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-neutral-900 text-base">{tl.name}</h3>
-                          <span className="rounded-full bg-sky-100 text-[#0284C7] px-2.5 py-0.5 text-[11px] font-bold">
-                            {tl.designation || "Team Leader"}
+          {/* FULL MULTI-LEVEL ORG HIERARCHY TREE */}
+          {(() => {
+            const activeStaff = (rosterData?.activeEmployees ?? []).filter(
+              (e: any) => selectedCompany === "ALL" || (e.companyName || "Realty Smartz") === selectedCompany
+            );
+            const activeIdSet = new Set(activeStaff.map((e: any) => e.id));
+            const targetMap = new Map<string, any>();
+            (targetsData?.targets ?? []).forEach((t: any) => {
+              if (!targetMap.has(t.employeeId)) targetMap.set(t.employeeId, t);
+            });
+            const childrenMap = new Map<string, any[]>();
+            const roots: any[] = [];
+            activeStaff.forEach((emp: any) => {
+              if (emp.managerId && activeIdSet.has(emp.managerId)) {
+                const arr = childrenMap.get(emp.managerId) || [];
+                arr.push(emp);
+                childrenMap.set(emp.managerId, arr);
+              } else {
+                roots.push(emp);
+              }
+            });
+            const managersWithReports = roots.filter((r) => (childrenMap.get(r.id) || []).length > 0);
+            const unassignedRoots = roots.filter((r) => (childrenMap.get(r.id) || []).length === 0);
+
+            const calcSubtreeStats = (nodeId: string, seen = new Set<string>()): { count: number; targetRev: number; achievedRev: number; visits: number; targetVisits: number; bookings: number; targetBookings: number } => {
+              if (seen.has(nodeId)) return { count: 0, targetRev: 0, achievedRev: 0, visits: 0, targetVisits: 0, bookings: 0, targetBookings: 0 };
+              seen.add(nodeId);
+              const t = targetMap.get(nodeId);
+              let res = {
+                count: 1,
+                targetRev: t?.targetRevenue || 0,
+                achievedRev: t?.currentRevenue || 0,
+                visits: t?.currentVisits || 0,
+                targetVisits: t?.targetVisits || 0,
+                bookings: t?.currentBookings || 0,
+                targetBookings: t?.targetBookings || 0,
+              };
+              for (const child of childrenMap.get(nodeId) || []) {
+                const sub = calcSubtreeStats(child.id, seen);
+                res.count += sub.count;
+                res.targetRev += sub.targetRev;
+                res.achievedRev += sub.achievedRev;
+                res.visits += sub.visits;
+                res.targetVisits += sub.targetVisits;
+                res.bookings += sub.bookings;
+                res.targetBookings += sub.targetBookings;
+              }
+              return res;
+            };
+
+            const renderHierarchyNode = (emp: any, depth = 0, ancestry = new Set<string>()): any => {
+              if (ancestry.has(emp.id)) return null;
+              const nextAncestry = new Set(ancestry);
+              nextAncestry.add(emp.id);
+              const kids = childrenMap.get(emp.id) || [];
+              const empTarget = targetMap.get(emp.id);
+              const empScore = empTarget?.scorecard?.totalScore ?? 0;
+              const rag = getRagMeta(empScore);
+              const teamStats = kids.length > 0 ? calcSubtreeStats(emp.id) : null;
+
+              return (
+                <div key={emp.id} className={depth > 0 ? "ml-4 sm:ml-6 pl-3 border-l-2 border-sky-200 space-y-2" : "space-y-2"}>
+                  <div className="p-2.5 rounded-xl border border-neutral-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={`h-7 w-7 rounded-lg flex items-center justify-center font-bold text-white shrink-0 ${kids.length > 0 ? "bg-[#0284C7]" : "bg-neutral-500"}`}>
+                        {emp.firstName?.charAt(0)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-neutral-900">
+                            {emp.firstName} {emp.lastName}
                           </span>
-                          <span className="rounded-full bg-neutral-100 text-neutral-700 px-2.5 py-0.5 text-[11px] font-semibold">
-                            {tl.companyName || "Realty Smartz"}
+                          <span className="text-[10px] font-mono text-neutral-500">({emp.employeeCode || "RS"})</span>
+                          <span className="px-2 py-0.2 rounded-full bg-neutral-100 text-neutral-700 text-[10px] font-semibold">
+                            {emp.designation?.title || "Staff"}
                           </span>
-                          <span className="rounded-full bg-neutral-100 text-neutral-600 px-2 py-0.5 text-[11px] font-mono">
-                            {tl.employeeCode || "RS"}
-                          </span>
+                          {kids.length > 0 && (
+                            <span className="px-2 py-0.2 rounded-full bg-sky-100 text-[#0284C7] text-[10px] font-bold">
+                              Team: {teamStats ? teamStats.count - 1 : kids.length}
+                            </span>
+                          )}
                         </div>
-                        <p className="text-xs text-neutral-500 mt-0.5">
-                          Direct Reports: <strong>{tl.memberCount} members</strong> • Department: {tl.department}
-                        </p>
+                        <div className="text-[11px] text-neutral-500 flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                          <span>{emp.companyName || "Realty Smartz"}</span>
+                          {empTarget ? (
+                            <>
+                              <span>Visits: <strong>{empTarget.currentVisits}/{empTarget.targetVisits}</strong></span>
+                              <span>Bookings: <strong>{empTarget.currentBookings}/{empTarget.targetBookings}</strong></span>
+                              <span>Rev: <strong>{formatCurrency(empTarget.currentRevenue)}</strong></span>
+                            </>
+                          ) : (
+                            <span className="italic text-neutral-400">No personal target</span>
+                          )}
+                          {teamStats && (
+                            <span className="text-[#0284C7] font-semibold">
+                              Team Sum → Bookings: {teamStats.bookings}/{teamStats.targetBookings} • Rev: {formatCurrency(teamStats.achievedRev)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Team Summary Numbers */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200/70 text-center">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase block">Team Revenue</span>
-                        <strong className="text-emerald-700 font-bold">
-                          {formatCurrency(tl.teamStats.teamAchievedRevenue)}
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200/70 text-center">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase block">Team Bookings</span>
-                        <strong className="text-neutral-900 font-bold">
-                          {tl.teamStats.teamAchievedBookings} / {tl.teamStats.teamTargetBookings}
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200/70 text-center">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase block">Team Visits</span>
-                        <strong className="text-neutral-900 font-bold">
-                          {tl.teamStats.teamAchievedVisits} / {tl.teamStats.teamTargetVisits}
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded-xl bg-sky-50 border border-sky-100 text-center">
-                        <span className="text-[10px] text-sky-600 font-bold uppercase block">Team Score</span>
-                        <strong className="text-[#0284C7] font-black text-sm">
-                          {tl.teamStats.teamAvgScore}%
-                        </strong>
-                      </div>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${rag.badgeClass}`}>
+                        {empScore}%
+                      </span>
+                      <select
+                        value={emp.managerId || ""}
+                        disabled={setManagerMutation.isPending}
+                        onChange={(e) =>
+                          setManagerMutation.mutate({
+                            employeeId: emp.id,
+                            managerId: e.target.value || null,
+                          })
+                        }
+                        className="h-7 rounded-lg border border-neutral-200 bg-neutral-50 px-2 text-[11px] font-semibold text-neutral-700 max-w-[165px]"
+                        title="Assign Reporting Team Leader"
+                      >
+                        <option value="">No Manager (Top)</option>
+                        {(rosterData?.activeEmployees ?? [])
+                          .filter((m: any) => m.id !== emp.id)
+                          .map((m: any) => (
+                            <option key={m.id} value={m.id}>
+                              TL: {m.firstName} {m.lastName}
+                            </option>
+                          ))}
+                      </select>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openCreateModal(emp.id, emp.companyName as TargetCompany)}
+                        className="h-7 px-2 text-[10px] rounded-lg font-bold border-sky-200 text-[#0284C7]"
+                      >
+                        {empTarget ? "Update Target" : "+ Target"}
+                      </Button>
                     </div>
                   </div>
+                  {kids.length > 0 && depth < 5 && (
+                    <div className="space-y-2">
+                      {kids.map((child: any) => renderHierarchyNode(child, depth + 1, nextAncestry))}
+                    </div>
+                  )}
+                </div>
+              );
+            };
 
-                  {/* Team Members List */}
+            return (
+              <Card className="rounded-2xl border border-sky-100 bg-sky-50/20 p-4 shadow-xs space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-sky-100 pb-2.5">
                   <div>
-                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
-                      Reporting Members & Individual Target Progress
-                    </h4>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-bold text-neutral-900">Organization Hierarchy &amp; Reporting Tree</h3>
+                        <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-[#0284C7] text-[10px] font-extrabold uppercase tracking-wide">
+                          Amit Sir / Chhavi Mittal
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        Structured reporting lines: HR Department (Unnati) • Sales TLs (Ayush, Sapna, Soma, Pihu, Pankaj) • Telesales (Mansi)
+                      </p>
+                  </div>
+                  <span className="text-xs font-bold text-[#0284C7]">
+                    {activeStaff.length} Active Staff
+                  </span>
+                </div>
 
-                    {tl.members && tl.members.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                        {tl.members.map((member: any) => (
-                          <div
-                            key={member.id}
-                            className="p-3 rounded-xl border border-neutral-200/80 bg-white hover:border-sky-300 transition-all flex flex-col justify-between"
-                          >
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-xs text-neutral-900 truncate">
-                                  {member.name}
-                                </span>
-                                <span className="font-mono text-[10px] text-neutral-400">
-                                  {member.employeeCode}
-                                </span>
-                              </div>
-                              <span className="text-[11px] text-neutral-500 block truncate">
-                                {member.designation}
-                              </span>
+                <div className="space-y-3">
+                  {managersWithReports.map((root: any) => renderHierarchyNode(root, 0))}
+                </div>
 
-                              {member.hasTarget ? (
-                                <div className="pt-2 space-y-1">
-                                  <div className="flex justify-between text-[11px]">
-                                    <span className="text-neutral-500">Revenue:</span>
-                                    <strong className="text-emerald-700">
-                                      {formatCurrency(member.achievedRevenue)} / {formatCurrency(member.targetRevenue)}
-                                    </strong>
-                                  </div>
-                                  <div className="flex justify-between text-[11px]">
-                                    <span className="text-neutral-500">Score:</span>
-                                    <strong className="text-[#0284C7] font-bold">
-                                      {member.score}%
-                                    </strong>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="pt-2">
-                                  <span className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-medium inline-block">
-                                    No Target Assigned
+                {unassignedRoots.length > 0 && (
+                  <div className="pt-3 border-t border-sky-100 space-y-2">
+                    <div className="text-xs font-bold text-neutral-700">
+                      Independent / Unassigned Active Staff ({unassignedRoots.length})
+                    </div>
+                    <div className="space-y-2">
+                      {unassignedRoots.map((emp: any) => renderHierarchyNode(emp, 0))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
+
+          {(() => {
+            const visibleTLs = (targetsData?.teamLeaders ?? []).filter(
+              (tl: any) => selectedCompany === "ALL" || (tl.companyName || "Realty Smartz") === selectedCompany
+            );
+            return visibleTLs.length > 0 ? (
+              <div className="space-y-4">
+                {visibleTLs.map((tl: any) => (
+                  <Card
+                    key={tl.id}
+                    className="rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-xs space-y-4"
+                  >
+                    {/* TL Header & Aggregate Stats */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0284C7] text-white font-extrabold text-base shadow-xs">
+                          {tl.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-neutral-900 text-base">{tl.name}</h3>
+                            <span className="rounded-full bg-sky-100 text-[#0284C7] px-2.5 py-0.5 text-[11px] font-bold">
+                              {tl.designation || "Team Leader"}
+                            </span>
+                            <span className="rounded-full bg-neutral-100 text-neutral-700 px-2.5 py-0.5 text-[11px] font-semibold">
+                              {tl.companyName || "Realty Smartz"}
+                            </span>
+                            <span className="rounded-full bg-neutral-100 text-neutral-600 px-2 py-0.5 text-[11px] font-mono">
+                              {tl.employeeCode || "RS"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-500 mt-0.5">
+                            Direct Reports: <strong>{tl.memberCount} members</strong> • Department: {tl.department}
+                            {tl.managerName ? ` • Reports to: ${tl.managerName}` : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Team Summary Numbers */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200/70 text-center">
+                          <span className="text-[10px] text-neutral-400 font-bold uppercase block">Team Revenue</span>
+                          <strong className="text-emerald-700 font-bold">
+                            {formatCurrency(tl.teamStats.teamAchievedRevenue)}
+                          </strong>
+                        </div>
+                        <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200/70 text-center">
+                          <span className="text-[10px] text-neutral-400 font-bold uppercase block">Team Bookings</span>
+                          <strong className="text-neutral-900 font-bold">
+                            {tl.teamStats.teamAchievedBookings} / {tl.teamStats.teamTargetBookings}
+                          </strong>
+                        </div>
+                        <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200/70 text-center">
+                          <span className="text-[10px] text-neutral-400 font-bold uppercase block">Team Visits</span>
+                          <strong className="text-neutral-900 font-bold">
+                            {tl.teamStats.teamAchievedVisits} / {tl.teamStats.teamTargetVisits}
+                          </strong>
+                        </div>
+                        <div className="p-2 rounded-xl bg-sky-50 border border-sky-100 text-center">
+                          <span className="text-[10px] text-sky-600 font-bold uppercase block">Team Score</span>
+                          <strong className="text-[#0284C7] font-black text-sm">
+                            {tl.teamStats.teamAvgScore}%
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Team Members List */}
+                    <div>
+                      <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
+                        Reporting Members & Individual Target Progress
+                      </h4>
+
+                      {tl.members && tl.members.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                          {tl.members.map((member: any) => (
+                            <div
+                              key={member.id}
+                              className="p-3 rounded-xl border border-neutral-200/80 bg-white hover:border-sky-300 transition-all flex flex-col justify-between"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-xs text-neutral-900 truncate">
+                                    {member.name}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-neutral-400">
+                                    {member.employeeCode}
                                   </span>
                                 </div>
-                              )}
-                            </div>
+                                <span className="text-[11px] text-neutral-500 block truncate">
+                                  {member.designation}
+                                </span>
 
-                            <div className="mt-3 pt-2 border-t border-neutral-100 flex justify-end">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openCreateModal(member.id, tl.companyName)}
-                                className="h-6 text-[10px] font-bold rounded-lg px-2"
-                              >
-                                {member.hasTarget ? "Update Target" : "+ Assign Target"}
-                              </Button>
+                                {member.hasTarget ? (
+                                  <div className="pt-2 space-y-1">
+                                    <div className="flex justify-between text-[11px]">
+                                      <span className="text-neutral-500">Revenue:</span>
+                                      <strong className="text-emerald-700">
+                                        {formatCurrency(member.achievedRevenue)} / {formatCurrency(member.targetRevenue)}
+                                      </strong>
+                                    </div>
+                                    <div className="flex justify-between text-[11px]">
+                                      <span className="text-neutral-500">Score:</span>
+                                      <strong className="text-[#0284C7] font-bold">
+                                        {member.score}%
+                                      </strong>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="pt-2">
+                                    <span className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-medium inline-block">
+                                      No Target Assigned
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="mt-3 pt-2 border-t border-neutral-100 flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openCreateModal(member.id, tl.companyName)}
+                                  className="h-6 text-[10px] font-bold rounded-lg px-2"
+                                >
+                                  {member.hasTarget ? "Update Target" : "+ Assign Target"}
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-neutral-400 italic">
-                        No team members directly reporting under this team leader yet.
-                      </p>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="p-12 text-center rounded-2xl bg-white border border-neutral-200">
-              <Users className="h-10 w-10 text-neutral-300 mx-auto mb-2" />
-              <h3 className="font-bold text-neutral-800">No Team Leaders Identified</h3>
-              <p className="text-xs text-neutral-500 mt-1">
-                Assign manager roles or "Team Leader" designations to see hierarchical team aggregations.
-              </p>
-            </Card>
-          )}
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-neutral-400 italic">
+                          No team members directly reporting under this team leader yet.
+                        </p>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="p-12 text-center rounded-2xl bg-white border border-neutral-200">
+                <Users className="h-10 w-10 text-neutral-300 mx-auto mb-2" />
+                <h3 className="font-bold text-neutral-800">No Team Leaders Identified</h3>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Assign manager roles or &quot;Team Leader&quot; designations to see hierarchical team aggregations.
+                </p>
+              </Card>
+            );
+          })()}
         </div>
       )}
 
@@ -1846,13 +2404,12 @@ export default function AdminTargetsPage() {
                           </td>
                           <td className="py-3 px-3 text-center">
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
-                                score >= 80
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${score >= 80
                                   ? "bg-emerald-100 text-emerald-800"
                                   : score >= 50
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-amber-100 text-amber-800"
-                              }`}
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}
                             >
                               {score >= 80 ? "Exceeding" : score >= 50 ? "On Track" : "In Progress"}
                             </span>
@@ -1906,6 +2463,231 @@ export default function AdminTargetsPage() {
         </div>
       )}
 
+      {/* TAB 5: ENTITY MAPPING & TEAM LEADER TRANSFER */}
+      {activeTab === "mapping" && (
+        <div className="space-y-4">
+          {mappingFeedback && (
+            <div className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-xs font-semibold text-sky-900 flex items-center justify-between">
+              <span>{mappingFeedback}</span>
+              <button onClick={() => setMappingFeedback("")} className="text-sky-700 hover:text-sky-900">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Manual Employee-to-Company Entity Mapping */}
+            <Card className="lg:col-span-7 rounded-2xl border-neutral-200/90 bg-white p-5 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-100 pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-neutral-900">
+                    Company Entity Mapping (Active Staff)
+                  </h2>
+                  <p className="text-xs text-neutral-500">
+                    Select employees and assign them to a company entity.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={mappingCompany}
+                    onChange={(e) => setMappingCompany(e.target.value as TargetCompany)}
+                    className="h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-800 outline-none"
+                  >
+                    {TARGET_COMPANIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    disabled={selectedMappingIds.length === 0 || assignCompanyMutation.isPending}
+                    onClick={() =>
+                      assignCompanyMutation.mutate({
+                        companyName: mappingCompany,
+                        employeeIds: selectedMappingIds,
+                      })
+                    }
+                    className="bg-[#0284C7] hover:bg-[#0369A1] text-white rounded-xl text-xs font-bold"
+                  >
+                    {assignCompanyMutation.isPending
+                      ? "Saving..."
+                      : `Assign (${selectedMappingIds.length})`}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-neutral-400" />
+                <Input
+                  placeholder="Search active employees..."
+                  value={mappingSearch}
+                  onChange={(e) => setMappingSearch(e.target.value)}
+                  className="pl-8 h-9 rounded-xl border-neutral-200 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Left: Add Employees NOT yet in selected mappingCompany */}
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-neutral-700">
+                    Add to {mappingCompany} (From Other Companies)
+                  </div>
+                  <div className="max-h-80 overflow-y-auto divide-y divide-neutral-100 border border-neutral-200 rounded-xl">
+                    {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => (emp.companyName || "Realty Smartz") !== mappingCompany)
+                      .filter((emp: any) => {
+                        if (!mappingSearch.trim()) return true;
+                        const q = mappingSearch.toLowerCase();
+                        return `${emp.firstName} ${emp.lastName} ${emp.employeeCode || ""}`.toLowerCase().includes(q);
+                      })
+                      .map((emp: any) => {
+                        const checked = selectedMappingIds.includes(emp.id);
+                        return (
+                          <label
+                            key={emp.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-sky-50/40 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedMappingIds((prev) => [...prev, emp.id]);
+                                  } else {
+                                    setSelectedMappingIds((prev) => prev.filter((id) => id !== emp.id));
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-neutral-300 accent-[#0284C7]"
+                              />
+                              <div className="min-w-0">
+                                <div className="font-bold text-neutral-900 truncate">
+                                  {emp.firstName} {emp.lastName}
+                                </div>
+                                <div className="text-[11px] text-neutral-500 truncate">
+                                  {emp.employeeCode || "RS"} • {emp.designation?.title || "Staff"}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
+                              {emp.companyName || "Realty Smartz"}
+                            </span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Right: Currently Assigned to selected mappingCompany */}
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-[#0284C7]">
+                    Assigned to {mappingCompany} (
+                    {(rosterData?.activeEmployees ?? []).filter(
+                      (emp: any) => (emp.companyName || "Realty Smartz") === mappingCompany
+                    ).length}
+                    )
+                  </div>
+                  <div className="max-h-80 overflow-y-auto divide-y divide-neutral-100 border border-sky-200 bg-sky-50/20 rounded-xl">
+                    {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => (emp.companyName || "Realty Smartz") === mappingCompany)
+                      .filter((emp: any) => {
+                        if (!mappingSearch.trim()) return true;
+                        const q = mappingSearch.toLowerCase();
+                        return `${emp.firstName} ${emp.lastName} ${emp.employeeCode || ""}`.toLowerCase().includes(q);
+                      })
+                      .map((emp: any) => (
+                        <div
+                          key={emp.id}
+                          className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-neutral-900 truncate">
+                              {emp.firstName} {emp.lastName}
+                            </div>
+                            <div className="text-[11px] text-neutral-500 truncate">
+                              {emp.employeeCode || "RS"} • {emp.designation?.title || "Staff"}
+                            </div>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-[#0284C7]">
+                            {mappingCompany}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Team Leader Transfer Card */}
+            <Card className="lg:col-span-5 rounded-2xl border-neutral-200/90 bg-white p-5 shadow-xs space-y-4">
+              <div className="border-b border-neutral-100 pb-3">
+                <h2 className="text-sm font-bold text-neutral-900">
+                  Team Leader Transfer
+                </h2>
+                <p className="text-xs text-neutral-500">
+                  Move active team members from a departing or existing Team Leader to a new Team Leader.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-neutral-700">From Team Leader</Label>
+                  <select
+                    value={transferFromId}
+                    onChange={(e) => setTransferFromId(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none"
+                  >
+                    <option value="">-- Select Current / Former TL --</option>
+                    {(rosterData?.inactiveLeaders ?? []).map((tl: any) => (
+                      <option key={tl.id} value={tl.id}>
+                        [Resigned/Inactive] {tl.firstName} {tl.lastName} ({tl.directReports.length} members)
+                      </option>
+                    ))}
+                    {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => (emp.directReports?.length ?? 0) > 0)
+                      .map((emp: any) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName} ({emp.directReports?.length ?? 0} members) - {emp.designation?.title || "Team Leader"}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-neutral-700">To New Team Leader (Active)</Label>
+                  <select
+                    value={transferToId}
+                    onChange={(e) => setTransferToId(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none"
+                  >
+                    <option value="">-- Select New Active TL --</option>
+                    {(rosterData?.activeEmployees ?? []).map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.firstName} {emp.lastName} ({emp.designation?.title || "Staff"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button
+                  type="button"
+                  disabled={!transferFromId || !transferToId || transferFromId === transferToId || transferTlMutation.isPending}
+                  onClick={() =>
+                    transferTlMutation.mutate({
+                      fromManagerId: transferFromId,
+                      toManagerId: transferToId,
+                    })
+                  }
+                  className="w-full bg-[#0284C7] hover:bg-[#0369A1] text-white rounded-xl text-xs font-bold gap-1.5"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  {transferTlMutation.isPending ? "Transferring..." : "Transfer Team & History"}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* CREATE TARGET MODAL */}
       {showCreateModal && (
         <div
@@ -1946,30 +2728,61 @@ export default function AdminTargetsPage() {
                     <Label className="text-xs font-bold text-neutral-700">Company Entity *</Label>
                     <select
                       value={formCompany}
-                      onChange={(e) => setFormCompany(e.target.value as TargetCompany)}
+                      onChange={(e) => {
+                        const nextCompany = e.target.value as TargetCompany;
+                        setFormCompany(nextCompany);
+                        setFormEmployeeId("");
+                      }}
                       className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none focus:border-[#0284C7]"
                     >
-                      {TARGET_COMPANIES.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
+                      {TARGET_COMPANIES.map((c) => {
+                        const count = (rosterData?.activeEmployees ?? []).filter(
+                          (emp: any) => (emp.companyName || "Realty Smartz") === c
+                        ).length;
+                        return (
+                          <option key={c} value={c}>
+                            {c} ({count} active)
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-neutral-700">Select Employee *</Label>
-                    <select
-                      value={formEmployeeId}
-                      onChange={(e) => handleEmployeeSelect(e.target.value)}
-                      required
-                      className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none focus:border-[#0284C7]"
-                    >
-                      <option value="">-- Choose Employee --</option>
-                      {(employeesData?.items ?? []).map((emp: any) => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.firstName} {emp.lastName} ({emp.employeeCode || "RS"}) - {emp.department?.name || "General"}
-                        </option>
-                      ))}
-                    </select>
+                    <Label className="text-xs font-bold text-neutral-700">
+                      Select Active Employee ({formCompany}) *
+                    </Label>
+                    {(() => {
+                      const companyEmployees = (rosterData?.activeEmployees ?? []).filter(
+                        (emp: any) => (emp.companyName || "Realty Smartz") === formCompany
+                      );
+                      return (
+                        <>
+                          <select
+                            value={formEmployeeId}
+                            onChange={(e) => handleEmployeeSelect(e.target.value)}
+                            required
+                            className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none focus:border-[#0284C7]"
+                          >
+                            <option value="">
+                              {companyEmployees.length === 0
+                                ? `-- No active employees in ${formCompany} --`
+                                : `-- Choose Employee (${companyEmployees.length}) --`}
+                            </option>
+                            {companyEmployees.map((emp: any) => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.firstName} {emp.lastName} ({emp.employeeCode || "RS"}) - {emp.designation?.title || emp.department?.name || "Staff"}
+                              </option>
+                            ))}
+                          </select>
+                          {companyEmployees.length === 0 && (
+                            <p className="text-[11px] text-amber-700">
+                              Map employees to {formCompany} first in the &quot;Entity Mapping &amp; TL Transfer&quot; tab.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1978,21 +2791,22 @@ export default function AdminTargetsPage() {
                   <Label className="text-xs font-bold text-neutral-700">Role Deliverables Preset</Label>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {[
-                      { key: "SALES", label: "Sales (Visits & Revenue)" },
-                      { key: "PRESALES", label: "Presales (Calls & Leads)" },
-                      { key: "TEAM_LEADER", label: "Team Leader (Team Revenue)" },
-                      { key: "HR", label: "HR (Hires & Interviews)" },
-                      { key: "IT", label: "IT / Tech (Features & Bugs)" },
+                      { key: "SALES", label: "Sales (20/30/40)" },
+                      { key: "TELESALES", label: "Telesales (30/40/20)" },
+                      { key: "TEAM_LEADER_SALES", label: "TL Sales (40/50)" },
+                      { key: "TEAM_LEADER_PRESALES", label: "TL Presales (30/60)" },
+                      { key: "DIRECT_SALES", label: "Direct Sales - Chhavi (40/50)" },
+                      { key: "HR", label: "HR" },
+                      { key: "IT", label: "IT" },
                     ].map((preset) => (
                       <button
                         key={preset.key}
                         type="button"
                         onClick={() => applyPreset(preset.key as any)}
-                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border ${
-                          formRolePreset === preset.key
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border ${formRolePreset === preset.key
                             ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs"
                             : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100"
-                        }`}
+                          }`}
                       >
                         {preset.label}
                       </button>
@@ -2000,16 +2814,31 @@ export default function AdminTargetsPage() {
                   </div>
                 </div>
 
-                {/* Target Title */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-neutral-700">Target Sheet Title *</Label>
-                  <Input
-                    placeholder="e.g. November 2026 Sales Target Sheet"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    required
-                    className="rounded-xl border-neutral-200 text-xs"
-                  />
+                {/* Target Title & Period Type */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold text-neutral-700">Target Sheet Title *</Label>
+                    <Input
+                      placeholder="e.g. November 2026 Sales Target Sheet"
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      required
+                      className="rounded-xl border-neutral-200 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-neutral-700">Summary Period *</Label>
+                    <select
+                      value={formPeriodType}
+                      onChange={(e) => setFormPeriodType(e.target.value as any)}
+                      className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none focus:border-[#0284C7]"
+                    >
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                      <option value="QUARTERLY">Quarterly</option>
+                      <option value="YEARLY">Yearly</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Start & End Dates */}
@@ -2046,11 +2875,10 @@ export default function AdminTargetsPage() {
                       <p className="text-[11px] text-neutral-400">Total weight must equal exactly 100%</p>
                     </div>
                     <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        formTotalScorecardWeight === 100
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${formTotalScorecardWeight === 100
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-rose-100 text-rose-800"
-                      }`}
+                        }`}
                     >
                       Total: {formTotalScorecardWeight}%
                     </span>
@@ -2295,11 +3123,10 @@ export default function AdminTargetsPage() {
                       <p className="text-[11px] text-neutral-400">Total weight must equal 100%</p>
                     </div>
                     <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        formTotalScorecardWeight === 100
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${formTotalScorecardWeight === 100
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-rose-100 text-rose-800"
-                      }`}
+                        }`}
                     >
                       Total: {formTotalScorecardWeight}%
                     </span>

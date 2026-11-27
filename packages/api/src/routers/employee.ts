@@ -1806,22 +1806,24 @@ export const employeeRouter = router({
         select: { id: true },
       });
 
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const [recentLeaves, recentTargets, recentActivities, teamPendingLeaves] = await Promise.all([
         ctx.prisma.leaveRequest.findMany({
           where: {
             employeeId: ctx.session.user.id,
             OR: [
-              { respondedAt: { not: null } },
-              { managerRespondedAt: { not: null } },
+              { respondedAt: { gte: sevenDaysAgo } },
+              { managerRespondedAt: { gte: sevenDaysAgo } },
             ],
           },
           include: { leaveType: true, manager: { select: { firstName: true, lastName: true } } },
-          orderBy: { appliedAt: "desc" },
+          orderBy: [{ respondedAt: "desc" }, { managerRespondedAt: "desc" }],
           take: 5,
         }),
         ctx.prisma.employeeTarget.findMany({
           where: {
             employeeId: ctx.session.user.id,
+            createdAt: { gte: sevenDaysAgo },
           },
           orderBy: { createdAt: "desc" },
           take: 5,
@@ -1829,7 +1831,7 @@ export const employeeRouter = router({
         ctx.prisma.targetActivity.findMany({
           where: {
             employeeId: ctx.session.user.id,
-            verifiedAt: { not: null },
+            verifiedAt: { gte: sevenDaysAgo },
           },
           include: { targetItem: true },
           orderBy: { verifiedAt: "desc" },
@@ -2149,5 +2151,57 @@ export const employeeRouter = router({
       }
 
       return { success: true };
+    }),
+
+  updateProbation: hrAdminProcedure
+    .input(
+      z.object({
+        employeeId: z.string().min(1),
+        probationMonths: z.number().int().min(0).max(24).nullable(),
+        probationEndDate: z.coerce.date().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.user.organizationId || "org_default_realty";
+      const emp = await ctx.prisma.employee.findFirst({
+        where: { id: input.employeeId, organizationId: orgId },
+        select: { id: true, dateOfJoining: true, probationMonths: true, probationEndDate: true },
+      });
+      if (!emp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+      }
+
+      let resolvedEndDate: Date | null = null;
+      if (input.probationMonths === 0) {
+        resolvedEndDate = new Date();
+      } else if (input.probationMonths !== null) {
+        if (input.probationEndDate) {
+          resolvedEndDate = new Date(input.probationEndDate);
+        } else if (emp.dateOfJoining) {
+          resolvedEndDate = new Date(emp.dateOfJoining);
+          resolvedEndDate.setMonth(resolvedEndDate.getMonth() + input.probationMonths);
+        }
+      }
+
+      const updated = await ctx.prisma.employee.update({
+        where: { id: emp.id },
+        data: {
+          probationMonths: input.probationMonths,
+          probationEndDate: resolvedEndDate,
+        },
+        select: { id: true, probationMonths: true, probationEndDate: true },
+      });
+
+      await ctx.prisma.employeeJobHistory.create({
+        data: {
+          employeeId: emp.id,
+          fieldChanged: "probation",
+          oldValue: emp.probationMonths !== null ? `${emp.probationMonths}m` : "default",
+          newValue: input.probationMonths === null ? "default" : `${input.probationMonths}m`,
+          changedById: ctx.session.user.id,
+        },
+      });
+
+      return updated;
     }),
 });
