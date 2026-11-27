@@ -98,7 +98,9 @@ function getTransporter() {
   cachedTransporter = nodemailer.createTransport({
     pool: true,
     maxConnections: 1,
-    maxMessages: 100,
+    maxMessages: 50,
+    rateDelta: 2000,
+    rateLimit: 1,
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,
@@ -303,7 +305,7 @@ export async function sendMail(
     const ccRaw = ccList.length ? ccList.join(", ") : undefined;
     const bccRaw = bccList.length ? bccList.join(", ") : undefined;
 
-    await transporter.sendMail({
+    const mailOptions = {
       from,
       sender: user,
       replyTo: user,
@@ -322,15 +324,40 @@ export async function sendMail(
         "List-Unsubscribe": `<mailto:${user}?subject=Unsubscribe%20HRMS>`,
         "X-Entity-Ref-ID": `${Date.now()}.${Math.random().toString(36).slice(2, 8)}`,
       },
-    });
-    console.info(
-      "[email] Sent:",
-      payload.subject,
-      "| to:",
-      to,
-      bccRaw ? `| bcc: ${bccList.length} staff` : ""
-    );
-    return { success: true };
+    };
+
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const activeTransporter = getTransporter();
+        if (!activeTransporter) break;
+        await activeTransporter.sendMail(mailOptions);
+        console.info(
+          "[email] Sent:",
+          payload.subject,
+          "| to:",
+          to,
+          bccRaw ? `| bcc: ${bccList.length} staff` : ""
+        );
+        return { success: true };
+      } catch (sendErr: unknown) {
+        const d =
+          sendErr && typeof sendErr === "object"
+            ? (sendErr as { code?: unknown; responseCode?: unknown })
+            : {};
+        const respCode = typeof d.responseCode === "number" ? d.responseCode : 0;
+        const isTransient = respCode === 451 || respCode === 421 || d.code === "ECONNECTION" || d.code === "ETIMEDOUT";
+        if (isTransient && attempt < maxAttempts) {
+          cachedTransporter?.close();
+          cachedTransporter = null;
+          cachedTransporterKey = "";
+          await new Promise((r) => setTimeout(r, attempt * 3000));
+          continue;
+        }
+        throw sendErr;
+      }
+    }
+    return { success: false, error: "SMTP transporter unavailable." };
   } catch (err: unknown) {
     const details =
       err && typeof err === "object"

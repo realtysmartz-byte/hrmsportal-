@@ -3,20 +3,32 @@ import superjson from "superjson";
 import type { Role } from "@realty-smartz/shared";
 import { canManageEmployees, canManageOrg } from "@realty-smartz/shared";
 import type { Context } from "./context";
+import { initServerLogger, writeLogEntry } from "./lib/logger";
+
+initServerLogger();
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
-    return {
-      ...shape,
-      data: {
-        ...shape.data,
-        // Suppress stack traces in production to prevent information leakage
-        stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
-      },
-    };
-  },
-});
+    errorFormatter({ shape, error, path, ctx }) {
+      if (error.code === "INTERNAL_SERVER_ERROR" || error.code === "BAD_REQUEST" || error.code === "FORBIDDEN") {
+        writeLogEntry("ERROR", [
+          `[tRPC:${error.code}]`,
+          path || "unknown",
+          ctx?.session?.user?.id ? `user=${ctx.session.user.id}` : "anon",
+          error.message,
+          error.cause instanceof Error ? error.cause.stack : "",
+        ]);
+      }
+      return {
+        ...shape,
+        data: {
+          ...shape.data,
+          // Suppress stack traces in production to prevent information leakage
+          stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
+        },
+      };
+    },
+  });
 
 export const router = t.router;
 export const publicProcedure = t.procedure;

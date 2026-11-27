@@ -17,8 +17,8 @@ export type StoredFix = {
 
 export type PunchFix = StoredFix & { accuracy: number };
 
-const FIX_MAX_AGE_MS = 20_000; // 20s max age for prewarmed punch fix
-const WATCH_BUDGET_MS = 2_000; // 2s max wait so punch-in is always fast
+const FIX_MAX_AGE_MS = 30_000; // 30s prewarmed fix resolves in 0ms
+const WATCH_BUDGET_MS = 700; // < 1s cold GPS budget
 const GOOD_ACCURACY_M = 80; // Resolve immediately on any normal indoor GPS/Wi-Fi fix (<=80m)
 
 let latestFix: StoredFix | null = null;
@@ -159,34 +159,46 @@ export function startPunchLocationPrewarm() {
   prewarmUsers += 1;
   if (prewarmUsers > 1) return;
 
-  // Background quick attempt without prompting if allowed
+  // Background quick attempt + native APK fix prewarm (up to 10m old native OS fix)
+  void getNativePunchFix(10 * 60_000).then((nativeFix) => {
+    if (nativeFix && isUsablePunchFix(nativeFix) && !latestFix) {
+      latestFix = nativeFix;
+    }
+  });
   try {
     navigator.geolocation.getCurrentPosition(
       storeFix,
       () => { },
-      { enableHighAccuracy: true, maximumAge: 15_000, timeout: 4_000 }
+      { enableHighAccuracy: false, maximumAge: 30_000, timeout: 2_000 }
     );
   } catch { }
 
-  if (!navigator.permissions?.query) return;
+  if (!navigator.permissions?.query) {
+    permissionStatus = { state: "granted" } as PermissionStatus;
+    startPrewarmWatch();
+    return;
+  }
   void navigator.permissions
     .query({ name: "geolocation" })
     .then((status) => {
       if (prewarmUsers === 0) return;
       permissionStatus = status;
       permissionChangeHandler = () => {
-        if (permissionStatus?.state === "granted") {
+        if (permissionStatus?.state !== "denied") {
           startPrewarmWatch();
         } else {
           stopPrewarmWatch();
         }
       };
       status.addEventListener("change", permissionChangeHandler);
-      if (status.state === "granted") {
+      if (status.state !== "denied") {
         startPrewarmWatch();
       }
     })
-    .catch(() => { });
+    .catch(() => {
+      permissionStatus = { state: "granted" } as PermissionStatus;
+      startPrewarmWatch();
+    });
 }
 
 function stopPrewarmWatch() {
@@ -253,7 +265,7 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
       }
     });
 
-    // Fast-path 1: Quick current position
+    // Fast-path 1: Quick current position (high-accuracy)
     try {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -276,7 +288,28 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
           }
         },
         () => { },
-        { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 5_000, timeout: 1_800 }
+        { enableHighAccuracy: true, maximumAge: options?.forceFresh ? 0 : 10_000, timeout: 650 }
+      );
+    } catch { }
+
+    // Fast-path 1b: Instant Wi-Fi/network fallback for indoor APK WebView if GPS is slow
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const fix: StoredFix = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
+            timestamp: pos.timestamp || Date.now(),
+          };
+          if (!isUsablePunchFix(fix)) return;
+          if (!best || (fix.accuracy != null && best.accuracy != null && fix.accuracy < best.accuracy)) {
+            best = fix;
+            storeFix(pos);
+          }
+        },
+        () => { },
+        { enableHighAccuracy: false, maximumAge: options?.forceFresh ? 0 : 30_000, timeout: 450 }
       );
     } catch { }
 
@@ -315,14 +348,58 @@ export function acquirePunchFix(options?: { forceFresh?: boolean }): Promise<Pun
 
     watchTimer = setTimeout(() => {
       if (settled) return;
-      settled = true;
-      cleanup();
-      if (best) resolve(best);
-      else {
-        reject(
-          Object.assign(new Error("Location unavailable. Please make sure device GPS is on and try again."), { code: 2 })
-        );
+      if (best) {
+        settled = true;
+        cleanup();
+        resolve(best);
+        return;
       }
+
+      // Rescue fallback when indoor WebView GPS hasn't woken up in 2s:
+      // Race native LocationManager lastKnownLocation (up to 30m old) + relaxed browser cache
+      let rescueDone = false;
+      const finishRescue = (fix: PunchFix | null) => {
+        if (rescueDone || settled) return;
+        if (fix && isUsablePunchFix(fix)) {
+          rescueDone = true;
+          settled = true;
+          cleanup();
+          latestFix = fix;
+          resolve(fix);
+        }
+      };
+
+      void getNativePunchFix(30 * 60_000).then((nativeFix) => {
+        if (nativeFix && isUsablePunchFix(nativeFix)) finishRescue(nativeFix);
+      });
+
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const fix: StoredFix = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : 100,
+              timestamp: pos.timestamp || Date.now(),
+            };
+            if (isUsablePunchFix(fix)) finishRescue(fix);
+          },
+          () => { },
+          { enableHighAccuracy: false, maximumAge: 600_000, timeout: 450 }
+        );
+      } catch { }
+
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (best) resolve(best);
+        else {
+          reject(
+            Object.assign(new Error("Location unavailable. Please make sure device GPS is on and try again."), { code: 2 })
+          );
+        }
+      }, 500);
     }, WATCH_BUDGET_MS);
   });
 }

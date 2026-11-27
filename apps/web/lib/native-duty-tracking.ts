@@ -64,7 +64,7 @@ export function isNativeAndroidApp() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
 
-export async function getNativePunchFix(): Promise<StoredFix | null> {
+export async function getNativePunchFix(maxAgeMs = 120_000): Promise<StoredFix | null> {
   if (!isNativeAndroidApp()) return null;
   try {
     const fix = await DutyTracking.lastKnownFix();
@@ -78,8 +78,7 @@ export async function getNativePunchFix(): Promise<StoredFix | null> {
       !fix.isMockLocation
     ) {
       const ts = typeof fix.timestamp === "number" && fix.timestamp > 0 ? fix.timestamp : Date.now();
-      // Only use native fix if captured within the last 30 seconds
-      if (Date.now() - ts <= 30_000) {
+      if (Date.now() - ts <= maxAgeMs) {
         return {
           lat: fix.lat,
           lng: fix.lng,

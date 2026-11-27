@@ -1,8 +1,10 @@
 import { Redis } from "@upstash/redis";
 
 let redisClient: Redis | null | undefined;
+let redisCircuitOpenUntil = 0;
 
 export function getRedisClient(): Redis | null {
+  if (Date.now() < redisCircuitOpenUntil) return null;
   if (redisClient !== undefined) return redisClient;
 
   const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -22,7 +24,7 @@ export function getRedisClient(): Redis | null {
       url,
       token,
       retry: false,
-      signal: () => AbortSignal.timeout(500),
+      signal: () => AbortSignal.timeout(350),
     });
   } catch (error) {
     logRedisCacheError("client initialization", error);
@@ -32,8 +34,10 @@ export function getRedisClient(): Redis | null {
 }
 
 export function logRedisCacheError(operation: string, error: unknown) {
+  // Open circuit breaker for 60s so subsequent punch-ins don't wait on a slow/down Redis
+  redisCircuitOpenUntil = Date.now() + 60_000;
   console.warn(
-    `[redis] ${operation} failed; using PostgreSQL:`,
+    `[redis] ${operation} failed; using PostgreSQL (circuit open 60s):`,
     error instanceof Error ? error.name : "Unknown error"
   );
 }

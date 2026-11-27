@@ -225,6 +225,7 @@ export const employeeRouter = router({
         include: {
           ...employeeInclude,
           directReports: {
+            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
             select: {
               id: true,
               firstName: true,
@@ -295,6 +296,7 @@ export const employeeRouter = router({
         include: {
           ...employeeInclude,
           directReports: {
+            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
             select: {
               id: true,
               firstName: true,
