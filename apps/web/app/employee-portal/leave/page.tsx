@@ -84,10 +84,16 @@ export default function EmployeeLeavePage() {
     onSuccess: () => utils.leave.myRequests.invalidate(),
   });
 
-  const todayIST = useMemo(
-    () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
-    []
-  );
+  const todayIST = useMemo(() => {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return formatter.format(now); // Guaranteed "YYYY-MM-DD"
+  }, []);
 
   const days = useMemo(() => {
     if (!startDate || !endDate) return 0;
@@ -267,6 +273,10 @@ export default function EmployeeLeavePage() {
                   ))}
                 </div>
               )}
+              <div className="rounded-[4px] border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-[11px] font-semibold text-amber-800 flex items-center justify-between">
+                <span>📅 Today &amp; Upcoming Dates Only</span>
+                <span className="text-[10px] text-amber-600 font-normal">Past dates locked</span>
+              </div>
               <div className={isHalfDay ? "space-y-1" : "grid grid-cols-2 gap-2"}>
                 <div className="space-y-1">
                   <Label>{isHalfDay ? "Date" : "From"}</Label>
@@ -274,8 +284,18 @@ export default function EmployeeLeavePage() {
                     type="date"
                     min={todayIST}
                     value={startDate}
+                    onKeyDown={(e) => e.preventDefault()}
                     onChange={(e) => {
                       const val = e.target.value;
+                      if (val && val < todayIST) {
+                        setError("Past dates are not allowed. Please select today or an upcoming date.");
+                        setStartDate(todayIST);
+                        if (isHalfDay || (endDate && endDate < todayIST)) {
+                          setEndDate(todayIST);
+                        }
+                        return;
+                      }
+                      setError("");
                       setStartDate(val);
                       if (isHalfDay || (endDate && val && endDate < val)) {
                         setEndDate(val);
@@ -291,7 +311,18 @@ export default function EmployeeLeavePage() {
                       type="date"
                       min={startDate && startDate > todayIST ? startDate : todayIST}
                       value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
+                      onKeyDown={(e) => e.preventDefault()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const minEnd = startDate && startDate > todayIST ? startDate : todayIST;
+                        if (val && val < minEnd) {
+                          setError("End date cannot be earlier than start date or today.");
+                          setEndDate(minEnd);
+                          return;
+                        }
+                        setError("");
+                        setEndDate(val);
+                      }}
                       required
                     />
                   </div>
