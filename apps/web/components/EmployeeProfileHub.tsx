@@ -818,13 +818,10 @@ function LimitedColleagueProfileView({
                   </Link>
                 ))}
               </div>
-              </div>
             )}
-                      )}
-        </CardContent>
-                </Card>
-  )
-}
+          </CardContent >
+        </Card >
+      )}
 
 {/* Access Control Notice */ }
 <div className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-4 text-xs text-[var(--muted)] flex items-start gap-3">
@@ -983,7 +980,6 @@ function OverviewTab({
                   ? fullName(emp.manager.firstName, emp.manager.lastName)
                   : null
               }
-              href={basePath.startsWith("/admin-portal") && emp.manager ? `${basePath}/${emp.manager.id}` : undefined}
               href={emp.manager ? buildProfileLink(basePath, emp.manager.id) : undefined}
             />
             <InfoRow
@@ -1211,48 +1207,6 @@ function JobTab({
                         Reporting Manager
                       </p>
                       {emp.manager ? (
-                        basePath.startsWith("/admin-portal") ? (
-                          <Link
-                            href={`${basePath}/${emp.manager.id}`}
-                            className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                          >
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                              {initials(emp.manager.firstName, emp.manager.lastName)}
-                            </span>
-                            {fullName(emp.manager.firstName, emp.manager.lastName)}
-                          </Link>
-                        ) : (
-                          <div className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                              {initials(emp.manager.firstName, emp.manager.lastName)}
-                            </span>
-                            {fullName(emp.manager.firstName, emp.manager.lastName)}
-                          </div>
-                        )
-                        < Link
-                  href={buildProfileLink(basePath, emp.manager.id)}
-                      className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                        {initials(emp.manager.firstName, emp.manager.lastName)}
-                      </span>
-                      {fullName(emp.manager.firstName, emp.manager.lastName)}
-                    </Link>
-                    ) : (
-                    <p className="mt-1 text-sm text-[var(--muted)]">—</p>
-              )}
-                    <Link
-                      href={buildProfileLink(basePath, emp.manager.id)}
-                      className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                    >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/40 text-[10px] font-bold text-teal-800 dark:text-teal-300">
-                        {initials(emp.manager.firstName, emp.manager.lastName)}
-                      </span>
-                      {fullName(emp.manager.firstName, emp.manager.lastName)}
-                    </Link>
-                    ) : (
-                    <p className="mt-1 text-sm text-[var(--muted)]">—</p>
-                    )}
                         <Link
                           href={buildProfileLink(basePath, emp.manager.id)}
                           className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline"
