@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { emailQueue } from "./email-queue";
 
 export interface SmtpConfig {
   host?: string | null;
@@ -265,7 +266,10 @@ function layout(args: {
  * Sends transactional email with spam-safe headers.
  * From must match authenticated Hostinger mailbox (SPF/DKIM).
  */
-export async function sendMail(
+/**
+ * Direct SMTP delivery with connection pooling and retries
+ */
+export async function sendMailDirect(
   payload: MailPayload
 ): Promise<{ success: boolean; error?: string }> {
   const transporter = getTransporter();
@@ -373,12 +377,23 @@ export async function sendMail(
     );
     return {
       success: false,
-      error:
-        responseCode != null && responseCode >= 400 && responseCode < 500
-          ? "Email provider temporarily refused delivery. Please retry later."
-          : "Email delivery failed. Check the email service configuration.",
+      error: `Delivery failed (${code}${responseCode ? ` ${responseCode}` : ""})`,
     };
   }
+}
+
+/**
+ * Standard transactional email sender routed through asynchronous, rate-limited queue
+ */
+export async function sendMail(
+  payload: MailPayload,
+  options?: { direct?: boolean; maxRetries?: number }
+): Promise<{ success: boolean; error?: string }> {
+  if (options?.direct) {
+    return sendMailDirect(payload);
+  }
+  emailQueue.enqueue(payload, sendMailDirect, options);
+  return { success: true };
 }
 
 function formatInDate(value?: Date | string | null): string {
@@ -1051,6 +1066,136 @@ export async function testSmtpConnection(
       message: "SMTP connection or authentication failed. Please check server environment configuration.",
     };
   }
+}
+
+/**
+ * 8. Performance Target Assigned Email
+ */
+export async function notifyTargetAssigned(args: {
+  employeeName: string;
+  employeeEmail: string;
+  employeeCode?: string;
+  title: string;
+  periodText: string;
+  companyName?: string;
+  targetVisits: number;
+  targetBookings: number;
+  targetRevenue: number;
+  notes?: string | null;
+  items?: Array<{ title: string; category?: string; targetValue: number; unit: string; weightPercent: number }>;
+  managerEmail?: string | null;
+}) {
+  const tableRows: [string, string][] = [
+    ["Target Plan", args.title],
+    ["Period", args.periodText],
+    ["Company Entity", args.companyName || "Realty Smartz"],
+    ["Target Site Visits", String(args.targetVisits)],
+    ["Target Bookings", String(args.targetBookings)],
+    ["Target Revenue", `₹${(args.targetRevenue || 0).toLocaleString("en-IN")}`],
+    ["Discipline (10%)", "Evaluated live via biometric/GPS punctuality & attendance"],
+  ];
+  if (args.notes) {
+    tableRows.push(["Manager Notes", args.notes]);
+  }
+
+  const itemsHtml = args.items && args.items.length > 0 ? `
+    <h3 style="font-size:14px;color:#111827;margin:18px 0 8px 0;font-family:${FONT};">Target Deliverables Breakdown</h3>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 16px 0;border-top:1px solid #E5E7EB;border-collapse:collapse;">
+      <tr style="background:#F9FAFB;">
+        <th style="padding:6px 8px;font-size:11px;color:#4B5563;text-align:left;border-bottom:1px solid #E5E7EB;font-family:${FONT};">Deliverable</th>
+        <th style="padding:6px 8px;font-size:11px;color:#4B5563;text-align:center;border-bottom:1px solid #E5E7EB;font-family:${FONT};">Target</th>
+        <th style="padding:6px 8px;font-size:11px;color:#4B5563;text-align:center;border-bottom:1px solid #E5E7EB;font-family:${FONT};">Weight</th>
+      </tr>
+      ${args.items.map((it) => `
+        <tr>
+          <td style="padding:6px 8px;font-size:12px;color:#111827;border-bottom:1px solid #E5E7EB;font-family:${FONT};">${escapeHtml(it.title)}</td>
+          <td style="padding:6px 8px;font-size:12px;color:#111827;text-align:center;border-bottom:1px solid #E5E7EB;font-family:${FONT};font-weight:600;">${it.targetValue} ${escapeHtml(it.unit)}</td>
+          <td style="padding:6px 8px;font-size:12px;color:#0284C7;text-align:center;border-bottom:1px solid #E5E7EB;font-family:${FONT};font-weight:700;">${it.weightPercent}%</td>
+        </tr>
+      `).join("")}
+    </table>
+  ` : "";
+
+  const body = `
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your official performance scorecard targets have been assigned for <strong>${escapeHtml(args.periodText)}</strong>.</p>
+    ${detailsTable(tableRows)}
+    ${itemsHtml}
+    <p style="margin:16px 0 0 0;font-size:13px;color:#6B7280;">Please log your daily achievements and client meetings directly on your performance dashboard.</p>
+  `;
+
+  const { to, bcc } = employeeWithStaffBcc(args.employeeEmail, [args.managerEmail]);
+
+  return sendMail({
+    to,
+    bcc,
+    subject: `🎯 New Performance Targets Assigned — ${args.employeeName} (${args.periodText})`,
+    html: layout({
+      title: "Performance Targets Assigned",
+      badge: "TARGET ASSIGNED",
+      badgeColor: "#0284C7",
+      body,
+      actionButton: {
+        text: "View Target Dashboard",
+        url: `${appBaseUrl()}/employee-portal/performance`,
+      },
+    }),
+  });
+}
+
+/**
+ * 9. Performance Target Updated Email
+ */
+export async function notifyTargetUpdated(args: {
+  employeeName: string;
+  employeeEmail: string;
+  employeeCode?: string;
+  title: string;
+  periodText: string;
+  companyName?: string;
+  targetVisits: number;
+  targetBookings: number;
+  targetRevenue: number;
+  notes?: string | null;
+  items?: Array<{ title: string; category?: string; targetValue: number; unit: string; weightPercent: number }>;
+  managerEmail?: string | null;
+}) {
+  const tableRows: [string, string][] = [
+    ["Target Plan", args.title],
+    ["Period", args.periodText],
+    ["Company Entity", args.companyName || "Realty Smartz"],
+    ["Updated Site Visits", String(args.targetVisits)],
+    ["Updated Bookings", String(args.targetBookings)],
+    ["Updated Revenue Target", `₹${(args.targetRevenue || 0).toLocaleString("en-IN")}`],
+  ];
+  if (args.notes) {
+    tableRows.push(["Update Notes", args.notes]);
+  }
+
+  const body = `
+    <p style="margin:0 0 12px 0;">Dear <strong>${escapeHtml(args.employeeName)}</strong>,</p>
+    <p style="margin:0 0 12px 0;">Your performance target sheet has been updated by management for <strong>${escapeHtml(args.periodText)}</strong>.</p>
+    ${detailsTable(tableRows)}
+    <p style="margin:16px 0 0 0;font-size:13px;color:#6B7280;">Please visit your performance portal to review the updated deliverables.</p>
+  `;
+
+  const { to, bcc } = employeeWithStaffBcc(args.employeeEmail, [args.managerEmail]);
+
+  return sendMail({
+    to,
+    bcc,
+    subject: `🎯 Performance Targets Updated — ${args.employeeName} (${args.periodText})`,
+    html: layout({
+      title: "Performance Targets Updated",
+      badge: "TARGET UPDATED",
+      badgeColor: "#0284C7",
+      body,
+      actionButton: {
+        text: "View Updated Targets",
+        url: `${appBaseUrl()}/employee-portal/performance`,
+      },
+    }),
+  });
 }
 
 export async function getHrAndManagerEmails(

@@ -85,8 +85,14 @@ export default function EmployeeTargetsPage() {
 
     useBodyScrollLock(showLogModal);
 
-  const { data: myTargets, isLoading } = trpc.target.myTargets.useQuery();
-  const { data: teamData } = trpc.target.myTeamPerformance.useQuery();
+  const { data: myTargets, isLoading } = trpc.target.myTargets.useQuery(undefined, {
+    staleTime: 5000,
+    refetchOnWindowFocus: true,
+  });
+  const { data: teamData } = trpc.target.myTeamPerformance.useQuery(undefined, {
+    staleTime: 5000,
+    refetchOnWindowFocus: true,
+  });
 
   const filteredMyTargets = (myTargets ?? []).filter(
     (t: any) => selectedPeriod === "ALL" || (t.periodType || "MONTHLY") === selectedPeriod
@@ -134,6 +140,8 @@ export default function EmployeeTargetsPage() {
     onSuccess: () => {
       setSuccessMessage("Deliverable submitted successfully! Sent to manager verification queue.");
       utils.target.myTargets.invalidate();
+      utils.target.myTeamPerformance.invalidate();
+      utils.employee.notifications.invalidate();
       setTimeout(() => {
         setShowLogModal(false);
         setSuccessMessage("");

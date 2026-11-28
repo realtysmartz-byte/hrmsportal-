@@ -54,6 +54,12 @@ export default function EmployeeDashboardPage() {
   const { data: rawUpcomingHolidays, isLoading: holidaysLoading } =
     trpc.holiday.upcoming.useQuery({ limit: 8 }, { staleTime: 30_000, refetchOnWindowFocus: true });
 
+  const { data: myTargets } = trpc.target.myTargets.useQuery(undefined, {
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+  const activeTarget = myTargets?.[0];
+
   const upcomingHolidays = useMemo(() => {
     if (!rawUpcomingHolidays) return [];
     const todayIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -135,6 +141,61 @@ export default function EmployeeDashboardPage() {
           Performance
         </Link>
       </div>
+
+      {/* 2.5 Live Performance Target Card */}
+      {activeTarget && (
+        <div className="mb-[20px] rounded-[14px] border border-sky-200 bg-gradient-to-br from-white via-sky-50/20 to-blue-50/30 p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0284C7] text-white text-xs font-bold shrink-0">
+                🎯
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-[13px] font-bold text-neutral-900 leading-tight truncate">
+                  My Target &amp; Performance
+                </h3>
+                <p className="text-[10px] text-neutral-500 truncate">
+                  {activeTarget.title || `${activeTarget.month ? `${activeTarget.month}/${activeTarget.year}` : activeTarget.year} Target Sheet`}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/employee-portal/performance"
+              className="text-[11px] font-bold text-[#0284C7] hover:underline flex items-center gap-0.5 shrink-0"
+            >
+              Log Work &rarr;
+            </Link>
+          </div>
+
+          {/* Quick Metrics Grid */}
+          <div className="grid grid-cols-3 gap-2 mt-2.5 pt-2.5 border-t border-sky-100/90 text-center">
+            <div className="rounded-lg bg-white/95 border border-neutral-100 p-2 shadow-2xs">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                Visits
+              </span>
+              <strong className="block text-[13px] font-extrabold text-neutral-900 mt-0.5">
+                {activeTarget.currentVisits}/{activeTarget.targetVisits}
+              </strong>
+            </div>
+            <div className="rounded-lg bg-white/95 border border-neutral-100 p-2 shadow-2xs">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                Bookings
+              </span>
+              <strong className="block text-[13px] font-extrabold text-neutral-900 mt-0.5">
+                {activeTarget.currentBookings}/{activeTarget.targetBookings}
+              </strong>
+            </div>
+            <div className="rounded-lg bg-white/95 border border-neutral-100 p-2 shadow-2xs">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                Score
+              </span>
+              <strong className="block text-[13px] font-extrabold text-[#0284C7] mt-0.5">
+                {Math.min(100, Math.round((activeTarget.totalScore ?? 0) * 10) / 10)}%
+              </strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Birthdays Section: Stationary horizontally scrollable compact cards */}
       <div className="flex justify-between items-baseline mb-2.5">

@@ -58,6 +58,7 @@ export {
   getActiveGoogleSheetConfig,
   setLastSyncMetadata,
 } from "./routers/googleSheets";
+export { emailQueue } from "./lib/email-queue";
 export {
   sendMail,
   notifyWelcomeEmployee,
@@ -71,6 +72,8 @@ export {
   notifyLeaveDecision,
   notifyLeaveAutoRejected,
   notifyLeaveCancelled,
+  notifyTargetAssigned,
+  notifyTargetUpdated,
   notifyLocationDisabledAlert,
   testSmtpConnection,
   getSmtpConfig,

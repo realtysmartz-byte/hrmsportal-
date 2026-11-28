@@ -13,7 +13,7 @@ import {
 import { orgManageProcedure, protectedProcedure, router } from "../trpc";
 import { getHolidaysForOrg } from "./holiday";
 import { sendEmployeePushNotification } from "../lib/push-notify";
-import { sendMail } from "../lib/email";
+import { sendMail, notifyTargetAssigned, notifyTargetUpdated } from "../lib/email";
 
 /**
  * Calculates real-time 10% Discipline (Attendance & Punctuality) Score
@@ -261,15 +261,27 @@ export async function calculateDisciplineScore(
 export const targetRouter = router({
   activeTeamRoster: orgManageProcedure.query(async ({ ctx }) => {
     const orgId = ctx.session.user.organizationId || "org_default_realty";
+
+    let adminStaffIds = new Set<string>();
+    try {
+      const permRows = await ctx.prisma.$queryRaw<Array<{ employee_id: string }>>`
+        SELECT employee_id FROM admin_user_permissions
+      `;
+      for (const row of permRows) {
+        if (row.employee_id) adminStaffIds.add(row.employee_id);
+      }
+    } catch {
+      // Ignore if table does not exist
+    }
+
     const activeEmployees = await ctx.prisma.employee.findMany({
       where: {
         organizationId: orgId,
         status: { in: ["ACTIVE", "ON_LEAVE"] },
-        role: { not: "ADMIN" },
+        role: { notIn: ["ADMIN", "HR"] },
         NOT: [
-          { employeeCode: { in: ["RS-0001", "SMA-0001", "RS-3215"] } },
+          { employeeCode: { in: ["RS-0001", "SMA-0001"] } },
           { firstName: { equals: "HR", mode: "insensitive" }, lastName: { equals: "Admin", mode: "insensitive" } },
-          { designation: { title: { contains: "Admin Manager", mode: "insensitive" } } },
         ],
       },
       select: {
@@ -293,7 +305,18 @@ export const targetRouter = router({
       },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     });
-    return { activeEmployees, inactiveLeaders: [] };
+    const isExempt = (emp: any) => {
+      if (!emp) return true;
+      if (emp.role === "ADMIN" || emp.role === "HR") return true;
+      const code = (emp.employeeCode || "").toUpperCase().trim();
+      if (["RS-0001", "SMA-0001"].includes(code)) return true;
+      const name = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase().trim();
+      if (name.includes("hr admin") || name === "admin") return true;
+      if (adminStaffIds.has(emp.id)) return true;
+      return false;
+    };
+
+    return { activeEmployees: activeEmployees.filter((e) => !isExempt(e)), inactiveLeaders: [] };
   }),
 
   assignEmployeesCompany: orgManageProcedure
@@ -410,14 +433,13 @@ export const targetRouter = router({
       if (input?.month) where.month = input.month;
       if (input?.employeeId) where.employeeId = input.employeeId;
       if (input?.status) where.status = input.status;
-      // Always filter to active non-admin employees only
+      // Always filter to active non-admin / non-HR employees only
       where.employee = {
         status: { in: ["ACTIVE", "ON_LEAVE"] },
-        role: { not: "ADMIN" },
+        role: { notIn: ["ADMIN", "HR"] },
         NOT: [
-          { employeeCode: { in: ["RS-0001", "SMA-0001", "RS-3215"] } },
+          { employeeCode: { in: ["RS-0001", "SMA-0001"] } },
           { firstName: { equals: "HR", mode: "insensitive" }, lastName: { equals: "Admin", mode: "insensitive" } },
-          { designation: { title: { contains: "Admin Manager", mode: "insensitive" } } },
         ],
         ...(input?.departmentId ? { departmentId: input.departmentId } : {}),
         ...(input?.companyName && input.companyName !== "ALL"
@@ -432,363 +454,363 @@ export const targetRouter = router({
         where.companyName = input.companyName;
       }
 
-        const targets = await ctx.prisma.employeeTarget.findMany({
-          where,
-          include: {
-            employee: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                employeeCode: true,
-                companyName: true,
-                managerId: true,
-                manager: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    employeeCode: true,
-                    designation: { select: { title: true } },
-                  },
+      const targets = await ctx.prisma.employeeTarget.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              employeeCode: true,
+              companyName: true,
+              managerId: true,
+              manager: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeCode: true,
+                  designation: { select: { title: true } },
                 },
-                directReports: {
-                  where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    employeeCode: true,
-                    companyName: true,
-                    designation: { select: { title: true } },
-                  },
-                },
-                department: { select: { id: true, name: true } },
-                designation: { select: { id: true, title: true } },
               },
-            },
-            items: {
-              orderBy: { createdAt: "asc" },
-            },
-            activities: {
-              orderBy: { activityDate: "desc" },
+              directReports: {
+                where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeCode: true,
+                  companyName: true,
+                  designation: { select: { title: true } },
+                },
+              },
+              department: { select: { id: true, name: true } },
+              designation: { select: { id: true, title: true } },
             },
           },
-          orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
-        });
-
-        // Compute live scorecard metrics including Discipline 10% for each target
-        const targetsWithScorecard = await Promise.all(
-          targets.map(async (t) => {
-            const discipline = await calculateDisciplineScore(
-              ctx.prisma,
-              t.employeeId,
-              new Date(t.startDate),
-              new Date(t.endDate)
-            );
-
-            let totalAssignedWeight = 10; // Discipline starts at 10%
-            let totalEarnedScore = discipline.score; // Out of 10
-
-            const computedItems = (t.items || []).map((item) => {
-              totalAssignedWeight += item.weightPercent || 0;
-              const targetVal = item.targetValue || 0;
-              const achievedVal = item.achievedValue || 0;
-
-              // Pro-rata achievement percentage for this single item
-              const itemCompletionRate =
-                targetVal > 0 ? Math.min(1.0, achievedVal / targetVal) : 0;
-              const earnedItemScore =
-                Math.round(itemCompletionRate * item.weightPercent * 10) / 10;
-              totalEarnedScore += earnedItemScore;
-
-              return {
-                ...item,
-                itemCompletionRate: Math.round(itemCompletionRate * 100),
-                earnedScore: earnedItemScore,
-              };
-            });
-
-            const finalScore = Math.min(
-              100,
-              Math.round(totalEarnedScore * 10) / 10
-            );
-
-            const resolvedCompanyName =
-              t.companyName || t.employee?.companyName || "Realty Smartz";
-
-            return {
-              ...t,
-              companyName: resolvedCompanyName,
-              discipline,
-              items: computedItems,
-              scorecard: {
-                disciplineScore: discipline.score,
-                maxDiscipline: 10,
-                performanceScore: Math.round((finalScore - discipline.score) * 10) / 10,
-                totalScore: finalScore,
-                totalWeight: totalAssignedWeight,
-              },
-            };
-          })
-        );
-
-        // Pending verification count
-        const pendingCount = await ctx.prisma.targetActivity.count({
-          where: {
-            status: "PENDING",
-            target: { organizationId: orgId },
+          items: {
+            orderBy: { createdAt: "asc" },
           },
-        });
+          activities: {
+            orderBy: { activityDate: "desc" },
+          },
+        },
+        orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+      });
 
-        // Company-wise calculations across the 4 companies
-        const TARGET_COMPANIES = [
-          "Realty Smartz",
-          "Smartz Spaces",
-          "EngageXpert",
-          "BuySquad",
-        ] as const;
-
-        const companyBreakdown = TARGET_COMPANIES.map((company) => {
-          const companyTargets = targetsWithScorecard.filter(
-            (t) => (t.companyName || "Realty Smartz") === company
+      // Compute live scorecard metrics including Discipline 10% for each target
+      const targetsWithScorecard = await Promise.all(
+        targets.map(async (t) => {
+          const discipline = await calculateDisciplineScore(
+            ctx.prisma,
+            t.employeeId,
+            new Date(t.startDate),
+            new Date(t.endDate)
           );
 
-          let targetRevenue = 0;
-          let achievedRevenue = 0;
-          let targetVisits = 0;
-          let achievedVisits = 0;
-          let targetBookings = 0;
-          let achievedBookings = 0;
-          let targetCalls = 0;
-          let achievedCalls = 0;
-          let targetLeads = 0;
-          let achievedLeads = 0;
-          let scoreSum = 0;
+          let totalAssignedWeight = 10; // Discipline starts at 10%
+          let totalEarnedScore = discipline.score; // Out of 10
 
-          for (const ct of companyTargets) {
-            targetRevenue += ct.targetRevenue || 0;
-            achievedRevenue += ct.currentRevenue || 0;
-            targetVisits += ct.targetVisits || 0;
-            achievedVisits += ct.currentVisits || 0;
-            targetBookings += ct.targetBookings || 0;
-            achievedBookings += ct.currentBookings || 0;
-            scoreSum += ct.scorecard.totalScore || 0;
+          const computedItems = (t.items || []).map((item) => {
+            totalAssignedWeight += item.weightPercent || 0;
+            const targetVal = item.targetValue || 0;
+            const achievedVal = item.achievedValue || 0;
 
-            for (const it of ct.items || []) {
-              const label = ((it.title || "") + " " + (it.category || "")).toLowerCase();
-              if (label.includes("call")) {
-                targetCalls += it.targetValue || 0;
-                achievedCalls += it.achievedValue || 0;
-              } else if (label.includes("lead")) {
-                targetLeads += it.targetValue || 0;
-                achievedLeads += it.achievedValue || 0;
-              }
-            }
-          }
+            // Pro-rata achievement percentage for this single item
+            const itemCompletionRate =
+              targetVal > 0 ? Math.min(1.0, achievedVal / targetVal) : 0;
+            const earnedItemScore =
+              Math.round(itemCompletionRate * item.weightPercent * 10) / 10;
+            totalEarnedScore += earnedItemScore;
 
-          const avgScore =
-            companyTargets.length > 0
-              ? Math.round((scoreSum / companyTargets.length) * 10) / 10
-              : 0;
-
-          const revenueProgressPct =
-            targetRevenue > 0
-              ? Math.min(100, Math.round((achievedRevenue / targetRevenue) * 100))
-              : 0;
-
-          return {
-            companyName: company,
-            targetsCount: companyTargets.length,
-            targetRevenue,
-            achievedRevenue,
-            targetVisits,
-            achievedVisits,
-            targetBookings,
-            achievedBookings,
-            targetCalls,
-            achievedCalls,
-            targetLeads,
-            achievedLeads,
-            avgScore,
-            revenueProgressPct,
-          };
-        });
-
-        // Team Leaders & their team member breakdown
-        const targetByEmpId = new Map<string, any>();
-        for (const t of targetsWithScorecard) {
-          targetByEmpId.set(t.employeeId, t);
-        }
-
-        const allEmployees = await ctx.prisma.employee.findMany({
-          where: {
-            organizationId: orgId,
-            role: { in: ["EMPLOYEE", "MANAGER"] },
-            status: { in: ["ACTIVE", "ON_LEAVE"] },
-          },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            companyName: true,
-            managerId: true,
-            manager: {
-              select: { id: true, firstName: true, lastName: true },
-            },
-            designation: { select: { title: true } },
-            department: { select: { name: true } },
-            directReports: {
-              where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                employeeCode: true,
-                companyName: true,
-                designation: { select: { title: true } },
-              },
-            },
-          },
-        });
-
-        const tlList = allEmployees.filter((emp) => {
-          const title = (emp.designation?.title || "").toLowerCase();
-          const isTopLeader =
-            title.includes("team leader") ||
-            title.includes("associate director") ||
-            title.includes("dgm") ||
-            title.includes("vice president");
-          const hasReports = emp.directReports && emp.directReports.length > 0;
-          return hasReports || isTopLeader;
-        });
-
-        const teamLeaders = tlList.map((tl) => {
-          const tlTarget = targetByEmpId.get(tl.id);
-          const memberCards = (tl.directReports || []).map((rep) => {
-            const repTarget = targetByEmpId.get(rep.id);
             return {
-              id: rep.id,
-              name: `${rep.firstName} ${rep.lastName}`.trim(),
-              employeeCode: rep.employeeCode || "RS",
-              companyName: rep.companyName || tl.companyName || "Realty Smartz",
-              designation: rep.designation?.title || "Executive",
-              hasTarget: !!repTarget,
-              targetId: repTarget?.id,
-              score: repTarget?.scorecard?.totalScore ?? 0,
-              targetRevenue: repTarget?.targetRevenue ?? 0,
-              achievedRevenue: repTarget?.currentRevenue ?? 0,
-              targetVisits: repTarget?.targetVisits ?? 0,
-              achievedVisits: repTarget?.currentVisits ?? 0,
-              targetBookings: repTarget?.targetBookings ?? 0,
-              achievedBookings: repTarget?.currentBookings ?? 0,
+              ...item,
+              itemCompletionRate: Math.round(itemCompletionRate * 100),
+              earnedScore: earnedItemScore,
             };
           });
 
-          const teamTargetRevenue =
-            (tlTarget?.targetRevenue || 0) +
-            memberCards.reduce((acc, m) => acc + m.targetRevenue, 0);
-          const teamAchievedRevenue =
-            (tlTarget?.currentRevenue || 0) +
-            memberCards.reduce((acc, m) => acc + m.achievedRevenue, 0);
-          const teamTargetVisits =
-            (tlTarget?.targetVisits || 0) +
-            memberCards.reduce((acc, m) => acc + m.targetVisits, 0);
-          const teamAchievedVisits =
-            (tlTarget?.currentVisits || 0) +
-            memberCards.reduce((acc, m) => acc + m.achievedVisits, 0);
-          const teamTargetBookings =
-            (tlTarget?.targetBookings || 0) +
-            memberCards.reduce((acc, m) => acc + m.targetBookings, 0);
-          const teamAchievedBookings =
-            (tlTarget?.currentBookings || 0) +
-            memberCards.reduce((acc, m) => acc + m.achievedBookings, 0);
+          const finalScore = Math.min(
+            100,
+            Math.round(totalEarnedScore * 10) / 10
+          );
 
-          const sumScore =
-            (tlTarget?.scorecard?.totalScore || 0) +
-            memberCards.reduce((acc, m) => acc + m.score, 0);
-          const totalHeadcount = (tlTarget ? 1 : 0) + memberCards.length;
-          const teamAvgScore =
-            totalHeadcount > 0 ? Math.round((sumScore / totalHeadcount) * 10) / 10 : 0;
+          const resolvedCompanyName =
+            t.companyName || t.employee?.companyName || "Realty Smartz";
 
           return {
-            id: tl.id,
-            name: `${tl.firstName} ${tl.lastName}`.trim(),
-            employeeCode: tl.employeeCode || "RS",
-            companyName: tl.companyName || "Realty Smartz",
-            managerId: tl.managerId || null,
-            managerName: tl.manager ? `${tl.manager.firstName} ${tl.manager.lastName}`.trim() : null,
-            designation: tl.designation?.title || "Team Leader",
-            department: tl.department?.name || "Sales",
-            memberCount: memberCards.length,
-            members: memberCards,
-            tlTarget,
-            teamStats: {
-              teamTargetRevenue,
-              teamAchievedRevenue,
-              teamTargetVisits,
-              teamAchievedVisits,
-              teamTargetBookings,
-              teamAchievedBookings,
-              teamAvgScore,
-              progressPct:
-                teamTargetRevenue > 0
-                  ? Math.min(100, Math.round((teamAchievedRevenue / teamTargetRevenue) * 100))
-                  : 0,
+            ...t,
+            companyName: resolvedCompanyName,
+            discipline,
+            items: computedItems,
+            scorecard: {
+              disciplineScore: discipline.score,
+              maxDiscipline: 10,
+              performanceScore: Math.round((finalScore - discipline.score) * 10) / 10,
+              totalScore: finalScore,
+              totalWeight: totalAssignedWeight,
             },
           };
-        });
+        })
+      );
 
-        // Overall aggregates
-        let totalTargetRevenue = 0;
-        let totalAchievedRevenue = 0;
-        let totalTargetVisits = 0;
-        let totalAchievedVisits = 0;
-        let totalTargetBookings = 0;
-        let totalAchievedBookings = 0;
-        let totalIncentivePaid = 0;
-        let sumOfScores = 0;
+      // Pending verification count
+      const pendingCount = await ctx.prisma.targetActivity.count({
+        where: {
+          status: "PENDING",
+          target: { organizationId: orgId },
+        },
+      });
 
-        for (const t of targetsWithScorecard) {
-          totalTargetRevenue += t.targetRevenue || 0;
-          totalAchievedRevenue += t.currentRevenue || 0;
-          totalTargetVisits += t.targetVisits || 0;
-          totalAchievedVisits += t.currentVisits || 0;
-          totalTargetBookings += t.targetBookings || 0;
-          totalAchievedBookings += t.currentBookings || 0;
-          sumOfScores += t.scorecard.totalScore;
-          if (t.isBonusAwarded) {
-            totalIncentivePaid +=
-              (t.incentiveAmount || 0) +
-              ((t.incentivePercent || 0) / 100) * (t.currentRevenue || 0);
+      // Company-wise calculations across the 4 companies
+      const TARGET_COMPANIES = [
+        "Realty Smartz",
+        "Smartz Spaces",
+        "EngageXpert",
+        "BuySquad",
+      ] as const;
+
+      const companyBreakdown = TARGET_COMPANIES.map((company) => {
+        const companyTargets = targetsWithScorecard.filter(
+          (t) => (t.companyName || "Realty Smartz") === company
+        );
+
+        let targetRevenue = 0;
+        let achievedRevenue = 0;
+        let targetVisits = 0;
+        let achievedVisits = 0;
+        let targetBookings = 0;
+        let achievedBookings = 0;
+        let targetCalls = 0;
+        let achievedCalls = 0;
+        let targetLeads = 0;
+        let achievedLeads = 0;
+        let scoreSum = 0;
+
+        for (const ct of companyTargets) {
+          targetRevenue += ct.targetRevenue || 0;
+          achievedRevenue += ct.currentRevenue || 0;
+          targetVisits += ct.targetVisits || 0;
+          achievedVisits += ct.currentVisits || 0;
+          targetBookings += ct.targetBookings || 0;
+          achievedBookings += ct.currentBookings || 0;
+          scoreSum += ct.scorecard.totalScore || 0;
+
+          for (const it of ct.items || []) {
+            const label = ((it.title || "") + " " + (it.category || "")).toLowerCase();
+            if (label.includes("call")) {
+              targetCalls += it.targetValue || 0;
+              achievedCalls += it.achievedValue || 0;
+            } else if (label.includes("lead")) {
+              targetLeads += it.targetValue || 0;
+              achievedLeads += it.achievedValue || 0;
+            }
           }
         }
 
         const avgScore =
-          targetsWithScorecard.length > 0
-            ? Math.round((sumOfScores / targetsWithScorecard.length) * 10) / 10
+          companyTargets.length > 0
+            ? Math.round((scoreSum / companyTargets.length) * 10) / 10
+            : 0;
+
+        const revenueProgressPct =
+          targetRevenue > 0
+            ? Math.min(100, Math.round((achievedRevenue / targetRevenue) * 100))
             : 0;
 
         return {
-          targets: targetsWithScorecard,
-          pendingVerificationsCount: pendingCount,
-          companyBreakdown,
-          teamLeaders,
-          summary: {
-            totalTargetRevenue,
-            totalAchievedRevenue,
-            totalTargetVisits,
-            totalAchievedVisits,
-            totalTargetBookings,
-            totalAchievedBookings,
-            totalIncentivePaid,
-            avgScore,
-            totalAssigned: targetsWithScorecard.length,
+          companyName: company,
+          targetsCount: companyTargets.length,
+          targetRevenue,
+          achievedRevenue,
+          targetVisits,
+          achievedVisits,
+          targetBookings,
+          achievedBookings,
+          targetCalls,
+          achievedCalls,
+          targetLeads,
+          achievedLeads,
+          avgScore,
+          revenueProgressPct,
+        };
+      });
+
+      // Team Leaders & their team member breakdown
+      const targetByEmpId = new Map<string, any>();
+      for (const t of targetsWithScorecard) {
+        targetByEmpId.set(t.employeeId, t);
+      }
+
+      const allEmployees = await ctx.prisma.employee.findMany({
+        where: {
+          organizationId: orgId,
+          role: { in: ["EMPLOYEE", "MANAGER"] },
+          status: { in: ["ACTIVE", "ON_LEAVE"] },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          companyName: true,
+          managerId: true,
+          manager: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          designation: { select: { title: true } },
+          department: { select: { name: true } },
+          directReports: {
+            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              companyName: true,
+              designation: { select: { title: true } },
+            },
+          },
+        },
+      });
+
+      const tlList = allEmployees.filter((emp) => {
+        const title = (emp.designation?.title || "").toLowerCase();
+        const isTopLeader =
+          title.includes("team leader") ||
+          title.includes("associate director") ||
+          title.includes("dgm") ||
+          title.includes("vice president");
+        const hasReports = emp.directReports && emp.directReports.length > 0;
+        return hasReports || isTopLeader;
+      });
+
+      const teamLeaders = tlList.map((tl) => {
+        const tlTarget = targetByEmpId.get(tl.id);
+        const memberCards = (tl.directReports || []).map((rep) => {
+          const repTarget = targetByEmpId.get(rep.id);
+          return {
+            id: rep.id,
+            name: `${rep.firstName} ${rep.lastName}`.trim(),
+            employeeCode: rep.employeeCode || "RS",
+            companyName: rep.companyName || tl.companyName || "Realty Smartz",
+            designation: rep.designation?.title || "Executive",
+            hasTarget: !!repTarget,
+            targetId: repTarget?.id,
+            score: repTarget?.scorecard?.totalScore ?? 0,
+            targetRevenue: repTarget?.targetRevenue ?? 0,
+            achievedRevenue: repTarget?.currentRevenue ?? 0,
+            targetVisits: repTarget?.targetVisits ?? 0,
+            achievedVisits: repTarget?.currentVisits ?? 0,
+            targetBookings: repTarget?.targetBookings ?? 0,
+            achievedBookings: repTarget?.currentBookings ?? 0,
+          };
+        });
+
+        const teamTargetRevenue =
+          (tlTarget?.targetRevenue || 0) +
+          memberCards.reduce((acc, m) => acc + m.targetRevenue, 0);
+        const teamAchievedRevenue =
+          (tlTarget?.currentRevenue || 0) +
+          memberCards.reduce((acc, m) => acc + m.achievedRevenue, 0);
+        const teamTargetVisits =
+          (tlTarget?.targetVisits || 0) +
+          memberCards.reduce((acc, m) => acc + m.targetVisits, 0);
+        const teamAchievedVisits =
+          (tlTarget?.currentVisits || 0) +
+          memberCards.reduce((acc, m) => acc + m.achievedVisits, 0);
+        const teamTargetBookings =
+          (tlTarget?.targetBookings || 0) +
+          memberCards.reduce((acc, m) => acc + m.targetBookings, 0);
+        const teamAchievedBookings =
+          (tlTarget?.currentBookings || 0) +
+          memberCards.reduce((acc, m) => acc + m.achievedBookings, 0);
+
+        const sumScore =
+          (tlTarget?.scorecard?.totalScore || 0) +
+          memberCards.reduce((acc, m) => acc + m.score, 0);
+        const totalHeadcount = (tlTarget ? 1 : 0) + memberCards.length;
+        const teamAvgScore =
+          totalHeadcount > 0 ? Math.round((sumScore / totalHeadcount) * 10) / 10 : 0;
+
+        return {
+          id: tl.id,
+          name: `${tl.firstName} ${tl.lastName}`.trim(),
+          employeeCode: tl.employeeCode || "RS",
+          companyName: tl.companyName || "Realty Smartz",
+          managerId: tl.managerId || null,
+          managerName: tl.manager ? `${tl.manager.firstName} ${tl.manager.lastName}`.trim() : null,
+          designation: tl.designation?.title || "Team Leader",
+          department: tl.department?.name || "Sales",
+          memberCount: memberCards.length,
+          members: memberCards,
+          tlTarget,
+          teamStats: {
+            teamTargetRevenue,
+            teamAchievedRevenue,
+            teamTargetVisits,
+            teamAchievedVisits,
+            teamTargetBookings,
+            teamAchievedBookings,
+            teamAvgScore,
+            progressPct:
+              teamTargetRevenue > 0
+                ? Math.min(100, Math.round((teamAchievedRevenue / teamTargetRevenue) * 100))
+                : 0,
           },
         };
-      }),
+      });
+
+      // Overall aggregates
+      let totalTargetRevenue = 0;
+      let totalAchievedRevenue = 0;
+      let totalTargetVisits = 0;
+      let totalAchievedVisits = 0;
+      let totalTargetBookings = 0;
+      let totalAchievedBookings = 0;
+      let totalIncentivePaid = 0;
+      let sumOfScores = 0;
+
+      for (const t of targetsWithScorecard) {
+        totalTargetRevenue += t.targetRevenue || 0;
+        totalAchievedRevenue += t.currentRevenue || 0;
+        totalTargetVisits += t.targetVisits || 0;
+        totalAchievedVisits += t.currentVisits || 0;
+        totalTargetBookings += t.targetBookings || 0;
+        totalAchievedBookings += t.currentBookings || 0;
+        sumOfScores += t.scorecard.totalScore;
+        if (t.isBonusAwarded) {
+          totalIncentivePaid +=
+            (t.incentiveAmount || 0) +
+            ((t.incentivePercent || 0) / 100) * (t.currentRevenue || 0);
+        }
+      }
+
+      const avgScore =
+        targetsWithScorecard.length > 0
+          ? Math.round((sumOfScores / targetsWithScorecard.length) * 10) / 10
+          : 0;
+
+      return {
+        targets: targetsWithScorecard,
+        pendingVerificationsCount: pendingCount,
+        companyBreakdown,
+        teamLeaders,
+        summary: {
+          totalTargetRevenue,
+          totalAchievedRevenue,
+          totalTargetVisits,
+          totalAchievedVisits,
+          totalTargetBookings,
+          totalAchievedBookings,
+          totalIncentivePaid,
+          avgScore,
+          totalAssigned: targetsWithScorecard.length,
+        },
+      };
+    }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
@@ -882,28 +904,68 @@ export const targetRouter = router({
         });
       }
 
-      // 1. Create target parent record
-      const target = await ctx.prisma.employeeTarget.create({
-        data: {
+      // Check for existing target for the same employee, period, year, and month
+      const existingTarget = await ctx.prisma.employeeTarget.findFirst({
+        where: {
           organizationId: orgId,
           employeeId: input.employeeId,
-          companyName,
-          title: input.title,
           periodType: input.periodType,
-          month: input.month,
           year: input.year,
-          startDate: input.startDate,
-          endDate: input.endDate,
-          targetVisits: input.targetVisits || 0,
-          targetBookings: input.targetBookings || 0,
-          targetRevenue: input.targetRevenue || 0,
-          incentiveAmount: input.incentiveAmount || 0,
-          incentivePercent: input.incentivePercent || 0,
-          notes: input.notes,
-          createdById: ctx.session.user.id,
-          status: "IN_PROGRESS",
+          month: input.month || null,
         },
       });
+
+      let target: any;
+      let isNew = false;
+
+      if (existingTarget) {
+        // Update existing target so there are ZERO duplicate rows or conflicting sheets
+        target = await ctx.prisma.employeeTarget.update({
+          where: { id: existingTarget.id },
+          data: {
+            companyName,
+            title: input.title,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            targetVisits: input.targetVisits || 0,
+            targetBookings: input.targetBookings || 0,
+            targetRevenue: input.targetRevenue || 0,
+            incentiveAmount: input.incentiveAmount || 0,
+            incentivePercent: input.incentivePercent || 0,
+            notes: input.notes,
+            status: "IN_PROGRESS",
+            updatedAt: new Date(),
+          },
+        });
+        // Clear old items to replace with updated deliverables
+        await ctx.prisma.targetItem.deleteMany({
+          where: { targetId: target.id },
+        });
+      } else {
+        isNew = true;
+        // 1. Create target parent record
+        target = await ctx.prisma.employeeTarget.create({
+          data: {
+            organizationId: orgId,
+            employeeId: input.employeeId,
+            companyName,
+            title: input.title,
+            periodType: input.periodType,
+            month: input.month,
+            year: input.year,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            targetVisits: input.targetVisits || 0,
+            targetBookings: input.targetBookings || 0,
+            targetRevenue: input.targetRevenue || 0,
+            incentiveAmount: input.incentiveAmount || 0,
+            incentivePercent: input.incentivePercent || 0,
+            notes: input.notes,
+            createdById: ctx.session.user.id,
+            status: "IN_PROGRESS",
+          },
+        });
+      }
 
       // 2. Prepare items: either user provided or role/department-informed defaults
       let itemsToCreate = input.items || [];
@@ -1086,34 +1148,31 @@ export const targetRouter = router({
         );
       }
 
+      const periodLabel = target.month ? `${target.month}/${target.year}` : `${target.year}`;
+
       void sendEmployeePushNotification({
         prisma: ctx.prisma,
         employeeId: input.employeeId,
-        title: "🎯 New Targets Assigned",
-        body: `Your performance milestones for ${target.month}/${target.year} have been assigned.`,
+        title: isNew ? "🎯 New Targets Assigned" : "🎯 Targets Updated",
+        body: `Your performance milestones for ${periodLabel} have been ${isNew ? "assigned" : "updated"}.`,
         url: "/employee-portal/performance",
         type: "target",
       });
 
       if (employee?.email) {
-        void sendMail({
-          to: employee.email,
-          subject: `🎯 New Performance Targets Assigned: ${target.title || "Target Sheet"}`,
-          text: `Dear ${employee.firstName || "Employee"},\n\nA new performance target sheet has been assigned to you for ${target.month}/${target.year}.\n\nTarget Deliverables:\n- Visits: ${target.targetVisits}\n- Bookings: ${target.targetBookings}\n- Gross Revenue: ₹${target.targetRevenue?.toLocaleString("en-IN") || 0}\n\nPlease review your targets on the employee portal:\nhttps://rshrms.in/employee-portal/performance\n\nRegards,\nHR & Operations Team`,
-          html: `<div style="font-family: sans-serif; color: #111; line-height: 1.6; max-width: 600px;">
-            <h2 style="color: #2B2FD1;">🎯 New Performance Targets Assigned</h2>
-            <p>Dear <strong>${employee.firstName || ""} ${employee.lastName || ""}</strong>,</p>
-            <p>Management has assigned you a new performance target scorecard for <strong>${target.month}/${target.year}</strong>.</p>
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
-              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Target Title</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${target.title}</td></tr>
-              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Target Visits</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${target.targetVisits}</td></tr>
-              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Target Bookings</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${target.targetBookings}</td></tr>
-              <tr><td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Revenue Target</td><td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">₹${target.targetRevenue?.toLocaleString("en-IN") || 0}</td></tr>
-              <tr><td style="padding: 10px; font-weight: bold;">Discipline (10%)</td><td style="padding: 10px;">Tracked automatically via punctuality & attendance</td></tr>
-            </table>
-            <p><a href="https://rshrms.in/employee-portal/performance" style="display: inline-block; background: #2B2FD1; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Open Performance Portal</a></p>
-            <p style="font-size: 12px; color: #64748b; margin-top: 24px;">Realty Smartz HRMS • Real-Time Performance & Attendance Management</p>
-          </div>`,
+        const mailFn = isNew ? notifyTargetAssigned : notifyTargetUpdated;
+        void mailFn({
+          employeeName: `${employee.firstName} ${employee.lastName}`,
+          employeeEmail: employee.email,
+          employeeCode: employee.employeeCode,
+          title: target.title,
+          periodText: periodLabel,
+          companyName: target.companyName || undefined,
+          targetVisits: target.targetVisits,
+          targetBookings: target.targetBookings,
+          targetRevenue: target.targetRevenue,
+          notes: target.notes,
+          items: itemsToCreate,
         });
       }
 
@@ -1151,6 +1210,7 @@ export const targetRouter = router({
           ...(data.incentivePercent !== undefined ? { incentivePercent: data.incentivePercent } : {}),
           ...(data.status !== undefined ? { status: data.status } : {}),
           ...(data.notes !== undefined ? { notes: data.notes } : {}),
+          updatedAt: new Date(),
         },
       });
 
@@ -1182,6 +1242,39 @@ export const targetRouter = router({
             })
           )
         );
+      }
+
+      // Notify employee of target updates
+      const emp = await ctx.prisma.employee.findUnique({
+        where: { id: existing.employeeId },
+        select: { email: true, firstName: true, lastName: true, employeeCode: true },
+      });
+
+      const periodLabel = updated.month ? `${updated.month}/${updated.year}` : `${updated.year}`;
+
+      void sendEmployeePushNotification({
+        prisma: ctx.prisma,
+        employeeId: existing.employeeId,
+        title: "🎯 Targets Updated",
+        body: `Your performance milestones for ${periodLabel} have been updated.`,
+        url: "/employee-portal/performance",
+        type: "target",
+      });
+
+      if (emp?.email) {
+        void notifyTargetUpdated({
+          employeeName: `${emp.firstName} ${emp.lastName}`,
+          employeeEmail: emp.email,
+          employeeCode: emp.employeeCode,
+          title: updated.title,
+          periodText: periodLabel,
+          companyName: updated.companyName || undefined,
+          targetVisits: updated.targetVisits,
+          targetBookings: updated.targetBookings,
+          targetRevenue: updated.targetRevenue,
+          notes: updated.notes,
+          items,
+        });
       }
 
       return updated;
@@ -1365,26 +1458,26 @@ export const targetRouter = router({
     const reportIds = hierarchyMembers.map((r) => r.id);
     const teamTargetsRaw = reportIds.length
       ? await ctx.prisma.employeeTarget.findMany({
-          where: {
-            employeeId: { in: reportIds },
-            organizationId: orgId,
-            employee: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-          },
-          include: {
-            employee: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                employeeCode: true,
-                companyName: true,
-                designation: { select: { title: true } },
-              },
+        where: {
+          employeeId: { in: reportIds },
+          organizationId: orgId,
+          employee: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              companyName: true,
+              designation: { select: { title: true } },
             },
-            items: true,
           },
-          orderBy: { createdAt: "desc" },
-        })
+          items: true,
+        },
+        orderBy: { createdAt: "desc" },
+      })
       : [];
 
     const teamTargets = await Promise.all(

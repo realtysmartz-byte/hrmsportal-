@@ -1823,9 +1823,12 @@ export const employeeRouter = router({
         ctx.prisma.employeeTarget.findMany({
           where: {
             employeeId: ctx.session.user.id,
-            createdAt: { gte: sevenDaysAgo },
+            OR: [
+              { createdAt: { gte: sevenDaysAgo } },
+              { updatedAt: { gte: sevenDaysAgo } },
+            ],
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { updatedAt: "desc" },
           take: 5,
         }),
         ctx.prisma.targetActivity.findMany({
@@ -1910,16 +1913,19 @@ export const employeeRouter = router({
       }
 
       for (const t of recentTargets) {
+        const isUpdate = t.updatedAt && t.createdAt && (t.updatedAt.getTime() - t.createdAt.getTime() > 10000);
         items.push({
-          id: `target-assigned-${t.id}`,
+          id: `target-${isUpdate ? "updated" : "assigned"}-${t.id}-${(t.updatedAt || t.createdAt).getTime()}`,
           type: "TARGET" as const,
-          title: `Target Assigned: ${t.title}`,
-          subtitle: `A new performance target sheet has been assigned to you. Track your 10% discipline and deliverables.`,
-          time: t.createdAt,
+          title: isUpdate ? `Target Updated: ${t.title}` : `Target Assigned: ${t.title}`,
+          subtitle: isUpdate
+            ? `Your target milestones for ${t.month ? `${t.month}/${t.year}` : t.year} have been updated. View your updated scorecard.`
+            : `A performance scorecard has been assigned for ${t.month ? `${t.month}/${t.year}` : t.year}. Track your 10% discipline and deliverables.`,
+          time: t.updatedAt || t.createdAt,
           href: "/employee-portal/performance",
           avatar: null,
           badgeColor: "bg-sky-100 text-[#0284C7] border-sky-200",
-          badgeText: "Target Assigned",
+          badgeText: isUpdate ? "Target Updated" : "Target Assigned",
         });
       }
 

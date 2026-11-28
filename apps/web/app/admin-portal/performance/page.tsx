@@ -76,6 +76,17 @@ interface FormTargetItem {
   notes?: string;
 }
 
+export function isExemptFromPerformanceTargets(emp: any): boolean {
+  if (!emp) return true;
+  // Exclude staff users with Admin / HR dashboard access (as configured in Staff & Permissions)
+  if (emp.role === "ADMIN" || emp.role === "HR") return true;
+  const code = (emp.employeeCode || "").toUpperCase().trim();
+  if (["RS-0001", "SMA-0001"].includes(code)) return true;
+  const fullName = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase().trim();
+  if (fullName.includes("hr admin") || fullName === "admin") return true;
+  return false;
+}
+
 export default function AdminTargetsPage() {
   const utils = trpc.useUtils();
   const currentYear = new Date().getFullYear();
@@ -161,15 +172,24 @@ export default function AdminTargetsPage() {
 
   // Queries
   const { data: targetsData, isLoading: targetsLoading, refetch: refetchTargets } =
-    trpc.target.listAdmin.useQuery({
-      year: selectedYear,
-      month: selectedMonth === "ALL" ? undefined : parseInt(selectedMonth, 10),
-      departmentId: selectedDept === "ALL" ? undefined : selectedDept,
-      companyName: selectedCompany === "ALL" ? undefined : selectedCompany,
-    });
+    trpc.target.listAdmin.useQuery(
+      {
+        year: selectedYear,
+        month: selectedMonth === "ALL" ? undefined : parseInt(selectedMonth, 10),
+        departmentId: selectedDept === "ALL" ? undefined : selectedDept,
+        companyName: selectedCompany === "ALL" ? undefined : selectedCompany,
+      },
+      {
+        staleTime: 5000,
+        refetchOnWindowFocus: true,
+      }
+    );
 
   const { data: rosterData, refetch: refetchRoster } =
-    trpc.target.activeTeamRoster.useQuery();
+    trpc.target.activeTeamRoster.useQuery(undefined, {
+      staleTime: 5000,
+      refetchOnWindowFocus: true,
+    });
 
   const { data: departmentsData } = trpc.department.list.useQuery();
   const { data: pendingVerifications, refetch: refetchPending } =
@@ -177,19 +197,31 @@ export default function AdminTargetsPage() {
 
   // Mutations
   const createMutation = trpc.target.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setShowCreateModal(false);
       resetForm();
+      if (data?.employeeId) {
+        setSelectedEmployeeId(data.employeeId);
+      }
       utils.target.listAdmin.invalidate();
+      utils.target.activeTeamRoster.invalidate();
+      utils.target.myTargets.invalidate();
+      utils.employee.notifications.invalidate();
     },
     onError: (err) => setFormError(userFacingErrorMessage(err)),
   });
 
   const updateMutation = trpc.target.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setShowEditModal(false);
       setSelectedTarget(null);
+      if (data?.employeeId) {
+        setSelectedEmployeeId(data.employeeId);
+      }
       utils.target.listAdmin.invalidate();
+      utils.target.activeTeamRoster.invalidate();
+      utils.target.myTargets.invalidate();
+      utils.employee.notifications.invalidate();
     },
     onError: (err) => setFormError(userFacingErrorMessage(err)),
   });
@@ -198,6 +230,9 @@ export default function AdminTargetsPage() {
     onSuccess: () => {
       if (selectedTarget) setSelectedTarget(null);
       utils.target.listAdmin.invalidate();
+      utils.target.activeTeamRoster.invalidate();
+      utils.target.myTargets.invalidate();
+      utils.employee.notifications.invalidate();
     },
   });
 
@@ -699,7 +734,7 @@ export default function AdminTargetsPage() {
 
   // Filtered Targets list
   const filteredTargets = useMemo(() => {
-    let list = targetsData?.targets ?? [];
+    let list = (targetsData?.targets ?? []).filter((t: any) => !isExemptFromPerformanceTargets(t.employee));
     if (selectedCompany !== "ALL") {
       list = list.filter((t) => t.companyName === selectedCompany);
     }
@@ -717,7 +752,7 @@ export default function AdminTargetsPage() {
       });
     }
     return list;
-  }, [targetsData?.targets, selectedCompany, searchQuery]);
+  }, [targetsData?.targets, selectedCompany, selectedPeriodType, searchQuery]);
 
   // Active target for the currently selected employee
   const activeEmployeeTarget = useMemo(() => {
@@ -986,8 +1021,8 @@ export default function AdminTargetsPage() {
         <button
           onClick={() => setSelectedCompany("ALL")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${selectedCompany === "ALL"
-              ? "bg-neutral-900 text-white shadow-xs"
-              : "text-neutral-600 hover:bg-neutral-100"
+            ? "bg-neutral-900 text-white shadow-xs"
+            : "text-neutral-600 hover:bg-neutral-100"
             }`}
         >
           <Building2 className="h-3.5 w-3.5" />
@@ -1008,8 +1043,8 @@ export default function AdminTargetsPage() {
               key={company}
               onClick={() => setSelectedCompany(company)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${isSelected
-                  ? "bg-[#0284C7] text-white shadow-xs"
-                  : "text-neutral-600 hover:bg-sky-50 hover:text-sky-900"
+                ? "bg-[#0284C7] text-white shadow-xs"
+                : "text-neutral-600 hover:bg-sky-50 hover:text-sky-900"
                 }`}
             >
               <Compass className="h-3.5 w-3.5" />
@@ -1084,8 +1119,8 @@ export default function AdminTargetsPage() {
         <button
           onClick={() => setActiveTab("overview")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "overview"
-              ? "bg-[#0284C7] text-white shadow-xs"
-              : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
+            ? "bg-[#0284C7] text-white shadow-xs"
+            : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
             }`}
         >
           <Activity className="h-3.5 w-3.5" />
@@ -1095,8 +1130,8 @@ export default function AdminTargetsPage() {
         <button
           onClick={() => setActiveTab("companies")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "companies"
-              ? "bg-[#0284C7] text-white shadow-xs"
-              : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
+            ? "bg-[#0284C7] text-white shadow-xs"
+            : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
             }`}
         >
           <Building2 className="h-3.5 w-3.5" />
@@ -1106,8 +1141,8 @@ export default function AdminTargetsPage() {
         <button
           onClick={() => setActiveTab("teams")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "teams"
-              ? "bg-[#0284C7] text-white shadow-xs"
-              : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
+            ? "bg-[#0284C7] text-white shadow-xs"
+            : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
             }`}
         >
           <Users className="h-3.5 w-3.5" />
@@ -1123,8 +1158,8 @@ export default function AdminTargetsPage() {
         <button
           onClick={() => setActiveTab("all_targets")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === "all_targets"
-              ? "bg-[#0284C7] text-white shadow-xs"
-              : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
+            ? "bg-[#0284C7] text-white shadow-xs"
+            : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
             }`}
         >
           <Target className="h-3.5 w-3.5" />
@@ -1138,8 +1173,8 @@ export default function AdminTargetsPage() {
         <button
           onClick={() => setActiveTab("mapping")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${activeTab === "mapping"
-              ? "bg-[#0284C7] text-white shadow-xs"
-              : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
+            ? "bg-[#0284C7] text-white shadow-xs"
+            : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
             }`}
         >
           <ArrowRightLeft className="h-3.5 w-3.5" />
@@ -1302,8 +1337,8 @@ export default function AdminTargetsPage() {
                       type="button"
                       onClick={() => setSelectedEmployeeId(t.employeeId)}
                       className={`text-left p-2.5 rounded-xl border transition-all ${activeEmployeeTarget?.id === t.id
-                          ? "border-[#0284C7] bg-sky-50/40"
-                          : "border-neutral-200 hover:border-sky-300 bg-white"
+                        ? "border-[#0284C7] bg-sky-50/40"
+                        : "border-neutral-200 hover:border-sky-300 bg-white"
                         }`}
                     >
                       <div className="flex items-center justify-between gap-2 text-xs mb-1">
@@ -1400,10 +1435,10 @@ export default function AdminTargetsPage() {
                       </div>
                       <span
                         className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase mt-1 ${activeEmployeeTarget.scorecard.totalScore >= 80
-                            ? "bg-sky-100 text-[#0369A1] border border-sky-300"
-                            : activeEmployeeTarget.scorecard.totalScore >= 50
-                              ? "bg-blue-50 text-blue-700 border border-blue-200"
-                              : "bg-amber-50 text-amber-800 border border-amber-200"
+                          ? "bg-sky-100 text-[#0369A1] border border-sky-300"
+                          : activeEmployeeTarget.scorecard.totalScore >= 50
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : "bg-amber-50 text-amber-800 border border-amber-200"
                           }`}
                       >
                         {activeEmployeeTarget.scorecard.totalScore >= 80
@@ -1766,9 +1801,11 @@ export default function AdminTargetsPage() {
           <CompanyComparisonGraph
             companies={TARGET_COMPANIES.map((company) => {
               const comp = targetsData?.companyBreakdown?.find((c) => c.companyName === company);
-              const activeCount = (rosterData?.activeEmployees ?? []).filter(
-                (e: any) => (e.companyName || "Realty Smartz") === company
-              ).length;
+              const activeCount = (rosterData?.activeEmployees ?? [])
+                .filter((e: any) => !isExemptFromPerformanceTargets(e))
+                .filter(
+                  (e: any) => (e.companyName || "Realty Smartz") === company
+                ).length;
               return {
                 name: company,
                 activeCount,
@@ -1999,7 +2036,9 @@ export default function AdminTargetsPage() {
 
           {/* FULL MULTI-LEVEL ORG HIERARCHY TREE */}
           {(() => {
-            const allActiveStaff = rosterData?.activeEmployees ?? [];
+            const allActiveStaff = (rosterData?.activeEmployees ?? []).filter(
+              (e: any) => !isExemptFromPerformanceTargets(e)
+            );
             const activeStaff = allActiveStaff.filter(
               (e: any) => selectedCompany === "ALL" || (e.companyName || "Realty Smartz") === selectedCompany
             );
@@ -2118,6 +2157,7 @@ export default function AdminTargetsPage() {
                       >
                         <option value="">No Manager (Top)</option>
                         {(rosterData?.activeEmployees ?? [])
+                          .filter((m: any) => !isExemptFromPerformanceTargets(m))
                           .filter((m: any) => m.id !== emp.id)
                           .map((m: any) => (
                             <option key={m.id} value={m.id}>
@@ -2148,15 +2188,15 @@ export default function AdminTargetsPage() {
               <Card className="rounded-2xl border border-sky-100 bg-sky-50/20 p-4 shadow-xs space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2 border-b border-sky-100 pb-2.5">
                   <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-bold text-neutral-900">Organization Hierarchy &amp; Reporting Tree</h3>
-                        <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-[#0284C7] text-[10px] font-extrabold uppercase tracking-wide">
-                          Amit Sir / Chhavi Mittal
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">
-                        Structured reporting lines: HR Department (Unnati) • Sales TLs (Ayush, Sapna, Soma, Pihu, Pankaj) • Telesales (Mansi)
-                      </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-neutral-900">Organization Hierarchy &amp; Reporting Tree</h3>
+                      <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-[#0284C7] text-[10px] font-extrabold uppercase tracking-wide">
+                        Amit Sir / Chhavi Mittal
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                      Structured reporting lines: HR Department (Unnati) • Sales TLs (Ayush, Sapna, Soma, Pihu, Pankaj) • Telesales (Mansi)
+                    </p>
                   </div>
                   <span className="text-xs font-bold text-[#0284C7]">
                     {activeStaff.length} Active Staff
@@ -2429,10 +2469,10 @@ export default function AdminTargetsPage() {
                           <td className="py-3 px-3 text-center">
                             <span
                               className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${score >= 80
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : score >= 50
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-amber-100 text-amber-800"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : score >= 50
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-amber-100 text-amber-800"
                                 }`}
                             >
                               {score >= 80 ? "Exceeding" : score >= 50 ? "On Track" : "In Progress"}
@@ -2557,6 +2597,7 @@ export default function AdminTargetsPage() {
                   </div>
                   <div className="max-h-80 overflow-y-auto divide-y divide-neutral-100 border border-neutral-200 rounded-xl">
                     {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => !isExemptFromPerformanceTargets(emp))
                       .filter((emp: any) => (emp.companyName || "Realty Smartz") !== mappingCompany)
                       .filter((emp: any) => {
                         if (!mappingSearch.trim()) return true;
@@ -2605,13 +2646,16 @@ export default function AdminTargetsPage() {
                 <div className="space-y-1.5">
                   <div className="text-xs font-bold text-[#0284C7]">
                     Assigned to {mappingCompany} (
-                    {(rosterData?.activeEmployees ?? []).filter(
-                      (emp: any) => (emp.companyName || "Realty Smartz") === mappingCompany
-                    ).length}
+                    {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => !isExemptFromPerformanceTargets(emp))
+                      .filter(
+                        (emp: any) => (emp.companyName || "Realty Smartz") === mappingCompany
+                      ).length}
                     )
                   </div>
                   <div className="max-h-80 overflow-y-auto divide-y divide-neutral-100 border border-sky-200 bg-sky-50/20 rounded-xl">
                     {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => !isExemptFromPerformanceTargets(emp))
                       .filter((emp: any) => (emp.companyName || "Realty Smartz") === mappingCompany)
                       .filter((emp: any) => {
                         if (!mappingSearch.trim()) return true;
@@ -2662,6 +2706,7 @@ export default function AdminTargetsPage() {
                   >
                     <option value="">-- Select Active Team Leader --</option>
                     {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => !isExemptFromPerformanceTargets(emp))
                       .filter((emp: any) => (emp.directReports?.length ?? 0) > 0)
                       .map((emp: any) => (
                         <option key={emp.id} value={emp.id}>
@@ -2679,11 +2724,13 @@ export default function AdminTargetsPage() {
                     className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none"
                   >
                     <option value="">-- Select New Active TL --</option>
-                    {(rosterData?.activeEmployees ?? []).map((emp: any) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.firstName} {emp.lastName} ({emp.employeeCode || "RS"} • {emp.designation?.title || "Staff"})
-                      </option>
-                    ))}
+                    {(rosterData?.activeEmployees ?? [])
+                      .filter((emp: any) => !isExemptFromPerformanceTargets(emp))
+                      .map((emp: any) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName} ({emp.employeeCode || "RS"} • {emp.designation?.title || "Staff"})
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -2776,19 +2823,7 @@ export default function AdminTargetsPage() {
                         .filter(
                           (emp: any) => (emp.companyName || "Realty Smartz") === formCompany
                         )
-                        .filter((emp: any) => {
-                          if (emp.role === "ADMIN") return false;
-                          if (
-                            emp.employeeCode === "RS-0001" ||
-                            emp.employeeCode === "SMA-0001" ||
-                            emp.employeeCode === "RS-3215"
-                          )
-                            return false;
-                          const name = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase();
-                          const title = (emp.designation?.title || "").toLowerCase();
-                          if (name.includes("hr admin") || title.includes("admin manager")) return false;
-                          return true;
-                        });
+                        .filter((emp: any) => !isExemptFromPerformanceTargets(emp));
                       return (
                         <>
                           <select
@@ -2837,8 +2872,8 @@ export default function AdminTargetsPage() {
                         type="button"
                         onClick={() => applyPreset(preset.key as any)}
                         className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border ${formRolePreset === preset.key
-                            ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs"
-                            : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100"
+                          ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs"
+                          : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100"
                           }`}
                       >
                         {preset.label}
@@ -2909,8 +2944,8 @@ export default function AdminTargetsPage() {
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-full ${formTotalScorecardWeight === 100
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-rose-100 text-rose-800"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-rose-100 text-rose-800"
                         }`}
                     >
                       Total: {formTotalScorecardWeight}%
@@ -3157,8 +3192,8 @@ export default function AdminTargetsPage() {
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-full ${formTotalScorecardWeight === 100
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-rose-100 text-rose-800"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-rose-100 text-rose-800"
                         }`}
                     >
                       Total: {formTotalScorecardWeight}%
