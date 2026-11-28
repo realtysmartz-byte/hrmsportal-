@@ -56,6 +56,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { TARGET_COMPANIES, TargetCompany } from "@realty-smartz/shared";
+import {
+  CompanyComparisonGraph,
+  TargetVsActualBarChart,
+} from "@/components/PerformanceCharts";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -1758,6 +1762,25 @@ export default function AdminTargetsPage() {
             </div>
           </div>
 
+          {/* Visual 4-Company Comparative Bar & Gauge Graph */}
+          <CompanyComparisonGraph
+            companies={TARGET_COMPANIES.map((company) => {
+              const comp = targetsData?.companyBreakdown?.find((c) => c.companyName === company);
+              const activeCount = (rosterData?.activeEmployees ?? []).filter(
+                (e: any) => (e.companyName || "Realty Smartz") === company
+              ).length;
+              return {
+                name: company,
+                activeCount,
+                totalTargetRev: comp?.targetRevenue || 0,
+                totalAchievedRev: comp?.achievedRevenue || 0,
+                totalTargetBookings: comp?.targetBookings || 0,
+                totalAchievedBookings: comp?.achievedBookings || 0,
+                avgScore: comp?.avgScore || 0,
+              };
+            })}
+          />
+
           {/* 4 Company Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {TARGET_COMPANIES.map((company) => {
@@ -1976,18 +1999,19 @@ export default function AdminTargetsPage() {
 
           {/* FULL MULTI-LEVEL ORG HIERARCHY TREE */}
           {(() => {
-            const activeStaff = (rosterData?.activeEmployees ?? []).filter(
+            const allActiveStaff = rosterData?.activeEmployees ?? [];
+            const activeStaff = allActiveStaff.filter(
               (e: any) => selectedCompany === "ALL" || (e.companyName || "Realty Smartz") === selectedCompany
             );
-            const activeIdSet = new Set(activeStaff.map((e: any) => e.id));
+            const allActiveIdSet = new Set(allActiveStaff.map((e: any) => e.id));
             const targetMap = new Map<string, any>();
             (targetsData?.targets ?? []).forEach((t: any) => {
               if (!targetMap.has(t.employeeId)) targetMap.set(t.employeeId, t);
             });
             const childrenMap = new Map<string, any[]>();
             const roots: any[] = [];
-            activeStaff.forEach((emp: any) => {
-              if (emp.managerId && activeIdSet.has(emp.managerId)) {
+            allActiveStaff.forEach((emp: any) => {
+              if (emp.managerId && allActiveIdSet.has(emp.managerId)) {
                 const arr = childrenMap.get(emp.managerId) || [];
                 arr.push(emp);
                 childrenMap.set(emp.managerId, arr);
@@ -2636,12 +2660,7 @@ export default function AdminTargetsPage() {
                     onChange={(e) => setTransferFromId(e.target.value)}
                     className="w-full h-9 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 outline-none"
                   >
-                    <option value="">-- Select Current / Former TL --</option>
-                    {(rosterData?.inactiveLeaders ?? []).map((tl: any) => (
-                      <option key={tl.id} value={tl.id}>
-                        [Resigned/Inactive] {tl.firstName} {tl.lastName} ({tl.directReports.length} members)
-                      </option>
-                    ))}
+                    <option value="">-- Select Active Team Leader --</option>
                     {(rosterData?.activeEmployees ?? [])
                       .filter((emp: any) => (emp.directReports?.length ?? 0) > 0)
                       .map((emp: any) => (
@@ -2662,7 +2681,7 @@ export default function AdminTargetsPage() {
                     <option value="">-- Select New Active TL --</option>
                     {(rosterData?.activeEmployees ?? []).map((emp: any) => (
                       <option key={emp.id} value={emp.id}>
-                        {emp.firstName} {emp.lastName} ({emp.designation?.title || "Staff"})
+                        {emp.firstName} {emp.lastName} ({emp.employeeCode || "RS"} • {emp.designation?.title || "Staff"})
                       </option>
                     ))}
                   </select>
@@ -2753,9 +2772,23 @@ export default function AdminTargetsPage() {
                       Select Active Employee ({formCompany}) *
                     </Label>
                     {(() => {
-                      const companyEmployees = (rosterData?.activeEmployees ?? []).filter(
-                        (emp: any) => (emp.companyName || "Realty Smartz") === formCompany
-                      );
+                      const companyEmployees = (rosterData?.activeEmployees ?? [])
+                        .filter(
+                          (emp: any) => (emp.companyName || "Realty Smartz") === formCompany
+                        )
+                        .filter((emp: any) => {
+                          if (emp.role === "ADMIN") return false;
+                          if (
+                            emp.employeeCode === "RS-0001" ||
+                            emp.employeeCode === "SMA-0001" ||
+                            emp.employeeCode === "RS-3215"
+                          )
+                            return false;
+                          const name = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase();
+                          const title = (emp.designation?.title || "").toLowerCase();
+                          if (name.includes("hr admin") || title.includes("admin manager")) return false;
+                          return true;
+                        });
                       return (
                         <>
                           <select

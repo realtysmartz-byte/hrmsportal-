@@ -261,53 +261,39 @@ export async function calculateDisciplineScore(
 export const targetRouter = router({
   activeTeamRoster: orgManageProcedure.query(async ({ ctx }) => {
     const orgId = ctx.session.user.organizationId || "org_default_realty";
-    const [activeEmployees, inactiveLeaders] = await Promise.all([
-      ctx.prisma.employee.findMany({
-        where: {
-          organizationId: orgId,
-          status: { in: ["ACTIVE", "ON_LEAVE"] },
+    const activeEmployees = await ctx.prisma.employee.findMany({
+      where: {
+        organizationId: orgId,
+        status: { in: ["ACTIVE", "ON_LEAVE"] },
+        role: { not: "ADMIN" },
+        NOT: [
+          { employeeCode: { in: ["RS-0001", "SMA-0001", "RS-3215"] } },
+          { firstName: { equals: "HR", mode: "insensitive" }, lastName: { equals: "Admin", mode: "insensitive" } },
+          { designation: { title: { contains: "Admin Manager", mode: "insensitive" } } },
+        ],
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeCode: true,
+        companyName: true,
+        managerId: true,
+        role: true,
+        status: true,
+        manager: {
+          select: { id: true, firstName: true, lastName: true, employeeCode: true, status: true },
         },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          employeeCode: true,
-          companyName: true,
-          managerId: true,
-          role: true,
-          status: true,
-          manager: {
-            select: { id: true, firstName: true, lastName: true, employeeCode: true, status: true },
-          },
-          directReports: {
-            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-            select: { id: true },
-          },
-          department: { select: { id: true, name: true } },
-          designation: { select: { id: true, title: true } },
+        directReports: {
+          where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+          select: { id: true },
         },
-        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-      }),
-      ctx.prisma.employee.findMany({
-        where: {
-          organizationId: orgId,
-          status: { notIn: ["ACTIVE", "ON_LEAVE"] },
-          directReports: { some: { status: { in: ["ACTIVE", "ON_LEAVE"] } } },
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          employeeCode: true,
-          status: true,
-          directReports: {
-            where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-            select: { id: true, firstName: true, lastName: true, employeeCode: true },
-          },
-        },
-      }),
-    ]);
-    return { activeEmployees, inactiveLeaders };
+        department: { select: { id: true, name: true } },
+        designation: { select: { id: true, title: true } },
+      },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    });
+    return { activeEmployees, inactiveLeaders: [] };
   }),
 
   assignEmployeesCompany: orgManageProcedure
@@ -332,7 +318,6 @@ export const targetRouter = router({
           where: {
             employeeId: { in: input.employeeIds },
             organizationId: orgId,
-            status: "IN_PROGRESS",
           },
           data: { companyName: input.companyName },
         }),
@@ -425,24 +410,27 @@ export const targetRouter = router({
       if (input?.month) where.month = input.month;
       if (input?.employeeId) where.employeeId = input.employeeId;
       if (input?.status) where.status = input.status;
-        if (input?.employeeId) {
-          where.employeeId = input.employeeId;
-        } else {
-          // Hide resigned/terminated/exited employees from active performance/team views while preserving history
-          where.employee = {
-            status: { in: ["ACTIVE", "ON_LEAVE"] },
-            ...(input?.departmentId ? { departmentId: input.departmentId } : {}),
-          };
-        }
-        if (input?.departmentId && input?.employeeId) {
-          where.employee = { departmentId: input.departmentId };
-        }
-        if (input?.companyName && input.companyName !== "ALL") {
-          where.OR = [
-            { companyName: input.companyName },
-            { employee: { companyName: input.companyName } },
-          ];
-        }
+      // Always filter to active non-admin employees only
+      where.employee = {
+        status: { in: ["ACTIVE", "ON_LEAVE"] },
+        role: { not: "ADMIN" },
+        NOT: [
+          { employeeCode: { in: ["RS-0001", "SMA-0001", "RS-3215"] } },
+          { firstName: { equals: "HR", mode: "insensitive" }, lastName: { equals: "Admin", mode: "insensitive" } },
+          { designation: { title: { contains: "Admin Manager", mode: "insensitive" } } },
+        ],
+        ...(input?.departmentId ? { departmentId: input.departmentId } : {}),
+        ...(input?.companyName && input.companyName !== "ALL"
+          ? { companyName: input.companyName }
+          : {}),
+      };
+
+      if (input?.employeeId) {
+        where.employeeId = input.employeeId;
+      }
+      if (input?.companyName && input.companyName !== "ALL") {
+        where.companyName = input.companyName;
+      }
 
         const targets = await ctx.prisma.employeeTarget.findMany({
           where,

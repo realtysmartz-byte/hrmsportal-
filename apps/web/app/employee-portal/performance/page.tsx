@@ -43,6 +43,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  CircularScoreGauge,
+  TargetVsActualBarChart,
+  TeamLeaderComparisonChart,
+} from "@/components/PerformanceCharts";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -401,67 +406,26 @@ export default function EmployeeTargetsPage() {
               </Card>
 
               {/* Mobile RAG Graph Card */}
-              <Card className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-4 sm:p-5 shadow-none space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <BarChart2 className="h-4 w-4 text-[var(--accent)]" />
-                    <h3 className="font-bold text-[var(--ink)] text-sm">
-                      Performance Graph ({activeTarget.periodType || "MONTHLY"})
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold">
-                    <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white">&lt;50% Red</span>
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white">50–99% Amber</span>
-                    <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white">100% Green</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5">
-                  {(activeTarget.items || []).map((item: any) => {
-                    const pct = Math.min(100, Math.round(item.completionRate || 0));
-                    const rag = getRagStyle(pct);
-                    return (
-                      <div key={item.id} className="space-y-1">
-                        <div className="flex justify-between text-xs gap-2">
-                          <span className="font-semibold text-[var(--ink)] truncate">{item.title}</span>
-                          <span className="font-bold text-[var(--ink)] shrink-0">
-                            {item.unit === "INR" ? formatCurrency(item.achievedValue) : item.achievedValue} /{" "}
-                            {item.unit === "INR" ? formatCurrency(item.targetValue) : `${item.targetValue} ${item.unit}`} ({pct}%)
-                          </span>
-                        </div>
-                        <div className="h-3 w-full rounded-full bg-[var(--line)] overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${rag.barClass}`}
-                            style={{ width: `${Math.max(4, pct)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="space-y-1 pt-2 border-t border-[var(--line)]">
-                    {(() => {
-                      const discPct = Math.min(100, Math.round((activeTarget.discipline.score / 10) * 100));
-                      const rag = getRagStyle(discPct);
-                      return (
-                        <>
-                          <div className="flex justify-between text-xs">
-                            <span className="font-semibold text-[var(--ink)]">Attendance (10%)</span>
-                            <span className="font-bold text-[var(--ink)]">
-                              {activeTarget.discipline.score}% / 10% ({discPct}%)
-                            </span>
-                          </div>
-                          <div className="h-3 w-full rounded-full bg-[var(--line)] overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-300 ${rag.barClass}`}
-                              style={{ width: `${Math.max(4, discPct)}%` }}
-                            />
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
+              <Card className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-4 sm:p-5 shadow-none space-y-4">
+                <TargetVsActualBarChart
+                  title={`Performance Graph (${activeTarget.periodType || "MONTHLY"})`}
+                  items={[
+                    ...(activeTarget.items || []).map((item: any) => ({
+                      label: item.title,
+                      target: item.targetValue,
+                      achieved: item.achievedValue,
+                      unit: item.unit,
+                      weight: item.weightPercent,
+                    })),
+                    {
+                      label: "Attendance Discipline (10%)",
+                      target: 10,
+                      achieved: activeTarget.discipline?.score || 0,
+                      unit: "%",
+                      weight: 10,
+                    },
+                  ]}
+                />
               </Card>
             </>
           ) : (
@@ -519,28 +483,30 @@ export default function EmployeeTargetsPage() {
                 </span>
               </div>
 
-              {/* Team Targets Summary Grid (2x2 on mobile) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-2.5 rounded-[4px] bg-[var(--soft)] border border-[var(--line)]">
-                  <span className="text-[10px] font-bold uppercase text-[var(--muted)] block">Team Visits</span>
-                  <strong className="text-xs sm:text-sm font-black text-[var(--ink)]">
-                    {teamData.summary.teamAchievedVisits} / {teamData.summary.teamTargetVisits}
-                  </strong>
-                </div>
-                <div className="p-2.5 rounded-[4px] bg-[var(--soft)] border border-[var(--line)]">
-                  <span className="text-[10px] font-bold uppercase text-[var(--muted)] block">Team Bookings</span>
-                  <strong className="text-xs sm:text-sm font-black text-[var(--ink)]">
-                    {teamData.summary.teamAchievedBookings} / {teamData.summary.teamTargetBookings}
-                  </strong>
-                </div>
-                <div className="p-2.5 rounded-[4px] bg-[var(--soft)] border border-[var(--line)] col-span-2">
-                  <span className="text-[10px] font-bold uppercase text-[var(--muted)] block">Team Revenue</span>
-                  <strong className="text-xs sm:text-sm font-black text-[var(--ok)]">
-                    {formatCurrency(teamData.summary.teamAchievedRevenue)} /{" "}
-                    {formatCurrency(teamData.summary.teamTargetRevenue)}
-                  </strong>
-                </div>
-              </div>
+              {/* Visual Team Leader Comparison Graph */}
+              <TeamLeaderComparisonChart
+                teamTargetVisits={teamData.summary.teamTargetVisits}
+                teamAchievedVisits={teamData.summary.teamAchievedVisits}
+                teamTargetBookings={teamData.summary.teamTargetBookings}
+                teamAchievedBookings={teamData.summary.teamAchievedBookings}
+                teamTargetRevenue={teamData.summary.teamTargetRevenue}
+                teamAchievedRevenue={teamData.summary.teamAchievedRevenue}
+                members={(teamData.hierarchyMembers ?? teamData.directReports ?? []).map((member: any) => {
+                  const mTarget = teamData.teamTargets.find((t: any) => t.employeeId === member.id);
+                  return {
+                    id: member.id,
+                    name: `${member.firstName} ${member.lastName}`,
+                    role: `${member.designation?.title || "Staff"} (${member.employeeCode || "RS"})`,
+                    score: mTarget?.totalScore ?? 0,
+                    visits: mTarget?.currentVisits || 0,
+                    targetVisits: mTarget?.targetVisits || 0,
+                    bookings: mTarget?.currentBookings || 0,
+                    targetBookings: mTarget?.targetBookings || 0,
+                    revenue: mTarget?.currentRevenue || 0,
+                    targetRevenue: mTarget?.targetRevenue || 0,
+                  };
+                })}
+              />
 
               {/* Team Hierarchy Members + RAG Graph */}
               <div className="space-y-2.5">

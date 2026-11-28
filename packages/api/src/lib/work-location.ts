@@ -236,16 +236,16 @@ export async function resolvePunchGeofence(
 ): Promise<PunchGeofenceMatch> {
   const sites = await getPunchGeofenceSites(prisma, employeeId);
 
-  // Allow bounded indoor GPS/Wi-Fi/cell-tower drift tolerance (at least +160m, up to +200m)
-  // because indoor iOS/Android devices frequently report 25-60m accuracy on a tower/router 300-350m away,
-  // while still strictly blocking punches from outside the office vicinity (400m+).
+  // Strict geofence: strictly enforce the admin-configured radius (e.g. 200m).
+  // Do NOT add artificial +160m to +200m bloat.
+  // Allow at most 0 to 5m for minor device GPS rounding jitter only if high-accuracy GPS fix is active.
   const accuracyAllowanceM =
     typeof accuracyM === "number" &&
       Number.isFinite(accuracyM) &&
       accuracyM > 0 &&
-      accuracyM <= 1000
-      ?Math.min(Math.max(accuracyM, 160), 200)
-      : 160;
+      accuracyM <= 20
+      ? Math.min(accuracyM, 5)
+      : 0;
 
   let nearest = sites[0];
   let nearestDist = distanceToWorkLocationM(nearest, lat, lng);
